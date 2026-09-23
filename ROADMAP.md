@@ -532,8 +532,13 @@ nested loops remain rejected. NativeSubset0 selects the resulting verified HIR
 and MLIR0 emits its CFG, but public executable evidence is still pending. HIR0
 now preflights a bounded per-function source CFG plan: it records lexical loop
 parentage and frontend-resolved transfer targets, and its emission passes use
-the same deterministic planner. A two-loop source proves the plan and a forged
-wrong-loop target fails closed, but nested HIR emission remains unsupported.
+the same deterministic planner. The plan now derives canonical per-frame
+signed-`i64` carried-root sets, including descendant writes and empty sets.
+A two-loop source proves these planning facts and a forged wrong-loop target
+fails closed, but nested HIR emission remains unsupported. The pinned
+[`nested-labeled-while.w`](compiler/seed-c/fixtures/nested-labeled-while.w)
+has C23/Rust correctness references; its complete W entry/call graph still
+fails the bounded frontend and is not a native product.
 Next, extend that plan into the count/layout/value/terminator emission contract
 and independently verify the emitted graph;
 prove typed edge/carrier mapping and failure atomicity on a source-backed

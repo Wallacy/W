@@ -17,6 +17,7 @@
 #include "w_seed_scalar_evaluator0.h"
 
 #include <inttypes.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -9889,6 +9890,20 @@ static bool test_while_break_continue_shared_exit(void) {
   return true;
 }
 
+static bool append_test_source(char *buffer, size_t capacity, size_t *used,
+                               const char *format, ...) {
+  if (buffer == NULL || used == NULL || format == NULL || *used >= capacity)
+    return false;
+  va_list arguments;
+  va_start(arguments, format);
+  const int written = vsnprintf(buffer + *used, capacity - *used, format,
+                                arguments);
+  va_end(arguments);
+  if (written < 0 || (size_t)written >= capacity - *used) return false;
+  *used += (size_t)written;
+  return true;
+}
+
 static bool test_nested_labeled_while_hir_boundary(void) {
   static const char NESTED_SOURCE[] =
       "fn walk(limit: i64): i64 {\n"
@@ -9921,6 +9936,65 @@ static bool test_nested_labeled_while_hir_boundary(void) {
         nested_plan.frames[1].parent_frame == 0u &&
         nested_plan.frames[0].transfer_count == 2u &&
         nested_plan.frames[1].transfer_count == 2u);
+  uint32_t outer_root = W_SEED_FRONTEND_NONE;
+  uint32_t inner_root = W_SEED_FRONTEND_NONE;
+  uint32_t total_root = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u; index < fixture.result.written.statements;
+       index += 1u) {
+    const w_seed_frontend_statement *statement = &fixture.statements[index];
+    if (statement->kind != W_SEED_FRONTEND_STMT_VAR) continue;
+    if (text_is(statement->binding_name, "outer"))
+      outer_root = (uint32_t)index;
+    else if (text_is(statement->binding_name, "inner"))
+      inner_root = (uint32_t)index;
+    else if (text_is(statement->binding_name, "total"))
+      total_root = (uint32_t)index;
+  }
+  CHECK(outer_root != W_SEED_FRONTEND_NONE &&
+        inner_root != W_SEED_FRONTEND_NONE &&
+        total_root != W_SEED_FRONTEND_NONE);
+  const hir0_cfg_loop_frame *outer_frame = &nested_plan.frames[0];
+  const hir0_cfg_loop_frame *inner_frame = &nested_plan.frames[1];
+  CHECK(outer_frame->root_count == 3u &&
+        outer_frame->root_statements[0] == outer_root &&
+        outer_frame->root_statements[1] == inner_root &&
+        outer_frame->root_statements[2] == total_root &&
+        inner_frame->root_count == 2u &&
+        inner_frame->root_statements[0] == inner_root &&
+        inner_frame->root_statements[1] == total_root);
+  for (size_t ordinal = 0u; ordinal < outer_frame->root_count; ordinal += 1u)
+    CHECK(outer_frame->root_type_indices[ordinal] == W_SEED_HIR0_TYPE_I64);
+  for (size_t ordinal = 0u; ordinal < inner_frame->root_count; ordinal += 1u)
+    CHECK(inner_frame->root_type_indices[ordinal] == W_SEED_HIR0_TYPE_I64);
+  /* `inner` is initialized by the outer body and then updated in the nested
+   * body. The ancestor's set includes that descendant write exactly once. */
+  size_t outer_inner_carriers = 0u;
+  for (size_t ordinal = 0u; ordinal < outer_frame->root_count; ordinal += 1u)
+    if (outer_frame->root_statements[ordinal] == inner_root)
+      outer_inner_carriers += 1u;
+  CHECK(outer_inner_carriers == 1u);
+
+  uint32_t inner_target_expression = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u; index < fixture.result.written.statements;
+       index += 1u) {
+    const w_seed_frontend_statement *statement = &fixture.statements[index];
+    if (statement->kind != W_SEED_FRONTEND_STMT_EXPRESSION ||
+        statement->expression_index == W_SEED_FRONTEND_NONE)
+      continue;
+    const w_seed_frontend_expression *assignment =
+        &fixture.expressions[statement->expression_index];
+    if (assignment->kind != W_SEED_FRONTEND_EXPR_ASSIGNMENT ||
+        assignment->left == W_SEED_FRONTEND_NONE)
+      continue;
+    const w_seed_frontend_expression *target =
+        &fixture.expressions[assignment->left];
+    if (target->resolved_binding_statement == inner_root &&
+        text_is(target->spelling, "inner")) {
+      inner_target_expression = assignment->left;
+      break;
+    }
+  }
+  CHECK(inner_target_expression != W_SEED_FRONTEND_NONE);
   uint32_t outer_break_statement = W_SEED_FRONTEND_NONE;
   for (size_t index = 0u; index < fixture.result.written.statements;
        index += 1u) {
@@ -9931,6 +10005,37 @@ static bool test_nested_labeled_while_hir_boundary(void) {
     }
   }
   CHECK(outer_break_statement != W_SEED_FRONTEND_NONE);
+  fixture.expressions[inner_target_expression].resolved_binding_statement =
+      outer_root;
+  CHECK(!hir0_function_cfg_plan_build(&nested_input, 0u, &nested_plan));
+  fixture.expressions[inner_target_expression].resolved_binding_statement =
+      inner_root;
+  const uint32_t inner_target_type =
+      fixture.expressions[inner_target_expression].inferred_type;
+  uint32_t bool_type = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u; index < fixture.result.written.types; index += 1u)
+    if (fixture.types[index].kind == W_SEED_FRONTEND_TYPE_BOOL) {
+      bool_type = (uint32_t)index;
+      break;
+    }
+  CHECK(bool_type != W_SEED_FRONTEND_NONE);
+  fixture.expressions[inner_target_expression].inferred_type = bool_type;
+  CHECK(!hir0_function_cfg_plan_build(&nested_input, 0u, &nested_plan));
+  fixture.expressions[inner_target_expression].inferred_type =
+      inner_target_type;
+  const w_seed_frontend_text inner_binding_name =
+      fixture.statements[inner_root].binding_name;
+  const w_seed_frontend_text inner_target_spelling =
+      fixture.expressions[inner_target_expression].spelling;
+  fixture.statements[inner_root].binding_name =
+      (w_seed_frontend_text){"outer", 5u};
+  fixture.expressions[inner_target_expression].spelling =
+      (w_seed_frontend_text){"outer", 5u};
+  CHECK(!hir0_function_cfg_plan_build(&nested_input, 0u, &nested_plan));
+  fixture.statements[inner_root].binding_name = inner_binding_name;
+  fixture.expressions[inner_target_expression].spelling =
+      inner_target_spelling;
+  CHECK(hir0_function_cfg_plan_build(&nested_input, 0u, &nested_plan));
   const uint32_t outer_break_target =
       fixture.statements[outer_break_statement].transfer_target_statement;
   fixture.statements[outer_break_statement].transfer_target_statement =
@@ -9938,6 +10043,7 @@ static bool test_nested_labeled_while_hir_boundary(void) {
   CHECK(!hir0_function_cfg_plan_build(&nested_input, 0u, &nested_plan));
   fixture.statements[outer_break_statement].transfer_target_statement =
       outer_break_target;
+
   w_seed_hir0_counts nested_counts;
   w_seed_hir0_result nested_measure;
   CHECK(w_seed_hir0_measure(&nested_input, &nested_counts, &nested_measure) ==
@@ -10026,6 +10132,51 @@ static bool test_nested_labeled_while_hir_boundary(void) {
   CHECK(hir_output_is_byte(sentinel) &&
         memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
   fixture.statements[break_statement].transfer_target_statement = saved_target;
+  return true;
+}
+
+static bool test_cfg_plan_carrier_overflow_rejected(void) {
+  enum { CARRIER_COUNT = HIR0_MAX_BRANCH_ASSIGNMENTS + 1u };
+  char source[TEST_SOURCE] = {0};
+  size_t source_length = 0u;
+  CHECK(append_test_source(source, sizeof(source), &source_length,
+                           "fn overflow(limit: i64): i64 {\n"));
+  for (size_t index = 0u; index < CARRIER_COUNT; index += 1u)
+    CHECK(append_test_source(source, sizeof(source), &source_length,
+                             "  var carrier%zu = 0\n", index));
+  CHECK(append_test_source(source, sizeof(source), &source_length,
+                           "  while carrier0 < limit {\n"));
+  for (size_t index = 0u; index < CARRIER_COUNT; index += 1u)
+    CHECK(append_test_source(source, sizeof(source), &source_length,
+                             "    carrier%zu = carrier%zu + 1\n", index,
+                             index));
+  CHECK(append_test_source(source, sizeof(source), &source_length,
+                           "  }\n  return carrier0\n}\nentry(overflow)\n"));
+  CHECK(fixture_frontend(source));
+  const w_seed_hir0_input input = hir_input();
+  hir0_function_cfg_plan plan;
+  CHECK(!hir0_function_cfg_plan_build(&input, 0u, &plan));
+  return true;
+}
+
+static bool test_cfg_plan_nested_empty_carriers(void) {
+  static const char EMPTY_NESTED_SOURCE[] =
+      "fn empty(limit: i64): i64 {\n"
+      "  var marker = 0\n"
+      "  while marker < limit {\n"
+      "    while marker < limit { break }\n"
+      "    break\n"
+      "  }\n"
+      "  return marker\n"
+      "}\nentry(empty)\n";
+  CHECK(fixture_frontend(EMPTY_NESTED_SOURCE));
+  setup_hir_output();
+  const w_seed_hir0_input input = hir_input();
+  hir0_function_cfg_plan plan;
+  CHECK(hir0_function_cfg_plan_build(&input, 0u, &plan));
+  CHECK(plan.nested_or_multiple && plan.frame_count == 2u &&
+        plan.frames[0].root_count == 0u &&
+        plan.frames[1].root_count == 0u);
   return true;
 }
 
@@ -20644,6 +20795,8 @@ int main(int argc, char **argv) {
   if (!test_while_post_loop_continuation_ssa()) return 1;
   if (!test_while_break_continue_shared_exit()) return 1;
   if (!test_nested_labeled_while_hir_boundary()) return 1;
+  if (!test_cfg_plan_carrier_overflow_rejected()) return 1;
+  if (!test_cfg_plan_nested_empty_carriers()) return 1;
   if (!test_while_multi_carrier_general_values()) return 1;
   if (!test_while_multi_carrier_native_subset()) return 1;
   if (!test_while_mutation_barriers()) return 1;

@@ -1773,11 +1773,20 @@ label) to an explicit enclosing loop statement. HIR0 admits a label on its
 single bounded loop when each labeled transfer names and targets that loop;
 forged labels or targets fail before output. The source-to-HIR preflight now
 plans bounded lexical loop frames, their parentage and transfer targets; a
-two-loop planning witness rejects a forged outer-to-inner target. This does not
-admit nested HIR: per-header typed carrier and dominance proof remains open.
-Nested loops still fail closed. A source-backed NativeSubset0/MLIR0 test
-selects and emits the same-loop labeled CFG. No public executable labeled-loop
-witness is claimed.
+two-loop planning witness rejects a forged outer-to-inner target. The plan
+also derives canonical signed-`i64` carried-root sets per frame, including
+descendant writes in ancestor sets, deduplicated roots and empty sets. These
+are private planning facts, not emitted HIR: per-header SSA edges, dominance
+and independent carrier-provenance verification remain open. Nested loops
+still fail closed. The pinned
+[`nested-labeled-while.w`](fixtures/nested-labeled-while.w) source has C23 and
+Rust 2024 correctness references that print `0,1,3\n`; its current W parser
+accepts the source, but the complete entry/call graph remains frontend-
+unsupported and no W native result is claimed. A source-backed NativeSubset0/MLIR0
+test selects and emits the same-loop labeled CFG. No public executable
+labeled-loop witness is claimed. The plan-only change has
+`compiler-lifecycle` benchmark disposition; it adds no executable performance
+row.
 NativeSubset0's broader bounded i64-carrier CFG screen is only a preparatory
 selection change. General mixed CFG, other carrier types, and performance
 equivalence remain open.
