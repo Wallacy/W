@@ -613,12 +613,16 @@ lifecycle oracle; it is not the storage or scheduler used by that product.
 
 The native Hello optimization sentinel is closed through the public Release
 route and exact-output oracle. The live catalog now retains the 2,048-byte
-Windows CRT-free PE and the 2,096-byte Linux/WSL CRT-free PIE together with
-compile, process-run, CPU, and memory measurements; no produced executable is
-retained. The Windows reduction folds unwind metadata into the existing
+Windows CRT-free PE and the 1,712-byte Linux/WSL CRT-free PIE together with
+compile, process-run, CPU, and memory measurements; the catalog retains no
+produced executable. The Windows reduction folds unwind metadata into the existing
 read-only section while preserving separate executable and writable sections.
 The sub-1-KiB target remains an optimization opportunity, not a completion
-gate.
+gate. For the current loader-free Linux Hello, an exact-object relink with
+`-z norelro` saves 144 bytes, but this is only a candidate for products whose
+final artifact proves no interpreter, imports, or relocations. Do not make it a
+blanket default. `--no-rosegment` broadens executable mappings and is not a
+size-only substitute for that proof.
 
 The maintained native route is `W source → verified HIR → MLIR → LLVM IR →
 object → link`. It never lowers W source through C. The C23 oracle remains an
