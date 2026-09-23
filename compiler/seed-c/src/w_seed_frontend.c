@@ -16116,11 +16116,91 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
   return true;
 }
 
+/* This deliberately narrow bridge is used only for an IF at the start of a
+ * partial numeric-conversion operand. It scans the bounded CST once per such
+ * prefix (O(CST nodes)); keep it call-site-specific until the parser exposes
+ * a direct expression-subtree cursor. */
+static uint32_t scalar_if_expression_owner_for_prefix(
+    const w_seed_frontend_document *doc, size_t start_byte,
+    size_t cursor_end_byte) {
+  if (doc == NULL || doc->nodes == NULL ||
+      doc->parse.node_count > UINT32_MAX)
+    return W_SEED_CST_NONE;
+  uint32_t found = W_SEED_CST_NONE;
+  for (size_t index = 0u; index < doc->parse.node_count; index += 1u) {
+    const w_seed_cst_node *candidate = &doc->nodes[index];
+    if (candidate->kind != W_SEED_CST_EXPRESSION ||
+        candidate->raw_span.start_byte != start_byte ||
+        candidate->raw_span.end_byte > cursor_end_byte)
+      continue;
+    const uint32_t if_node =
+        first_direct_kind(doc, (uint32_t)index, W_SEED_CST_IF_EXPRESSION);
+    if (if_node == W_SEED_CST_NONE ||
+        count_direct_kind(doc, (uint32_t)index,
+                          W_SEED_CST_IF_EXPRESSION) != 1u ||
+        trim_span(doc, candidate->raw_span).start_byte !=
+            trim_span(doc, doc->nodes[if_node].raw_span).start_byte ||
+        trim_span(doc, candidate->raw_span).end_byte !=
+            trim_span(doc, doc->nodes[if_node].raw_span).end_byte)
+      continue;
+    if (found != W_SEED_CST_NONE) return W_SEED_CST_NONE;
+    found = (uint32_t)index;
+  }
+  return found;
+}
+
 static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
                                           frontend_expr_value *value) {
   if (parser == NULL || value == NULL) return false;
   frontend_token token;
   if (!cursor_peek(&parser->cursor, &token)) return false;
+  if (parser->allow_partial_numeric_conversion &&
+      token_text(parser->document, &token, "if")) {
+    const uint32_t expression_owner =
+        scalar_if_expression_owner_for_prefix(
+            parser->document, token.span.start_byte,
+            parser->cursor.bounds.end_byte);
+    if (expression_owner != W_SEED_CST_NONE) {
+      const w_seed_span if_span =
+          trim_span(parser->document,
+                    parser->document->nodes[expression_owner].raw_span);
+      const frontend_simple_type expected = simple_type_unknown();
+      frontend_simple_type actual = simple_type_unknown();
+      uint32_t expression_index = W_SEED_FRONTEND_NONE;
+      frontend_expr_value scalar_if;
+      (void)memset(&scalar_if, 0, sizeof(scalar_if));
+      scalar_if.index = W_SEED_FRONTEND_NONE;
+      if (if_span.start_byte != token.span.start_byte ||
+          if_span.end_byte <= if_span.start_byte ||
+          !normalize_expression_node(parser->context, expression_owner,
+                                     &expression_index, expected, &actual,
+                                     &scalar_if) ||
+          expression_index == W_SEED_FRONTEND_NONE ||
+          !scalar_if.supported)
+        return false;
+      frontend_token_cursor advanced = parser->cursor;
+      frontend_token consumed = {0};
+      bool reached_end = false;
+      while (cursor_peek(&advanced, &consumed) &&
+             consumed.span.start_byte < if_span.end_byte) {
+        if (consumed.span.end_byte > if_span.end_byte ||
+            !cursor_take(&advanced, &consumed))
+          return false;
+        if (consumed.span.end_byte == if_span.end_byte) {
+          reached_end = true;
+          break;
+        }
+      }
+      if (!reached_end || scalar_if.index != expression_index ||
+          !scalar_if.supported ||
+          scalar_if.span.start_byte != if_span.start_byte ||
+          scalar_if.span.end_byte != if_span.end_byte)
+        return false;
+      parser->cursor = advanced;
+      *value = scalar_if;
+      return true;
+    }
+  }
   if (token_text(parser->document, &token, "await")) {
     frontend_token_cursor look = parser->cursor;
     frontend_token await_token = {0};
@@ -18296,7 +18376,8 @@ static bool cst_scalar_if_surface_ok(const w_seed_frontend_document *doc,
 static bool scalar_if_type(frontend_simple_type type) {
   return type.kind == W_SEED_FRONTEND_TYPE_BOOL ||
          (type.kind == W_SEED_FRONTEND_TYPE_INTEGER && type.is_signed &&
-          type.bit_width == 64u);
+          type.bit_width == 64u) ||
+         type_is_float(type);
 }
 
 static bool scalar_if_arm_expression_node(
@@ -18419,8 +18500,14 @@ static bool normalize_if_expression(
                                  &condition_type, &condition_value))
     return false;
 
+  /* A scalar-if arm is independently typed.  In particular, never use the
+   * enclosing f64 context to widen an f32 arm (or the first arm's type to
+   * widen the else arm); the exact join check below owns compatibility. */
   frontend_simple_type arm_expected =
-      scalar_if_type(expected) ? expected : const_default_integer_type();
+      type_is_float(expected)
+          ? simple_type_unknown()
+          : (scalar_if_type(expected) ? expected
+                                      : const_default_integer_type());
   frontend_simple_type then_type = simple_type_unknown();
   frontend_simple_type else_type = simple_type_unknown();
   frontend_expr_value then_value;
@@ -18429,12 +18516,17 @@ static bool normalize_if_expression(
   (void)memset(&else_value, 0, sizeof(else_value));
   uint32_t then_expression = W_SEED_FRONTEND_NONE;
   uint32_t else_expression = W_SEED_FRONTEND_NONE;
+  const bool independent_float_arms = type_is_float(expected);
   if (!normalize_expression_node(context, then_node, &then_expression,
                                  arm_expected, &then_type, &then_value) ||
       !normalize_expression_node(context, else_node, &else_expression,
-                                 then_type.kind == W_SEED_FRONTEND_TYPE_UNKNOWN
-                                     ? arm_expected
-                                     : then_type,
+                                 independent_float_arms ||
+                                         type_is_float(then_type)
+                                     ? simple_type_unknown()
+                                     : (then_type.kind ==
+                                                W_SEED_FRONTEND_TYPE_UNKNOWN
+                                            ? arm_expected
+                                            : then_type),
                                  &else_type, &else_value))
     return false;
 

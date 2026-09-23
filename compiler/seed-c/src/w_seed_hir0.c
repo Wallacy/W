@@ -3675,7 +3675,7 @@ static bool frontend_type_is_scalar(const w_seed_frontend_type *type) {
          (type->kind == W_SEED_FRONTEND_TYPE_BOOL ||
           frontend_type_is_fixed_integer(type) ||
           (type->kind == W_SEED_FRONTEND_TYPE_FLOAT &&
-           type->bit_width == 64u) ||
+           (type->bit_width == 32u || type->bit_width == 64u)) ||
           frontend_type_is_usize(type));
 }
 
@@ -5890,6 +5890,34 @@ static bool frontend_float_rounding_source_flat(
          value->kind == W_SEED_FRONTEND_EXPR_MEMBER;
 }
 
+/* A runtime-selected scalar-if may feed one rounding conversion, but keep the
+ * old flat-source grammar unchanged for all other roots.  The independent
+ * scalar-if walk proves a side-effect-free, exactly typed diamond, and this
+ * route requires its join type to be binary64. */
+static bool frontend_float_rounding_source_ok(
+    const w_seed_hir0_input *input, size_t module_index,
+    size_t function_index, size_t document_index, uint32_t expression,
+    size_t depth) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || depth > W_SEED_HIR0_MAX_NESTING ||
+      expression == W_SEED_FRONTEND_NONE ||
+      (size_t)expression >= input->frontend_result->written.expressions)
+    return false;
+  const w_seed_frontend_expression *value =
+      &input->frontend_output->expressions[expression];
+  if (value->kind != W_SEED_FRONTEND_EXPR_IF)
+    return frontend_float_rounding_source_flat(input, expression, depth);
+  if (value->inferred_type == W_SEED_FRONTEND_NONE ||
+      (size_t)value->inferred_type >= input->frontend_result->written.types ||
+      input->frontend_output->types[value->inferred_type].kind !=
+          W_SEED_FRONTEND_TYPE_FLOAT ||
+      input->frontend_output->types[value->inferred_type].bit_width != 64u)
+    return false;
+  return frontend_scalar_if_tree_ok(
+      input, module_index, function_index, document_index, expression, false,
+      false, depth + 1u);
+}
+
 static bool hir0_rounding_mode_from_frontend(
     w_seed_frontend_rounding_mode frontend_mode,
     w_seed_hir0_rounding_mode *hir_mode) {
@@ -6067,7 +6095,9 @@ static bool frontend_try_expression_ok(
         !hir0_rounding_mode_from_frontend(conversion->conversion_rounding_mode,
                                           &hir_mode) ||
         conversion->conversion_possible_error_facts != expected_error_facts ||
-        !frontend_float_rounding_source_flat(input, conversion->left, 0u) ||
+        !frontend_float_rounding_source_ok(
+            input, module_index, function_index, document_index,
+            conversion->left, 0u) ||
         !frontend_expression_is_integer(output, conversion) ||
         !text_is(conversion->operator_text, "rounding") ||
         !frontend_value_has_no_resolution(conversion) ||
@@ -7752,6 +7782,75 @@ static bool frontend_process_numeric_conversion_body_ok(
     const w_seed_hir0_input *input, uint32_t function_index,
     const w_seed_frontend_function *function);
 
+/* The process rounding exception permits exactly one value IF, and only as
+ * the conversion's source.  Its guard is the same Args.count == 0 shape that
+ * the later HIR CFG verifier re-proves; nested IFs and logical operators
+ * remain outside this bounded path. */
+static bool frontend_process_float_rounding_if_source_ok(
+    const w_seed_hir0_input *input, size_t function_index) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL ||
+      function_index >= input->frontend_result->written.functions)
+    return false;
+  const w_seed_frontend_output *output = input->frontend_output;
+  const w_seed_frontend_result *result = input->frontend_result;
+  const w_seed_frontend_function *function =
+      &output->functions[function_index];
+  if ((size_t)function->module_index >= result->written.modules ||
+      (function->statement_count != 2u && function->statement_count != 3u) ||
+      function->first_statement == W_SEED_FRONTEND_NONE ||
+      (size_t)function->first_statement >= result->written.statements)
+    return false;
+  const w_seed_frontend_statement *binding =
+      &output->statements[function->first_statement];
+  if (binding->kind != W_SEED_FRONTEND_STMT_LET ||
+      binding->expression_index == W_SEED_FRONTEND_NONE ||
+      (size_t)binding->expression_index >= result->written.expressions)
+    return false;
+  const w_seed_frontend_expression *try_expression =
+      &output->expressions[binding->expression_index];
+  if (try_expression->kind != W_SEED_FRONTEND_EXPR_TRY ||
+      try_expression->left == W_SEED_FRONTEND_NONE ||
+      (size_t)try_expression->left >= result->written.expressions)
+    return false;
+  const w_seed_frontend_expression *conversion =
+      &output->expressions[try_expression->left];
+  if (conversion->kind != W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING ||
+      conversion->left == W_SEED_FRONTEND_NONE ||
+      (size_t)conversion->left >= result->written.expressions)
+    return false;
+  const w_seed_frontend_expression *source =
+      &output->expressions[conversion->left];
+  if (source->kind != W_SEED_FRONTEND_EXPR_IF ||
+      source->left == W_SEED_FRONTEND_NONE ||
+      (size_t)source->left >= result->written.expressions)
+    return false;
+  const w_seed_frontend_expression *condition =
+      &output->expressions[source->left];
+  if (!frontend_usize_count_comparison_ok(
+          input, function->module_index, function_index,
+          output->modules[function->module_index].document_index, condition) ||
+      !text_is(condition->operator_text, "==") ||
+      condition->left == W_SEED_FRONTEND_NONE ||
+      condition->right == W_SEED_FRONTEND_NONE ||
+      (size_t)condition->left >= result->written.expressions ||
+      (size_t)condition->right >= result->written.expressions ||
+      !frontend_external_member_value_ok(
+          input, function->module_index, function_index,
+          output->modules[function->module_index].document_index,
+          &output->expressions[condition->left]) ||
+      output->expressions[condition->left].resolved_external_symbol_index !=
+          6u ||
+      !frontend_usize_count_comparison_literal_ok(
+          input, function->module_index, function_index,
+          output->modules[function->module_index].document_index,
+          &output->expressions[condition->right]))
+    return false;
+  uint64_t zero = 0u;
+  return frontend_integer_u64(&output->expressions[condition->right], &zero) &&
+         zero == 0u;
+}
+
 static bool frontend_statement_and_expression_cfg_ok(
     const w_seed_hir0_input *input, size_t *binding_total, size_t *call_total,
     size_t *invoke_total, size_t *integer_exactly_total,
@@ -7873,11 +7972,15 @@ static bool frontend_statement_and_expression_cfg_ok(
         invokes == function_invokes_before &&
         frontend_process_numeric_conversion_body_ok(
             input, (uint32_t)function_index, function);
+    const bool process_float_if_source =
+        observable_process_exact && function_logical_count == 1u &&
+        frontend_process_float_rounding_if_source_ok(input, function_index);
     if (walk.has_integer_exactly_binding &&
         (function_integer_exactly_splits != 1u ||
          (!observable_process_exact && calls != function_calls_before) ||
          invokes != function_invokes_before ||
-         function_if_count != 0u || function_logical_count != 0u ||
+         function_if_count != 0u ||
+         (function_logical_count != 0u && !process_float_if_source) ||
          function_merge_count != 0u || function_while_count != 0u ||
          function_switch_count != 0u || function_cleanup_count != 0u))
       return false;
@@ -10372,6 +10475,9 @@ static size_t hir0_expression_logical_count(const hir0_emit_context *context,
     return 0u;
   const w_seed_frontend_expression *value =
       &context->frontend->expressions[expression];
+  if (value->kind == W_SEED_FRONTEND_EXPR_TRY ||
+      value->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING)
+    return hir0_expression_logical_count(context, value->left, depth + 1u);
   if (frontend_task_launch_kind(value->kind))
     return hir0_expression_logical_count(
         context, value->task_call_expression, depth + 1u);
@@ -17263,7 +17369,8 @@ static bool verify_edge_argument_records(const w_seed_hir0_program *program) {
       if (edge->owner_terminator != terminator_index ||
           edge->owner_block != terminator->owner_block ||
           edge->ordinal != ordinal || edge->value_index >= program->value_count ||
-          (edge->type_index != 2u && edge->type_index != 3u) ||
+          (edge->type_index != 2u && edge->type_index != 3u &&
+           !hir_float_type_index_valid(program, edge->type_index)) ||
           !span_valid(edge->source_span, source_length) ||
           !span_equal(edge->source_span, terminator->source_span))
         return false;
@@ -19016,7 +19123,8 @@ static bool verify_scalar_jump_shape(
       join_block >= program->block_count || branch->logical_operator !=
                                                  W_SEED_HIR0_LOGICAL_NONE ||
       (branch->result_type != 0u && branch->result_type != 2u &&
-       branch->result_type != 3u) ||
+       branch->result_type != 3u &&
+       !hir_float_type_index_valid(program, branch->result_type)) ||
       program->blocks[join_block].block_argument_count != 1u)
     return false;
   const w_seed_hir0_terminator *jump = &program->terminators[jump_block];
@@ -19172,7 +19280,8 @@ static bool verify_join_shape(const w_seed_hir0_program *program,
                               size_t join_block, uint32_t expected_type,
                               size_t source_length) {
   if (program == NULL || branch == NULL || join_block >= program->block_count ||
-      (expected_type != 2u && expected_type != 3u))
+      (expected_type != 2u && expected_type != 3u &&
+       !hir_float_type_index_valid(program, expected_type)))
     return false;
   const w_seed_hir0_block *join = &program->blocks[join_block];
   if (join->block_argument_count != 1u ||
@@ -19251,7 +19360,8 @@ static bool verify_cfg_branch(const w_seed_hir0_program *program,
                                          source_length)) {
         return false;
       }
-    } else if (branch->result_type == 2u || branch->result_type == 3u) {
+    } else if (branch->result_type == 2u || branch->result_type == 3u ||
+               hir_float_type_index_valid(program, branch->result_type)) {
       if (mutable_merge) return false;
       if (!verify_scalar_jump_shape(program, branch, then_last, then_join,
                                     source_length) ||
@@ -20131,6 +20241,9 @@ static bool verify_cfg_integer_exactly(const w_seed_hir0_program *program,
                                       size_t function_index);
 static bool verify_cfg_float_to_integer_rounding(
     const w_seed_hir0_program *program, size_t function_index);
+static bool verify_cfg_float_to_integer_rounding_at(
+    const w_seed_hir0_program *program, size_t function_index,
+    size_t split_block, bool source_is_if_join);
 static bool hir0_host_call_never_suspends(
     const w_seed_hir0_program *program,
     const w_seed_hir0_identity *identity);
@@ -20207,6 +20320,7 @@ static bool verify_cfg_process_typed_error_root(
     return false;
   const w_seed_hir0_function *function = &program->functions[function_index];
   if (!function->is_throws || function->first_block >= program->block_count ||
+      function->first_block >= program->terminator_count ||
       !verify_process_typed_error_type(program, function))
     return false;
   if (program->types[function->error_type].kind ==
@@ -20215,18 +20329,61 @@ static bool verify_cfg_process_typed_error_root(
         program->terminators[function->first_block].kind;
     const bool integer_exactly =
         split_kind == W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY;
-    const bool float_rounding =
+    const bool float_rounding_flat =
         split_kind == W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING;
+    bool float_rounding_if = false;
+    size_t split_block = function->first_block;
+    if (split_kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
+      if (function->block_count != 7u || program->block_count < 7u ||
+          program->terminator_count < 7u ||
+          function->first_block > program->block_count - 7u ||
+          function->first_block > program->terminator_count - 7u)
+        return false;
+      const size_t end = (size_t)function->first_block + 7u;
+      size_t join_block = 0u;
+      const w_seed_hir0_terminator *branch =
+          &program->terminators[function->first_block];
+      if (!verify_cfg_branch(program, (uint32_t)function_index,
+                             function->first_block, end, 0u, &join_block) ||
+          join_block != function->first_block + 3u ||
+          branch->value_index >= program->value_count)
+        return false;
+      const w_seed_hir0_value *condition =
+          &program->values[branch->value_index];
+      const uint32_t usize_type = hir0_usize_type_index(program);
+      if (condition->kind != W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON ||
+          condition->type_index >= program->type_count ||
+          program->types[condition->type_index].kind !=
+              W_SEED_HIR0_TYPE_BOOL ||
+          condition->binary_operator != W_SEED_HIR0_BINARY_EQUAL ||
+          usize_type == W_SEED_HIR0_NONE ||
+          condition->left_value >= program->value_count ||
+          condition->right_value >= program->value_count ||
+          !hir_target_usize_exact_source(program, function_index,
+                                         condition->left_value))
+        return false;
+      const w_seed_hir0_value *zero =
+          &program->values[condition->right_value];
+      if (zero->kind != W_SEED_HIR0_VALUE_CONST_USIZE ||
+          zero->type_index != usize_type || zero->unsigned_integer_value != 0u)
+        return false;
+      float_rounding_if = true;
+      split_block = join_block;
+    }
+    const bool float_rounding = float_rounding_flat || float_rounding_if;
     if ((!integer_exactly && !float_rounding) ||
         (integer_exactly &&
          (function->block_count != 3u ||
           !verify_cfg_integer_exactly(program, function_index))) ||
-        (float_rounding &&
+        (float_rounding_flat &&
          (function->block_count != 4u ||
-          !verify_cfg_float_to_integer_rounding(program, function_index))))
+          !verify_cfg_float_to_integer_rounding(program, function_index))) ||
+        (float_rounding_if &&
+         !verify_cfg_float_to_integer_rounding_at(
+             program, function_index, split_block, true)))
       return false;
     const w_seed_hir0_terminator *split =
-        &program->terminators[function->first_block];
+        &program->terminators[split_block];
     const size_t normal_block = split->target_block;
     if (normal_block >= program->block_count) return false;
     if (float_rounding) {
@@ -21014,16 +21171,20 @@ static bool verify_cfg_integer_exactly(const w_seed_hir0_program *program,
          error_value->block_argument_index == error->first_block_argument;
 }
 
-static bool verify_cfg_float_to_integer_rounding(
-    const w_seed_hir0_program *program, size_t function_index) {
+static bool verify_cfg_float_to_integer_rounding_at(
+    const w_seed_hir0_program *program, size_t function_index,
+    size_t split_block, bool source_is_if_join) {
   if (program == NULL || function_index >= program->function_count)
     return false;
   const w_seed_hir0_function *function = &program->functions[function_index];
-  if (function->block_count < 4u || program->block_count < 4u ||
-      function->first_block > program->block_count - 4u)
+  if (function->block_count < 4u ||
+      function->first_block >= program->block_count ||
+      function->block_count > program->block_count - function->first_block ||
+      split_block < function->first_block)
     return false;
-  const size_t split_block = function->first_block;
-  const size_t function_end = split_block + function->block_count;
+  const size_t function_end = function->first_block + function->block_count;
+  if (split_block > function_end || function_end - split_block != 4u)
+    return false;
   const w_seed_hir0_terminator *split_term =
       &program->terminators[split_block];
   const size_t normal_block = split_block + 1u;
@@ -21072,8 +21233,6 @@ static bool verify_cfg_float_to_integer_rounding(
       normal->owner_function != function_index ||
       non_finite->owner_function != function_index ||
       out_of_range->owner_function != function_index ||
-      split->block_argument_count != 0u ||
-      split->first_block_argument != W_SEED_HIR0_NONE ||
       split_term->owner_block != split_block ||
       split_term->ordinal != split->instruction_count ||
       split_term->call_index != W_SEED_HIR0_NONE ||
@@ -21109,6 +21268,25 @@ static bool verify_cfg_float_to_integer_rounding(
       source->owner_index != split_block || source->owner_ordinal != 0u ||
       source->type_index >= program->type_count)
     return false;
+  if (!source_is_if_join) {
+    if (split->block_argument_count != 0u ||
+        split->first_block_argument != W_SEED_HIR0_NONE)
+      return false;
+  } else {
+    if (split->block_argument_count != 1u ||
+        split->first_block_argument == W_SEED_HIR0_NONE ||
+        split->first_block_argument >= program->block_argument_count ||
+        source->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+        program->types[source->type_index].kind != W_SEED_HIR0_TYPE_F64 ||
+        source->block_argument_index != split->first_block_argument)
+      return false;
+    const w_seed_hir0_block_argument *source_argument =
+        &program->block_arguments[split->first_block_argument];
+    if (source_argument->owner_block != split_block ||
+        source_argument->ordinal != 0u ||
+        source_argument->type_index != source->type_index)
+      return false;
+  }
   if (normal->block_argument_count != 1u ||
       non_finite->block_argument_count != 1u ||
       out_of_range->block_argument_count != 1u ||
@@ -21205,6 +21383,15 @@ static bool verify_cfg_float_to_integer_rounding(
       return false;
   }
   return true;
+}
+
+static bool verify_cfg_float_to_integer_rounding(
+    const w_seed_hir0_program *program, size_t function_index) {
+  if (program == NULL || function_index >= program->function_count)
+    return false;
+  return verify_cfg_float_to_integer_rounding_at(
+      program, function_index, program->functions[function_index].first_block,
+      false);
 }
 
 static bool verify_cfg_function(const w_seed_hir0_program *program,
@@ -21468,7 +21655,15 @@ static w_seed_hir0_entry_cleanup_kind hir0_process_cleanup_kind(
       (program->terminators[function->first_block].kind ==
            W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY ||
        program->terminators[function->first_block].kind ==
-           W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING);
+           W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING ||
+       (function->block_count == 7u &&
+        program->block_count >= 7u && program->terminator_count >= 7u &&
+        function->first_block <= program->block_count - 7u &&
+        function->first_block <= program->terminator_count - 7u &&
+        program->terminators[function->first_block].kind ==
+            W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[function->first_block + 3u].kind ==
+            W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING));
   return conditional_numeric_conversion
              ? W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_ALL_OUTCOMES
              : W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_TYPED_ERROR;
@@ -21821,11 +22016,23 @@ static bool hir0_type_is_blocked_for_function(
           W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR) {
     const w_seed_hir0_function *function =
         &program->functions[function_index];
-    if (function->first_block < program->block_count &&
+    bool conversion_root =
+        function->first_block < program->block_count &&
+        function->first_block < program->terminator_count &&
         (program->terminators[function->first_block].kind ==
              W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY ||
          program->terminators[function->first_block].kind ==
-             W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING))
+             W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING);
+    if (!conversion_root && function->block_count == 7u &&
+        program->block_count >= 7u && program->terminator_count >= 7u &&
+        function->first_block <= program->block_count - 7u &&
+        function->first_block <= program->terminator_count - 7u &&
+        program->terminators[function->first_block].kind ==
+            W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[function->first_block + 3u].kind ==
+            W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING)
+      conversion_root = true;
+    if (conversion_root)
       return false;
   }
   if (!hir0_type_is_blocked(program, type_index)) return false;
@@ -23765,7 +23972,8 @@ static bool verify_records(const w_seed_hir0_program *program) {
     if (value->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
        if ((value->logical_operator == W_SEED_HIR0_LOGICAL_NONE
                ? (value->result_type != 0u && value->result_type != 2u &&
-                  value->result_type != 3u)
+                  value->result_type != 3u &&
+                  !hir_float_type_index_valid(program, value->result_type))
                : value->result_type != 3u) ||
           value->value_index == W_SEED_HIR0_NONE ||
           value->value_index >= program->value_count ||

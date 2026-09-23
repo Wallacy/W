@@ -1490,6 +1490,10 @@ static bool scalar_if_frontend_shape(const fixture *value,
             then_type->is_signed == result_type->is_signed &&
             then_type->bit_width == result_type->bit_width &&
             then_type->is_signed && then_type->bit_width == 64u);
+    } else if (then_type->kind == W_SEED_FRONTEND_TYPE_FLOAT) {
+      CHECK(then_type->bit_width == else_type->bit_width &&
+            then_type->bit_width == result_type->bit_width &&
+            (then_type->bit_width == 32u || then_type->bit_width == 64u));
     } else {
       CHECK(then_type->kind == W_SEED_FRONTEND_TYPE_BOOL);
     }
@@ -1586,6 +1590,31 @@ static bool test_scalar_if_frontend_subset(void) {
         value->result.written.diagnostics == 0u &&
         value->result.written.facts == 0u);
   CHECK(scalar_if_frontend_shape(value, 2u));
+  static const char float_source[] =
+      "fn choose64(select: Bool): f64 { return if select { "
+      "2.5_f64 } else { 3.25_f64 } }\n"
+      "fn choose32(select: Bool): f32 { return if select { "
+      "1.0_f32 } else { 2.0_f32 } }\n"
+      "entry { }\n";
+  CHECK(fixture_run(value, float_source));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE);
+  CHECK(value->result.status == W_SEED_FRONTEND_OK);
+  CHECK(value->result.written.diagnostics == 0u &&
+        value->result.written.facts == 0u);
+  CHECK(scalar_if_frontend_shape(value, 2u));
+  CHECK(fixture_run(
+      value,
+      "fn mismatch(select: Bool): f64 { return if select { "
+      "2.5_f64 } else { 2.0_f32 } }\nentry { }\n"));
+  CHECK(value->result.status != W_SEED_FRONTEND_OK &&
+        (has_diagnostic(value, "W-TYPE-0120") ||
+         has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION)));
+  CHECK(fixture_parse(
+      value,
+      "fn missingFloat(select: Bool): f64 { return if select { "
+      "2.5_f64 } }\nentry { }\n"));
+  CHECK(value->parse.status != W_SEED_PARSE_COMPLETE &&
+        has_parse_issue(value, W_SEED_PARSE_ISSUE_VALUE_IF_MISSING_ELSE));
   CHECK(scalar_if_unsupported(
       value,
       "fn text(): String { return if true { \"a\" } else { \"b\" } }\n"
@@ -7089,7 +7118,7 @@ static bool test_f32_scalar_projection(void) {
 }
 
 static bool test_numeric_widening_frontend(void) {
-  CHECK(strcmp(W_SEED_FRONTEND_SCHEMA_VERSION, "w-seed-frontend-72") == 0);
+  CHECK(strcmp(W_SEED_FRONTEND_SCHEMA_VERSION, "w-seed-frontend-73") == 0);
   typedef struct {
     const char *source_name;
     bool source_is_float;
