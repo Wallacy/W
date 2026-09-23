@@ -40,8 +40,15 @@ function inputBytes(input, id) {
 const buildDirectory = await mkdtemp(join(tmpdir(), "w-seed-diagnostic-"))
 try {
   run("cmake", ["-S", seedDirectory, "-B", buildDirectory, "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug"])
-  run("cmake", ["--build", buildDirectory])
-  run("ctest", ["--test-dir", buildDirectory, "--output-on-failure"])
+  run("cmake", [
+    "--build", buildDirectory, "--target",
+    "w_seed_diagnostic_probe", "w_seed_diagnostic_mapping_probe", "w_seed_diagnostic_tests",
+    "--parallel", "2",
+  ])
+  run("ctest", [
+    "--test-dir", buildDirectory, "--output-on-failure", "--no-tests=error",
+    "-R", "^w_seed_diagnostic_unit$",
+  ])
   const extension = process.platform === "win32" ? ".exe" : ""
   const probe = join(buildDirectory, `w_seed_diagnostic_probe${extension}`)
   if (snapshotLines.length !== corpus.cases.length) {

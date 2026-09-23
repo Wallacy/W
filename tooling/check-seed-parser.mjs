@@ -125,7 +125,9 @@ function run(command, args) {
   if (execution.exitCode !== 0) {
     const output = [execution.stdout.toString().trim(), execution.stderr.toString().trim()]
       .filter(Boolean).join("\n")
-    fail(`${command} ${args.join(" ")} failed:\n${output}`)
+    const diagnostic = output.length > 8192
+      ? `[earlier output omitted]\n${output.slice(-8192)}` : output
+    fail(`${command} ${args.join(" ")} failed:\n${diagnostic}`)
   }
   return execution
 }
@@ -1150,8 +1152,10 @@ async function main() {
   const buildDirectory = await mkdtemp(join(tmpdir(), "w-seed-parser-"))
   try {
     run("cmake", ["-S", seedDirectory, "-B", buildDirectory, "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug"])
-    run("cmake", ["--build", buildDirectory])
-    run("ctest", ["--test-dir", buildDirectory, "--output-on-failure"])
+    run("cmake", ["--build", buildDirectory, "--target", "w_seed_parser_probe",
+      "w_seed_parser_tests", "--parallel", "2"])
+    run("ctest", ["--test-dir", buildDirectory, "-R", "^w_seed_parser_unit$",
+      "--output-on-failure", "--no-tests=error"])
     const probeName = process.platform === "win32" ? "w_seed_parser_probe.exe" : "w_seed_parser_probe"
     const probe = join(buildDirectory, probeName)
     if (!(await Bun.file(probe).exists())) fail(`probe is missing at ${probe}`)

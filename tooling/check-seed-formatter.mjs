@@ -278,8 +278,15 @@ function assertForeignPreserved(parserProbe, source, formatted) {
 const buildDirectory = await mkdtemp(join(tmpdir(), "w-seed-formatter-"))
 try {
   run("cmake", ["-S", seedDirectory, "-B", buildDirectory, "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug"])
-  run("cmake", ["--build", buildDirectory])
-  run("ctest", ["--test-dir", buildDirectory, "--output-on-failure"])
+  run("cmake", [
+    "--build", buildDirectory, "--target",
+    "w_seed_formatter_probe", "w_seed_parser_probe", "w_seed_formatter_tests", "w_seed_parser_tests",
+    "--parallel", "2",
+  ])
+  run("ctest", [
+    "--test-dir", buildDirectory, "--output-on-failure", "--no-tests=error",
+    "-R", "^(w_seed_formatter_unit|w_seed_parser_unit)$",
+  ])
   const extension = process.platform === "win32" ? ".exe" : ""
   const formatterProbe = join(buildDirectory, `w_seed_formatter_probe${extension}`)
   const parserProbe = join(buildDirectory, `w_seed_parser_probe${extension}`)

@@ -225,8 +225,15 @@ async function main() {
     validatePinnedProfiles()
     await runMutationChecks()
     run("cmake", ["-S", seedDirectory, "-B", buildDirectory, "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug"])
-    run("cmake", ["--build", buildDirectory])
-    run("ctest", ["--test-dir", buildDirectory, "--output-on-failure"])
+    run("cmake", [
+      "--build", buildDirectory, "--target",
+      "w_seed_lexer_probe", "w_seed_lexer_tests", "w_seed_unicode_tests",
+      "--parallel", "2",
+    ])
+    run("ctest", [
+      "--test-dir", buildDirectory, "--output-on-failure", "--no-tests=error",
+      "-R", "^(w_seed_lexer_unit|w_seed_unicode_unit)$",
+    ])
     const probeName = process.platform === "win32" ? "w_seed_lexer_probe.exe" : "w_seed_lexer_probe"
     const probe = join(buildDirectory, probeName)
     if (!(await Bun.file(probe).exists())) fail("probe is missing at " + probe)

@@ -272,8 +272,14 @@ async function main() {
   const buildDirectory = await mkdtemp(join(tmpdir(), "w-seed-source-reader-"))
   try {
     run("cmake", ["-S", seedDirectory, "-B", buildDirectory, "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug"])
-    run("cmake", ["--build", buildDirectory])
-    run("ctest", ["--test-dir", buildDirectory, "--output-on-failure"])
+    run("cmake", [
+      "--build", buildDirectory, "--target", "w_seed_source_probe", "w_seed_source_tests",
+      "--parallel", "2",
+    ])
+    run("ctest", [
+      "--test-dir", buildDirectory, "--output-on-failure", "--no-tests=error",
+      "-R", "^w_seed_source_unit$",
+    ])
 
     const probeName = process.platform === "win32" ? "w_seed_source_probe.exe" : "w_seed_source_probe"
     const probe = join(buildDirectory, probeName)

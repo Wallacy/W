@@ -417,6 +417,20 @@ not evidence for that witness. Only then extend MLIR/codegen and public
 Windows/Linux execution, followed by mixed CFG with multi-block returns.
 Do not add a second source-shape recognizer. General CFG, arbitrary payload
 types, optimizer quality, and cross-target performance remain open.
+The active blocker is HIR0's one-loop, flat-IF CFG verifier: source-backed
+nested lowering can form a multi-block graph, but no complete per-header
+dominance, carrier-tuple, and wrong-loop transfer proof is implemented. Do
+not promote that graph or a public nested-loop demo until the verifier proves
+both loops and adversarial same-typed retargeting fails closed.
+
+The next disjoint family can be prepared beside the rank-3 CFG proof work:
+flat copyable tuple and value-struct construction, projection, local argument,
+and return semantics. Pin a source witness and independent C23/Rust correctness
+oracles, then assign frontend and native research separate ownership. Do not
+start its HIR writer until the nested-loop HIR change is integrated. This
+bounded product-value slice would not close payload enums, fixed arrays,
+general aggregate layout, or the C ABI boundary; those need later exact
+witnesses. A parser-accepted aggregate form is not yet an executable product.
 
 ### Active rank 1 closure order
 

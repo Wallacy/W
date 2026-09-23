@@ -259,8 +259,15 @@ async function main() {
   const buildDirectory = await mkdtemp(join(tmpdir(), "w-seed-foreign-"))
   try {
     run("cmake", ["-S", seedDirectory, "-B", buildDirectory, "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug"])
-    run("cmake", ["--build", buildDirectory])
-    run("ctest", ["--test-dir", buildDirectory, "--output-on-failure"])
+    run("cmake", [
+      "--build", buildDirectory, "--target",
+      "w_seed_foreign_probe", "w_seed_parser_probe", "w_seed_foreign_tests", "w_seed_parser_tests",
+      "--parallel", "2",
+    ])
+    run("ctest", [
+      "--test-dir", buildDirectory, "--output-on-failure", "--no-tests=error",
+      "-R", "^(w_seed_foreign_unit|w_seed_parser_unit)$",
+    ])
     const suffix = process.platform === "win32" ? ".exe" : ""
     const probe = join(buildDirectory, `w_seed_foreign_probe${suffix}`)
     const parserProbe = join(buildDirectory, `w_seed_parser_probe${suffix}`)
