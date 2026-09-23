@@ -174,6 +174,66 @@ metadata or protection to meet a sub-1-KiB target is a distinct product mode,
 not proof of a better default compiler. A safe no-change result is valid; an
 unproven size target must not block bottom-up language work.
 
+### Target and CPU-profile acceptance
+
+Treat the W 1.0 `.portable` baseline table as a versioned hardware-profile
+policy, not as a compiler-host or operating-system default. A hardware row
+resolves only the ISA minimum and enabled/disabled features; the product profile
+joins it with an independently selected target ABI and `platformContract`. The
+product receipt keeps that separation, plus tuning CPU, accepted toolchain
+version, runtime closure, and any multiversion map. Every supported target must
+select an exact primary minimum; compatibility with older hardware is an
+optional separate pack, never an implicit tax on the primary product. The
+x86_64 W 1.0 design baseline is selected, but remains an implementation gap:
+`.portable` uses x86-64-v3; x86-64-v2 and v1 are admitted only through separately
+identified compatibility packs; and x86-64-v4, AVX10, or exact
+microarchitecture profiles through explicit distributable/tuned recipes. v4
+requires AVX-512 and is not assumed to become a universal modern cutoff. None
+of the compatibility packs may lower primary-profile code generation. A
+host-tuned benchmark/tooling experiment must
+first resolve its observed CPU/features into an exact `.explicit` TargetSpec and
+recipe receipt; it is local-only and introduces no public `.native` policy.
+Operating-system versions remain independent `platformContract` facts and are
+not hardware-profile tracking candidates or ISA proxies. LLVM/MLIR 24+ is a
+toolchain acceptance candidate, not a runtime floor. The AArch64 `.portable`
+candidate is Armv8.2-A with only its
+mandatory features; optional FP16, dot-product, SVE/SVE2, and SME remain
+explicit. Android `arm64-v8a` Armv8.0+NEON and other Armv8.0 products are
+separate compatibility rows. Wasm SIMD128 is the W 1.0 primary candidate and
+scalar Wasm is a compatibility row. GPU floors are exact device/capability
+contracts. After x86_64/AArch64, riscv64, loongarch64, powerpc64le, and s390x
+remain hardware candidates, each gated by LLVM backend/object, WRT/host adapter,
+ABI/sysroot/linker, cross-host build, native execution, and CI evidence.
+
+Acceptance must prove profile resolution and execution, not only that LLVM
+accepts a CPU name:
+
+- Check the normalized receipt for exact CPU/features, including disabled
+  features, ABI and OS minimum, tuning CPU, toolchain version, runtime closure,
+  and (when present) the complete variant-to-feature map.
+- Execute a portable artifact on a runner constrained to its baseline. For
+  multiversioned hot kernels, force and test both baseline fallback and the
+  eligible fast path, verify automatic selection, and verify dispatch is cached.
+  Tiny products must show no dispatcher or unreachable variant in emitted IR,
+  objects, imports, or closure receipt.
+- Keep `.portable`, distributable `.explicit`, and separately identified
+  host-tuned benchmark/tooling experiments as distinct benchmark identities
+  with separate recipes and receipts. Resolve the host-tuned experiment to an
+  exact `.explicit` TargetSpec before building; keep it local-only and do not
+  publish it as a distributable result. Keep runtime-closure differences in
+  separate lanes as well.
+
+Add runtime-dispatched variants only for measured hot kernels, only at coarse
+reachability-closed boundaries, and only with a baseline fallback. Baseline
+correctness and closure remain independently tested; dispatch must never raise
+the declared `.portable` or `.explicit` ISA minimum.
+
+When W raises a primary hardware baseline, add a new versioned row and retain
+the previous one only as a separately selected compatibility pack when viable.
+The primary product never carries old-ISA fallback code merely because that
+compatibility pack exists. Future ISA levels may become primary after measured
+coverage and target evidence; they need no syntax change.
+
 The current Linux Hello audit has one unproven, general candidate: the public
 route optimizes W code before emitting an object, but emits the reachable WRT0
 IR as a separate object. Investigate whole-product optimization across that

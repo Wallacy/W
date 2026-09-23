@@ -29158,10 +29158,10 @@ essa capacidade. SDK version e runtime minimum continuam separados.
 
 Uma string de target no manifest é sugar para os defaults fixados pela
 distribuição W. A recipe sempre contém o record expandido. O profile usa
-`cpuPolicy: .portable` ou `cpuPolicy: .explicit`. A primeira exige o baseline da
-distribuição. A segunda exige `cpu` e `features` explícitos no comando ou no
-target spec. O field é obrigatório em cada profile. Nenhuma forma consulta a
-CPU do executor:
+`cpuPolicy: .portable` ou `cpuPolicy: .explicit`. `.portable` exige o baseline
+da distribuição; `.explicit` exige `cpu` e `features` explícitos no comando ou
+no target spec. The field is mandatory in every profile. Neither policy
+consults the executor CPU:
 
 ```text
 w build last-light-benchmark \
@@ -29171,8 +29171,55 @@ w build last-light-benchmark \
   --profile benchmark
 ```
 
-CPU, features, platform contract, sysroot, SDK e linker entram separadamente na
-chave do artifact.
+For W 1.0, `.portable` resolves through a versioned hardware-profile table.
+A hardware row resolves only the minimum ISA and its enabled and disabled
+features. The same row can be reused by every platform contract whose ABI and
+code generator support it; it is not keyed by an operating-system release.
+`TargetSpec` remains `{ id, cpu, features, platformContract }`, so the product
+profile joins the independently selected hardware row with its target/ABI and
+platform contract. The expanded product recipe/receipt binds that TargetSpec
+separately from the tuning CPU, exact toolchain, sysroot/SDK/linker, and runtime
+closure. Toolchain, operating-system, and runtime facts do not substitute for
+the ISA contract.
+
+Every supported hardware target has one exact primary minimum. An older-hardware
+compatibility pack is optional and separately selected; if a correct pack is
+not viable, W reports that the older profile is unsupported instead of
+weakening the primary product. The x86_64 W 1.0 design baseline below is
+selected but not yet implemented. The other rows are initial target-family
+proposals, not implementation or support claims:
+
+| Hardware/profile candidate | ISA minimum | Tuning CPU | Compatibility and newer hardware |
+|---|---|---|---|
+| x86_64 `.portable` (selected design) | x86-64-v3 | Generic for the selected target row | x86-64-v2/v1 may use separate compatibility packs; x86-64-v4, AVX10, later levels, and exact microarchitectures use explicit measured recipes until promoted |
+| x86_64 host-tuned benchmark/tooling experiment | Exact host CPU and features serialized into an explicit TargetSpec | Exact host CPU, recorded separately | Resolve to an exact `.explicit` TargetSpec and recipe receipt first; local-only experiment, not a public `.native` policy or distributable promise |
+| AArch64 `.portable` | Armv8.2-A candidate with its mandatory features | Generic for the selected target row | Armv8.0-A+NEON uses a separate compatibility pack; optional FP16, dot-product, Armv8.4-A, SVE/SVE2, SME, later levels, and exact CPUs remain explicit until promoted |
+| RISC-V, LoongArch, PowerPC, and SystemZ | A versioned ratified ISA/profile and exact extension set selected independently for each architecture | Per target row or explicit profile | Older profiles and future extensions remain separate recipes; backend acceptance alone does not select a W baseline |
+| WebAssembly | SIMD128 is the primary W 1.0 candidate | Runtime-neutral | Scalar WebAssembly is a separate compatibility row; later standardized vector and execution features remain explicit until promoted |
+| GPU and other accelerators | Exact device-family minimum and required capabilities | Exact device or family when selected | Older devices use separate target packs; newer device features remain explicit variants until measured and promoted |
+
+The primary baseline is a deliberate W hardware cutoff, never inferred from an
+operating-system version. Kernel, libc, Windows API, Apple deployment target,
+Android API, SDK, and runtime/provider requirements remain independently
+recorded in `platformContract` and the expanded recipe, but they do not choose
+the ISA floor. LLVM/MLIR 24+ is a compiler-toolchain acceptance candidate, not
+a runtime floor. x86-64-v4 is not a chronological successor that every modern
+CPU implements: its AVX-512 requirements keep it explicit until target evidence
+justifies promotion. The current Linux, Android, and Apple snippets above remain
+schema examples; they do not select release defaults.
+
+An explicit multiversioned product may include a baseline plus optimized
+variants only when measurement justifies them. Variants are coarse,
+reachability-closed hot kernels, selected by a cached runtime dispatch with a
+baseline fallback. The receipt names the variant map and its feature
+requirements. Tiny products retain neither a dispatcher nor unreachable
+variants. `.portable` and `.explicit` remain compile-time target contracts;
+runtime dispatch does not silently raise their minimum ISA.
+
+Raising a primary baseline creates a new versioned row. It does not mutate old
+artifact identities. A compatibility pack may keep an older row viable, but no
+code, dispatcher, fallback, or weaker optimization enters the primary product
+unless that product explicitly selects a multiversioned recipe.
 
 Um nome aceito pelo LLVM não constitui suporte W. O target W precisa de:
 
