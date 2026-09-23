@@ -2335,7 +2335,36 @@ package {
     module: "app"
     entry: "LastLightTui"
   }]
+  build: {
+    profiles: [
+      {
+        name: "release"
+        optimize: .speed
+        checks: .safe
+        debug: .sidecar
+        cpuPolicy: .portable
+      },
+      {
+        name: "compat-x86-v2"
+        optimize: .speed
+        checks: .safe
+        debug: .sidecar
+        cpuPolicy: .explicit
+      },
+    ]
+  }
 }
+```
+
+For W 1.0, the selected x86_64 `.portable` design baseline is x86-64-v3.
+Older hardware is selected as a separate compatibility product or explicit
+profile; it never weakens the primary artifact. Future ISA levels and exact
+microarchitectures remain explicit until measurements justify promotion:
+
+```text
+w build last-light-native --profile release --target x86_64-unknown-linux-gnu
+w build last-light-native --profile compat-x86-v2 --target x86_64-unknown-linux-gnu --cpu x86-64-v2
+w build last-light-native --profile benchmark --target x86_64-unknown-linux-gnu --cpu znver5 --features +avx2,+fma
 ```
 
 An aggregate manifest may contain only a `workspace` root. A member can also be
