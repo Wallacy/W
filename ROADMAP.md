@@ -67,6 +67,14 @@ belong to the selected reachability-closed WRT, target SDK/provider, a declared
 CRT requirement resolved to an exact offer, or an explicit provider selection.
 Successful linking is not sufficient evidence.
 
+Use the target-neutral object-reference receipt to select the smallest WRT
+startup closure after code generation: a product with no reachable process-
+argument accessors must not retain argc/argv capture, while an unknown receipt
+selects the complete closure. Do not infer this from filenames, imports, or a
+host-specific ELF parser; the same target product must be selected from any
+supported compiler host. Keep static PIE and CRT-free linkage unchanged while
+comparing Hello size, compile latency, and runtime against equivalent policies.
+
 The runtime-closure axis is independent from target environment and W program
 or toolchain profiles:
 
