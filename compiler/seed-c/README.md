@@ -1940,6 +1940,13 @@ Run `bun tooling/check-hir0.mjs` for the focused HIR/ProductClosure0 units and
 `bun check --target w-run-windows` or `bun check --target w-run` for the public
 native route. Performance ranking remains outside this correctness evidence.
 
+For a local edit loop, `bun tooling/check-hir0.mjs --build-dir build` reuses an
+existing Ninja build of this exact seed source and selected C compiler. It
+reconfigures, builds, and runs the same focused units without deleting the
+build. The default command still creates and removes a fresh isolated build;
+use that cold gate at integration or CI boundaries. Do not share the reusable
+build with a concurrent writer or test runner.
+
 ### Virtual structured-task elision (W-1577)
 
 HIR0 schema `w-seed-hir0-30` represents the bounded local

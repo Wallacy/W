@@ -1,12 +1,18 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises"
+import { mkdtemp, readFile, realpath, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { join, resolve } from "node:path"
+import { isAbsolute, join, relative, resolve, sep } from "node:path"
 
 const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
 const cmake = Bun.which("cmake")
 const ninja = Bun.which("ninja")
 const compiler = ["cc", "gcc", "clang", "cl"].map((name) => Bun.which(name)).find(Boolean)
+const options = process.argv.slice(2)
+if (options.length !== 0 &&
+    (options.length !== 2 || options[0] !== "--build-dir" || !options[1])) {
+  throw new Error("HIR0: usage: bun tooling/check-hir0.mjs [--build-dir <existing-repository-build>]")
+}
+const incremental = options.length === 2
 
 if (!cmake || !ninja || !compiler) {
   const missing = [
@@ -40,13 +46,33 @@ function run(command, args, cwd = root, env = undefined) {
 async function assertCompiler(buildDirectory, label) {
   const cache = await readFile(join(buildDirectory, "CMakeCache.txt"), "utf8")
   const match = cache.match(/^CMAKE_C_COMPILER:FILEPATH=(.*)$/m)
+  const sourceMatch = cache.match(/^CMAKE_HOME_DIRECTORY:INTERNAL=(.*)$/m)
+  const generatorMatch = cache.match(/^CMAKE_GENERATOR:INTERNAL=(.*)$/m)
   const normalize = (value) => value.replaceAll("\\", "/").toLowerCase()
   if (!match || normalize(match[1]) !== normalize(compiler)) {
     fail(`${label} did not use the selected compiler`)
   }
+  if (!sourceMatch || normalize(sourceMatch[1]) !== normalize(seedDirectory) ||
+      !generatorMatch || generatorMatch[1] !== "Ninja") {
+    fail(`${label} is not a Ninja build of this seed source`)
+  }
 }
 
-const buildDirectory = await mkdtemp(join(tmpdir(), "w-hir0-"))
+async function existingBuildDirectory(argument) {
+  const physicalRoot = await realpath(root)
+  const physical = await realpath(resolve(root, argument))
+  const within = relative(physicalRoot, physical)
+  if (within === "" || within === ".." || within.startsWith(`..${sep}`) ||
+      isAbsolute(within) || physical === seedDirectory) {
+    fail("--build-dir must be an existing build inside this repository")
+  }
+  await assertCompiler(physical, "existing build")
+  return physical
+}
+
+const buildDirectory = incremental
+  ? await existingBuildDirectory(options[1])
+  : await mkdtemp(join(tmpdir(), "w-hir0-"))
 const toolchainEnvironment = { ...process.env, CC: compiler }
 try {
   run(cmake, ["-S", seedDirectory, "-B", buildDirectory, "-G", "Ninja",
@@ -72,5 +98,5 @@ try {
     "HIR0: caller-owned verified single/multi-document HIR, bounded product closure, measured task lifecycle, provider-bound success outcomes, typed Windows completions, and adversarial barriers passed\n",
   )
 } finally {
-  await rm(buildDirectory, { recursive: true, force: true })
+  if (!incremental) await rm(buildDirectory, { recursive: true, force: true })
 }
