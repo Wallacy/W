@@ -25,6 +25,26 @@ and declared environment controls. Cycle counts require a supported native
 counter. A timing result is publishable only after equivalent work and exact
 correctness have been established independently.
 
+### Post-product inspection
+
+After an executable passes its exact oracle, inspect the same pinned artifact
+while the next language feature advances. For a local PE or ELF product, run:
+
+```sh
+bun tooling/artifact-inspection-receipt.mjs <artifact> [--post-opt-ir <optimized.ll>] [--object <product.o>]
+```
+
+The read-only JSON receipt separates file size, named section bytes, bytes
+covered by declared sections, bytes outside those sections, disassembly
+inventory, observed dependencies and optional IR/object externals. Bytes
+outside sections are not automatically linker overhead or wasted space.
+It is diagnostic input for a generic optimization candidate, not a benchmark
+result or a dependency-closure proof: omitted objects, partial textual IR
+parsing and absent runtime allowlists leave those checks explicitly `unknown`.
+Inspect all emitted objects and validate final policy through the product gate
+before claiming CRT-free output. Raw disassembly and temporary binaries remain
+local; keep only the current compact finding and reproducible recipe in Git.
+
 ### Executable benchmark catalog (M3a)
 
 [`executable-catalog.json`](executable-catalog.json) is the machine-readable
