@@ -142,6 +142,15 @@ failure behavior, target portability and relevant upstream toolchain changes.
 Release monitoring updates the currency record, but a new LLVM/MLIR capability
 enters the selected toolchain only after an exact-source regression gate; a
 patch release does not silently change the reproducible evidence pin.
+Treat each official stable LLVM release as a prompt acceptance candidate,
+including patch releases and future major lines. Keep the weekly release watch
+as detection rather than assuming a fixed release date. First inventory one
+coherent MLIR/LLVM/Clang/LLD version on each available host and review relevant
+release notes; then run a small exact-source parse/translate/object/link/run
+smoke with dependency-closure inspection. Promote exact toolchain selectors
+only after affected compiler gates and representative product benchmarks pass.
+Keep historical receipts immutable and isolate this acceptance lane from an
+active compiler edit; a partial host installation is not a reproducible pin.
 
 Put generally useful rewrites at the earliest authority that can prove them:
 semantic reachability and effect-aware constant facts before target lowering;
