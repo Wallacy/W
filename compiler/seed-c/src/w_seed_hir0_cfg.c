@@ -159,7 +159,10 @@ static bool graph_is_acyclic_without_backedges(
   size_t queue_cursor = 0u;
   const uint64_t reachable = analysis->reachable_blocks;
 
+  /* An unreachable predecessor cannot delay a reachable node in Kahn's
+   * traversal of the reachable subgraph. */
   for (size_t source = 0u; source < analysis->block_count; source += 1u) {
+    if ((reachable & ordinal_bit(source)) == 0u) continue;
     const uint64_t edges = analysis->successors[source] & reachable &
                            ~analysis->backedge_targets[source];
     for (size_t target = 0u; target < analysis->block_count; target += 1u) {
