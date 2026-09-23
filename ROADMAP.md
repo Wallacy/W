@@ -362,6 +362,31 @@ product checks. The C bootstrap can be updated when useful, but new compiler
 development proceeds in W after that checkpoint. Neither stage may route W
 source through a C compiler as its product backend.
 
+### Parallel delivery lanes
+
+The ranked queue orders integration proofs, not agent occupancy. For a
+semantic family, pin one exact source witness and its expected HIR shape early,
+then assign disjoint writers to the following lanes when the shared contract
+is stable. Each lane has a finite acceptance gate; a green lane does not claim
+the end-to-end feature until integration executes the same source and oracle.
+
+| Lane | Owned boundary | Can advance while | Integration gate |
+| --- | --- | --- | --- |
+| Source semantics | Parser/frontend, typed values, verified HIR and adversarial records | Native code studies the pinned HIR shape | Source-to-verified-HIR, exact errors and failure atomicity |
+| Native selection | Product closure, target subset, layout/ABI and dependency requirements | Frontend closes the bounded witness; emitter uses a verified fixture | Independent shape rejection and target/product receipt |
+| Code generation | MLIR/LLVM lowering, optimized IR and target objects | Selection closes its separate matcher | Exact output, post-opt/object/final dependencies, debug/release equivalence |
+| Runtime and measurement | WRT/provider closure, target adapters, C23/Rust oracles and family benchmark | Compiler lanes produce a correctness fixture | Windows/Linux execution, target-sensitive gates and a comparable benchmark disposition |
+
+Use one semantic family or substantial compiler subsystem per package, not one
+operator width or one tiny executable per agent. Cap concurrent writers by
+disjoint files, independent build directories and an explicit test-runner slot;
+the principal integrates the common witness and reviews the combined diff.
+If a needed fact is absent from an upstream receipt, stop that lane and add
+the fact at its owner instead of inferring it from filenames, imports or a
+target-specific shortcut. Keep rank-8 self-hosting prerequisites visible in
+each lane, but do not start a second compiler implementation before functions,
+modules, ownership and error flow can support it.
+
 ### Active rank 1 closure order
 
 Close the scalar surface in dependency order rather than resuming the later
