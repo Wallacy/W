@@ -7483,7 +7483,7 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
   if (statement->kind == W_SEED_FRONTEND_STMT_WHILE ||
       statement->kind == W_SEED_FRONTEND_STMT_REPEAT) {
     if (branch || walk->loop_seen || *walk->if_total != 0u ||
-        statement->loop_label.length != 0u ||
+        !text_valid(statement->loop_label) ||
         statement->binding_name.length != 0u ||
         statement->declared_type != W_SEED_FRONTEND_NONE ||
         statement->effective_type != W_SEED_FRONTEND_NONE ||
@@ -7753,8 +7753,15 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
         statement->binding_name.length != 0u ||
         statement->declared_type != W_SEED_FRONTEND_NONE ||
         statement->effective_type != W_SEED_FRONTEND_NONE ||
-        statement->transfer_label.length != 0u ||
+        !text_valid(statement->transfer_label) ||
         statement->transfer_target_statement != walk->loop_statement ||
+        (statement->transfer_label.length != 0u &&
+         (walk->loop_statement >= walk->result->written.statements ||
+          walk->output->statements[walk->loop_statement].loop_label.length ==
+              0u ||
+          !text_equal(statement->transfer_label,
+                      walk->output->statements[walk->loop_statement]
+                          .loop_label))) ||
         !add_size(walk->loop_control_transfer_count, 1u,
                   &walk->loop_control_transfer_count) ||
         !add_size(*walk->values, walk->loop_root_count, walk->values))
@@ -10696,6 +10703,7 @@ typedef struct {
   size_t statement_index;
   bool loop_active;
   bool loop_post_test;
+  uint32_t loop_statement;
   uint32_t loop_first_statement;
   uint32_t loop_root_statements[HIR0_MAX_BRANCH_ASSIGNMENTS];
   size_t loop_root_count;
@@ -11482,11 +11490,27 @@ static void hir0_emit_edge_argument_m2(hir0_emit_context *context,
 }
 
 static size_t hir0_loop_transfer_target_m2(
-    const hir0_emit_context *context, uint32_t kind) {
-  if (context == NULL || !context->loop_has_control_flow)
+    const hir0_emit_context *context,
+    const w_seed_frontend_statement *transfer) {
+  if (context == NULL || transfer == NULL || !context->loop_active ||
+      !context->loop_has_control_flow ||
+      context->frontend == NULL || context->frontend_result == NULL ||
+      transfer->transfer_target_statement != context->loop_statement ||
+      context->loop_statement == W_SEED_FRONTEND_NONE ||
+      (size_t)context->loop_statement >=
+          context->frontend_result->written.statements)
     return W_SEED_HIR0_NONE;
-  if (kind == W_SEED_FRONTEND_STMT_BREAK) return context->loop_exit_block;
-  if (kind == W_SEED_FRONTEND_STMT_CONTINUE)
+  const w_seed_frontend_statement *loop =
+      &context->frontend->statements[context->loop_statement];
+  if (!text_valid(transfer->transfer_label) ||
+      !text_valid(loop->loop_label) ||
+      (transfer->transfer_label.length != 0u &&
+       (loop->loop_label.length == 0u ||
+        !text_equal(transfer->transfer_label, loop->loop_label))))
+    return W_SEED_HIR0_NONE;
+  if (transfer->kind == W_SEED_FRONTEND_STMT_BREAK)
+    return context->loop_exit_block;
+  if (transfer->kind == W_SEED_FRONTEND_STMT_CONTINUE)
     return context->loop_header_block;
   return W_SEED_HIR0_NONE;
 }
@@ -11964,6 +11988,7 @@ static void hir0_emit_chain_values_m2(hir0_emit_context *context,
       if (!hir0_load_loop_roots(context, statement->first_child)) return;
       context->loop_active = true;
       context->loop_post_test = post_test;
+      context->loop_statement = cursor;
       context->loop_first_statement = statement->first_child;
       context->loop_has_control_flow = loop_control_flow;
       context->loop_header_block = header;
@@ -12441,8 +12466,8 @@ static void hir0_emit_chain_terms_m2(hir0_emit_context *context,
     } else if (statement->kind == W_SEED_FRONTEND_STMT_BREAK ||
                statement->kind == W_SEED_FRONTEND_STMT_CONTINUE) {
       if (!context->loop_active || !context->loop_has_control_flow) return;
-      const size_t target =
-          hir0_loop_transfer_target_m2(context, statement->kind);
+      const size_t target = hir0_loop_transfer_target_m2(context, statement);
+      if (target == W_SEED_HIR0_NONE) return;
       const w_seed_hir0_terminator *transfer_term =
           &context->output->terminators[current_block];
       if (transfer_term->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
@@ -12496,6 +12521,7 @@ static void hir0_emit_chain_terms_m2(hir0_emit_context *context,
                                    (uint32_t)carrier_ordinal);
       }
       context->loop_post_test = post_test;
+      context->loop_statement = cursor;
       if (!post_test) {
         context->loop_active = true;
         context->loop_first_statement = statement->first_child;
@@ -14074,6 +14100,7 @@ static void hir0_emit_chain_layout_m2(hir0_emit_context *context,
       if (!hir0_load_loop_roots(context, statement->first_child)) return;
       context->loop_active = true;
       context->loop_post_test = post_test;
+      context->loop_statement = cursor;
       context->loop_first_statement = statement->first_child;
       context->loop_has_control_flow = loop_control_flow;
       context->loop_header_block = header;
@@ -14204,11 +14231,8 @@ static void hir0_emit_chain_layout_m2(hir0_emit_context *context,
       hir0_begin_block_m2(context, current_block);
     } else if (statement->kind == W_SEED_FRONTEND_STMT_BREAK ||
                statement->kind == W_SEED_FRONTEND_STMT_CONTINUE) {
-      if (!context->loop_active || !context->loop_has_control_flow) return;
-      const size_t target =
-          statement->kind == W_SEED_FRONTEND_STMT_BREAK
-              ? context->loop_exit_block
-              : context->loop_header_block;
+      const size_t target = hir0_loop_transfer_target_m2(context, statement);
+      if (target == W_SEED_HIR0_NONE) return;
       hir0_set_jump_m2(context, current_block, target, statement->span);
       return;
     } else if (statement->kind == W_SEED_FRONTEND_STMT_RETURN ||

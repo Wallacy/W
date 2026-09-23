@@ -137,6 +137,12 @@ overhead; total file bytes alone cannot identify a lowering defect. Publish
 one compact current receipt and a ranked actionable finding, or explicitly
 record that no safe change was found. Do not retain raw traces in Git.
 
+The same independent pass checks memory/CPU cost, platform hardening,
+failure behavior, target portability and relevant upstream toolchain changes.
+Release monitoring updates the currency record, but a new LLVM/MLIR capability
+enters the selected toolchain only after an exact-source regression gate; a
+patch release does not silently change the reproducible evidence pin.
+
 Put generally useful rewrites at the earliest authority that can prove them:
 semantic reachability and effect-aware constant facts before target lowering;
 canonical typed HIR/MLIR simplification and dead-code elimination before
@@ -493,8 +499,10 @@ retire each at its finite gate; parallel occupancy is not itself progress.
 The next rank-3 cut has three distinct gates. The parser and frontend now
 represent nested `while` loops and resolve labeled or unlabeled transfers to
 an explicit lexical loop statement; malformed, shadowed, or unresolved labels
-fail closed. Verified HIR still rejects nested or labeled loops, so this is
-not yet a native feature. Next, replace HIR0's single-loop count/emit state
+fail closed. Verified HIR now admits a label on its one bounded loop only when
+every labeled transfer resolves to that exact loop and matches its spelling;
+nested loops remain rejected, and this is not yet a native feature. Next,
+replace HIR0's single-loop count/emit state
 with one bounded source-to-HIR CFG plan shared by measurement and emission,
 plus independent verification of the emitted graph;
 prove typed edge/carrier mapping and failure atomicity on a source-backed

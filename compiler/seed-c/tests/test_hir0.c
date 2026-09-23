@@ -9868,6 +9868,17 @@ static bool test_while_break_continue_shared_exit(void) {
   fixture.hir_terminators[break_block] = saved_break;
   reseal_hir_fixture();
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  const uint32_t break_edge_index =
+      fixture.hir_terminators[break_block].first_edge_argument;
+  const w_seed_hir0_edge_argument saved_break_edge =
+      fixture.hir_edge_arguments[break_edge_index];
+  fixture.hir_edge_arguments[break_edge_index].type_index =
+      W_SEED_HIR0_TYPE_BOOL;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_edge_arguments[break_edge_index] = saved_break_edge;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
   return true;
 }
 
@@ -9909,32 +9920,67 @@ static bool test_nested_labeled_while_hir_boundary(void) {
   CHECK(hir_output_is_byte(sentinel) &&
         memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
 
-  static const char FLAT_SOURCE[] =
+  static const char LABELED_SOURCE[] =
       "fn scan(limit: i64): i64 {\n"
       "  var index = 0\n"
       "  var total = 0\n"
-      "  while index < limit {\n"
+      "  scanLoop: while index < limit {\n"
       "    index = index + 1\n"
-      "    if index == 2 { continue }\n"
-      "    if index == 5 { break }\n"
+      "    if index == 2 { continue scanLoop }\n"
+      "    if index == 5 { break scanLoop }\n"
       "    total = total + index\n"
       "  }\n"
       "  return total\n"
       "}\nentry(scan)\n";
-  CHECK(lower(FLAT_SOURCE));
+  CHECK(lower(LABELED_SOURCE));
+  CHECK(fixture.hir_program.function_count == 1u &&
+        fixture.hir_program.functions[0].block_count == 11u &&
+        w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   uint32_t active_loop = W_SEED_FRONTEND_NONE;
   uint32_t break_statement = W_SEED_FRONTEND_NONE;
+  uint32_t continue_statement = W_SEED_FRONTEND_NONE;
   for (size_t index = 0u; index < fixture.result.written.statements;
        index += 1u) {
     if (fixture.statements[index].kind == W_SEED_FRONTEND_STMT_WHILE)
       active_loop = (uint32_t)index;
     if (fixture.statements[index].kind == W_SEED_FRONTEND_STMT_BREAK)
       break_statement = (uint32_t)index;
+    if (fixture.statements[index].kind == W_SEED_FRONTEND_STMT_CONTINUE)
+      continue_statement = (uint32_t)index;
   }
   CHECK(active_loop != W_SEED_FRONTEND_NONE &&
         break_statement != W_SEED_FRONTEND_NONE &&
+        continue_statement != W_SEED_FRONTEND_NONE &&
+        text_is(fixture.statements[active_loop].loop_label, "scanLoop") &&
+        text_is(fixture.statements[break_statement].transfer_label,
+                "scanLoop") &&
+        text_is(fixture.statements[continue_statement].transfer_label,
+                "scanLoop") &&
         fixture.statements[break_statement].transfer_target_statement ==
+            active_loop &&
+        fixture.statements[continue_statement].transfer_target_statement ==
             active_loop);
+
+  setup_hir_output();
+  fill_hir_output(sentinel);
+  fixture.hir_output.value_capacity = fixture.hir_counts.values - 1u;
+  const w_seed_hir0_input labeled_input = hir_input();
+  CHECK(w_seed_hir0_run(&labeled_input, &fixture.hir_output, &rejected) ==
+        W_SEED_HIR0_CAPACITY);
+  CHECK(hir_output_is_byte(sentinel) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+
+  const w_seed_frontend_text saved_label =
+      fixture.statements[break_statement].transfer_label;
+  fixture.statements[break_statement].transfer_label =
+      (w_seed_frontend_text){"other", 5u};
+  const w_seed_hir0_input forged_label_input = hir_input();
+  w_seed_hir0_counts forged_counts;
+  w_seed_hir0_result forged_measure;
+  CHECK(w_seed_hir0_measure(&forged_label_input, &forged_counts,
+                           &forged_measure) == W_SEED_HIR0_UNSUPPORTED);
+  fixture.statements[break_statement].transfer_label = saved_label;
+
   const uint32_t saved_target =
       fixture.statements[break_statement].transfer_target_statement;
   fixture.statements[break_statement].transfer_target_statement =
