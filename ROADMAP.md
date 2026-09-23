@@ -176,6 +176,12 @@ debug behavior per target/profile. Test the candidate against a non-Hello
 product with observable runtime helpers and compare all closure, correctness,
 compile-cost, runtime, memory, and artifact-size receipts before promotion.
 
+The next non-Hello candidate is a count-only process-arguments adapter when
+verified reachability proves no argument bytes or borrowed descriptors are
+observed. The general `Arguments` route retains its bounded scan and failure
+contract; compare the specialized path on 0, 1 empty, 2, 3, 256 and 257
+arguments before accepting any runtime or memory claim.
+
 ### Evidence promotion and safety closure
 
 A vertical witness proves only the exact boundary that it executes. Every
