@@ -274,6 +274,7 @@ const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
   "compiler/seed-c/fixtures/process-arguments-ordering.w": "process-arguments-ordering",
   "compiler/seed-c/fixtures/process-integer-exact-success.w": "fixed-integer-runtime-arithmetic",
   "compiler/seed-c/fixtures/process-integer-exact-error.w": "fixed-integer-runtime-arithmetic",
+  "compiler/seed-c/fixtures/process-float-rounding-success.w": "float-integer-rounding",
   "compiler/seed-c/fixtures/process-float-rounding-error.w": "float-integer-rounding",
   "compiler/seed-c/fixtures/repeat.w": "repeat",
   "compiler/seed-c/fixtures/local-graph/app.w": "local-module-graph",

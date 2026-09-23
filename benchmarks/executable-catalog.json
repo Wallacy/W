@@ -4258,7 +4258,7 @@
       "demoEvidence": "bounded-w-demo",
       "benchmarkStatus": "not-performance-ready",
       "lane": "equivalent",
-      "scope": "Exercise the successful constant nearest-even conversion of 2.5_f64 to i8 and print the result as Rounded 2\\n; the separate process-float-rounding-error.w gate checks conversion of 256.0_f64 toward zero exits with code 1 and empty stdout. This catalog witness covers only the success result (exit 0, exact stdout Rounded 2\\n, empty stderr), is correctness-only, and does not represent the separate failure gate as a benchmark case.",
+      "scope": "Runtime args.count selects constant 2.5_f64 (no arguments) or 3.5_f64 (one argument) for nearest-even i8 conversion, yielding Rounded 2\\n or Rounded 4\\n. The exact-output catalog oracle covers only no arguments; the one-argument result is a public fixture gate only. Both float operands are constants and conversion may fold. Runtime raw-bit float ingress and independent C23/Rust boundary oracles are absent; no performance ranking is claimed. The separate process-float-rounding-error.w gate remains the focused out-of-range failure case.",
       "oracle": {
         "kind": "exact-output",
         "status": "source-backed",
@@ -4269,8 +4269,8 @@
       "sources": [
         {
           "language": "w",
-          "path": "compiler/seed-c/fixtures/process-float-rounding-success.w",
-          "digest": "sha256:8a47067caf87ca94dd94c407aeae2ef4cbbefc86b6e311344688f25697ceb051",
+          "path": "compiler/seed-c/fixtures/process-float-rounding-runtime-if.w",
+          "digest": "sha256:22e5d6cbd624581fa5fdeee4f3e0921fb7eaa3f80cad8bbbdbd989e12a542ed3",
           "entry": "run",
           "status": "source-oracle-ready",
           "profile": "release",
@@ -4288,8 +4288,8 @@
         },
         {
           "language": "w",
-          "path": "compiler/seed-c/fixtures/process-float-rounding-success.w",
-          "digest": "sha256:8a47067caf87ca94dd94c407aeae2ef4cbbefc86b6e311344688f25697ceb051",
+          "path": "compiler/seed-c/fixtures/process-float-rounding-runtime-if.w",
+          "digest": "sha256:22e5d6cbd624581fa5fdeee4f3e0921fb7eaa3f80cad8bbbdbd989e12a542ed3",
           "entry": "run",
           "status": "source-oracle-ready",
           "profile": "release",

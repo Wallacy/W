@@ -2879,7 +2879,7 @@
       "id": "types-and-contracts",
       "file": "language.w",
       "order": 4,
-      "line": 259,
+      "line": 264,
       "title": "Type contracts, static values, and function types",
       "family": "types",
       "designStatus": "current",
@@ -2959,14 +2959,14 @@
           "digest": "sha256:4e8a1d38b0f002b7a3546ae103eba50e846e242039f8771ed588fae0fb87065e"
         }
       ],
-      "snippetDigest": "sha256:c52746a6c5183a4e31fd7b158c12911a401174b9cfb92058c85e915fd07993b8",
-      "snippetBytes": 1947
+      "snippetDigest": "sha256:66a1d9bd1b65671ce89622bfc8d48578fb4bbfbeed211d4b1aad68a0d6b8c7be",
+      "snippetBytes": 2066
     },
     {
       "id": "literals-and-collections",
       "file": "language.w",
       "order": 6,
-      "line": 324,
+      "line": 329,
       "title": "Literals, tuples, and collections",
       "family": "values",
       "designStatus": "current",
@@ -2999,7 +2999,7 @@
       "id": "patterns",
       "file": "language.w",
       "order": 7,
-      "line": 298,
+      "line": 303,
       "title": "Patterns, ranges, and matches",
       "family": "patterns",
       "designStatus": "current",
@@ -3254,7 +3254,7 @@
       "id": "entry-declaration",
       "file": "language.w",
       "order": 14,
-      "line": 355,
+      "line": 360,
       "title": "Explicit entry descriptor",
       "family": "entry",
       "designStatus": "current",
@@ -3374,6 +3374,6 @@
   ],
   "generated": {
     "coverage": "SYNTAX-COVERAGE.md",
-    "coverageDigest": "sha256:1a8a10ca2c14b7736ae3615a8463eac18a8a5479aa22859a6a2efc94ca9ae826"
+    "coverageDigest": "sha256:32022f8b6ecb26a7a8851acdb3f0ca55941f03cbb229d3727195c58cb1efaa82"
   }
 }

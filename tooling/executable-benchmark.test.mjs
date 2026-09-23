@@ -440,17 +440,23 @@ test("platform-minimal Hello stays a separate correctness-only comparison across
     source.recipe === "rustc-edition-2024-no-std"));
 });
 
-test("float rounding catalog separates the observable success witness from its failure gate", () => {
+test("float rounding catalog keeps runtime selection correctness-only", () => {
   const workload = documents.catalog.workloads.find((item) => item.id === "float-integer-rounding");
   assert.ok(workload);
-  assert.match(workload.scope, /successful constant nearest-even conversion/u);
+  assert.match(workload.scope, /args\.count selects constant/u);
+  assert.match(workload.scope, /catalog oracle covers only no arguments/u);
+  assert.match(workload.scope, /one-argument result is a public fixture gate/u);
+  assert.match(workload.scope, /Both float operands are constants/u);
+  assert.match(workload.scope, /no performance ranking/u);
   assert.match(workload.scope, /process-float-rounding-error\.w gate/u);
-  assert.match(workload.scope, /success result \(exit 0, exact stdout Rounded 2\\n, empty stderr\)/u);
-  assert.match(workload.scope, /does not represent the separate failure gate as a benchmark case/u);
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.equal(workload.demoEvidence, "bounded-w-demo");
   assert.deepEqual(workload.sources.map((source) => source.path), [
-    "compiler/seed-c/fixtures/process-float-rounding-success.w",
-    "compiler/seed-c/fixtures/process-float-rounding-success.w",
+    "compiler/seed-c/fixtures/process-float-rounding-runtime-if.w",
+    "compiler/seed-c/fixtures/process-float-rounding-runtime-if.w",
   ]);
+  assert.ok(workload.sources.every((source) =>
+    source.digest === exactOutputDigest(readFileSync(`${ROOT}/${source.path}`, "utf8"))));
   assert.equal(documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === workload.id), false);
 });
 

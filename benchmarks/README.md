@@ -77,6 +77,19 @@ catalog excludes this
 workload from live best-metric derivation and equivalent-runtime ranking until
 runtime-equivalent W evidence exists.
 
+The `float-integer-rounding` witness is also `not-performance-ready`. A runtime
+`args.count` branch selects constant `2.5_f64` (no user arguments) or
+`3.5_f64` (one argument), then converts with nearest-even rounding to `i8`.
+The catalog's exact-output oracle covers the no-argument default only:
+`Rounded 2\n`; the `Rounded 4\n` result for `args=["x"]` is a public fixture
+gate only because this float family has no supported multi-case catalog
+oracle. Runtime branch selection does not make the float operands runtime data:
+they remain constants and can be folded. There is no raw-bit runtime float
+ingress or independent C23/Rust boundary oracle, so this row is correctness-only
+and makes no timing or ranking claim. The public W gate passed on Windows and
+Linux/WSL, so catalog `demoEvidence` is `bounded-w-demo`. The separate
+out-of-range conversion fixture remains a focused failure gate, not a benchmark case.
+
 The `numeric-widening` witness is likewise
 `not-performance-ready`. It keeps the exact implicit integer-to-float and
 binary32-to-binary64 conversion family in one row across return, argument,

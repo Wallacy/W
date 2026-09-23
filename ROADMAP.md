@@ -334,13 +334,13 @@ Ranks order the next integration proof, not a prohibition on parallel work. The
 fundamental `i8`–`u64` and `f32`/`f64` scalar path must feed ranks 2–3, but
 `i128`/`u128`, `f16`/`bf16`/`f128`, and configured low-precision storage need
 not all finish before general functions and CFG advance. A runtime W-389 source
-chosen by `if` exposed the concrete dependency: the current process verifier,
-selector and product closure require a first-block, four-block constant-float
-split. The frontend currently admits scalar `if` expression arms only for
-`Bool` and signed `i64`, so runtime-selected `f32`/`f64` first needs typed
-frontend and verified-HIR branch/join support. Native selection, product
-closure and MLIR float block-argument emission then require their own bounded
-proof before executable promotion. This composition belongs with ranks 3 and
+chosen by `if` exposed a concrete dependency: the process verifier, selector,
+and product closure previously required a first-block, four-block
+constant-float split. Frontend, verified HIR, NativeSubset0, ProductClosure0,
+and MLIR now accept the exact seven-block `Arguments.count`-selected `f64`
+join under `rounding:`; public Windows and Linux/WSL gates execute both arms.
+This is bounded composition, not general floating-point CFG or arbitrary
+runtime float ingress. This composition belongs with ranks 3 and
 7; changing `usize` into `u64` implicitly or treating a constant as runtime
 ingress would not close it. Rank 8 is the first self-hosting gate; ranks 9–11
 may develop in parallel after their shared ownership, error and CFG
@@ -401,7 +401,7 @@ physical scheduler experiments:
    contexts, and W-1647 closes only the existing f32/u32 and f64/u64
    representation-bit round trips. W-1650 adds fixed-width integer
    `try D(exactly: source)` through a typed HIR success/error split and private
-   MLIR/LLVM artifact. Frontend72 and verified HIR96 additionally preserve the
+   MLIR/LLVM artifact. Frontend73 and verified HIR97 additionally preserve the
    complete bounded `f32`/`f64` to fixed-integer `rounding:` matrix and its
    success/non-finite/out-of-range roles. NativeSubset0 now independently
    rederives that closed relation, and the private
@@ -409,7 +409,7 @@ physical scheduler experiments:
    width/mode combinations to deterministic LLVM-dialect text; focused checks
    verify exact bounds and ordering for that complete matrix, while real
    `mlir-opt`/`mlir-translate` gates cover both float widths, signed and
-   unsigned destinations, and every rounding intrinsic. HIR96 also admits one
+   unsigned destinations, and every rounding intrinsic. HIR97 also admits one
    source-derived constant rounding split in the bounded `native-process@1`
    root and proves reverse owner cleanup on all three outcomes. ProductClosure0
    v4 now projects those three process outcomes and binds them into its
@@ -418,7 +418,11 @@ physical scheduler experiments:
    Linux/WSL x64 execution: nearest-even success prints `Rounded 2\n` and exits
    0; out-of-range exits 1 with empty output, after reverse cleanup on both
    outcomes. The print is admitted only when it interpolates the binding
-   initialized from the verified normal-edge result. Runtime float ingress,
+   initialized from the verified normal-edge result. A second, seven-block
+   process witness selects `2.5_f64` or `3.5_f64` from runtime
+   `Arguments.count`, then executes the joined rounding result on both public
+   targets (`Rounded 2\n` or `Rounded 4\n`, exit 0); the operands remain
+   constants. Arbitrary runtime float ingress,
    the public non-finite path, and independent raw-bit boundary oracles still
    lack this route. W-1652 now defines the
    canonical `native-process@1`

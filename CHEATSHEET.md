@@ -680,11 +680,12 @@ conversion. Current seed evidence is correctness-only and covers signed and
 unsigned 8/16/32/64-bit integers plus the current x86-64 `Int`/`UInt` aliases.
 `usize`/`isize`, 128-bit integers, target-general alias widths, stable ABI/FFI,
 other targets, and performance remain outside this slice. Integer `exactly:`
-has a separate bounded typed path. Float-to-integer `rounding:` now has one
-separate CRT-free process witness: a compile-time `f64` source converted to
-`i8` with explicit mode and distinct normal, non-finite, and out-of-range
-outcomes. Runtime float sources, other pairs, general typed process bodies,
-other `saturating:` families, and performance remain gaps.
+has a separate bounded typed path. Float-to-integer `rounding:` has a bounded
+CRT-free process witness: a runtime `Arguments.count` branch selects one of two
+`f64` literals for conversion to `i8` with an explicit mode and distinct
+normal, non-finite, and out-of-range outcomes. Arbitrary runtime float input,
+other public process pairs, general typed process bodies, other `saturating:`
+families, and performance remain gaps.
 
 <!-- w-example role=logical-contract -->
 ```w
@@ -708,21 +709,22 @@ both arms, success exits 0, and unhandled out-of-range exits 1 without implicit
 output. User-defined direct throws, general typed process bodies, and
 performance evidence remain open.
 
-The separate bounded float-rounding process witness declares a conversion and
-uses its result in output; it is not evidence for a runtime-selected float
-source:
+The bounded float-rounding process witness declares and uses the conversion
+result. Both branches execute on the public Windows and Linux/WSL routes; the
+float operands themselves remain constants, so this is not a throughput
+benchmark for runtime float conversion:
 
 <!-- w-example role=logical-contract -->
 ```w
 import { Arguments, Context, ExitCode } from std.process
 
 async fn run(args: Arguments, ctx: Context): ExitCode throws NumericConversionError {
-  let rounded = try i8(rounding: 2.5_f64, mode: .nearestEven)
+  let rounded = try i8(rounding: if args.count == 0 { 2.5_f64 } else { 3.5_f64 }, mode: .nearestEven)
   print("Rounded ${rounded}")
   return .success
 }
 
-entry(run) // exit 0; stdout: "Rounded 2\n"
+entry(run) // no args: "Rounded 2\n"; one arg: "Rounded 4\n"; both exit 0
 ```
 
 Integer `D(saturating: source)` clamps the mathematical value to the

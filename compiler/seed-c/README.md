@@ -3006,7 +3006,7 @@ public panic ABI, and performance remain unsupported or unclaimed.
 
 ### Float-to-integer rounding preservation (W-389, bounded)
 
-Frontend72 and verified HIR96 now preserve the selected
+Frontend73 and verified HIR97 now preserve the selected
 `try D(rounding: source, mode: .policy)` relation for `f32`/`f64` into the
 signed and unsigned 8/16/32/64-bit integers plus the current x86-64
 `Int`/`UInt` aliases. The five closed modes are `.nearestEven`,
@@ -3035,7 +3035,7 @@ intrinsics through `mlir-opt --verify-each` plus `mlir-translate`.
 ProductClosure0 v4 accepts a source-derived direct default-unit helper and
 publishes separate normal, non-finite, and out-of-range outcomes; the legacy
 `outcome` field aliases out-of-range for compatibility. Its digest binds all
-three roles and the rounding mode. HIR96 additionally accepts one bounded
+three roles and the rounding mode. HIR97 additionally accepts one bounded
 `native-process@1` body whose source is a compile-time float expression, keeps
 the normal/non-finite/out-of-range successors distinct, and proves Context then
 Arguments cleanup on every outcome. ProductClosure0 v4 independently admits
@@ -3049,8 +3049,20 @@ failure (`256.0_f64`, toward-zero, `i8`, status 1) with empty stdout/stderr.
 The success print must interpolate the binding initialized from the verified
 normal-edge result; a constant string containing the expected digits is not
 admitted. Both outcomes release owners and finalize the root before process
-adaptation, and the typed-error path cannot reach the success-only flush. The
-bootstrap runs LLVM `opt` between translation and `llc`; optimization remains
+adaptation, and the typed-error path cannot reach the success-only flush.
+
+Frontend73 and HIR97 also admit a narrowly typed scalar `if` whose runtime
+`Arguments.count == 0` condition chooses between two `f64` literals. The
+verified seven-block diamond joins exactly one `f64` value before the existing
+three-way rounding split; equal-width `f32`/`f64` scalar arms are otherwise
+typed without implicit cross-width widening. ProductClosure0 and NativeSubset0
+authenticate the diamond independently, and MLIR consumes its joined operand
+for classification and rounding. Public `w run` and `w build` gates on Windows
+x64 and Linux/WSL x64 execute no arguments as `Rounded 2\n` and one argument
+as `Rounded 4\n`, both with status 0 and empty stderr. The float operands are
+still constants; arbitrary runtime float input is not claimed.
+
+The bootstrap runs LLVM `opt` between translation and `llc`; optimization remains
 enabled, with helper-specific no-builtin attributes guarding the relevant
 runtime idioms instead of a global libcall-simplification disable. Built Linux
 artifacts are static PIEs without an interpreter or `DT_NEEDED`; Windows PE

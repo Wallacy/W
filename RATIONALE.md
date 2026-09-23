@@ -14560,7 +14560,7 @@ claimed.
 
 #### W-389 bounded amendment — float-to-integer rounding preservation
 
-Frontend72 and verified HIR96 preserve the already selected
+Frontend73 and verified HIR97 preserve the already selected
 `try D(rounding: source, mode: .policy)` surface. The bounded matrix is
 `f32`/`f64` into the signed and unsigned
 8/16/32/64-bit integers plus the current x86-64 `Int`/`UInt` aliases, across
@@ -14587,7 +14587,7 @@ signed/unsigned conversion, and all five intrinsics through
 
 ProductClosure0 v4 now admits the source-derived direct default-unit helper and
 publishes normal, non-finite, and out-of-range roles while retaining `outcome`
-as an out-of-range compatibility alias. HIR96 now admits one bounded
+as an out-of-range compatibility alias. HIR97 now admits one bounded
 `native-process@1` body with a compile-time float source and independently
 verifies the four-block split plus reverse owner cleanup on normal, non-finite,
 and out-of-range outcomes. ProductClosure0 v4 independently admits that bounded
@@ -14599,6 +14599,15 @@ adapter retains the three HIR roles through reverse owner cleanup and root
 finalization; only afterward does the versioned process profile map either
 unhandled typed error to status 1.
 
+Frontend73/HIR97 additionally preserve one runtime-selected `f64` source: a
+verified `Arguments.count == 0` branch chooses between two exactly typed
+float literals, merges them through one block argument, then enters the same
+three-outcome rounding split. ProductClosure0 and NativeSubset0 authenticate
+the seven-block shape independently; MLIR uses the joined operand for both
+classification and rounding rather than substituting a constant. This
+composes existing scalar `if` and W-389 conversion semantics, so it creates
+no new language decision. It does not admit arbitrary runtime float input.
+
 Public CRT-free Windows x64 and Linux/WSL x64 gates execute a constant
 nearest-even `2.5_f64 -> i8` success with status 0 and exact stdout
 `Rounded 2\n`, plus a constant toward-zero `256.0_f64 -> i8` out-of-range path
@@ -14606,6 +14615,10 @@ with status 1 and empty stdout/stderr. The success print is admitted only when
 its interpolation reads the verified conversion-result binding; a hardcoded
 constant string is rejected. Both paths release owners and finalize the root
 before outcome adaptation, and typed failure cannot reach the success flush.
+The new argument-selected witness separately runs both sides of the seven-block
+diamond through public `w run` and `w build`: no arguments print `Rounded 2\n`,
+one argument prints `Rounded 4\n`, both exit 0 with empty stderr. Those checks
+also retain the CRT-free ELF and Kernel32-only PE dependency assertions.
 The bootstrap runs LLVM `opt` between translation and `llc`. Per-helper
 no-builtin attributes replaced the former global libcall-simplification
 disable, and the optimized Linux/Windows gates pass. The built Linux outputs
@@ -14613,7 +14626,7 @@ are static PIEs without an interpreter or `DT_NEEDED`; the Windows PE outputs
 import only `Kernel32.dll`. These final-image checks do not retain post-opt IR
 externals or inspect object undefined symbols, so those remain separate
 per-product evidence gaps and this does not prove general closure. This is
-still not runtime float ingress. The non-finite public route, independent
+still not arbitrary runtime float ingress. The non-finite public route, independent
 raw-bit boundary oracle, stable ABI, benchmark timing, and performance remain
 absent. The amendment therefore stays compiler-lifecycle evidence and W-389
 remains an implementation-evidence gap.

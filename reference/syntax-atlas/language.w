@@ -221,6 +221,11 @@ fn chooseLabel(
   return if primary.bytes.count > 0 { primary } else { fallback }
 }
 
+fn chooseFloat(condition: Bool): f64 {
+  let selected = if condition { 2.5_f64 } else { 3.5_f64 }
+  return selected
+}
+
 export mut fn rename(_ place: Place<String>, _ value: String) {
   place.title = value
 }
