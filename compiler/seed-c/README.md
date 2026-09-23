@@ -1748,6 +1748,23 @@ x86_64 under WSL with LLVM/MLIR 23.1.1 and Windows x86_64 MSVC with 23.1.1.
 General or nested loops, multiple carried values, effects, macOS, PGO,
 code-size quality, ranking, and general performance remain outside this cut.
 
+### Bounded `break`/`continue` loop CFG
+
+`fixtures/while-break-continue.w` carries two signed-`i64` values through a
+pre-test `while` with unlabeled `continue` and `break`. Frontend lowering emits
+one verified HIR CFG with typed, densely ordered edge arguments and a shared
+exit; NativeSubset0 selects that graph independently of source spelling.
+MLIR0 preserves the actual block graph and typed branches rather than
+projecting it into the earlier `scf.while` shape. The LLVM translation has
+the corresponding loop-header and shared-exit phi values.
+
+Public Windows and Linux/WSL `w run` and `w build` gates execute the same
+source. Its three calls cover a false initial condition, the continue path,
+and the break path, printing exactly `0,4,8\n` with exit 0 and empty stderr.
+The Linux build gate checks CRT-free ELF closure. This proves only that bounded
+seed subset; nested/labeled loops, general mixed CFG, other carrier types,
+and performance equivalence remain open.
+
 ### Multi-carrier structured natural loop (W-1569)
 
 HIR0 and NativeSubset0 now admit a nonempty tuple of mutable signed-`i64`

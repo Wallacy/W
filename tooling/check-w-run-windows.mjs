@@ -29,6 +29,8 @@ const whileMultiFixture = resolve(seedDirectory,
   "fixtures", "while-multi.w")
 const whilePostFixture = resolve(seedDirectory,
   "fixtures", "while-post.w")
+const whileBreakContinueFixture = resolve(seedDirectory,
+  "fixtures", "while-break-continue.w")
 const repeatFixture = resolve(seedDirectory,
   "fixtures", "repeat.w")
 const wmoFixture = resolve(seedDirectory, "fixtures", "wmo.w")
@@ -842,6 +844,9 @@ try {
   expectExact(binary, ["run", whilePostFixture], 0,
     Buffer.from("Final 9\n", "utf8"),
     "Restaurant post-loop SSA continuation fixture")
+  expectExact(binary, ["run", whileBreakContinueFixture], 0,
+    Buffer.from("0,4,8\n", "utf8"),
+    "verified loop CFG with break and continue")
   expectExact(binary, ["run", repeatFixture], 0,
     Buffer.from("Receipt digits 1/5\n", "utf8"),
     "Restaurant post-test repeat fixture")
@@ -1222,6 +1227,8 @@ try {
   const buildRestaurantIf = join(fixtureDirectory, "if-build.exe")
   const buildRestaurantRepeat = join(fixtureDirectory,
     "repeat-build.exe")
+  const buildWhileBreakContinue = join(fixtureDirectory,
+    "while-break-continue-build.exe")
   const buildRestaurantMainDispatch = join(fixtureDirectory,
     "main-dispatch-build.exe")
   const buildRestaurantMainCardinality = join(fixtureDirectory,
@@ -1293,6 +1300,14 @@ try {
   expectExact(buildRestaurantRepeat, [], 0,
     Buffer.from("Receipt digits 1/5\n", "utf8"),
     "execute built repeat artifact")
+  expectExact(binary, ["build", whileBreakContinueFixture, "--target",
+    targetTriple, "--output", buildWhileBreakContinue], 0,
+    Buffer.alloc(0), "build verified loop CFG fixture")
+  assertKernel32OnlyImports(await readFile(buildWhileBreakContinue),
+    "built verified loop CFG artifact")
+  expectExact(buildWhileBreakContinue, [], 0,
+    Buffer.from("0,4,8\n", "utf8"),
+    "execute built verified loop CFG artifact")
   expectExact(binary, ["build", mainDispatchFixture, "--target",
     targetTriple, "--output", buildRestaurantMainDispatch], 0,
   Buffer.alloc(0), "build restaurant main-domain dispatch fixture")

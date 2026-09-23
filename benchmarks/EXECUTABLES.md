@@ -44,6 +44,7 @@ The timer covers lane runs, result validation, catalog update, and catalog/docum
 | [while-post (C)](./executable/while_post.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 132.6173 ms | 17.3555 ms | 18.1912 ms | 13.304 ms | 4845568 B (4.62 MiB) |
 | [while-post (Rust)](./executable/while_post.rs) | Windows · CRT | Rust | 113664 B (111.0 KiB) | 1.1034614 s | 17.9432 ms | 18.5035 ms | 14.387 ms | 4882432 B (4.66 MiB) |
 | [while-post (W)](../compiler/seed-c/fixtures/while-post.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 217.4352 ms | 16.1149 ms | 16.6202 ms | 13.304 ms | 3764224 B (3.59 MiB) |
+| [while-break-continue (W)](../compiler/seed-c/fixtures/while-break-continue.w), [while-break-continue (C)](./executable/while_break_continue.c), [while-break-continue (Rust)](./executable/while_break_continue.rs) | Not measured | — | — | — | — | — | — | — |
 | [repeat (C)](./executable/repeat.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 135.1101 ms | 17.5156 ms | 18.987 ms | 13.923 ms | 4845568 B (4.62 MiB) |
 | [repeat (Rust)](./executable/repeat.rs) | Windows · CRT | Rust | 113664 B (111.0 KiB) | 1.1005247 s | 17.411 ms | 18.2234 ms | 13.613 ms | 4890624 B (4.66 MiB) |
 | [repeat (W)](../compiler/seed-c/fixtures/repeat.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 219.4432 ms | 16.2613 ms | 17.2779 ms | 12.221 ms | 3764224 B (3.59 MiB) |

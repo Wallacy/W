@@ -388,14 +388,15 @@ each lane, but do not start a second compiler implementation before functions,
 modules, ownership and error flow can support it.
 
 For the active rank-3 tranche, run a dependency graph rather than a
-single-file queue. The source-semantics lane owns the bounded loop CFG and its
-verifier; the native lane starts from that verified HIR contract, not from a
-second source-shape recognizer. An independent correctness-reference lane may
-advance while those two lanes close. The principal owns end-to-end integration
-and adversarial review. Do not call the slice complete until the same `.w`
-source reaches verified HIR, native Windows and Linux products, and the
-declared output oracle; do not rank its performance before equivalent native
-work exists in the comparison lanes.
+single-file queue. The bounded unlabeled `break`/`continue` pre-test `while`
+slice now reaches source-backed verified HIR, independent NativeSubset0
+selection, MLIR/LLVM typed CFG, and public `w run`/`w build` CRT-free products
+on Windows and Linux/WSL. The shared `while-break-continue.w` witness returns
+`0,4,8\n` across false-header, continue, and break paths. The MLIR gate
+verifies typed edges and LLVM translation; public gates verify exact output,
+exit, and target artifact closure. This is bounded correctness evidence, not
+general-loop or performance evidence. The C23/Rust references are correctness
+oracles only until their runtime inputs are equivalent to W's.
 
 After that proof, form the next packages around whole semantic families:
 general CFG/loops, aggregate-and-enum values, module graph/specialization,
@@ -404,14 +405,12 @@ only after a pinned witness and HIR contract give each writer a stable
 boundary. Prefer a larger family package with one integration gate over a
 series of width-by-width or one-op commits. Keep at most four executors and
 retire each at its finite gate; parallel occupancy is not itself progress.
-The selected rank-3 family is unlabeled `break`/`continue` in one
-pre-test `while` with multiple carried scalar values. Pin one source witness
-and expected HIR edge/carrier mapping before splitting native/MLIR and
-executable-evidence writers from frontend/HIR. This package should establish
-a reusable source-to-CFG control-transfer builder rather than another
-source-shape recognizer; otherwise the apparent parallel speedup merely moves
-cost into future maintenance. Nested/labeled loops and general mixed CFG
-remain later work; this proposal is not implementation evidence.
+The next rank-3 cut should extend the verified transfer builder to nested and
+labeled loops, then mixed CFG with multi-block returns. Keep the exact typed
+edge/carrier mapping as the contract between frontend/HIR, native selection,
+and code generation; do not add a second source-shape recognizer. General
+CFG, arbitrary payload types, optimizer quality, and cross-target performance
+remain open.
 
 ### Active rank 1 closure order
 

@@ -1,4 +1,6 @@
-// Expected exit: 0; stdout: "8\n"; stderr: "".
+// Expected exit: 0
+// Expected stdout:
+// 0,4,8
 fn scan(limit: i64): i64 {
   var index = 0
   var total = 0
@@ -12,6 +14,8 @@ fn scan(limit: i64): i64 {
 }
 
 entry {
-  let result = scan(limit: 9)
-  print("${result}")
+  let first = scan(limit: 0)
+  let second = scan(limit: 3)
+  let third = scan(limit: 9)
+  print("${first},${second},${third}")
 }

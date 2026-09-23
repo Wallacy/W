@@ -29,6 +29,8 @@ const whileMultiFixture = resolve(seedDirectory,
   "fixtures", "while-multi.w")
 const whilePostFixture = resolve(seedDirectory,
   "fixtures", "while-post.w")
+const whileBreakContinueFixture = resolve(seedDirectory,
+  "fixtures", "while-break-continue.w")
 const repeatFixture = resolve(seedDirectory,
   "fixtures", "repeat.w")
 const wmoFixture = resolve(seedDirectory, "fixtures", "wmo.w")
@@ -1121,6 +1123,9 @@ try {
   expectSuccess(binary, ["run", toWsl(whilePostFixture)],
     Buffer.from("Final 9\n", "utf8"),
     "Restaurant post-loop SSA continuation after structured natural while")
+  expectSuccess(binary, ["run", toWsl(whileBreakContinueFixture)],
+    Buffer.from("0,4,8\n", "utf8"),
+    "verified loop CFG with break and continue")
   expectSuccess(binary, ["run", toWsl(repeatFixture)],
     Buffer.from("Receipt digits 1/5\n", "utf8"),
     "Restaurant post-test repeat lowered through structured MLIR")
@@ -1491,6 +1496,7 @@ try {
   const buildPrivateGraph = buildOutput("private-graph-build")
   const buildRestaurantIf = buildOutput("if-build")
   const buildRestaurantRepeat = buildOutput("repeat-build")
+  const buildWhileBreakContinue = buildOutput("while-break-continue-build")
   const buildRestaurantMainDispatch = buildOutput(
     "main-dispatch-build")
   const buildRestaurantMainCardinality = buildOutput(
@@ -1551,6 +1557,13 @@ try {
     Buffer.from("Receipt digits 1/5\n", "utf8"),
     "execute built repeat artifact")
   assertCrtFreeElf(await readBuildArtifact(buildRestaurantRepeat))
+  expectSuccess(binary, ["build", toWsl(whileBreakContinueFixture),
+    "--target", targetTriple, "--output", buildWhileBreakContinue],
+    Buffer.alloc(0), "build verified loop CFG fixture")
+  expectSuccess(buildWhileBreakContinue, [],
+    Buffer.from("0,4,8\n", "utf8"),
+    "execute built verified loop CFG artifact")
+  assertCrtFreeElf(await readBuildArtifact(buildWhileBreakContinue))
   expectSuccess(binary, ["build", toWsl(mainDispatchFixture),
     "--target", targetTriple, "--output", buildRestaurantMainDispatch],
   Buffer.alloc(0), "build restaurant main-domain dispatch fixture")

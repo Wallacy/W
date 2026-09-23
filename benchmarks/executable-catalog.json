@@ -847,6 +847,106 @@
       "family": "control-flow"
     },
     {
+      "id": "while-break-continue",
+      "family": "control-flow",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Exercise a while loop that continues at index 2 and breaks at index 5, then preserve the exact output for limits 0, 3, and 9. C23 and Rust 2024 retain opaque runtime limits while W uses literals that may be folded, so runtime equivalence and performance ranking remain deferred.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "0,4,8\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/while-break-continue.w",
+          "digest": "sha256:5a4d05eca8241ab5037e9d2b662a7397245f15753e13ab261e7f3588a099d33d",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "while-break-continue-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b",
+          "runtimeClosure": {
+            "class": "freestanding",
+            "status": "unverified"
+          }
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/while-break-continue.w",
+          "digest": "sha256:5a4d05eca8241ab5037e9d2b662a7397245f15753e13ab261e7f3588a099d33d",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "while-break-continue-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only",
+          "runtimeClosure": {
+            "class": "freestanding",
+            "status": "unverified"
+          }
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/while_break_continue.c",
+          "digest": "sha256:1a804dd40e71b1d4bdf458d0772082d4fcd3ddc9b38f5d1f7522056d79b3aead",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "while-break-continue-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b",
+          "runtimeClosure": {
+            "class": "hosted-crt",
+            "status": "unverified"
+          }
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/while_break_continue.rs",
+          "digest": "sha256:ed8c016efd986ab673042f449d6eeb9b3b222cf96078ebfe361e24fb74c24d97",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "while-break-continue-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b",
+          "runtimeClosure": {
+            "class": "hosted-crt",
+            "status": "unverified"
+          }
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": [
+        "runtime-equivalence-not-established"
+      ]
+    },
+    {
       "id": "repeat",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",

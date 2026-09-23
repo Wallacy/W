@@ -35,6 +35,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "nested-scalar-if",
   "terminal-returns",
   "while-post",
+  "while-break-continue",
   "repeat",
   "wmo",
   "async-join",
@@ -87,7 +88,7 @@ const WORKLOAD_FAMILY_ROWS = Object.freeze({
   "control-flow": Object.freeze([
     "branch", "nested-branch", "bool-short-circuit",
     "interpolation", "scalar-if", "nested-scalar-if", "terminal-returns",
-    "while-post", "repeat", "wmo",
+    "while-post", "while-break-continue", "repeat", "wmo",
   ]),
   async: Object.freeze(["async-join", "async-yield"]),
   composition: Object.freeze([
@@ -1551,7 +1552,8 @@ function executableHostSlugSupportsPlatform(host, platformTarget) {
 
 function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PLATFORM_TARGET_WINDOWS) {
   if (platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) return SOURCE_ELIGIBILITY.wslDiagnostic;
-  if (workload?.id === "terminal-returns") return SOURCE_ELIGIBILITY.correctnessOnly;
+  if (workload?.id === "terminal-returns" ||
+      workload?.id === "while-break-continue") return SOURCE_ELIGIBILITY.correctnessOnly;
   if (workload?.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID) return SOURCE_ELIGIBILITY.platformMinimal;
   if (workload?.id === FLOAT_STRICT_WORKLOAD_ID ||
       workload?.id === FLOAT_BIT_REPRESENTATION_WORKLOAD_ID ||

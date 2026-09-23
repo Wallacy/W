@@ -159,6 +159,16 @@ C23 and Rust sources reproduce the oracle on Windows, but their hosted runtime
 and opaque inputs differ from W's freestanding literal-input route. This row
 makes no runtime-equivalence or timing claim and records no best metrics.
 
+`while-break-continue` adds a correctness-only loop witness: it skips index 2,
+breaks at index 5, and prints `0,4,8\n` for limits 0, 3, and 9. The public W
+build-and-run gates passed on Windows and Linux/WSL, with the Linux/WSL gate
+asserting a CRT-free ELF; the independent C23/Rust 2024 references passed the
+exact oracle on Windows. C keeps its limits volatile and Rust uses `black_box`,
+while W supplies literals that may be folded; runtime equivalence is not
+established, so the row makes no timing or ranking claim. Reproduce the W gates
+with `bun run tooling/check-w-run-windows.mjs` and
+`bun run tooling/check-w-run.mjs`.
+
 `hello-platform-minimal` is registered and runner-supported for contextual,
 non-ranking measurement; the catalog status does not make it an idiomatic
 comparison or a language ranking. Its source/oracle registration is not
