@@ -8380,6 +8380,244 @@ static bool test_natural_loop_multi_carrier_projection_mlir(void) {
   return true;
 }
 
+static bool test_conditional_exit_loop_uses_typed_cfg_mlir(void) {
+  static const uint8_t source[] =
+      "fn scan(limit: i64): i64 {\n"
+      "  var index = 0\n"
+      "  var total = 0\n"
+      "  while index < limit {\n"
+      "    index = index + 1\n"
+      "    if index == 2 { continue }\n"
+      "    if index == 5 { break }\n"
+      "    total = total + index\n"
+      "  }\n"
+      "  return total\n"
+      "}\n"
+      "entry {\n"
+      "  let result = scan(limit: 9)\n"
+      "  print(\"${result}\")\n"
+      "}\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  CHECK(fixture.hir_program.function_count == 2u);
+  const w_seed_hir0_function *function = &fixture.hir_program.functions[0];
+  CHECK(function->block_count >= 5u &&
+        function->return_type < fixture.hir_program.type_count &&
+        fixture.hir_program.types[function->return_type].kind ==
+            W_SEED_HIR0_TYPE_I64);
+
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.verified_i64_loop_cfg_functions[0] &&
+        !selection.natural_loop_functions[0] &&
+        !selection.post_test_loop_functions[0] && selection.has_cfg);
+
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        memcmp(measured.mlir_sha256, emitted.mlir_sha256,
+               sizeof(measured.mlir_sha256)) == 0);
+  const size_t function_start =
+      find_bytes(artifact, emitted.written.mlir_bytes,
+                 "llvm.func internal @w_fn_0", 0u);
+  const size_t entry_start =
+      find_bytes(artifact, emitted.written.mlir_bytes,
+                 "llvm.func internal @w_fn_1", function_start);
+  CHECK(function_start != SIZE_MAX && entry_start > function_start);
+  const size_t function_bytes = entry_start - function_start;
+  const uint8_t *function_artifact = artifact + function_start;
+  size_t branch_count = 0u;
+  size_t jump_count = 0u;
+  size_t two_i64_argument_tuples = 0u;
+  size_t two_i64_jump_count = 0u;
+  bool saw_typed_jump_arguments = false;
+  bool saw_back_edge = false;
+  bool saw_i64_return = false;
+  const size_t block_end = (size_t)function->first_block + function->block_count;
+  CHECK(block_end <= fixture.hir_program.block_count);
+  for (size_t block_index = function->first_block; block_index < block_end;
+       block_index += 1u) {
+    const w_seed_hir0_block *block = &fixture.hir_program.blocks[block_index];
+    CHECK(block->owner_function == 0u &&
+          block->terminator_index < fixture.hir_program.terminator_count);
+    if (block->block_argument_count == 2u) {
+      two_i64_argument_tuples += 1u;
+      CHECK(block->first_block_argument != W_SEED_HIR0_NONE &&
+            block->first_block_argument + 1u <
+                fixture.hir_program.block_argument_count);
+      char expected_arguments[128];
+      const int expected_arguments_length = snprintf(
+          expected_arguments, sizeof(expected_arguments),
+          "^w_fn_0_b_%llu(%%arg%u: i64, %%arg%u: i64):",
+          (unsigned long long)block_index,
+          block->first_block_argument, block->first_block_argument + 1u);
+      CHECK(expected_arguments_length > 0 &&
+            (size_t)expected_arguments_length < sizeof(expected_arguments) &&
+            contains_bytes(function_artifact, function_bytes,
+                           expected_arguments));
+      for (size_t argument = 0u; argument < 2u; argument += 1u) {
+        const w_seed_hir0_block_argument *item =
+            &fixture.hir_program.block_arguments[
+                (size_t)block->first_block_argument + argument];
+        CHECK(item->owner_block == block_index &&
+              item->type_index < fixture.hir_program.type_count &&
+              fixture.hir_program.types[item->type_index].kind ==
+                  W_SEED_HIR0_TYPE_I64);
+      }
+    }
+    const w_seed_hir0_terminator *terminator =
+        &fixture.hir_program.terminators[block->terminator_index];
+    if (terminator->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
+      char expected_branch[192];
+      CHECK(terminator->value_index < fixture.hir_program.value_count);
+      const w_seed_hir0_value *condition =
+          &fixture.hir_program.values[terminator->value_index];
+      CHECK(condition->type_index < fixture.hir_program.type_count &&
+            fixture.hir_program.types[condition->type_index].kind ==
+                W_SEED_HIR0_TYPE_BOOL);
+      const int expected_length = snprintf(
+          expected_branch, sizeof(expected_branch),
+          "llvm.cond_br %%v%u, ^w_fn_0_b_%u, ^w_fn_0_b_%u",
+          terminator->value_index, terminator->target_block,
+          terminator->else_block);
+      CHECK(expected_length > 0 &&
+            (size_t)expected_length < sizeof(expected_branch) &&
+            contains_bytes(function_artifact, function_bytes,
+                           expected_branch));
+      branch_count += 1u;
+    } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_JUMP) {
+      CHECK(terminator->target_block >= function->first_block &&
+            terminator->target_block < block_end);
+      const w_seed_hir0_block *target =
+          &fixture.hir_program.blocks[terminator->target_block];
+      CHECK(terminator->edge_argument_count == target->block_argument_count);
+      if (terminator->edge_argument_count != 0u) {
+        char expected_target[96];
+        const int target_length = snprintf(
+            expected_target, sizeof(expected_target),
+            "llvm.br ^w_fn_0_b_%u(", terminator->target_block);
+        CHECK(target_length > 0 &&
+              (size_t)target_length < sizeof(expected_target) &&
+              contains_bytes(function_artifact, function_bytes,
+                             expected_target));
+        size_t type_suffix_bytes = 0u;
+        char type_suffix[96] = " :";
+        for (size_t argument = 0u;
+             argument < terminator->edge_argument_count; argument += 1u) {
+          const w_seed_hir0_edge_argument *edge =
+              &fixture.hir_program.edge_arguments[
+                  (size_t)terminator->first_edge_argument + argument];
+          CHECK(edge->type_index < fixture.hir_program.type_count &&
+                fixture.hir_program.types[edge->type_index].kind ==
+                    W_SEED_HIR0_TYPE_I64);
+          const int suffix_length = snprintf(
+              type_suffix + type_suffix_bytes,
+              sizeof(type_suffix) - type_suffix_bytes,
+              "%s i64", argument == 0u ? "" : ",");
+          CHECK(suffix_length > 0 &&
+                (size_t)suffix_length <
+                    sizeof(type_suffix) - type_suffix_bytes);
+          type_suffix_bytes += (size_t)suffix_length;
+        }
+        CHECK(type_suffix_bytes + 2u < sizeof(type_suffix));
+        type_suffix[type_suffix_bytes] = ')';
+        type_suffix[type_suffix_bytes + 1u] = '\0';
+        CHECK(contains_bytes(function_artifact, function_bytes,
+                             type_suffix));
+        if (terminator->edge_argument_count == 2u) {
+          saw_typed_jump_arguments = true;
+          two_i64_jump_count += 1u;
+        }
+      }
+      if (terminator->target_block < block_index) saw_back_edge = true;
+      jump_count += 1u;
+    } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE) {
+      CHECK(terminator->value_index < fixture.hir_program.value_count &&
+            contains_bytes(function_artifact, function_bytes,
+                           "llvm.return ") &&
+            contains_bytes(function_artifact, function_bytes,
+                           " : i64\n"));
+      saw_i64_return = true;
+    }
+  }
+  CHECK(two_i64_argument_tuples == 2u && branch_count >= 2u &&
+        jump_count >= 2u && saw_typed_jump_arguments && saw_back_edge &&
+        saw_i64_return);
+  CHECK(count_bytes(function_artifact, function_bytes, "llvm.cond_br ") ==
+            branch_count &&
+        count_bytes(function_artifact, function_bytes, "llvm.br ^w_fn_0_b_") ==
+            jump_count &&
+        count_bytes(function_artifact, function_bytes,
+                    " : i64, i64)\n") == two_i64_jump_count &&
+        !contains_bytes(function_artifact, function_bytes, "scf.while") &&
+        !contains_bytes(function_artifact, function_bytes, "scf.yield") &&
+        !contains_bytes(function_artifact, function_bytes, "llvm.alloca"));
+
+  uint32_t bool_type_index = W_SEED_HIR0_NONE;
+  uint32_t edge_to_corrupt = W_SEED_HIR0_NONE;
+  for (size_t type = 0u; type < fixture.hir_program.type_count; type += 1u)
+    if (fixture.hir_program.types[type].kind == W_SEED_HIR0_TYPE_BOOL) {
+      bool_type_index = (uint32_t)type;
+      break;
+    }
+  for (size_t block_index = function->first_block; block_index < block_end;
+       block_index += 1u) {
+    const w_seed_hir0_terminator *terminator =
+        &fixture.hir_program.terminators[
+            fixture.hir_program.blocks[block_index].terminator_index];
+    if (terminator->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        terminator->edge_argument_count != 0u) {
+      edge_to_corrupt = terminator->first_edge_argument;
+      break;
+    }
+  }
+  CHECK(bool_type_index != W_SEED_HIR0_NONE &&
+        edge_to_corrupt != W_SEED_HIR0_NONE &&
+        edge_to_corrupt < fixture.hir_program.edge_argument_count);
+  const w_seed_hir0_edge_argument saved_edge =
+      fixture.hir_program.edge_arguments[edge_to_corrupt];
+  CHECK(saved_edge.type_index != bool_type_index);
+  fixture.hir_edge_arguments[edge_to_corrupt].type_index = bool_type_index;
+
+  const w_seed_mlir0_input invalid_input = mlir_input();
+  w_seed_mlir0_counts invalid_counts = {0x37u};
+  const w_seed_mlir0_counts invalid_counts_snapshot = invalid_counts;
+  w_seed_mlir0_result invalid_measure_result;
+  (void)memset(&invalid_measure_result, 0x4au,
+               sizeof(invalid_measure_result));
+  const w_seed_mlir0_result invalid_measure_snapshot =
+      invalid_measure_result;
+  CHECK(w_seed_mlir0_measure(&invalid_input, &TARGET, &invalid_counts,
+                             &invalid_measure_result) ==
+        W_SEED_MLIR0_INVALID_HIR);
+  CHECK(memcmp(&invalid_counts, &invalid_counts_snapshot,
+               sizeof(invalid_counts)) == 0 &&
+        memcmp(&invalid_measure_result, &invalid_measure_snapshot,
+               sizeof(invalid_measure_result)) == 0);
+
+  uint8_t rejected_output[W_SEED_MLIR0_MAX_BYTES];
+  (void)memset(rejected_output, 0xa5u, sizeof(rejected_output));
+  w_seed_mlir0_result invalid_emit_result;
+  (void)memset(&invalid_emit_result, 0x5bu, sizeof(invalid_emit_result));
+  const w_seed_mlir0_result invalid_emit_snapshot = invalid_emit_result;
+  CHECK(w_seed_mlir0_emit(
+            &invalid_input, &TARGET,
+            &(w_seed_mlir0_output){rejected_output, sizeof(rejected_output)},
+            &invalid_emit_result) == W_SEED_MLIR0_INVALID_HIR);
+  for (size_t byte = 0u; byte < sizeof(rejected_output); byte += 1u)
+    CHECK(rejected_output[byte] == 0xa5u);
+  CHECK(memcmp(&invalid_emit_result, &invalid_emit_snapshot,
+               sizeof(invalid_emit_result)) == 0);
+  fixture.hir_edge_arguments[edge_to_corrupt] = saved_edge;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_natural_loop_post_loop_continuation_mlir(void) {
   static const uint8_t source[] =
       "fn settle(limit: i64): i64 {\n"
@@ -8552,6 +8790,7 @@ int main(int argc, char **argv) {
   if (!test_multi_branch_mutation_merge_is_ssa()) return 1;
   if (!test_natural_loop_preserves_structured_mlir()) return 1;
   if (!test_natural_loop_multi_carrier_projection_mlir()) return 1;
+  if (!test_conditional_exit_loop_uses_typed_cfg_mlir()) return 1;
   if (!test_natural_loop_post_loop_continuation_mlir()) return 1;
   if (!test_post_test_repeat_structured_mlir()) return 1;
   if (!test_direct_products()) return 1;

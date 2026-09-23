@@ -9512,6 +9512,7 @@ static bool append_program_post_test_loop(
 static bool append_program_function(
     const w_seed_hir0_program *program, const mlir0_program_plan *plan,
     size_t function_index, bool natural_loop, bool post_test_loop,
+    bool verified_i64_loop_cfg,
     const mlir0_process_emit_context *process, uint8_t *artifact,
     size_t capacity, size_t *offset) {
   if (program == NULL || plan == NULL || artifact == NULL || offset == NULL ||
@@ -9520,7 +9521,8 @@ static bool append_program_function(
   const w_seed_hir0_function *function = &program->functions[function_index];
   if (function->block_count == 0u ||
       function->first_block >= program->block_count ||
-      function->block_count > program->block_count - function->first_block)
+      function->block_count > program->block_count - function->first_block ||
+      (verified_i64_loop_cfg && (natural_loop || post_test_loop)))
     return false;
   if ((function->block_count > 1u || natural_loop || post_test_loop) &&
       reachable_values_have_unary_u64(program, plan->reachable_values))
@@ -9568,10 +9570,13 @@ static bool append_program_function(
                       " {\n    %text_base = llvm.mlir.addressof "
                       "@w_seed_mlir0_text : !llvm.ptr\n"))
     return false;
-  if (natural_loop)
+  /* This separately verified loop class must keep its actual HIR block graph:
+   * break/continue edges and their typed arguments are not an SCF natural-loop
+   * projection.  The ordinary block walker below emits those exact edges. */
+  if (natural_loop && !verified_i64_loop_cfg)
     return append_program_natural_loop(program, function_index, process,
                                        artifact, capacity, offset);
-  if (post_test_loop)
+  if (post_test_loop && !verified_i64_loop_cfg)
     return append_program_post_test_loop(program, function_index, process,
                                          artifact, capacity, offset);
   bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {false};
@@ -10028,7 +10033,9 @@ static bool build_program_artifact(
         !append_program_function(
             program, &plan, function,
             selection->natural_loop_functions[function],
-            selection->post_test_loop_functions[function], NULL, artifact,
+            selection->post_test_loop_functions[function],
+            selection->verified_i64_loop_cfg_functions[function], NULL,
+            artifact,
             capacity, &offset))
       return false;
   if (!append_literal(
@@ -10620,7 +10627,8 @@ static bool build_process_executable_artifact(
         !append_program_function(
             program, &plan, function, selection->natural_loop_functions[function],
             selection->post_test_loop_functions[function],
-            function == selection->function_index ? &process : NULL, artifact,
+            false, function == selection->function_index ? &process : NULL,
+            artifact,
             capacity, &offset))
       return false;
   if (windows) {
@@ -13981,7 +13989,7 @@ static bool build_process_parallel_artifact(
         function != process.function_index &&
         !append_program_function(
             program, &plan, function, process.natural_loop_functions[function],
-            process.post_test_loop_functions[function], NULL, artifact,
+            process.post_test_loop_functions[function], false, NULL, artifact,
             capacity, &offset))
       return false;
   if (!append_process_parallel_task_wrapper(
