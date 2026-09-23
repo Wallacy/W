@@ -4536,12 +4536,12 @@ static bool program_natural_loop_is_supported(
   return true;
 }
 
-/* HIR0 verification already proves the bounded pre-test loop with explicit
- * break/continue transfers and its shared exit tuple.  This backend screen
- * checks only the generic CFG surface needed by the LLVM-dialect block
- * emitter: two i64 block-argument tuples, i64 scalar bindings, Bool branches,
- * typed jump edges, and no calls/effects.  A cycle is detected from the graph
- * itself instead of assuming a block count, layout, or source spelling. */
+/* HIR0 verification proves the loop/control-flow semantics.  This backend
+ * screen checks only the bounded generic CFG surface needed by the
+ * LLVM-dialect block emitter: at least two nonempty i64 carrier tuples with
+ * bounded aggregate arity, i64 scalar bindings, Bool branches, typed jump
+ * edges, and no calls/effects.  A cycle is detected from the graph itself
+ * instead of assuming a block count, layout, or source spelling. */
 static bool program_verified_i64_loop_cfg_is_supported(
     const w_seed_hir0_program *program, size_t function_index) {
   if (program == NULL || function_index >= program->function_count)
@@ -4561,6 +4561,7 @@ static bool program_verified_i64_loop_cfg_is_supported(
   uint32_t ready[W_SEED_NATIVE_SUBSET0_MAX_BLOCKS];
   size_t ready_count = 0u;
   size_t argument_blocks = 0u;
+  size_t argument_count = 0u;
   size_t branch_count = 0u;
   size_t return_count = 0u;
 
@@ -4584,7 +4585,11 @@ static bool program_verified_i64_loop_cfg_is_supported(
       return false;
     if (block->block_argument_count != 0u) {
       argument_blocks += 1u;
-      if (block->block_argument_count != 2u) return false;
+      if (argument_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES ||
+          block->block_argument_count >
+              W_SEED_NATIVE_SUBSET0_MAX_VALUES - argument_count)
+        return false;
+      argument_count += block->block_argument_count;
       for (size_t ordinal = 0u; ordinal < block->block_argument_count;
            ordinal += 1u) {
         const size_t argument_index =
@@ -4634,6 +4639,8 @@ static bool program_verified_i64_loop_cfg_is_supported(
           term->target_block < start || term->target_block >= end ||
           term->else_block < start || term->else_block >= end ||
           term->target_block == term->else_block ||
+          program->blocks[term->target_block].block_argument_count != 0u ||
+          program->blocks[term->else_block].block_argument_count != 0u ||
           term->first_edge_argument != W_SEED_HIR0_NONE ||
           term->edge_argument_count != 0u ||
           program->values[term->value_index].type_index >= program->type_count ||
@@ -4708,9 +4715,10 @@ static bool program_verified_i64_loop_cfg_is_supported(
     return false;
   }
 
-  /* The verified break/continue HIR has header and exit carrier tuples.  This
-   * is an admission guard, not a second recognizer for their CFG layout. */
-  if (argument_blocks != 2u || branch_count == 0u || return_count != 1u)
+  /* Keep this a verified loop-CFG lane, not a general block-argument route.
+   * The verified graph supplies each target tuple's arity and the edge checks
+   * above bind every operand to that tuple. */
+  if (argument_blocks < 2u || branch_count == 0u || return_count != 1u)
     return false;
 
   for (size_t local = 0u; local < function->block_count; local += 1u)

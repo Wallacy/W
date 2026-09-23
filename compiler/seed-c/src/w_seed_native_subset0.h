@@ -102,9 +102,8 @@ typedef struct {
    * terminator.  Panic text remains HIR evidence; it is not an output plan. */
   bool has_reachable_panic;
   bool natural_loop_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS];
-  /* Verified bounded i64-carrier CFG facts for the pre-test loop with
-   * conditional break/continue.  Keep separate from the existing natural
-   * loop projection so MLIR can select generic typed LLVM CFG emission. */
+  /* Verified bounded i64-carrier CFG facts for cyclic typed LLVM CFG
+   * emission. Keep separate from the structured natural-loop projection. */
   bool verified_i64_loop_cfg_functions[
       W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS];
   /* Verified five-block post-test repeat facts.  This is intentionally

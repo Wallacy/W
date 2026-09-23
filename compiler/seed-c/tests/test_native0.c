@@ -2253,6 +2253,25 @@ static bool test_break_continue_multi_carrier_native_subset_selector(void) {
             program, &storage.hir_result, &selection) ==
         W_SEED_NATIVE_SUBSET0_OK);
 
+  storage.hir_edge_arguments[edge_index].owner_terminator =
+      W_SEED_HIR0_NONE;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  storage.hir_edge_arguments[edge_index] = tuple_edge;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+
+  storage.hir_edge_arguments[edge_index].owner_block = W_SEED_HIR0_NONE;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  storage.hir_edge_arguments[edge_index] = tuple_edge;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+
   const uint32_t entry_function = program->entries[0].target_function;
   CHECK(entry_function < program->function_count &&
         entry_function != scan_index);
@@ -2262,6 +2281,36 @@ static bool test_break_continue_multi_carrier_native_subset_selector(void) {
             program, &storage.hir_result, &selection) ==
         W_SEED_NATIVE_SUBSET0_INVALID);
   storage.hir_terminators[tuple_jump_index] = tuple_jump;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+
+  uint32_t branch_index = W_SEED_HIR0_NONE;
+  uint32_t carrier_block_index = W_SEED_HIR0_NONE;
+  for (size_t block_index = scan->first_block;
+       block_index < (size_t)scan->first_block + scan->block_count;
+       block_index += 1u) {
+    const w_seed_hir0_block *block = &program->blocks[block_index];
+    if (carrier_block_index == W_SEED_HIR0_NONE &&
+        block->block_argument_count != 0u)
+      carrier_block_index = (uint32_t)block_index;
+    const w_seed_hir0_terminator *terminator =
+        &program->terminators[block->terminator_index];
+    if (branch_index == W_SEED_HIR0_NONE &&
+        terminator->kind == W_SEED_HIR0_TERMINATOR_BRANCH)
+      branch_index = block->terminator_index;
+  }
+  CHECK(branch_index != W_SEED_HIR0_NONE &&
+        carrier_block_index != W_SEED_HIR0_NONE);
+  const w_seed_hir0_terminator loop_branch =
+      storage.hir_terminators[branch_index];
+  CHECK(loop_branch.target_block != carrier_block_index &&
+        loop_branch.else_block != carrier_block_index);
+  storage.hir_terminators[branch_index].target_block = carrier_block_index;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  storage.hir_terminators[branch_index] = loop_branch;
   CHECK(w_seed_native_subset0_select_program(
             program, &storage.hir_result, &selection) ==
         W_SEED_NATIVE_SUBSET0_OK);
