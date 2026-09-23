@@ -40,6 +40,7 @@ The timer covers lane runs, result validation, catalog update, and catalog/docum
 | [interpolation (W)](../compiler/seed-c/fixtures/interpolation.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 213.5759 ms | 16.921 ms | 18.8396 ms | 13.149 ms | 3764224 B (3.59 MiB) |
 | [scalar-if (W)](../compiler/seed-c/fixtures/scalar-if.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 212.6666 ms | 16.2289 ms | 17.5243 ms | 11.912 ms | 3764224 B (3.59 MiB) |
 | [nested-scalar-if (W)](../compiler/seed-c/fixtures/nested-scalar-if.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 217.1495 ms | 17.2159 ms | 19.0878 ms | 12.685 ms | 3764224 B (3.59 MiB) |
+| [terminal-returns (W)](../compiler/seed-c/fixtures/terminal-returns.w), [terminal-returns (C)](./executable/terminal_returns.c), [terminal-returns (Rust)](./executable/terminal_returns.rs) | Not measured | — | — | — | — | — | — | — |
 | [while-post (C)](./executable/while_post.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 132.6173 ms | 17.3555 ms | 18.1912 ms | 13.304 ms | 4845568 B (4.62 MiB) |
 | [while-post (Rust)](./executable/while_post.rs) | Windows · CRT | Rust | 113664 B (111.0 KiB) | 1.1034614 s | 17.9432 ms | 18.5035 ms | 14.387 ms | 4882432 B (4.66 MiB) |
 | [while-post (W)](../compiler/seed-c/fixtures/while-post.w) | Windows · no CRT | W | 2048 B (2.0 KiB) | 217.4352 ms | 16.1149 ms | 16.6202 ms | 13.304 ms | 3764224 B (3.59 MiB) |

@@ -460,7 +460,7 @@ test("float rounding catalog keeps runtime selection correctness-only", () => {
   assert.equal(documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === workload.id), false);
 });
 
-test("terminal returns stays a W-only correctness witness without performance cells", () => {
+test("terminal returns registers independent correctness references without performance cells", () => {
   const workload = documents.catalog.workloads.find((item) => item.id === "terminal-returns");
   assert.ok(workload);
   assert.equal(workload.family, "control-flow");
@@ -469,6 +469,8 @@ test("terminal returns stays a W-only correctness witness without performance ce
   assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
   assert.equal(workload.demoEvidence, "bounded-w-demo");
   assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.match(workload.scope, /opaque runtime inputs for correctness/u);
+  assert.match(workload.scope, /W supplies literals and may fold/u);
   assert.deepEqual(workload.oracle, {
     kind: "exact-output",
     status: "source-backed",
@@ -476,32 +478,63 @@ test("terminal returns stays a W-only correctness witness without performance ce
     stdout: "-1,0,1\n",
     stderr: "",
   });
-  assert.deepEqual(workload.blockedLanguages, ["c", "rust"]);
-  assert.ok(workload.blockers.includes("cross-language-source-variants"));
-  assert.deepEqual(workload.sources.map((source) => source.platformTarget), [
-    EXECUTABLE_PLATFORM_TARGET,
-    EXECUTABLE_PLATFORM_TARGET_LINUX_WSL,
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.blockers, ["runtime-equivalence-not-established"]);
+  assert.deepEqual(workload.sources.map(({ language, platformTarget }) => [language, platformTarget]), [
+    ["w", EXECUTABLE_PLATFORM_TARGET],
+    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
+    ["c", EXECUTABLE_PLATFORM_TARGET],
+    ["rust", EXECUTABLE_PLATFORM_TARGET],
   ]);
   assert.ok(workload.sources.every((source) =>
-    source.language === "w" &&
-    source.path === "compiler/seed-c/fixtures/terminal-returns.w" &&
     source.entry === "main" &&
-    source.recipe === "public-w-run" &&
-    source.recipeClass === "terminal-returns-w-run-release" &&
     source.profile === "release" &&
     source.quality === "correctness-gate" &&
     source.digest === exactOutputDigest(readFileSync(`${ROOT}/${source.path}`, "utf8"))));
   assert.deepEqual(workload.sources.map((source) => [source.comparability, source.eligibility]), [
     ["deferred-until-M3b", "deferred-to-M3b"],
     ["same-physical-hardware-diagnostic-only", "same-physical-hardware-diagnostic-only"],
+    ["deferred-until-M3b", "deferred-to-M3b"],
+    ["deferred-until-M3b", "deferred-to-M3b"],
   ]);
-  assert.deepEqual(validateExecutableSourceExpectation(
-    readFileSync(`${ROOT}/compiler/seed-c/fixtures/terminal-returns.w`, "utf8"),
-    workload.oracle,
-  ), []);
+  assert.deepEqual(workload.sources.map((source) => source.runtimeClosure.class), [
+    "freestanding", "freestanding", "hosted-crt", "hosted-crt",
+  ]);
+  for (const source of workload.sources) {
+    assert.deepEqual(validateExecutableSourceExpectation(
+      readFileSync(`${ROOT}/${source.path}`, "utf8"),
+      workload.oracle,
+      source.path,
+    ), []);
+  }
+  const cSource = readFileSync(`${ROOT}/benchmarks/executable/terminal_returns.c`, "utf8");
+  const rustSource = readFileSync(`${ROOT}/benchmarks/executable/terminal_returns.rs`, "utf8");
+  assert.match(cSource, /volatile int inputs\[\] = \{-5, 0, 7\}/u);
+  assert.match(cSource, /else if \(value == 0\)/u);
+  assert.match(rustSource, /black_box\(\[-5_i32, 0, 7\]\)/u);
+  assert.match(rustSource, /else if value == 0/u);
   assert.equal(selectExecutableSuiteLanes(documents.catalog)
     .some((lane) => lane.workloadId === workload.id), false);
   assert.equal(documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === workload.id), false);
+
+  const forbidden = clone(documents.catalog.bestMetrics.entries[0]);
+  forbidden.workloadId = workload.id;
+  assert.match(validateExecutableBestMetric(forbidden, documents.catalog).join("\n"),
+    /eligible for live best metrics/u);
+});
+
+test("terminal returns rejects promotable C/Rust policy classification", () => {
+  const forged = clone(documents.catalog);
+  const workload = forged.workloads.find((item) => item.id === "terminal-returns");
+  for (const source of workload.sources.filter((item) => item.language !== "w")) {
+    source.comparability = "promotable-after-equivalence";
+    source.eligibility = "promotable-after-equivalence";
+  }
+  const errors = validateExecutableCatalog(forged, { ...documents, catalog: forged });
+  assert.match(errors.join("\n"), /comparability does not match|eligibility does not match/u);
+  assert.equal(selectExecutableSuiteLanes(forged)
+    .some((lane) => lane.workloadId === workload.id), false);
+  assert.equal(forged.bestMetrics.entries.some((entry) => entry.workloadId === workload.id), false);
 });
 
 test("local module graph source digest is current and stale live cells stay pruned", () => {

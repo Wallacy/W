@@ -672,6 +672,10 @@ const SOURCE_ELIGIBILITY = Object.freeze({
     comparability: "deferred-until-M3b",
     eligibility: "deferred-to-M3b",
   }),
+  correctnessOnly: Object.freeze({
+    comparability: "deferred-until-M3b",
+    eligibility: "deferred-to-M3b",
+  }),
   strictF64: Object.freeze({
     comparability: "deferred-until-M3b",
     eligibility: "deferred-to-M3b",
@@ -1547,6 +1551,7 @@ function executableHostSlugSupportsPlatform(host, platformTarget) {
 
 function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PLATFORM_TARGET_WINDOWS) {
   if (platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) return SOURCE_ELIGIBILITY.wslDiagnostic;
+  if (workload?.id === "terminal-returns") return SOURCE_ELIGIBILITY.correctnessOnly;
   if (workload?.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID) return SOURCE_ELIGIBILITY.platformMinimal;
   if (workload?.id === FLOAT_STRICT_WORKLOAD_ID ||
       workload?.id === FLOAT_BIT_REPRESENTATION_WORKLOAD_ID ||

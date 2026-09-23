@@ -1452,7 +1452,7 @@ gaps. This is compiler-lifecycle correctness evidence only.
 
 ### Bounded terminal branch returns
 
-The W-only `terminal-returns.w` witness covers one early-return ladder. Its
+The W source witness `terminal-returns.w` covers one early-return ladder. Its
 negative/zero/positive sign function has exactly five HIR0 blocks and five
 terminators: `B0` branches on `value < 0` to `B1`/`B2`; `B1` returns `-1`;
 `B2` branches on `value == 0` to `B3`/`B4`; `B3` returns `0`; and `B4` returns

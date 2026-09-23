@@ -676,7 +676,7 @@
       "demoEvidence": "bounded-w-demo",
       "benchmarkStatus": "not-performance-ready",
       "lane": "equivalent",
-      "scope": "Return -1, 0, or 1 for negative, zero, or positive inputs through an else-if chain and a sequential return, then preserve the exact output.",
+      "scope": "Return -1, 0, or 1 for negative, zero, or positive inputs through an else-if chain and a sequential return, then preserve the exact output. C23 and Rust 2024 references retain opaque runtime inputs for correctness; W supplies literals and may fold, so runtime equivalence and performance ranking remain deferred.",
       "oracle": {
         "kind": "exact-output",
         "status": "source-backed",
@@ -722,14 +722,49 @@
             "class": "freestanding",
             "status": "unverified"
           }
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/terminal_returns.c",
+          "digest": "sha256:c6a1b6e1e57c589991ed28305aeed382d38d95750e31f35875fa99bc868cfb11",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "terminal-returns-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b",
+          "runtimeClosure": {
+            "class": "hosted-crt",
+            "status": "unverified"
+          }
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/terminal_returns.rs",
+          "digest": "sha256:f6104d2422cb3e18cfc09154f21a76b240abd143ff46d7a4a3af2137adb613fc",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "terminal-returns-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b",
+          "runtimeClosure": {
+            "class": "hosted-crt",
+            "status": "unverified"
+          }
         }
       ],
-      "blockedLanguages": [
-        "c",
-        "rust"
-      ],
+      "blockedLanguages": [],
       "blockers": [
-        "cross-language-source-variants"
+        "runtime-equivalence-not-established"
       ]
     },
     {
