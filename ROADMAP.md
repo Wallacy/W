@@ -191,6 +191,18 @@ observed. The general `Arguments` route retains its bounded scan and failure
 contract; compare the specialized path on 0, 1 empty, 2, 3, 256 and 257
 arguments before accepting any runtime or memory claim.
 
+The current optimization audit cannot inspect a measured product after the
+fact: `w build` removes its intermediate MLIR, LLVM IR, and objects, and the
+benchmark runner discards the measured artifact. Add an explicit, bounded
+audit-only output directory for one pinned build, retaining pre/post-opt IR,
+every emitted object, and the final product until the audit closes; normal
+builds and benchmarks must keep their cleanup behavior. Extend the dependency
+receipt across *all* objects before claiming whole-product closure. Keep this
+inspection lane separate from ranked benchmark samples and clean its output
+at the next safe checkpoint. This unblocks evidence for the W/WRT0
+cross-object candidate without turning temporary traces into repository
+history.
+
 ### Evidence promotion and safety closure
 
 A vertical witness proves only the exact boundary that it executes. Every
