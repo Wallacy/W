@@ -2168,6 +2168,141 @@ static bool test_multi_carrier_native_subset_selector(void) {
   return true;
 }
 
+static bool test_break_continue_multi_carrier_native_subset_selector(void) {
+  /* This mirrors fixtures/while-break-continue.w so the native source path
+   * exercises the same verified HIR contract as the standalone witness. */
+  static const uint8_t source[] =
+      "fn scan(limit: i64): i64 {\n"
+      "  var index = 0\n"
+      "  var total = 0\n"
+      "  while index < limit {\n"
+      "    index = index + 1\n"
+      "    if index == 2 { continue }\n"
+      "    if index == 5 { break }\n"
+      "    total = total + index\n"
+      "  }\n"
+      "  return total\n"
+      "}\n"
+      "\n"
+      "entry {\n"
+      "  let result = scan(limit: 9)\n"
+      "  print(\"${result}\")\n"
+      "}\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  const w_seed_native0_status source_status = run_source(
+      source, sizeof(source) - 1u, "while-break-continue-native",
+      sizeof("while-break-continue-native") - 1u, output, sizeof(output),
+      &result);
+  CHECK(source_status == W_SEED_NATIVE0_OK);
+  CHECK(result.status == W_SEED_NATIVE0_OK &&
+        result.source_bytes == sizeof(source) - 1u &&
+        result.mlir.written.mlir_bytes != 0u &&
+        result.mlir.written.mlir_bytes == result.mlir.required.mlir_bytes &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.cond_br") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes, "llvm.br"));
+
+  const w_seed_hir0_program *program = &storage.hir_program;
+  CHECK(w_seed_hir0_verify(program, &storage.hir_result));
+  size_t scan_index = SIZE_MAX;
+  for (size_t function = 0u; function < program->function_count;
+       function += 1u)
+    if (hir_text_equals(program, program->functions[function].name, "scan"))
+      scan_index = function;
+  CHECK(scan_index < program->function_count);
+
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_cfg && selection.has_local_calls &&
+        selection.verified_i64_loop_cfg_functions[scan_index] &&
+        !selection.natural_loop_functions[scan_index] &&
+        selection.maximum_stdout_bytes != 0u);
+
+  const w_seed_hir0_function *scan = &program->functions[scan_index];
+  uint32_t tuple_jump_index = W_SEED_HIR0_NONE;
+  for (size_t block_index = scan->first_block;
+       block_index < (size_t)scan->first_block + scan->block_count;
+       block_index += 1u) {
+    const uint32_t terminator_index =
+        program->blocks[block_index].terminator_index;
+    const w_seed_hir0_terminator *terminator =
+        &program->terminators[terminator_index];
+    if (terminator->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        terminator->edge_argument_count == 2u) {
+      tuple_jump_index = terminator_index;
+      break;
+    }
+  }
+  CHECK(tuple_jump_index != W_SEED_HIR0_NONE);
+
+  const w_seed_hir0_terminator tuple_jump =
+      storage.hir_terminators[tuple_jump_index];
+  const size_t edge_index = tuple_jump.first_edge_argument;
+  CHECK(edge_index < program->edge_argument_count);
+  const w_seed_hir0_edge_argument tuple_edge =
+      storage.hir_edge_arguments[edge_index];
+  storage.hir_edge_arguments[edge_index].type_index = W_SEED_HIR0_TYPE_BOOL;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  storage.hir_edge_arguments[edge_index] = tuple_edge;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+
+  const uint32_t entry_function = program->entries[0].target_function;
+  CHECK(entry_function < program->function_count &&
+        entry_function != scan_index);
+  storage.hir_terminators[tuple_jump_index].target_block =
+      program->functions[entry_function].first_block;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  storage.hir_terminators[tuple_jump_index] = tuple_jump;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+
+  static const uint8_t unsupported[] =
+      "fn scan(limit: i64): i64 {\n"
+      "  var index = 0\n"
+      "  var total = 0\n"
+      "  while index < limit {\n"
+      "    index = index + 1\n"
+      "    if index == 2 { continue }\n"
+      "    if index == 5 { break }\n"
+      "    total = total + (index + (1 / 0))\n"
+      "  }\n"
+      "  return total\n"
+      "}\n"
+      "entry {\n"
+      "  let result = scan(limit: 9)\n"
+      "  print(\"${result}\")\n"
+      "}\n";
+  (void)memset(output, 0xa9u, sizeof(output));
+  (void)memset(&result, 0xb0u, sizeof(result));
+  const w_seed_native0_result result_snapshot = result;
+  const w_seed_native0_status unsupported_status = run_source(
+      unsupported, sizeof(unsupported) - 1u,
+      "while-break-continue-unsupported",
+      sizeof("while-break-continue-unsupported") - 1u, output,
+      sizeof(output), &result);
+  CHECK(unsupported_status == W_SEED_NATIVE0_UNSUPPORTED &&
+        storage.frontend_result.status == W_SEED_FRONTEND_OK &&
+        storage.hir_result.status == W_SEED_HIR0_OK &&
+        w_seed_hir0_verify(&storage.hir_program, &storage.hir_result) &&
+        w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+            W_SEED_NATIVE_SUBSET0_UNSUPPORTED &&
+        memcmp(&result, &result_snapshot, sizeof(result)) == 0);
+  for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+    CHECK(output[byte] == 0xa9u);
+  return true;
+}
+
 static bool test_post_loop_continuation_native_subset(void) {
   static const uint8_t source[] =
       "fn settle(limit: i64): i64 {\n"
@@ -6900,6 +7035,7 @@ int main(void) {
       test_checked_integer_shifts_native_admission();
   const bool logical = products && test_logical_native_selector() &&
                        test_multi_carrier_native_subset_selector() &&
+                       test_break_continue_multi_carrier_native_subset_selector() &&
                        test_post_loop_continuation_native_subset() &&
                        test_unary_i64_native_selector() &&
                        test_integer_prefix_native_matrix() &&
