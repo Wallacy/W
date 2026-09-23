@@ -2352,6 +2352,37 @@ static bool test_break_continue_multi_carrier_native_subset_selector(void) {
   return true;
 }
 
+static bool test_labeled_break_continue_native_subset(void) {
+  static const uint8_t source[] =
+      "fn scan(limit: i64): i64 {\n"
+      "  var index = 0\n"
+      "  var total = 0\n"
+      "  scanLoop: while index < limit {\n"
+      "    index = index + 1\n"
+      "    if index == 2 { continue scanLoop }\n"
+      "    if index == 5 { break scanLoop }\n"
+      "    total = total + index\n"
+      "  }\n"
+      "  return total\n"
+      "}\n"
+      "entry { let result = scan(limit: 9) print(\"${result}\") }\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(source, sizeof(source) - 1u, "labeled-loop-native",
+                   sizeof("labeled-loop-native") - 1u, output,
+                   sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  CHECK(result.status == W_SEED_NATIVE0_OK &&
+        w_seed_hir0_verify(&storage.hir_program, &storage.hir_result) &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.cond_br") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes, "llvm.br"));
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  return true;
+}
+
 static bool test_post_loop_continuation_native_subset(void) {
   static const uint8_t source[] =
       "fn settle(limit: i64): i64 {\n"
@@ -7127,6 +7158,7 @@ int main(void) {
   const bool logical = products && test_logical_native_selector() &&
                        test_multi_carrier_native_subset_selector() &&
                        test_break_continue_multi_carrier_native_subset_selector() &&
+                       test_labeled_break_continue_native_subset() &&
                        test_post_loop_continuation_native_subset() &&
                        test_unary_i64_native_selector() &&
                        test_integer_prefix_native_matrix() &&

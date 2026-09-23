@@ -501,7 +501,8 @@ represent nested `while` loops and resolve labeled or unlabeled transfers to
 an explicit lexical loop statement; malformed, shadowed, or unresolved labels
 fail closed. Verified HIR now admits a label on its one bounded loop only when
 every labeled transfer resolves to that exact loop and matches its spelling;
-nested loops remain rejected, and this is not yet a native feature. Next,
+nested loops remain rejected. NativeSubset0 selects the resulting verified HIR
+and MLIR0 emits its CFG, but public executable evidence is still pending. Next,
 replace HIR0's single-loop count/emit state
 with one bounded source-to-HIR CFG plan shared by measurement and emission,
 plus independent verification of the emitted graph;
