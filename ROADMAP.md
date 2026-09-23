@@ -478,7 +478,8 @@ represent nested `while` loops and resolve labeled or unlabeled transfers to
 an explicit lexical loop statement; malformed, shadowed, or unresolved labels
 fail closed. Verified HIR still rejects nested or labeled loops, so this is
 not yet a native feature. Next, replace HIR0's single-loop count/emit state
-with one bounded CFG plan shared by measurement, emission, and verification;
+with one bounded source-to-HIR CFG plan shared by measurement and emission,
+plus independent verification of the emitted graph;
 prove typed edge/carrier mapping and failure atomicity on a source-backed
 two-loop witness. NativeSubset0's broader i64-carrier screen is preparatory,
 not evidence for that witness. Only then extend MLIR/codegen and public
@@ -489,7 +490,13 @@ The active blocker is HIR0's one-loop, flat-IF CFG verifier: source-backed
 nested lowering can form a multi-block graph, but no complete per-header
 dominance, carrier-tuple, and wrong-loop transfer proof is implemented. Do
 not promote that graph or a public nested-loop demo until the verifier proves
-both loops and adversarial same-typed retargeting fails closed.
+both loops and the source-to-HIR gate rejects an adversarial wrong lexical
+target before writing output. A standalone, well-typed HIR graph cannot prove
+which source label was written; its verifier proves graph and carrier validity,
+not source equivalence. The next coherent HIR package needs one per-function
+plan shared by count/layout/value/terminator emission, bounded nested loop
+frames, frontend-resolved transfer targets, and per-header typed-carrier
+verification. Do not ship a special two-loop source-shape recognizer.
 
 The next disjoint family can be prepared beside the rank-3 CFG proof work:
 flat copyable tuple and value-struct construction, projection, local argument,
