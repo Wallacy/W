@@ -273,9 +273,14 @@ and the remaining families above are executable across targets.
 
 ### C-reach closure rule
 
-C parity means that a W product can perform the same systems work with explicit
-cost and authority; it does not mean source compatibility or preservation of
-C's weakest surfaces. Close these substitutions with executable witnesses:
+C's practical systems reach remains the design floor: W must eventually
+perform that work with explicit cost and authority, without source
+compatibility or preserving C's weakest surfaces. For this project's first
+C-expressivity checkpoint, use the self-hosted W compiler at rank 8 rather
+than requiring a separate demonstration in every C domain. Validate the
+following substitutions when the compiler or a later real workload exercises
+them; their absence from the self-hosted compiler is not evidence that the
+capability has shipped:
 
 - replace textual preprocessing with typed constants and `const fn`, generics
   and refinements, availability/target selection, hermetic build transforms,
@@ -308,12 +313,12 @@ C's weakest surfaces. Close these substitutions with executable witnesses:
 | 5 | Modules, imports, generics and specialization | Multi-module calls, labelled imports, generic specialization and closed reachable graphs produce deterministic artifacts; unused private graph nodes disappear | Enables real programs and makes whole-module/product optimization the normal case |
 | 6 | Explicit views, borrows, storage and ownership | `ref`, `mut ref`, `inout`, moves, views, explicit storage/allocator choices and deterministic cleanup execute for value and resource-bearing aggregates | Establishes memory safety and cost without requiring automatic lifecycle machinery |
 | 7 | Errors and effect composition | Typed `throw`/`try`/`catch`, panic boundaries, cleanup and effect propagation compose over general CFG and resource-bearing values | Makes failure semantics complete before asynchronous propagation is generalized |
-| 8 | Freestanding systems and foreign boundaries | Raw memory, explicit C ABI/layout, atomics, volatile/MMIO, target-owned assembly and platform adapters execute from W source with target-specific adversarial witnesses; packed/bitfield/union/flexible-array imports retain an opaque typed boundary until a first-class layout is justified | Closes practical C systems reach after aggregates, ownership and effects, without waiting for GPU or task runtime work |
+| 8 | First self-hosted W compiler | The C-seeded compiler builds a compiler written in W; that W-built compiler builds the same W source again and both products pass the same bounded compiler/executable corpus without invoking a C compiler for W product code. Record exact bootstrap inputs, toolchain and runtime closure, then mark the reproducible transition with a Git tag | Provides the project-specific C-expressivity checkpoint and a W-owned base for subsequent implementation without requiring a separate showcase for every C use case |
 | 9 | Tasks and structured concurrency | `async`, `await`, `spawn`, groups, cancellation, deterministic outcomes and cleanup execute over measured caller-owned task records with no language-level child limit | Builds concurrency on the completed value, error and ownership model |
 | 10 | Provider-neutral scheduler | Target-neutral ready/task/frame state lowers once; capability-selected providers supply platform primitives and cached topology facts across Windows, Linux, macOS, iOS, Android, WebAssembly and future viable targets | Portable parallel execution without a platform-shaped language ABI |
 | 11 | Arrays, matrices, SIMD and accelerator lowering | Static and dynamic collections, views, `@`, vectorization and one real CPU/GPU numerical witness share typed semantics and independent oracles; GPU launch remains a provider concern | Adds scientific and heterogeneous performance after scalar, CFG and ownership prerequisites; this branch can advance beside tasks once those prerequisites hold |
 | 12 | Automatic lifecycle and memory optimization | Escape/liveness proofs choose registers, stack, arenas, regions or heap; virtual objects materialize only when identity/escape requires it; automatic cleanup remains semantically deterministic | Adds convenience after explicit ownership is measurable and trustworthy |
-| 13 | Incremental compiler, test selection and cross-target distribution | Exact dependency invalidation, risk-relevant gates and reproducible signed LLVM/MLIR/LLD target packs cover the Windows/Linux/macOS baseline | Fast human/AI iteration and compact offline cross compilation without hollow green tests |
+| 13 | Incremental compiler, test selection and cross-target distribution | Exact dependency invalidation, risk-relevant gates and reproducible signed LLVM/MLIR/LLD target packs cover the Windows/Linux/macOS baseline; the C seed remains maintainable but is not the primary compiler after the self-hosting checkpoint | Fast human/AI iteration and compact offline cross compilation without hollow green tests |
 | 14 | Package, registry, service and sandbox slices | Signed binary-first packages, source fallback, independent verification, one service provider and bounded sandbox execution work against the stable compiler/runtime boundary | Opens the ecosystem without freezing premature compiler internals |
 | 15 | UI, native graphics, scientific and proof-mode applications | Promote one real workload at a time through correctness, applicability, resource receipts and benchmark evidence; platform SDK/providers remain outside the language core | Broadens targets from proven primitives instead of speculative abstractions |
 
@@ -329,11 +334,25 @@ frontend and verified-HIR branch/join support. Native selection, product
 closure and MLIR float block-argument emission then require their own bounded
 proof before executable promotion. This composition belongs with ranks 3 and
 7; changing `usize` into `u64` implicitly or treating a constant as runtime
-ingress would not close it. Rank 8 is the explicit C
-systems-reach gate; ranks 9–11 may develop in parallel after their shared
-ownership, error and CFG prerequisites. A thin self-contained compiler
-packaging smoke may begin before rank 13, while signed cross-target
-distribution remains its full completion boundary.
+ingress would not close it. Rank 8 is the first self-hosting gate; ranks 9–11
+may develop in parallel after their shared ownership, error and CFG
+prerequisites. Freestanding raw memory, explicit ABI/layout, atomics,
+volatile/MMIO, target-owned assembly and platform adapters remain required
+W capabilities, but do not impose a second exhaustive C-parity demonstration
+before the ranked queue can advance. Packed, bitfield, union and flexible-array
+foreign layouts may retain the opaque typed boundary until first-class layout
+is justified. A thin self-contained compiler packaging smoke may begin before
+rank 13, while signed cross-target distribution remains its full completion
+boundary.
+
+The self-hosting tag is a checkpoint, not a claim that every C program or
+platform API already compiles in W. Stage 0 is the maintained C bootstrap;
+stage 1 is the W compiler built by that seed; stage 2 is the same W compiler
+built by stage 1. The tag records the source revision and reproducible build
+recipe only after stage 1 and stage 2 pass the same declared corpus and native
+product checks. The C bootstrap can be updated when useful, but new compiler
+development proceeds in W after that checkpoint. Neither stage may route W
+source through a C compiler as its product backend.
 
 ### Active rank 1 closure order
 
