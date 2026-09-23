@@ -2601,7 +2601,25 @@ static bool parse_break_statement(w_seed_parser *parser, bool continuation) {
                                              : W_SEED_CST_BREAK_STATEMENT;
   if (push_node(parser, kind, start) == W_SEED_CST_NONE) return false;
   (void)consume_text(parser, continuation ? "continue" : "break", NULL);
-  if (current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+  /* A label belongs to the transfer only on the same source line.  Without
+   * this check `break\nnext = value` consumes `next` as a label, swallowing
+   * the following statement before semantic loop/label validation. */
+  (void)skip_trivia(parser);
+  const w_seed_span next_span = current_span(parser);
+  bool line_break_before_next = false;
+  if (parser->has_last_token && next_span.start_byte >= parser->last_token_end &&
+      next_span.start_byte <= parser->source->bytes.length) {
+    for (size_t offset = parser->last_token_end;
+         offset < next_span.start_byte; offset += 1u) {
+      const uint8_t byte = parser->source->bytes.data[offset];
+      if (byte == (uint8_t)'\n' || byte == (uint8_t)'\r') {
+        line_break_before_next = true;
+        break;
+      }
+    }
+  }
+  if (!line_break_before_next &&
+      current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
     (void)consume_current(parser, NULL);
   }
   (void)statement_boundary(parser);

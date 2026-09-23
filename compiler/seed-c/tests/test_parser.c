@@ -348,6 +348,34 @@ static bool test_while_shapes(void) {
   CHECK(direct_child_after(&value, loop, W_SEED_CST_BLOCK, 0u) !=
         W_SEED_CST_NONE);
 
+  fixture transfer_boundary;
+  CHECK(fixture_init(
+      &transfer_boundary,
+      "fn scan(limit: i64) { while true { break\n"
+      "count = count + 1\n} }\n",
+      sizeof(transfer_boundary.nodes) / sizeof(transfer_boundary.nodes[0]),
+      sizeof(transfer_boundary.issues) /
+          sizeof(transfer_boundary.issues[0])));
+  CHECK(transfer_boundary.result.status == W_SEED_PARSE_COMPLETE);
+  const w_seed_cst_index transfer_loop =
+      first_kind(&transfer_boundary, W_SEED_CST_WHILE_STATEMENT);
+  const w_seed_cst_index transfer_body =
+      direct_child_after(&transfer_boundary, transfer_loop, W_SEED_CST_BLOCK,
+                         0u);
+  const w_seed_cst_index unlabeled_break =
+      direct_child_after(&transfer_boundary, transfer_body,
+                         W_SEED_CST_BREAK_STATEMENT, 0u);
+  CHECK(transfer_loop != W_SEED_CST_NONE &&
+        transfer_body != W_SEED_CST_NONE &&
+        unlabeled_break != W_SEED_CST_NONE &&
+        transfer_boundary.nodes[unlabeled_break].next_sibling !=
+            W_SEED_CST_NONE &&
+        transfer_boundary.nodes[
+            transfer_boundary.nodes[unlabeled_break].next_sibling]
+                .kind == W_SEED_CST_EXPRESSION_STATEMENT);
+  CHECK(check_leaf_partition(&transfer_boundary));
+  CHECK(check_tree_links(&transfer_boundary));
+
   fixture missing_body;
   CHECK(fixture_init(&missing_body, "fn f(){while true}\n",
                      sizeof(missing_body.nodes) / sizeof(missing_body.nodes[0]),

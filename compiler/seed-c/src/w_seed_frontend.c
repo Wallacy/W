@@ -10529,12 +10529,14 @@ static bool normalize_block_statements(frontend_context *context,
 static bool normalize_statement_depth(frontend_context *context,
                                       uint32_t node_index,
                                       uint32_t *statement_index,
-                                      size_t depth);
+                                      size_t depth,
+                                      bool loop_controls_allowed);
 static bool normalize_block_statements_depth(frontend_context *context,
                                              uint32_t block_node,
                                              size_t depth,
                                              uint32_t *first_statement,
-                                             uint32_t *statement_count);
+                                             uint32_t *statement_count,
+                                             bool loop_controls_allowed);
 
 static bool finalize_function_tasks(frontend_context *context,
                                     size_t first_task_binding,
@@ -19193,10 +19195,25 @@ static bool normalize_switch_expression(
   return true;
 }
 
+static bool frontend_control_transfer_is_unlabeled(
+    const w_seed_frontend_document *doc, uint32_t node_index) {
+  if (doc == NULL || node_index >= doc->parse.node_count) return false;
+  uint32_t cursor = doc->nodes[node_index].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t word_count = 0u;
+  size_t guard = 0u;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == W_SEED_CST_WORD) word_count += 1u;
+    guard += 1u;
+  }
+  return cursor == W_SEED_CST_NONE && word_count == 1u;
+}
+
 static bool normalize_statement_depth(frontend_context *context,
                                       uint32_t node_index,
                                       uint32_t *statement_index,
-                                      size_t depth) {
+                                      size_t depth,
+                                      bool loop_controls_allowed) {
   const w_seed_frontend_document *doc = context_document(context);
   if (doc == NULL || statement_index == NULL ||
       depth >= W_SEED_FRONTEND_MAX_NESTING) {
@@ -19231,6 +19248,20 @@ static bool normalize_statement_depth(frontend_context *context,
       break;
     case W_SEED_CST_RETURN_STATEMENT:
       value.kind = W_SEED_FRONTEND_STMT_RETURN;
+      break;
+    case W_SEED_CST_BREAK_STATEMENT:
+      value.kind = loop_controls_allowed &&
+                           frontend_control_transfer_is_unlabeled(doc,
+                                                                  node_index)
+                       ? W_SEED_FRONTEND_STMT_BREAK
+                       : W_SEED_FRONTEND_STMT_UNSUPPORTED;
+      break;
+    case W_SEED_CST_CONTINUE_STATEMENT:
+      value.kind = loop_controls_allowed &&
+                           frontend_control_transfer_is_unlabeled(doc,
+                                                                  node_index)
+                       ? W_SEED_FRONTEND_STMT_CONTINUE
+                       : W_SEED_FRONTEND_STMT_UNSUPPORTED;
       break;
     case W_SEED_CST_THROW_STATEMENT:
       value.kind = W_SEED_FRONTEND_STMT_THROW;
@@ -19581,13 +19612,21 @@ static bool normalize_statement_depth(frontend_context *context,
     uint32_t then_first = W_SEED_FRONTEND_NONE;
     uint32_t then_count = 0u;
     bool saw_then_block = false;
+    const bool child_loop_controls_allowed =
+        node->kind == W_SEED_CST_WHILE_STATEMENT
+            ? !loop_controls_allowed
+            : node->kind == W_SEED_CST_REPEAT_STATEMENT ||
+                  node->kind == W_SEED_CST_FOR_STATEMENT
+                  ? false
+                  : loop_controls_allowed;
     while (next_child(doc, &child_cursor, &child) &&
            guard < doc->parse.node_count) {
       if (doc->nodes[child].kind == W_SEED_CST_BLOCK) {
         uint32_t nested_first = W_SEED_FRONTEND_NONE;
         uint32_t nested_count = 0u;
         if (!normalize_block_statements_depth(
-                context, child, depth + 1u, &nested_first, &nested_count)) {
+                context, child, depth + 1u, &nested_first, &nested_count,
+                child_loop_controls_allowed)) {
           return false;
         }
         if (node->kind == W_SEED_CST_GUARD_STATEMENT && !saw_then_block) {
@@ -19612,7 +19651,8 @@ static bool normalize_statement_depth(frontend_context *context,
       } else if (doc->nodes[child].kind == W_SEED_CST_IF_STATEMENT) {
         uint32_t nested_statement = W_SEED_FRONTEND_NONE;
         if (!normalize_statement_depth(context, child, &nested_statement,
-                                       depth + 1u)) {
+                                       depth + 1u,
+                                       loop_controls_allowed)) {
           return false;
         }
         if (context->emit && context->output != NULL &&
@@ -19623,7 +19663,8 @@ static bool normalize_statement_depth(frontend_context *context,
       } else if (kind_is_statement(doc->nodes[child].kind)) {
         uint32_t nested_statement = W_SEED_FRONTEND_NONE;
         if (!normalize_statement_depth(context, child, &nested_statement,
-                                       depth + 1u)) {
+                                       depth + 1u,
+                                       child_loop_controls_allowed)) {
           return false;
         }
         if (node->kind == W_SEED_CST_GUARD_STATEMENT &&
@@ -19656,7 +19697,8 @@ static bool normalize_block_statements_depth(frontend_context *context,
                                              uint32_t block_node,
                                              size_t depth,
                                              uint32_t *first_statement,
-                                             uint32_t *statement_count) {
+                                             uint32_t *statement_count,
+                                             bool loop_controls_allowed) {
   const w_seed_frontend_document *doc = context_document(context);
   if (doc == NULL || block_node >= doc->parse.node_count ||
       depth >= W_SEED_FRONTEND_MAX_NESTING) {
@@ -19675,7 +19717,8 @@ static bool normalize_block_statements_depth(frontend_context *context,
     if (kind_is_statement(kind)) {
       uint32_t statement_index = W_SEED_FRONTEND_NONE;
       if (!normalize_statement_depth(context, child, &statement_index,
-                                     depth + 1u)) {
+                                     depth + 1u,
+                                     loop_controls_allowed)) {
         return false;
       }
       if (first_statement != NULL && *first_statement == W_SEED_FRONTEND_NONE)
@@ -19705,7 +19748,8 @@ static bool normalize_block_statements_depth(frontend_context *context,
 
 static bool normalize_block_statements(frontend_context *context,
                                        uint32_t block_node) {
-  return normalize_block_statements_depth(context, block_node, 0u, NULL, NULL);
+  return normalize_block_statements_depth(context, block_node, 0u, NULL, NULL,
+                                          false);
 }
 
 static bool module_const_expression_kind_allowed(

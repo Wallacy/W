@@ -8223,6 +8223,56 @@ static bool test_while_projection(void) {
   return true;
 }
 
+static bool test_break_continue_projection(void) {
+  static const char source[] =
+      "fn scan(limit: i64): i64 {\n"
+      "  var index = 0\n"
+      "  var total = 0\n"
+      "  while index < limit {\n"
+      "    index = index + 1\n"
+      "    if index == 2 { continue }\n"
+      "    if index == 5 { break }\n"
+      "    total = total + index\n"
+      "  }\n"
+      "  return total\n"
+      "}\n"
+      "entry { let result = scan(limit: 9) }\n";
+  fixture *value = &fixture_mutation;
+  CHECK(fixture_run(value, source));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK);
+  const w_seed_frontend_function *scan = &value->functions[0];
+  CHECK(scan->statement_count == 10u);
+  const w_seed_frontend_statement *loop =
+      &value->statements[scan->first_statement + 2u];
+  CHECK(loop->kind == W_SEED_FRONTEND_STMT_WHILE &&
+        loop->child_count == 4u &&
+        loop->condition_expression < value->result.written.expressions);
+  const w_seed_frontend_statement *index_update =
+      &value->statements[loop->first_child];
+  const w_seed_frontend_statement *continue_if =
+      &value->statements[index_update->next_sibling];
+  CHECK(continue_if->kind == W_SEED_FRONTEND_STMT_IF &&
+        continue_if->first_child != W_SEED_FRONTEND_NONE &&
+        value->statements[continue_if->first_child].kind ==
+            W_SEED_FRONTEND_STMT_CONTINUE);
+  const w_seed_frontend_statement *break_if =
+      &value->statements[continue_if->next_sibling];
+  CHECK(break_if->kind == W_SEED_FRONTEND_STMT_IF &&
+        break_if->first_child != W_SEED_FRONTEND_NONE &&
+        value->statements[break_if->first_child].kind ==
+            W_SEED_FRONTEND_STMT_BREAK);
+  CHECK(value->statements[break_if->next_sibling].kind ==
+        W_SEED_FRONTEND_STMT_EXPRESSION);
+
+  CHECK(fixture_run(value, "fn invalid(): i64 { break return 0 }\nentry {}\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(fixture_run(value,
+                    "fn invalid(): i64 { while true { break outer } return 0 }\n"
+                    "entry {}\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  return true;
+}
+
 static bool test_repeat_projection(void) {
   fixture *value = &fixture_mutation;
   CHECK(fixture_run(value,
@@ -9840,6 +9890,7 @@ int main(int argc, char **argv) {
   if (argc != 1) return 2;
   if (!test_short_entry_frontend()) return 1;
   if (!test_scalar_if_frontend_subset()) return 1;
+  if (!test_break_continue_projection()) return 1;
   if (!test_scalar_type_measure_emit_parity()) return 1;
   if (!test_checked_shift_frontend_matrix()) return 1;
   if (!test_checked_shift_binding_interpolation_frontend()) return 1;

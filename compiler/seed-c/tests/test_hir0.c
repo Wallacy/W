@@ -9734,6 +9734,134 @@ static bool test_while_post_loop_continuation_ssa(void) {
   return true;
 }
 
+static bool test_while_break_continue_shared_exit(void) {
+  static const char SOURCE[] =
+      "fn scan(limit: i64): i64 {\n"
+      "  var index = 0\n"
+      "  var total = 0\n"
+      "  while index < limit {\n"
+      "    index = index + 1\n"
+      "    if index == 2 { continue }\n"
+      "    if index == 5 { break }\n"
+      "    total = total + index\n"
+      "  }\n"
+      "  return total\n"
+      "}\n"
+      "fn main() { let observed = scan(limit: 9) }\nentry(main)\n";
+  CHECK(lower(SOURCE));
+  w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 2u && program->block_count == 12u &&
+        program->functions[0].block_count == 11u &&
+        program->block_argument_count == 4u &&
+        program->edge_argument_count == 10u &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+  const size_t preheader = program->functions[0].first_block;
+  const size_t header = preheader + 1u;
+  const size_t body = header + 1u;
+  const size_t continue_block = body + 1u;
+  const size_t break_block = body + 4u;
+  const size_t body_end = body + 6u;
+  const size_t adapter = body + 7u;
+  const size_t exit = body + 8u;
+  CHECK(program->terminators[header].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[header].target_block == body &&
+        program->terminators[header].else_block == adapter &&
+        program->terminators[continue_block].kind ==
+            W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[continue_block].target_block == header &&
+        program->terminators[break_block].kind ==
+            W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[break_block].target_block == exit &&
+        program->terminators[adapter].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[adapter].target_block == exit &&
+        program->terminators[body_end].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[body_end].target_block == header &&
+        program->blocks[header].block_argument_count == 2u &&
+        program->blocks[exit].block_argument_count == 2u);
+  const w_seed_hir0_edge_argument *continue_index =
+      &program->edge_arguments[program->terminators[continue_block]
+                                   .first_edge_argument];
+  const w_seed_hir0_edge_argument *break_index =
+      &program->edge_arguments[program->terminators[break_block]
+                                   .first_edge_argument];
+  const w_seed_hir0_terminator *continue_term =
+      &program->terminators[continue_block];
+  const w_seed_hir0_terminator *break_term =
+      &program->terminators[break_block];
+  const w_seed_hir0_terminator *adapter_term =
+      &program->terminators[adapter];
+  const w_seed_hir0_terminator *body_end_term =
+      &program->terminators[body_end];
+  const w_seed_hir0_edge_argument *continue_total =
+      &program->edge_arguments[(size_t)continue_term->first_edge_argument +
+                               1u];
+  const w_seed_hir0_edge_argument *break_total =
+      &program->edge_arguments[(size_t)break_term->first_edge_argument + 1u];
+  const w_seed_hir0_edge_argument *adapter_index =
+      &program->edge_arguments[(size_t)adapter_term->first_edge_argument];
+  const w_seed_hir0_edge_argument *adapter_total =
+      &program->edge_arguments[(size_t)adapter_term->first_edge_argument +
+                               1u];
+  const w_seed_hir0_edge_argument *fallthrough_index =
+      &program->edge_arguments[(size_t)body_end_term->first_edge_argument];
+  const w_seed_hir0_edge_argument *fallthrough_total =
+      &program->edge_arguments[(size_t)body_end_term->first_edge_argument +
+                               1u];
+  CHECK(continue_index->type_index == W_SEED_HIR0_TYPE_I64 &&
+        continue_index->ordinal == 0u &&
+        program->values[continue_index->value_index].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ &&
+        program->values[continue_index->value_index].binding_index == 2u &&
+        break_index->type_index == W_SEED_HIR0_TYPE_I64 &&
+        break_index->ordinal == 0u &&
+        program->values[break_index->value_index].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ &&
+        program->values[break_index->value_index].binding_index == 2u &&
+        continue_total->type_index == W_SEED_HIR0_TYPE_I64 &&
+        continue_total->ordinal == 1u &&
+        program->values[continue_total->value_index].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        program->values[continue_total->value_index].block_argument_index ==
+            program->blocks[header].first_block_argument + 1u &&
+        break_total->type_index == W_SEED_HIR0_TYPE_I64 &&
+        break_total->ordinal == 1u &&
+        program->values[break_total->value_index].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        program->values[break_total->value_index].block_argument_index ==
+            program->blocks[header].first_block_argument + 1u &&
+        adapter_index->type_index == W_SEED_HIR0_TYPE_I64 &&
+        adapter_index->ordinal == 0u &&
+        program->values[adapter_index->value_index].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        program->values[adapter_index->value_index].block_argument_index ==
+            program->blocks[header].first_block_argument &&
+        adapter_total->type_index == W_SEED_HIR0_TYPE_I64 &&
+        adapter_total->ordinal == 1u &&
+        program->values[adapter_total->value_index].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        program->values[adapter_total->value_index].block_argument_index ==
+            program->blocks[header].first_block_argument + 1u &&
+        fallthrough_index->type_index == W_SEED_HIR0_TYPE_I64 &&
+        fallthrough_index->ordinal == 0u &&
+        program->values[fallthrough_index->value_index].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ &&
+        program->values[fallthrough_index->value_index].binding_index == 2u &&
+        fallthrough_total->type_index == W_SEED_HIR0_TYPE_I64 &&
+        fallthrough_total->ordinal == 1u &&
+        program->values[fallthrough_total->value_index].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ &&
+        program->values[fallthrough_total->value_index].binding_index == 3u);
+  const w_seed_hir0_terminator saved_break =
+      fixture.hir_terminators[break_block];
+  fixture.hir_terminators[break_block].edge_argument_count = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[break_block] = saved_break;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_while_multi_carrier_general_values(void) {
   CHECK(lower(
       "fn exchange(limit: i64): i64 {\n"
@@ -20280,6 +20408,7 @@ int main(int argc, char **argv) {
   if (!test_while_multi_carrier_ssa()) return 1;
   if (!test_while_multi_carrier_source_order()) return 1;
   if (!test_while_post_loop_continuation_ssa()) return 1;
+  if (!test_while_break_continue_shared_exit()) return 1;
   if (!test_while_multi_carrier_general_values()) return 1;
   if (!test_while_multi_carrier_native_subset()) return 1;
   if (!test_while_mutation_barriers()) return 1;

@@ -301,6 +301,10 @@ typedef enum {
   /* Append-only lexical cleanup registration. The only source-backed seed
    * form currently accepted is one synchronous direct local Unit call. */
   W_SEED_FRONTEND_STMT_DEFER,
+  /* Append-only unlabeled loop control transfers. Their target is verified by
+   * HIR from the enclosing bounded loop CFG. */
+  W_SEED_FRONTEND_STMT_BREAK,
+  W_SEED_FRONTEND_STMT_CONTINUE,
 } w_seed_frontend_stmt_kind;
 
 typedef struct {
