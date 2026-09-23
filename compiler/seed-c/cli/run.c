@@ -249,9 +249,6 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   w_seed_frontend_text source_id;
   if (!run_logical_source_id(request->source_path, path_length, &source_id))
     return 2;
-  w_seed_wrt0_artifact wrt0;
-  if (!w_seed_wrt0_get(W_SEED_WRT0_TARGET_LINUX_X86_64, &wrt0)) return 3;
-
   const w_seed_native0_input native_input = {
       .path = request->source_path,
       .path_length = path_length,
@@ -285,6 +282,10 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
       return 3;
     return source_status;
   }
+  w_seed_wrt0_artifact wrt0;
+  if (!w_seed_wrt0_get(W_SEED_WRT0_TARGET_LINUX_X86_64,
+                       native_storage.runtime_requirements, &wrt0))
+    return 3;
   if (!path_join(input_path, sizeof(input_path), request->directory,
                  "input.mlir") ||
       !path_join(verified_path, sizeof(verified_path), request->directory,
@@ -975,8 +976,9 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
                            sizeof(runtime_object_path) /
                                sizeof(runtime_object_path[0]),
                            directory, L"wrt0.obj"))) ||
-      (linux_target && !w_seed_wrt0_get(W_SEED_WRT0_TARGET_LINUX_X86_64,
-                                        &wrt0)) ||
+      (linux_target &&
+       !w_seed_wrt0_get(W_SEED_WRT0_TARGET_LINUX_X86_64,
+                        native_storage.runtime_requirements, &wrt0)) ||
       !windows_write_new_file(input_path, native_artifact,
                               native_result.mlir.written.mlir_bytes) ||
       (linux_target && !windows_write_new_file(runtime_ll_path,

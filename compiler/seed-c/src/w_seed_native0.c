@@ -549,10 +549,25 @@ static bool effective_artifact_kind(
   return true;
 }
 
+static w_seed_runtime_requirements runtime_requirements_for_artifact(
+    w_seed_mlir0_artifact_kind artifact_kind) {
+  switch (artifact_kind) {
+    case W_SEED_MLIR0_ARTIFACT_EXECUTABLE:
+    case W_SEED_MLIR0_ARTIFACT_COOPERATIVE_EXECUTABLE:
+      return W_SEED_RUNTIME_REQUIREMENTS_NONE;
+    case W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE:
+      return W_SEED_RUNTIME_REQUIREMENTS_PROCESS_ARGUMENTS;
+    case W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER:
+      return W_SEED_RUNTIME_REQUIREMENTS_UNKNOWN;
+  }
+  return W_SEED_RUNTIME_REQUIREMENTS_UNKNOWN;
+}
+
 static w_seed_native0_status emit_hir_program(
     w_seed_native0_storage *storage, const w_seed_mlir0_target *target,
     w_seed_mlir0_artifact_kind artifact_kind, size_t source_bytes,
-    const w_seed_native0_output *output, w_seed_native0_result *result) {
+    const w_seed_native0_output *output, w_seed_native0_result *result,
+    bool exact_native0_program) {
   if (storage == NULL || target == NULL || output == NULL || result == NULL)
     return W_SEED_NATIVE0_INVALID;
   if (!effective_artifact_kind(&storage->hir_program, artifact_kind,
@@ -568,6 +583,10 @@ static w_seed_native0_status emit_hir_program(
   if (status != W_SEED_NATIVE0_OK) return status;
   *result = (w_seed_native0_result){
       W_SEED_NATIVE0_OK, source_bytes, mlir_result};
+  storage->runtime_requirements =
+      exact_native0_program
+          ? runtime_requirements_for_artifact(artifact_kind)
+          : W_SEED_RUNTIME_REQUIREMENTS_UNKNOWN;
   return W_SEED_NATIVE0_OK;
 }
 
@@ -727,7 +746,7 @@ w_seed_native0_status w_seed_native0_run_frontend_graph(
   if (hir_status != W_SEED_NATIVE0_OK) return hir_status;
   return emit_hir_program(storage, target,
                           W_SEED_MLIR0_ARTIFACT_EXECUTABLE, source_bytes,
-                          output, result);
+                          output, result, false);
 }
 
 w_seed_native0_status w_seed_native0_run(
@@ -762,7 +781,7 @@ w_seed_native0_status w_seed_native0_run(
   if (status != W_SEED_NATIVE0_OK) return status;
 
   return emit_hir_program(storage, &input->target, input->artifact_kind,
-                          storage->source_length, output, result);
+                          storage->source_length, output, result, true);
 }
 
 static bool cooperative_oracle_output_shape(

@@ -11,6 +11,7 @@
 #include "w_seed_mlir0.h"
 #include "w_seed_parser.h"
 #include "w_seed_source.h"
+#include "w_seed_wrt0.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -317,6 +318,9 @@ typedef struct {
   w_seed_hir0_output hir_output;
   w_seed_hir0_result hir_result;
   w_seed_hir0_program hir_program;
+  /* Published only for the exact verified Native0 source path. Local-graph
+   * fallback and unrecognized artifact kinds remain UNKNOWN (full runtime). */
+  w_seed_runtime_requirements runtime_requirements;
 } w_seed_native0_storage;
 
 _Static_assert(sizeof(w_seed_native0_storage) <= 896u * 1024u,
