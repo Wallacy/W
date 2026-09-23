@@ -58,6 +58,12 @@ Meça o espaço livre antes de uma build grande. Repita a medida no checkpoint
 seguinte e no fechamento do bundle. Mantenha uma build ativa por bundle e
 reutilize o mesmo diretório. Informe esse diretório em cada checkpoint.
 
+Keep isolated Git worktrees outside this repository root. Recursive Bun test
+discovery treats a nested worktree as another copy of the test suite, causing
+duplicate or stale results. Parallel packages may use separate `build-*`
+output directories inside the repository, but must not share a mutable build
+directory or place a source checkout inside one.
+
 O comando abaixo faz um dry-run. Ele não remove arquivos:
 
 ```sh
