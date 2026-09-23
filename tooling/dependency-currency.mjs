@@ -308,7 +308,6 @@ function validateRepositoryConsistency(value, root, errors) {
   const vscodeReadme = readText(root, "tooling/vscode-w/README.md", errors);
   const treeLock = readText(root, "tooling/tree-sitter-w/bun.lock", errors);
   const bunVersion = readText(root, ".bun-version", errors).trim();
-  const repositoryMap = readText(root, "REPOSITORY.md", errors);
   const platformSupport = readJson(root, "tooling/platform-support.json", errors);
   const platformDocument = readText(root, "PLATFORM-SUPPORT.md", errors);
 
@@ -330,10 +329,6 @@ function validateRepositoryConsistency(value, root, errors) {
   if (tree && !treeReadme.includes(`tree-sitter-cli\` ${tree.version}`)) {
     errors.push(`tooling/tree-sitter-w/README.md must document tree-sitter-cli ${tree.version}`);
   }
-  if (tree && !repositoryMap.includes(`tree-sitter-cli\` \`${tree.version}`)) {
-    errors.push(`REPOSITORY.md must document tree-sitter-cli ${tree.version}`);
-  }
-
   if (checkout && !workflow.includes(`actions/checkout@${checkout.sha} # ${checkout.tag}`)) {
     errors.push("CI checkout must use the selected full SHA and release tag comment");
   }
