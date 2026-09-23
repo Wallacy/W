@@ -116,7 +116,9 @@ or `ref` use implies a heap, header, address, or storage class.
 - w run and w build require one explicit source path. w build also requires an
   exact target triple and a new output artifact. Linux x64 builds default to
   static PIE; `--pie off` selects a separate, bounded ET_EXEC experiment. The
-  explicit PIE option is not a Windows PE/ASLR switch.
+  explicit PIE option is not a Windows PE/ASLR switch. A development-only
+  `--audit-dir <new-directory>` option retains one hashed Linux build trace for
+  inspection; it is non-ranking and does not claim verified dependency closure.
 - Public process execution has bounded native Windows x64 and CRT-free
   Linux/WSL x64 candidate routes. They compose only admitted normal-HIR body
   forms and scalar/enum values. General CFG, runtime, and argument-processing
@@ -246,6 +248,16 @@ New-Item -ItemType Directory -Force build/manual | Out-Null
 
 The w build output must not exist before the command. The builder publishes
 the new artifact without clobbering an existing path.
+
+To inspect one Linux-target build without changing ordinary cleanup behavior:
+
+```text
+& build/w-windows/w.exe build compiler/seed-c/fixtures/hlo0-hello.w --target x86_64-unknown-linux-gnu --output build/manual/hello --audit-dir build/manual/hello-audit
+```
+
+Both output paths must be new. The audit directory is a temporary development
+artifact and should be removed after the IR, objects, manifest, and final
+product have been inspected.
 
 The internal builder command is useful when the retained w.exe itself must be
 rebuilt:

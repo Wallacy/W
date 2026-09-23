@@ -16,12 +16,13 @@
 
 static bool rejects(int argc, char **argv) {
   w_seed_build_request request = {"sentinel", "sentinel", "sentinel",
-                                 W_SEED_RUN_COMPILE_PIE_OFF, true};
+                                 W_SEED_RUN_COMPILE_PIE_OFF, true,
+                                 "sentinel"};
   CHECK(!w_seed_build_parse(argc, argv, &request));
   CHECK(request.path == NULL && request.target == NULL &&
         request.output == NULL &&
         request.pie_mode == W_SEED_RUN_COMPILE_PIE_ON &&
-        !request.pie_mode_explicit);
+        !request.pie_mode_explicit && request.audit_directory == NULL);
   return true;
 }
 
@@ -34,7 +35,7 @@ static bool test_valid_requests(void) {
   CHECK(request.path == target_first[2] &&
         request.target == target_first[4] && request.output == target_first[6] &&
         request.pie_mode == W_SEED_RUN_COMPILE_PIE_ON &&
-        !request.pie_mode_explicit);
+        !request.pie_mode_explicit && request.audit_directory == NULL);
 
   char *output_first[] = {"w", "build", "main.w", "--output", "program",
                           "--target", "x86_64-pc-windows-msvc", NULL};
@@ -59,6 +60,24 @@ static bool test_valid_requests(void) {
   CHECK(request.pie_mode == W_SEED_RUN_COMPILE_PIE_OFF &&
         request.pie_mode_explicit &&
         request.target == pie_off_last[4] && request.output == pie_off_last[6]);
+
+  char *audit_first[] = {"w", "build", "main.w", "--audit-dir", "trace",
+                         "--target", "x86_64-unknown-linux-gnu", "--output",
+                         "out", NULL};
+  CHECK(w_seed_build_parse(9, audit_first, &request));
+  CHECK(request.audit_directory == audit_first[4] &&
+        request.target == audit_first[6] && request.output == audit_first[8] &&
+        request.pie_mode == W_SEED_RUN_COMPILE_PIE_ON &&
+        !request.pie_mode_explicit);
+
+  char *audit_with_pie[] = {"w", "build", "main.w", "--target",
+                            "x86_64-unknown-linux-gnu", "--output", "out",
+                            "--pie", "off", "--audit-dir", "trace", NULL};
+  CHECK(w_seed_build_parse(11, audit_with_pie, &request));
+  CHECK(request.audit_directory == audit_with_pie[10] &&
+        request.target == audit_with_pie[4] && request.output == audit_with_pie[6] &&
+        request.pie_mode == W_SEED_RUN_COMPILE_PIE_OFF &&
+        request.pie_mode_explicit);
   return true;
 }
 
@@ -117,21 +136,38 @@ static bool test_invalid_requests(void) {
                                  "x86_64-unknown-freebsd", "--output", "out",
                                  "--pie", "on", NULL};
   CHECK(rejects(9, pie_on_other_target));
+  char *missing_audit_directory[] = {"w", "build", "main.w", "--target",
+                                     "x86_64-unknown-linux-gnu", "--output",
+                                     "out", "--audit-dir", NULL};
+  CHECK(rejects(8, missing_audit_directory));
+  char *duplicate_audit_directory[] = {"w", "build", "main.w", "--target",
+                                       "x86_64-unknown-linux-gnu", "--output",
+                                       "out", "--audit-dir", "trace",
+                                       "--audit-dir", "trace2", NULL};
+  CHECK(rejects(11, duplicate_audit_directory));
+  char *audit_windows_target[] = {"w", "build", "main.w", "--target",
+                                 "x86_64-pc-windows-msvc", "--output", "out",
+                                 "--audit-dir", "trace", NULL};
+  CHECK(rejects(9, audit_windows_target));
+  char *audit_option_without_output[] = {"w", "build", "main.w", "--target",
+                                         "x86_64-unknown-linux-gnu",
+                                         "--audit-dir", "trace", NULL};
+  CHECK(rejects(7, audit_option_without_output));
   return true;
 }
 
 static bool test_execute_fails_closed(void) {
   const w_seed_build_request explicit_windows_pie = {
       "main.w", W_SEED_NATIVE_TARGET_WINDOWS, "unused",
-      W_SEED_RUN_COMPILE_PIE_ON, true};
+      W_SEED_RUN_COMPILE_PIE_ON, true, NULL};
   CHECK(w_seed_build_execute(&explicit_windows_pie) == 2);
   const w_seed_build_request windows_non_pie = {
       "main.w", W_SEED_NATIVE_TARGET_WINDOWS, "unused",
-      W_SEED_RUN_COMPILE_PIE_OFF, false};
+      W_SEED_RUN_COMPILE_PIE_OFF, false, NULL};
   CHECK(w_seed_build_execute(&windows_non_pie) == 2);
   const w_seed_build_request invalid_mode = {
       "main.w", W_SEED_NATIVE_TARGET_LINUX, "unused",
-      (w_seed_run_compile_pie_mode)2, true};
+      (w_seed_run_compile_pie_mode)2, true, NULL};
   CHECK(w_seed_build_execute(&invalid_mode) == 2);
   return true;
 }

@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs"
 import { lstat, mkdir, mkdtemp, readdir, readFile, rm, statfs, symlink, unlink, writeFile } from "node:fs/promises"
+import { createHash } from "node:crypto"
 import { tmpdir } from "node:os"
 import { join, relative, resolve, isAbsolute } from "node:path"
 import {
@@ -13,6 +14,7 @@ import {
 } from "./windows-build-support.mjs"
 import { validateElfX64 } from "./executable-benchmark-runner.mjs"
 import {
+  assertCrtFreeElf,
   assertCrtFreeExecElf,
   assertElfNoExecutableStack,
 } from "./check-w-run.mjs"
@@ -203,7 +205,9 @@ const expectedHelp =
   "usage: w check <path/file.w> [--json]\n" +
   "usage: w run <path/file.w> [-- <args...>]\n" +
   "usage: w build <path/file.w> --target <target> --output <artifact> " +
-  "[--pie <on|off>] (temporary Linux x86_64 seed option; default: on)\n" +
+  "[--pie <on|off>] [--audit-dir <new-directory>]\n" +
+  "  --pie is a temporary Linux x86_64 seed option (default: on); " +
+  "--audit-dir is development-only and non-ranking\n" +
   "usage: w bench process --exe <absolute-path> [options]\n" +
   "  options: --cwd <absolute-dir> --arg <value> --warmup <n> " +
   "--samples <n> --timeout-ms <n> --expect-exit <n> " +
@@ -338,7 +342,8 @@ function assertNoNewResidue(before, after) {
 
 async function assertNoBuildResidue(directory, label = "public build") {
   const entries = await readdir(directory, { withFileTypes: true })
-  const residue = entries.filter((entry) => entry.name.startsWith(".w-build-"))
+  const residue = entries.filter((entry) => entry.name.startsWith(".w-build-") ||
+    entry.name.startsWith(".w-audit-"))
   assert(residue.length === 0,
     `${label} left staging entries: ${JSON.stringify(residue)}`)
 }
@@ -388,6 +393,54 @@ function expectSourceFailure(binary, pathValue, label) {
 
 function expectBuildFailure(binary, args, label) {
   expectExact(binary, args, 2, Buffer.alloc(0), label)
+}
+
+async function verifyLinuxAuditTrace(directory, finalArtifact) {
+  const expectedFiles = ["final-artifact", "input.mlir", "manifest.json",
+    "optimized.ll", "output.ll", "output.obj", "verified.mlir", "wrt0.ll",
+    "wrt0.obj"].sort()
+  const entries = await readdir(directory, { withFileTypes: true })
+  const actualFiles = entries.filter((entry) => entry.isFile())
+    .map((entry) => entry.name).sort()
+  assert(JSON.stringify(actualFiles) === JSON.stringify(expectedFiles),
+    "Windows-host Linux audit trace inventory is not exact")
+  const manifestBytes = await readFile(join(directory, "manifest.json"))
+  const manifestText = manifestBytes.toString("utf8")
+  const manifest = JSON.parse(manifestText)
+  assert(manifest.schema === "w-seed-audit-trace-1" &&
+    manifest.purpose === "development-only/non-ranking" &&
+    manifest.closure_status === "inspection-required" &&
+    manifest.product?.target === "x86_64-unknown-linux-gnu" &&
+    manifest.product?.abi === "linux-gnu" &&
+    manifest.product?.profile === "release" &&
+    JSON.stringify(manifest.link?.inputs) ===
+      JSON.stringify(["output.obj", "wrt0.obj"]),
+  "Windows-host audit manifest does not bind the Linux multi-object product")
+  assert(/^[0-9a-f]{64}$/u.test(manifest.compiler_binary_sha256) &&
+    /^[0-9a-f]{64}$/u.test(manifest.source_id_sha256) &&
+    Array.isArray(manifest.tools) && manifest.tools.length === 5 &&
+    manifest.tools.every((tool) => /^[0-9a-f]{64}$/u.test(tool.sha256)),
+  "Windows-host audit manifest hashes are incomplete")
+  assert(!manifestText.includes(defaultCacheDirectory()) &&
+    !manifestText.includes("W_MLIR0_TOOLCHAIN_ROOT") &&
+    !manifestText.includes("argv") && !manifestText.includes("environment"),
+  "Windows-host audit manifest includes a local path or invocation history")
+  const records = manifest.artifacts
+  assert(Array.isArray(records) && records.length === 8 &&
+    JSON.stringify(records.map((record) => record.name)) ===
+      JSON.stringify(["input.mlir", "verified.mlir", "output.ll",
+        "optimized.ll", "output.obj", "wrt0.ll", "wrt0.obj",
+        "final-artifact"]),
+  "Windows-host audit manifest does not enumerate each emitted object")
+  for (const record of records) {
+    const bytes = await readFile(join(directory, record.name))
+    assert(record.bytes === bytes.length &&
+      record.sha256 === createHash("sha256").update(bytes).digest("hex"),
+    `Windows-host audit manifest digest does not match ${record.name}`)
+  }
+  assert((await readFile(join(directory, "final-artifact"))).equals(
+    await readFile(finalArtifact)),
+  "Windows-host audit artifact is not byte-identical to the published output")
 }
 
 function assertPeX64(bytes, label) {
@@ -560,6 +613,11 @@ assert(runSource.includes("W_SEED_RUN_COMPILE_PROFILE_DEV"),
   "cli/run.c does not select the development compile profile for w run")
 assert(buildSource.includes("W_SEED_RUN_COMPILE_PROFILE_RELEASE"),
   "cli/build.c does not select the release compile profile for w build")
+assert(buildSource.includes("--audit-dir") &&
+  buildSource.includes("build_windows_copy_audit_bundle") &&
+  runSource.includes("retain_audit_trace") &&
+  runSource.includes("manifest.json") && runSource.includes("wrt0.obj"),
+"Windows-host Linux audit trace route is incomplete")
 for (const name of ["mlir-opt.exe", "mlir-translate.exe", "opt.exe",
   "llc.exe", "lld-link.exe"])
   runRequired(`${name} version`, materialized.tools[name].absolutePath, ["--version"])
@@ -1269,6 +1327,23 @@ try {
   const buildLinuxTarget = join(fixtureDirectory,
     "main-dispatch-linux")
   const buildLinuxHelloNoPie = join(fixtureDirectory, "hello-linux-no-pie")
+  const buildLinuxHelloAudit = join(fixtureDirectory, "hello-linux-audit")
+  const linuxHelloAuditTrace = join(fixtureDirectory, "hello-linux-audit-trace")
+  const failedLinuxAuditProduct = join(fixtureDirectory,
+    "failed-linux-audit-product")
+  const failedLinuxAuditTrace = join(fixtureDirectory,
+    "failed-linux-audit-trace")
+  const existingLinuxAuditTrace = join(fixtureDirectory,
+    "existing-linux-audit-trace")
+  const existingLinuxAuditMarker = join(existingLinuxAuditTrace, "keep")
+  const reparseLinuxAuditTarget = join(fixtureDirectory,
+    "reparse-linux-audit-target")
+  const reparseLinuxAuditPath = join(fixtureDirectory,
+    "reparse-linux-audit")
+  const reparseLinuxAuditParent = join(fixtureDirectory,
+    "reparse-linux-audit-parent")
+  const escapeLinuxAuditPath =
+    `${fixtureDirectory}\\..\\w-run-windows-audit-escape`
   const buildMissingParent = join(fixtureDirectory, "missing", "artifact.exe")
   expectExact(binary, ["build", helloFixture, "--target", targetTriple,
     "--output", buildHello], 0, Buffer.alloc(0), "build Hello fixture")
@@ -1534,6 +1609,62 @@ try {
   expectExact(wsl, ["-d", "Ubuntu", "--", wslPath(buildLinuxHelloNoPie)], 0,
     Buffer.from("Hello, world!\n", "utf8"),
   "execute cross-built non-PIE Hello through WSL2")
+  expectExact(binary, ["build", helloFixture, "--target", linuxTargetTriple,
+    "--output", buildLinuxHelloAudit, "--audit-dir", linuxHelloAuditTrace],
+  0, Buffer.alloc(0), "cross-build one Linux product with audit trace")
+  const linuxAuditBytes = await readFile(buildLinuxHelloAudit)
+  assertCrtFreeElf(linuxAuditBytes)
+  assertElfNoExecutableStack(linuxAuditBytes)
+  await verifyLinuxAuditTrace(linuxHelloAuditTrace, buildLinuxHelloAudit)
+  expectExact(wsl, ["-d", "Ubuntu", "--", wslPath(buildLinuxHelloAudit)], 0,
+    Buffer.from("Hello, world!\n", "utf8"),
+  "execute cross-built audited Linux Hello through WSL2")
+
+  await mkdir(existingLinuxAuditTrace)
+  await writeFile(existingLinuxAuditMarker, "preserve existing audit data\n")
+  try {
+    expectBuildFailure(binary, ["build", helloFixture, "--target",
+      linuxTargetTriple, "--output", failedLinuxAuditProduct, "--audit-dir",
+      existingLinuxAuditTrace], "reject existing audit directory")
+    assert(!existsSync(failedLinuxAuditProduct) &&
+      (await readFile(existingLinuxAuditMarker)).equals(
+        Buffer.from("preserve existing audit data\n")),
+    "existing Linux audit directory was modified or product published")
+  } finally {
+    await rm(existingLinuxAuditTrace, { recursive: true, force: true })
+  }
+
+  await mkdir(reparseLinuxAuditTarget)
+  await symlink(reparseLinuxAuditTarget, reparseLinuxAuditPath, "junction")
+  await symlink(fixtureDirectory, reparseLinuxAuditParent, "junction")
+  try {
+    expectBuildFailure(binary, ["build", helloFixture, "--target",
+      linuxTargetTriple, "--output", failedLinuxAuditProduct, "--audit-dir",
+      reparseLinuxAuditPath], "reject reparse audit target")
+    expectBuildFailure(binary, ["build", helloFixture, "--target",
+      linuxTargetTriple, "--output", failedLinuxAuditProduct, "--audit-dir",
+      join(reparseLinuxAuditParent, "trace")],
+    "reject reparse audit parent")
+    expectBuildFailure(binary, ["build", helloFixture, "--target",
+      linuxTargetTriple, "--output", failedLinuxAuditProduct, "--audit-dir",
+      escapeLinuxAuditPath], "reject escaping audit path")
+    assert(!existsSync(failedLinuxAuditProduct) &&
+      !existsSync(escapeLinuxAuditPath),
+    "invalid audit path published a product or escaped trace")
+  } finally {
+    await unlink(reparseLinuxAuditPath)
+    await unlink(reparseLinuxAuditParent)
+    await rm(reparseLinuxAuditTarget, { recursive: true, force: true })
+  }
+  expectBuildFailure(binary, ["build", privateGraphRoot, "--target",
+    linuxTargetTriple, "--output", failedLinuxAuditProduct, "--audit-dir",
+    failedLinuxAuditTrace], "remove failed cross-build audit staging")
+  assert(!existsSync(failedLinuxAuditProduct) &&
+    !existsSync(failedLinuxAuditTrace),
+  "failed cross-build published a partial audit trace")
+  await assertNoBuildResidue(fixtureDirectory,
+    "Windows-host Linux audit success and failures")
+
   expectBuildFailure(binary, ["build", helloFixture, "--target",
     "aarch64-unknown-linux-gnu", "--output", buildWrongTarget],
     "reject unsupported build target")

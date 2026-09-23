@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs"
 import { chmod, lstat, mkdir, mkdtemp, readdir, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises"
+import { createHash } from "node:crypto"
 import { tmpdir } from "node:os"
 import { isAbsolute, join, resolve } from "node:path"
 
@@ -192,7 +193,9 @@ const expectedHelp =
   "usage: w check <path/file.w> [--json]\n" +
   "usage: w run <path/file.w> [-- <args...>]\n" +
   "usage: w build <path/file.w> --target <target> --output <artifact> " +
-  "[--pie <on|off>] (temporary Linux x86_64 seed option; default: on)\n" +
+  "[--pie <on|off>] [--audit-dir <new-directory>]\n" +
+  "  --pie is a temporary Linux x86_64 seed option (default: on); " +
+  "--audit-dir is development-only and non-ranking\n" +
   "usage: w bench process --exe <absolute-path> [options]\n" +
   "  options: --cwd <absolute-dir> --arg <value> --warmup <n> " +
   "--samples <n> --timeout-ms <n> --expect-exit <n> " +
@@ -564,18 +567,24 @@ function expectBuildFailure(binary, args, label) {
 
 async function assertNoBuildResidue(directory, label = "public build") {
   if (isWindows) {
-    const result = runRequired(`${label} WSL residue check`, "wsl.exe", [
-      "-d", "Ubuntu", "--", "find", directory, "-mindepth", "1",
-      "-maxdepth", "1", "-name", ".w-build-*", "-printf", "%f\\n",
-    ])
-    assert(result.stderrBytes.length === 0, `${label} residue check wrote stderr`)
-    const residue = result.stdoutBytes.toString().split(/\r?\n/u).filter(Boolean)
+    const residue = []
+    for (const pattern of [".w-build-*", ".w-audit-*"]) {
+      const result = runRequired(`${label} WSL residue check`, "wsl.exe", [
+        "-d", "Ubuntu", "--", "find", directory, "-mindepth", "1",
+        "-maxdepth", "1", "-type", "d", "-name", pattern, "-print",
+      ])
+      assert(result.stderrBytes.length === 0,
+        `${label} residue check wrote stderr`)
+      residue.push(...result.stdoutBytes.toString()
+        .split(/\r?\n/u).filter(Boolean))
+    }
     assert(residue.length === 0,
       `${label} left staging entries: ${JSON.stringify(residue)}`)
     return
   }
   const entries = await readdir(directory, { withFileTypes: true })
-  const residue = entries.filter((entry) => entry.name.startsWith(".w-build-"))
+  const residue = entries.filter((entry) => entry.name.startsWith(".w-build-") ||
+    entry.name.startsWith(".w-audit-"))
   assert(residue.length === 0,
     `${label} left staging entries: ${JSON.stringify(residue)}`)
 }
@@ -590,6 +599,80 @@ function readBuildArtifact(path) {
   return Promise.resolve(runRequired("WSL artifact read", "wsl.exe", [
     "-d", "Ubuntu", "--", "cat", path,
   ]).stdoutBytes)
+}
+
+function auditChild(directory, name) {
+  return isWindows ? `${directory}/${name}` : join(directory, name)
+}
+
+async function readBuildAuditFile(directory, name) {
+  const path = auditChild(directory, name)
+  if (!isWindows) return readFile(path)
+  return runRequired(`WSL audit trace read ${name}`, "wsl.exe", [
+    "-d", "Ubuntu", "--", "cat", path,
+  ]).stdoutBytes
+}
+
+async function listBuildAuditFiles(directory) {
+  if (!isWindows)
+    return (await readdir(directory, { withFileTypes: true }))
+      .filter((entry) => entry.isFile()).map((entry) => entry.name).sort()
+  const result = runRequired("WSL audit trace inventory", "wsl.exe", [
+    "-d", "Ubuntu", "--", "find", directory, "-mindepth", "1",
+    "-maxdepth", "1", "-type", "f", "-printf", "%f,",
+  ])
+  assert(result.stderrBytes.length === 0, "WSL audit trace inventory wrote stderr")
+  return result.stdoutBytes.toString().split(",").filter(Boolean).sort()
+}
+
+async function verifyAuditTrace(directory, finalArtifact,
+                                buildArtifactDirectory) {
+  const expectedFiles = ["final-artifact", "input.mlir", "manifest.json",
+    "optimized.ll", "output.ll", "output.o", "verified.mlir", "wrt0.ll",
+    "wrt0.o"].sort()
+  const actualFiles = await listBuildAuditFiles(directory)
+  assert(JSON.stringify(actualFiles) === JSON.stringify(expectedFiles),
+    `audit trace file inventory is not exact: ${JSON.stringify({
+      expectedFiles, actualFiles,
+    })}`)
+  const manifestBytes = await readBuildAuditFile(directory, "manifest.json")
+  const manifestText = manifestBytes.toString("utf8")
+  const manifest = JSON.parse(manifestText)
+  assert(manifest.schema === "w-seed-audit-trace-1" &&
+    manifest.purpose === "development-only/non-ranking" &&
+    manifest.closure_status === "inspection-required",
+  "audit manifest does not identify its non-ranking inspection status")
+  assert(manifest.product?.target === targetTriple &&
+    manifest.product?.abi === "linux-gnu" &&
+    manifest.product?.profile === "release" &&
+    manifest.product?.final_artifact === "final-artifact" &&
+    JSON.stringify(manifest.link?.inputs) ===
+      JSON.stringify(["output.o", "wrt0.o"]),
+  "audit manifest does not bind the Linux multi-object release product")
+  assert(/^[0-9a-f]{64}$/u.test(manifest.compiler_binary_sha256) &&
+    /^[0-9a-f]{64}$/u.test(manifest.source_id_sha256) &&
+    Array.isArray(manifest.tools) && manifest.tools.length === 5 &&
+    manifest.tools.every((tool) => /^[0-9a-f]{64}$/u.test(tool.sha256)),
+  "audit manifest compiler/source/tool hashes are incomplete")
+  assert(!manifestText.includes(buildArtifactDirectory) &&
+    !manifestText.includes("W_MLIR0_TOOLCHAIN_ROOT") &&
+    !manifestText.includes("argv") && !manifestText.includes("environment"),
+  "audit manifest includes a local path, environment, or invocation history")
+  const records = manifest.artifacts
+  assert(Array.isArray(records) && records.length === 8 &&
+    JSON.stringify(records.map((record) => record.name)) ===
+      JSON.stringify(["input.mlir", "verified.mlir", "output.ll",
+        "optimized.ll", "output.o", "wrt0.ll", "wrt0.o", "final-artifact"]),
+  "audit manifest artifact order does not bind every product and WRT0 input")
+  for (const record of records) {
+    const bytes = await readBuildAuditFile(directory, record.name)
+    assert(record.bytes === bytes.length &&
+      record.sha256 === createHash("sha256").update(bytes).digest("hex"),
+    `audit manifest digest/size does not match ${record.name}`)
+  }
+  assert((await readBuildAuditFile(directory, "final-artifact")).equals(
+    await readBuildArtifact(finalArtifact)),
+  "audit final artifact is not byte-identical to the published product")
 }
 
 export function assertCrtFreeElf(bytes) {
@@ -1524,6 +1607,19 @@ try {
     ? `${buildArtifactDirectory}/${name}`
     : join(buildArtifactDirectory, name)
   const buildHello = buildOutput("hello-build")
+  const buildHelloAudit = buildOutput("hello-audit-build")
+  const helloAuditTrace = buildOutput("hello-audit-trace")
+  const failedAuditTrace = buildOutput("failed-build-audit-trace")
+  const failedAuditProduct = buildOutput("failed-build-audit-product")
+  const existingAuditTrace = buildOutput("existing-audit-trace")
+  const existingAuditMarker = auditChild(existingAuditTrace, "keep")
+  const symlinkAuditTrace = buildOutput("symlink-audit-trace")
+  const symlinkAuditTarget = buildOutput("symlink-audit-target")
+  const symlinkAuditParent = buildOutput("symlink-audit-parent")
+  const symlinkAuditChild = auditChild(symlinkAuditParent, "trace")
+  const escapeAuditTrace = isWindows
+    ? `${buildArtifactDirectory}/../w-run-audit-escape`
+    : `${buildArtifactDirectory}/../w-run-audit-escape`
   const buildHelloNoPie = buildOutput("hello-build-no-pie")
   const buildWindowsTargetPie = buildOutput("pie-on-windows-target-build")
   const buildWindowsTargetNoPie = buildOutput("pie-off-windows-target-build")
@@ -1563,6 +1659,77 @@ try {
     "build Hello fixture")
   expectSuccess(buildHello, [], expectedHello,
     "execute built Hello artifact")
+  expectSuccess(binary, ["build", toWsl(helloFixture), "--target", targetTriple,
+    "--output", buildHelloAudit, "--audit-dir", helloAuditTrace],
+  Buffer.alloc(0), "build one Hello product with the audit-only trace")
+  expectSuccess(buildHelloAudit, [], expectedHello,
+    "execute audited Hello product")
+  assertCrtFreeElf(await readBuildArtifact(buildHelloAudit))
+  await verifyAuditTrace(helloAuditTrace, buildHelloAudit,
+    buildArtifactDirectory)
+
+  if (isWindows) {
+    runRequired("WSL existing audit target directory", "wsl.exe", [
+      "-d", "Ubuntu", "--", "mkdir", "--", existingAuditTrace,
+    ])
+    runRequired("WSL existing audit target marker", "wsl.exe", [
+      "-d", "Ubuntu", "--", "touch", "--", existingAuditMarker,
+    ])
+    runRequired("WSL audit target symlink", "wsl.exe", [
+      "-d", "Ubuntu", "--", "ln", "-s", symlinkAuditTarget,
+      symlinkAuditTrace,
+    ])
+    runRequired("WSL audit parent symlink", "wsl.exe", [
+      "-d", "Ubuntu", "--", "ln", "-s", buildArtifactDirectory,
+      symlinkAuditParent,
+    ])
+  } else {
+    await mkdir(existingAuditTrace)
+    await writeFile(existingAuditMarker, "preserve existing audit data\n")
+    await symlink(symlinkAuditTarget, symlinkAuditTrace)
+    await symlink(buildArtifactDirectory, symlinkAuditParent)
+  }
+  try {
+    expectBuildFailure(binary, ["build", toWsl(join(fixtureDirectory,
+      "missing.w")), "--target", targetTriple, "--output", failedAuditProduct,
+    "--audit-dir", existingAuditTrace],
+    "reject existing audit directory before source/product work")
+    assert(!artifactExists(failedAuditProduct) &&
+      artifactExists(existingAuditMarker),
+    "existing audit target was replaced or output was published")
+    expectBuildFailure(binary, ["build", toWsl(helloFixture), "--target",
+      targetTriple, "--output", failedAuditProduct, "--audit-dir",
+      symlinkAuditTrace], "reject symlink audit directory")
+    assert(!artifactExists(failedAuditProduct),
+      "symlink audit rejection left an executable")
+    expectBuildFailure(binary, ["build", toWsl(helloFixture), "--target",
+      targetTriple, "--output", failedAuditProduct, "--audit-dir",
+      symlinkAuditChild], "reject symlink audit parent")
+    expectBuildFailure(binary, ["build", toWsl(helloFixture), "--target",
+      targetTriple, "--output", failedAuditProduct, "--audit-dir",
+      escapeAuditTrace], "reject escaping audit path")
+    assert(!artifactExists(failedAuditProduct) &&
+      !artifactExists(escapeAuditTrace),
+    "invalid audit target left a product or escaped trace")
+    expectBuildFailure(binary, ["build", toWsl(privateGraphRoot), "--target",
+      targetTriple, "--output", failedAuditProduct, "--audit-dir",
+      failedAuditTrace], "remove failed compile audit staging")
+    assert(!artifactExists(failedAuditProduct) &&
+      !artifactExists(failedAuditTrace),
+    "failed compilation published a partial audit trace")
+    await assertNoBuildResidue(buildArtifactDirectory,
+      "audit target and compilation failures")
+  } finally {
+    if (isWindows) {
+      runRequired("WSL audit symlink cleanup", "wsl.exe", [
+        "-d", "Ubuntu", "--", "rm", "-f", "--", symlinkAuditTrace,
+        symlinkAuditParent,
+      ])
+    } else {
+      await unlink(symlinkAuditTrace)
+      await unlink(symlinkAuditParent)
+    }
+  }
   expectSuccess(binary, ["build", toWsl(helloFixture), "--target",
     targetTriple, "--output", buildHelloNoPie, "--pie", "off"],
   Buffer.alloc(0), "build Hello as a non-PIE Linux executable")

@@ -4180,7 +4180,7 @@ claimed.
 The finite seed build command is limited to:
 
 ```text
-w build <explicit-path.w> --target <exact-supported-triple> --output <new-artifact> [--pie on|off]
+w build <explicit-path.w> --target <exact-supported-triple> --output <new-artifact> [--pie on|off] [--audit-dir <new-directory>]
 ```
 
 Source, target, and output are mandatory. Linux accepts only
@@ -4200,6 +4200,17 @@ the exact-output and CRT-free dependency checks. The flag is a temporary seed
 control; durable position-independence policy belongs with future target-aware
 build configuration, not as a permanent standalone CLI promise.
 
+`--audit-dir` is an opt-in development surface for the Linux target. The path
+must name a new directory and must not alias the output. After a successful
+build it publishes a fixed inventory containing input and verified MLIR,
+pre/post-optimization LLVM IR, the product and WRT0 objects, the final product,
+and a manifest with hashes and the exact tool pipeline. Publication is
+transactional and no-replace; failure removes the staged trace and product.
+The manifest deliberately records `closure_status: inspection-required`:
+retaining inputs makes dependency auditing possible but is not itself a
+dependency-closure proof or benchmark result. Remove the directory after the
+bounded investigation. Builds without this option retain no intermediates.
+
 The output must not exist. Its parent must already be a physical directory.
 The route creates private staging under that parent and publishes one
 caller-owned executable without replacement. Before publication it removes every
@@ -4210,15 +4221,17 @@ parent; on a filesystem without that syscall it uses one atomic hard-link
 no-clobber publication and best-effort post-commit hidden-link cleanup. Windows
 uses exactly one `MoveFileExW` without `MOVEFILE_REPLACE_EXISTING` after the
 staging directory is clean. The route does not search PATH, invoke a shell, use
-network access, choose a host or target implicitly, or invoke WSL implicitly. It
-writes no receipt and makes no general artifact-record claim.
+network access, choose a host or target implicitly, or invoke WSL implicitly.
+The ordinary route writes no receipt and makes no general artifact-record
+claim; the optional audit manifest is development-only and non-ranking.
 
 The compiler stage is shared with `w run`. `w run` retains its private
 compile-to-execute cleanup lifecycle and its fast development recipe. `w build`
 uses the explicit internal release recipe by default: `mlir-opt --canonicalize
 --cse`, `llc -O3`, and Linux direct-link stripping with `-s`; native Windows
 uses `llc -O3` and LLD `/opt:ref /opt:icf /incremental:no`. There is no public
-profile option in this seed. `w build` retains only the published executable.
+profile option in this seed. By default, `w build` retains only the published
+executable; the explicit audit lane above is the sole bounded exception.
 The route supports the current seed subset, including `if.w`,
 without changing language semantics. Separate compile/run benchmark migration
 is not part of this bundle.

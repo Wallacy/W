@@ -37,6 +37,9 @@ typedef struct {
   const char *artifact_path;
   w_seed_run_compile_profile profile;
   w_seed_run_compile_pie_mode pie_mode;
+  /* Internal w build audit lane: retain bounded intermediates and manifest in
+   * the caller-owned private staging directory. Never set for w run. */
+  bool retain_audit_trace;
 } w_seed_run_compile_request;
 
 /* Parse only the public run grammar. Argument strings remain borrowed from
@@ -51,8 +54,9 @@ int w_seed_run_execute(const w_seed_run_request *request);
 /* Shared bounded source-to-native compilation used by run and build. Windows
  * accepts both its native PE target and the finite Linux x86-64 cross target;
  * the latter links the authored WRT0 closure with the pinned sibling ld.lld.
- * The caller owns directory and artifact_path; on success only artifact_path
- * is retained in directory. */
+ * The caller owns directory and artifact_path; ordinary success keeps only
+ * artifact_path, while the internal audit lane keeps its fixed trace inventory
+ * until w build copies it to the caller-selected destination. */
 int w_seed_run_compile(const w_seed_run_compile_request *request);
 
 /* Remove a compiled artifact and its private directory. */

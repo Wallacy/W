@@ -16,6 +16,8 @@ typedef struct {
   const char *output;
   w_seed_run_compile_pie_mode pie_mode;
   bool pie_mode_explicit;
+  /* Development-only inspection bundle. NULL preserves ordinary cleanup. */
+  const char *audit_directory;
 } w_seed_build_request;
 
 /* Parse only the bounded seed build grammar. All strings remain borrowed from

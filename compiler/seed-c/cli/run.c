@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "w_seed_native0.h"
+#include "w_seed_sha256.h"
 #include "w_seed_wrt0.h"
 
 #if defined(_WIN32)
@@ -142,6 +143,16 @@ static bool cleanup_directory(const char *directory, const char *input_path,
                               const char *runtime_ll_path,
                               const char *runtime_object_path,
                               const char *program_path) {
+  char final_path[PATH_MAX] = {0};
+  char manifest_path[PATH_MAX] = {0};
+  if (directory != NULL && directory[0] != '\0') {
+    if (!path_join(final_path, sizeof(final_path), directory,
+                   "final-artifact"))
+      final_path[0] = '\0';
+    if (!path_join(manifest_path, sizeof(manifest_path), directory,
+                   "manifest.json"))
+      manifest_path[0] = '\0';
+  }
   bool clean = remove_file(input_path);
   clean = remove_file(verified_path) && clean;
   clean = remove_file(ll_path) && clean;
@@ -150,10 +161,248 @@ static bool cleanup_directory(const char *directory, const char *input_path,
   clean = remove_file(runtime_ll_path) && clean;
   clean = remove_file(runtime_object_path) && clean;
   clean = remove_file(program_path) && clean;
+  clean = remove_file(final_path) && clean;
+  clean = remove_file(manifest_path) && clean;
   if (directory != NULL && directory[0] != '\0' && rmdir(directory) != 0 &&
       errno != ENOENT)
     clean = false;
   return clean;
+}
+
+typedef struct {
+  const char *name;
+  const char *kind;
+  char digest[65];
+  unsigned long long bytes;
+} run_audit_file;
+
+static void run_digest_hex(const uint8_t digest[32], char text[65]) {
+  static const char hex[] = "0123456789abcdef";
+  for (size_t index = 0u; index < 32u; index += 1u) {
+    text[index * 2u] = hex[digest[index] >> 4u];
+    text[index * 2u + 1u] = hex[digest[index] & 0x0fu];
+  }
+  text[64] = '\0';
+}
+
+static void run_digest_bytes(const uint8_t *bytes, size_t length,
+                             char text[65]) {
+  w_seed_sha256_state state;
+  uint8_t digest[32];
+  w_seed_sha256_init(&state);
+  w_seed_sha256_update(&state, bytes, length);
+  w_seed_sha256_final(&state, digest);
+  run_digest_hex(digest, text);
+}
+
+static bool run_hash_file(const char *path, bool allow_link,
+                          char digest_text[65],
+                          unsigned long long *byte_count) {
+  if (path == NULL || digest_text == NULL || byte_count == NULL) return false;
+  const int flags = O_RDONLY | O_CLOEXEC | (allow_link ? 0 : O_NOFOLLOW);
+  const int descriptor = open(path, flags);
+  if (descriptor < 0) return false;
+  struct stat before;
+  if (fstat(descriptor, &before) != 0 || !S_ISREG(before.st_mode) ||
+      before.st_size < 0) {
+    (void)close(descriptor);
+    return false;
+  }
+  w_seed_sha256_state state;
+  w_seed_sha256_init(&state);
+  uint8_t bytes[16384];
+  unsigned long long total = 0u;
+  bool hashed = true;
+  for (;;) {
+    const ssize_t amount = read(descriptor, bytes, sizeof(bytes));
+    if (amount < 0 && errno == EINTR) continue;
+    if (amount < 0) {
+      hashed = false;
+      break;
+    }
+    if (amount == 0) break;
+    w_seed_sha256_update(&state, bytes, (size_t)amount);
+    total += (unsigned long long)amount;
+  }
+  struct stat after;
+  if (fstat(descriptor, &after) != 0 || before.st_dev != after.st_dev ||
+      before.st_ino != after.st_ino || before.st_size != after.st_size ||
+      total != (unsigned long long)before.st_size)
+    hashed = false;
+  if (close(descriptor) != 0) hashed = false;
+  if (!hashed) return false;
+  uint8_t digest[32];
+  w_seed_sha256_final(&state, digest);
+  run_digest_hex(digest, digest_text);
+  *byte_count = total;
+  return true;
+}
+
+static bool run_hash_executable(const char *path, char digest[65]) {
+  unsigned long long bytes = 0u;
+  return run_hash_file(path, true, digest, &bytes);
+}
+
+static bool run_audit_file_init(run_audit_file *file, const char *directory,
+                                const char *name, const char *kind) {
+  if (file == NULL || directory == NULL || name == NULL || kind == NULL)
+    return false;
+  char path[PATH_MAX] = {0};
+  if (!path_join(path, sizeof(path), directory, name) ||
+      !run_hash_file(path, false, file->digest, &file->bytes))
+    return false;
+  file->name = name;
+  file->kind = kind;
+  return true;
+}
+
+static bool run_copy_private_file(const char *source, const char *destination,
+                                  mode_t mode) {
+  if (source == NULL || destination == NULL) return false;
+  const int input = open(source, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+  if (input < 0) return false;
+  struct stat input_status;
+  if (fstat(input, &input_status) != 0 || !S_ISREG(input_status.st_mode)) {
+    (void)close(input);
+    return false;
+  }
+  const int output = open(destination, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC |
+                                           O_NOFOLLOW,
+                          mode);
+  if (output < 0) {
+    (void)close(input);
+    return false;
+  }
+  uint8_t bytes[16384];
+  bool copied = true;
+  for (;;) {
+    const ssize_t amount = read(input, bytes, sizeof(bytes));
+    if (amount < 0 && errno == EINTR) continue;
+    if (amount < 0) {
+      copied = false;
+      break;
+    }
+    if (amount == 0) break;
+    if (!write_all(output, bytes, (size_t)amount)) {
+      copied = false;
+      break;
+    }
+  }
+  struct stat after_status;
+  if (fstat(input, &after_status) != 0 ||
+      input_status.st_dev != after_status.st_dev ||
+      input_status.st_ino != after_status.st_ino ||
+      input_status.st_size != after_status.st_size)
+    copied = false;
+  if (copied && fchmod(output, mode) != 0) copied = false;
+  if (close(input) != 0) copied = false;
+  if (close(output) != 0) copied = false;
+  if (!copied) (void)unlink(destination);
+  return copied;
+}
+
+static bool run_write_audit_manifest(const w_seed_run_compile_request *request,
+                                     const w_seed_frontend_text *source_id,
+                                     const char *directory) {
+  static const char *const names[] = {
+      "input.mlir", "verified.mlir", "output.ll", "optimized.ll",
+      "output.o", "wrt0.ll", "wrt0.o", "final-artifact"};
+  static const char *const kinds[] = {
+      "input-mlir", "verified-mlir", "pre-opt-llvm-ir", "post-opt-llvm-ir",
+      "product-object", "wrt0-llvm-ir", "wrt0-object", "final-product"};
+  run_audit_file files[sizeof(names) / sizeof(names[0])];
+  for (size_t index = 0u; index < sizeof(names) / sizeof(names[0]);
+       index += 1u)
+    if (!run_audit_file_init(&files[index], directory, names[index],
+                             kinds[index]))
+      return false;
+
+  char source_id_digest[65];
+  run_digest_bytes((const uint8_t *)source_id->data, source_id->length,
+                   source_id_digest);
+  char compiler_digest[65];
+  char mlir_opt_digest[65];
+  char mlir_translate_digest[65];
+  char llvm_opt_digest[65];
+  char llc_digest[65];
+  char linker_digest[65];
+  if (!run_hash_executable("/proc/self/exe", compiler_digest) ||
+      !run_hash_executable(MLIR_OPT, mlir_opt_digest) ||
+      !run_hash_executable(MLIR_TRANSLATE, mlir_translate_digest) ||
+      !run_hash_executable(LLVM_OPT, llvm_opt_digest) ||
+      !run_hash_executable(LLC, llc_digest) ||
+      !run_hash_executable(LINK_DRIVER, linker_digest))
+    return false;
+
+  const char *pie = request->pie_mode == W_SEED_RUN_COMPILE_PIE_OFF ? "off"
+                                                                    : "on";
+  const char *link_pie = request->pie_mode == W_SEED_RUN_COMPILE_PIE_OFF
+                             ? "-no-pie"
+                             : "-pie";
+  char manifest[8192];
+  int length = snprintf(
+      manifest, sizeof(manifest),
+      "{\n"
+      "  \"schema\":\"w-seed-audit-trace-1\",\n"
+      "  \"purpose\":\"development-only/non-ranking\",\n"
+      "  \"closure_status\":\"inspection-required\",\n"
+      "  \"compiler_binary_sha256\":\"%s\",\n"
+      "  \"source_id_sha256\":\"%s\",\n"
+      "  \"product\":{\"target\":\"%s\",\"abi\":\"linux-gnu\","
+      "\"profile\":\"release\",\"pie\":\"%s\","
+      "\"final_artifact\":\"final-artifact\"},\n"
+      "  \"tools\":["
+      "{\"role\":\"mlir-opt\",\"sha256\":\"%s\"},"
+      "{\"role\":\"mlir-translate\",\"sha256\":\"%s\"},"
+      "{\"role\":\"llvm-opt\",\"sha256\":\"%s\"},"
+      "{\"role\":\"llc\",\"sha256\":\"%s\"},"
+      "{\"role\":\"link-driver\",\"sha256\":\"%s\"}],\n"
+      "  \"pipeline\":["
+      "{\"tool\":\"mlir-opt\",\"args\":[\"--convert-scf-to-cf\","
+      "\"--convert-arith-to-llvm\",\"--convert-func-to-llvm\","
+      "\"--convert-cf-to-llvm\",\"--verify-each\",\"--canonicalize\","
+      "\"--cse\"]},"
+      "{\"tool\":\"mlir-translate\",\"args\":[\"--mlir-to-llvmir\"]},"
+      "{\"tool\":\"llvm-opt\",\"args\":[\"-O3\",\"-S\"]},"
+      "{\"tool\":\"llc-product\",\"args\":[\"-mtriple=%s\","
+      "\"-filetype=obj\",\"-relocation-model=%s\",\"-O3\"]},"
+      "{\"tool\":\"llc-wrt0\",\"args\":[\"-mtriple=%s\","
+      "\"-filetype=obj\",\"-relocation-model=%s\",\"-O3\"]}],\n"
+      "  \"link\":{\"arguments\":[\"%s\",\"--no-dynamic-linker\","
+      "\"--hash-style=gnu\",\"-e\",\"_start\",\"--gc-sections\","
+      "\"-z\",\"noexecstack\",\"-s\"],"
+      "\"inputs\":[\"output.o\",\"wrt0.o\"]},\n"
+      "  \"artifacts\":[",
+      compiler_digest, source_id_digest, request->target, pie, mlir_opt_digest,
+      mlir_translate_digest, llvm_opt_digest, llc_digest, linker_digest,
+      W_SEED_NATIVE_TARGET_LINUX,
+      request->pie_mode == W_SEED_RUN_COMPILE_PIE_OFF ? "static" : "pic",
+      W_SEED_NATIVE_TARGET_LINUX,
+      request->pie_mode == W_SEED_RUN_COMPILE_PIE_OFF ? "static" : "pic",
+      link_pie);
+  if (length < 0 || (size_t)length >= sizeof(manifest)) return false;
+  size_t offset = (size_t)length;
+  for (size_t index = 0u; index < sizeof(files) / sizeof(files[0]);
+       index += 1u) {
+    length = snprintf(
+        manifest + offset, sizeof(manifest) - offset,
+        "%s{\"name\":\"%s\",\"kind\":\"%s\",\"bytes\":%llu,"
+        "\"sha256\":\"%s\"}",
+        index == 0u ? "" : ",", files[index].name, files[index].kind,
+        files[index].bytes, files[index].digest);
+    if (length < 0 || (size_t)length >= sizeof(manifest) - offset) return false;
+    offset += (size_t)length;
+  }
+  if (offset + 4u >= sizeof(manifest)) return false;
+  manifest[offset++] = ']';
+  manifest[offset++] = '\n';
+  manifest[offset++] = '}';
+  manifest[offset++] = '\n';
+  char manifest_path[PATH_MAX] = {0};
+  if (!path_join(manifest_path, sizeof(manifest_path), directory,
+                 "manifest.json"))
+    return false;
+  return write_private_file(manifest_path, (const uint8_t *)manifest, offset);
 }
 
 static int wait_for_tool(pid_t child) {
@@ -243,7 +492,9 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
       (request->profile != W_SEED_RUN_COMPILE_PROFILE_DEV &&
        request->profile != W_SEED_RUN_COMPILE_PROFILE_RELEASE) ||
       (request->pie_mode != W_SEED_RUN_COMPILE_PIE_ON &&
-       request->pie_mode != W_SEED_RUN_COMPILE_PIE_OFF))
+       request->pie_mode != W_SEED_RUN_COMPILE_PIE_OFF) ||
+      (request->retain_audit_trace &&
+       request->profile != W_SEED_RUN_COMPILE_PROFILE_RELEASE))
     return 2;
   const size_t path_length = strlen(request->source_path);
   if (path_length == 0u || path_length > W_SEED_NATIVE0_MAX_PATH_BYTES)
@@ -277,6 +528,8 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   char object_path[PATH_MAX] = {0};
   char runtime_ll_path[PATH_MAX] = {0};
   char runtime_object_path[PATH_MAX] = {0};
+  char final_path[PATH_MAX] = {0};
+  char manifest_path[PATH_MAX] = {0};
   int exit_code = source_status;
   if (source_status != 0) {
     if (!cleanup_directory(request->directory, NULL, NULL, NULL, NULL, NULL,
@@ -301,6 +554,11 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
                  "wrt0.ll") ||
       !path_join(runtime_object_path, sizeof(runtime_object_path),
                  request->directory, "wrt0.o") ||
+      (request->retain_audit_trace &&
+       (!path_join(final_path, sizeof(final_path), request->directory,
+                   "final-artifact") ||
+        !path_join(manifest_path, sizeof(manifest_path), request->directory,
+                   "manifest.json"))) ||
       !write_private_file(input_path, native_artifact,
                           native_result.mlir.written.mlir_bytes) ||
       !write_private_file(runtime_ll_path, wrt0.llvm_ir,
@@ -416,6 +674,13 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   }
   if (exit_code != 0) goto cleanup;
   if (chmod(request->artifact_path, (mode_t)0700) != 0) goto cleanup;
+  if (request->retain_audit_trace) {
+    if (!run_copy_private_file(request->artifact_path, final_path,
+                               (mode_t)0700) ||
+        !run_write_audit_manifest(request, &source_id, request->directory))
+      goto cleanup;
+    return 0;
+  }
   if (!remove_file(input_path) || !remove_file(verified_path) ||
       !remove_file(ll_path) || !remove_file(optimized_ll_path) ||
       !remove_file(object_path) ||
@@ -435,8 +700,29 @@ cleanup:
 
 bool w_seed_run_cleanup_compiled(const char *directory,
                                  const char *artifact_path) {
-  return cleanup_directory(directory, NULL, NULL, NULL, NULL, NULL, NULL,
-                           NULL, artifact_path);
+  char input_path[PATH_MAX] = {0};
+  char verified_path[PATH_MAX] = {0};
+  char ll_path[PATH_MAX] = {0};
+  char optimized_ll_path[PATH_MAX] = {0};
+  char object_path[PATH_MAX] = {0};
+  char runtime_ll_path[PATH_MAX] = {0};
+  char runtime_object_path[PATH_MAX] = {0};
+  if (directory == NULL || artifact_path == NULL ||
+      !path_join(input_path, sizeof(input_path), directory, "input.mlir") ||
+      !path_join(verified_path, sizeof(verified_path), directory,
+                 "verified.mlir") ||
+      !path_join(ll_path, sizeof(ll_path), directory, "output.ll") ||
+      !path_join(optimized_ll_path, sizeof(optimized_ll_path), directory,
+                 "optimized.ll") ||
+      !path_join(object_path, sizeof(object_path), directory, "output.o") ||
+      !path_join(runtime_ll_path, sizeof(runtime_ll_path), directory,
+                 "wrt0.ll") ||
+      !path_join(runtime_object_path, sizeof(runtime_object_path), directory,
+                 "wrt0.o"))
+    return false;
+  return cleanup_directory(directory, input_path, verified_path, ll_path,
+                           optimized_ll_path, object_path, runtime_ll_path,
+                           runtime_object_path, artifact_path);
 }
 
 int w_seed_run_execute(const w_seed_run_request *request) {
@@ -814,6 +1100,92 @@ static bool windows_write_new_file(const wchar_t *path, const uint8_t *bytes,
   return success;
 }
 
+static bool windows_write_audit_file(const wchar_t *path,
+                                     const uint8_t *bytes, size_t length) {
+  if (path == NULL || (bytes == NULL && length != 0u)) return false;
+  HANDLE file = CreateFileW(path, GENERIC_WRITE, 0u, NULL, CREATE_NEW,
+                            FILE_ATTRIBUTE_NORMAL, NULL);
+  if (file == INVALID_HANDLE_VALUE) return false;
+  bool success = true;
+  size_t offset = 0u;
+  while (offset < length) {
+    const size_t remaining = length - offset;
+    const DWORD request = remaining > (size_t)MAXDWORD
+                              ? MAXDWORD
+                              : (DWORD)remaining;
+    DWORD written = 0u;
+    if (!WriteFile(file, bytes + offset, request, &written, NULL) ||
+        written == 0u) {
+      success = false;
+      break;
+    }
+    offset += (size_t)written;
+  }
+  if (success && !FlushFileBuffers(file)) success = false;
+  if (!CloseHandle(file)) success = false;
+  if (!success) (void)DeleteFileW(path);
+  return success;
+}
+
+static bool windows_copy_private_file(const wchar_t *source,
+                                     const wchar_t *destination) {
+  if (source == NULL || destination == NULL) return false;
+  HANDLE input = CreateFileW(source, GENERIC_READ, FILE_SHARE_READ, NULL,
+                             OPEN_EXISTING,
+                             FILE_FLAG_OPEN_REPARSE_POINT |
+                                 FILE_FLAG_SEQUENTIAL_SCAN,
+                             NULL);
+  if (input == INVALID_HANDLE_VALUE) return false;
+  BY_HANDLE_FILE_INFORMATION before;
+  if (!GetFileInformationByHandle(input, &before) ||
+      (before.dwFileAttributes &
+       (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) != 0u) {
+    (void)CloseHandle(input);
+    return false;
+  }
+  HANDLE output = CreateFileW(destination, GENERIC_WRITE, 0u, NULL,
+                              CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+  if (output == INVALID_HANDLE_VALUE) {
+    (void)CloseHandle(input);
+    return false;
+  }
+  uint8_t bytes[16384];
+  bool copied = true;
+  for (;;) {
+    DWORD amount = 0u;
+    if (!ReadFile(input, bytes, (DWORD)sizeof(bytes), &amount, NULL)) {
+      copied = false;
+      break;
+    }
+    if (amount == 0u) break;
+    DWORD offset = 0u;
+    while (offset < amount) {
+      DWORD written = 0u;
+      if (!WriteFile(output, bytes + offset, amount - offset, &written,
+                     NULL) ||
+          written == 0u) {
+        copied = false;
+        break;
+      }
+      offset += written;
+    }
+    if (!copied) break;
+  }
+  BY_HANDLE_FILE_INFORMATION after;
+  if (!GetFileInformationByHandle(input, &after) ||
+      before.dwVolumeSerialNumber != after.dwVolumeSerialNumber ||
+      before.nFileIndexHigh != after.nFileIndexHigh ||
+      before.nFileIndexLow != after.nFileIndexLow ||
+      before.nFileSizeHigh != after.nFileSizeHigh ||
+      before.nFileSizeLow != after.nFileSizeLow)
+    copied = false;
+  if (copied && !FlushFileBuffers(output)) copied = false;
+  if (!CloseHandle(input)) copied = false;
+  if (!CloseHandle(output)) copied = false;
+  if (!copied) (void)DeleteFileW(destination);
+  return copied;
+}
+
 static bool windows_remove_file(const wchar_t *path) {
   if (path == NULL || path[0] == L'\0') return true;
   if (DeleteFileW(path) != 0) return true;
@@ -828,17 +1200,262 @@ static bool windows_cleanup_directory(const wchar_t *directory,
                                       const wchar_t *optimized_ll_path,
                                       const wchar_t *object_path,
                                       const wchar_t *program_path) {
+  wchar_t runtime_ll_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t runtime_object_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t final_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t manifest_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  if (directory != NULL && directory[0] != L'\0') {
+    (void)windows_path_join(runtime_ll_path,
+                            sizeof(runtime_ll_path) /
+                                sizeof(runtime_ll_path[0]),
+                            directory, L"wrt0.ll");
+    (void)windows_path_join(runtime_object_path,
+                            sizeof(runtime_object_path) /
+                                sizeof(runtime_object_path[0]),
+                            directory, L"wrt0.obj");
+    (void)windows_path_join(final_path,
+                            sizeof(final_path) / sizeof(final_path[0]),
+                            directory, L"final-artifact");
+    (void)windows_path_join(manifest_path,
+                            sizeof(manifest_path) /
+                                sizeof(manifest_path[0]),
+                            directory, L"manifest.json");
+  }
   bool clean = windows_remove_file(input_path);
   clean = windows_remove_file(verified_path) && clean;
   clean = windows_remove_file(ll_path) && clean;
   clean = windows_remove_file(optimized_ll_path) && clean;
   clean = windows_remove_file(object_path) && clean;
+  clean = windows_remove_file(runtime_ll_path) && clean;
+  clean = windows_remove_file(runtime_object_path) && clean;
   clean = windows_remove_file(program_path) && clean;
+  clean = windows_remove_file(final_path) && clean;
+  clean = windows_remove_file(manifest_path) && clean;
   if (directory != NULL && directory[0] != L'\0' &&
       !RemoveDirectoryW(directory) && GetLastError() != ERROR_PATH_NOT_FOUND &&
       GetLastError() != ERROR_FILE_NOT_FOUND)
     clean = false;
   return clean;
+}
+
+typedef struct {
+  const char *name;
+  const char *kind;
+  char digest[65];
+  unsigned long long bytes;
+} windows_audit_file;
+
+static void windows_run_digest_hex(const uint8_t digest[32], char text[65]) {
+  static const char hex[] = "0123456789abcdef";
+  for (size_t index = 0u; index < 32u; index += 1u) {
+    text[index * 2u] = hex[digest[index] >> 4u];
+    text[index * 2u + 1u] = hex[digest[index] & 0x0fu];
+  }
+  text[64] = '\0';
+}
+
+static void windows_run_digest_bytes(const uint8_t *bytes, size_t length,
+                                     char text[65]) {
+  w_seed_sha256_state state;
+  uint8_t digest[32];
+  w_seed_sha256_init(&state);
+  w_seed_sha256_update(&state, bytes, length);
+  w_seed_sha256_final(&state, digest);
+  windows_run_digest_hex(digest, text);
+}
+
+static bool windows_run_hash_file(const wchar_t *path, bool allow_reparse,
+                                  char digest_text[65],
+                                  unsigned long long *byte_count) {
+  if (path == NULL || digest_text == NULL || byte_count == NULL) return false;
+  const DWORD flags = FILE_FLAG_SEQUENTIAL_SCAN |
+                      (allow_reparse ? 0u : FILE_FLAG_OPEN_REPARSE_POINT);
+  HANDLE file = CreateFileW(path, GENERIC_READ,
+                            FILE_SHARE_READ | FILE_SHARE_WRITE |
+                                FILE_SHARE_DELETE,
+                            NULL, OPEN_EXISTING, flags, NULL);
+  if (file == INVALID_HANDLE_VALUE) return false;
+  BY_HANDLE_FILE_INFORMATION before;
+  if (!GetFileInformationByHandle(file, &before) ||
+      (before.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0u ||
+      (!allow_reparse &&
+       (before.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0u)) {
+    (void)CloseHandle(file);
+    return false;
+  }
+  const unsigned long long expected_size =
+      ((unsigned long long)before.nFileSizeHigh << 32u) |
+      (unsigned long long)before.nFileSizeLow;
+  w_seed_sha256_state state;
+  w_seed_sha256_init(&state);
+  uint8_t bytes[16384];
+  unsigned long long total = 0u;
+  bool hashed = true;
+  for (;;) {
+    DWORD amount = 0u;
+    if (!ReadFile(file, bytes, (DWORD)sizeof(bytes), &amount, NULL)) {
+      hashed = false;
+      break;
+    }
+    if (amount == 0u) break;
+    w_seed_sha256_update(&state, bytes, (size_t)amount);
+    total += (unsigned long long)amount;
+  }
+  BY_HANDLE_FILE_INFORMATION after;
+  if (!GetFileInformationByHandle(file, &after) ||
+      before.dwVolumeSerialNumber != after.dwVolumeSerialNumber ||
+      before.nFileIndexHigh != after.nFileIndexHigh ||
+      before.nFileIndexLow != after.nFileIndexLow ||
+      before.nFileSizeHigh != after.nFileSizeHigh ||
+      before.nFileSizeLow != after.nFileSizeLow || total != expected_size)
+    hashed = false;
+  if (!CloseHandle(file)) hashed = false;
+  if (!hashed) return false;
+  uint8_t digest[32];
+  w_seed_sha256_final(&state, digest);
+  windows_run_digest_hex(digest, digest_text);
+  *byte_count = total;
+  return true;
+}
+
+static bool windows_run_hash_executable(const wchar_t *path,
+                                        char digest[65]) {
+  unsigned long long bytes = 0u;
+  return windows_run_hash_file(path, true, digest, &bytes);
+}
+
+static bool windows_run_audit_file_init(windows_audit_file *file,
+                                        const wchar_t *directory,
+                                        const char *name, const char *kind) {
+  wchar_t wide_name[64] = {0};
+  wchar_t path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  if (file == NULL || directory == NULL || name == NULL || kind == NULL ||
+      !windows_utf8_to_wide(name, wide_name,
+                            sizeof(wide_name) / sizeof(wide_name[0])) ||
+      !windows_path_join(path, sizeof(path) / sizeof(path[0]), directory,
+                         wide_name) ||
+      !windows_run_hash_file(path, false, file->digest, &file->bytes))
+    return false;
+  file->name = name;
+  file->kind = kind;
+  return true;
+}
+
+static bool windows_run_write_audit_manifest(
+    const w_seed_run_compile_request *request,
+    const w_seed_frontend_text *source_id, const wchar_t *directory,
+    const wchar_t *mlir_opt_path, const wchar_t *mlir_translate_path,
+    const wchar_t *llvm_opt_path, const wchar_t *llc_path,
+    const wchar_t *linker_path) {
+  static const char *const names[] = {
+      "input.mlir", "verified.mlir", "output.ll", "optimized.ll",
+      "output.obj", "wrt0.ll", "wrt0.obj", "final-artifact"};
+  static const char *const kinds[] = {
+      "input-mlir", "verified-mlir", "pre-opt-llvm-ir", "post-opt-llvm-ir",
+      "product-object", "wrt0-llvm-ir", "wrt0-object", "final-product"};
+  windows_audit_file files[sizeof(names) / sizeof(names[0])];
+  for (size_t index = 0u; index < sizeof(names) / sizeof(names[0]);
+       index += 1u)
+    if (!windows_run_audit_file_init(&files[index], directory, names[index],
+                                    kinds[index]))
+      return false;
+
+  char source_id_digest[65];
+  windows_run_digest_bytes((const uint8_t *)source_id->data,
+                            source_id->length, source_id_digest);
+  wchar_t compiler_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  const DWORD compiler_length = GetModuleFileNameW(
+      NULL, compiler_path,
+      (DWORD)(sizeof(compiler_path) / sizeof(compiler_path[0])));
+  if (compiler_length == 0u ||
+      compiler_length >= sizeof(compiler_path) / sizeof(compiler_path[0]))
+    return false;
+  char compiler_digest[65];
+  char mlir_opt_digest[65];
+  char mlir_translate_digest[65];
+  char llvm_opt_digest[65];
+  char llc_digest[65];
+  char linker_digest[65];
+  if (!windows_run_hash_executable(compiler_path, compiler_digest) ||
+      !windows_run_hash_executable(mlir_opt_path, mlir_opt_digest) ||
+      !windows_run_hash_executable(mlir_translate_path,
+                                   mlir_translate_digest) ||
+      !windows_run_hash_executable(llvm_opt_path, llvm_opt_digest) ||
+      !windows_run_hash_executable(llc_path, llc_digest) ||
+      !windows_run_hash_executable(linker_path, linker_digest))
+    return false;
+
+  const char *pie = request->pie_mode == W_SEED_RUN_COMPILE_PIE_OFF ? "off"
+                                                                    : "on";
+  const char *link_pie = request->pie_mode == W_SEED_RUN_COMPILE_PIE_OFF
+                             ? "-no-pie"
+                             : "-pie";
+  char manifest[8192];
+  int length = snprintf(
+      manifest, sizeof(manifest),
+      "{\n"
+      "  \"schema\":\"w-seed-audit-trace-1\",\n"
+      "  \"purpose\":\"development-only/non-ranking\",\n"
+      "  \"closure_status\":\"inspection-required\",\n"
+      "  \"compiler_binary_sha256\":\"%s\",\n"
+      "  \"source_id_sha256\":\"%s\",\n"
+      "  \"product\":{\"target\":\"%s\",\"abi\":\"linux-gnu\","
+      "\"profile\":\"release\",\"pie\":\"%s\","
+      "\"final_artifact\":\"final-artifact\"},\n"
+      "  \"tools\":["
+      "{\"role\":\"mlir-opt\",\"sha256\":\"%s\"},"
+      "{\"role\":\"mlir-translate\",\"sha256\":\"%s\"},"
+      "{\"role\":\"llvm-opt\",\"sha256\":\"%s\"},"
+      "{\"role\":\"llc\",\"sha256\":\"%s\"},"
+      "{\"role\":\"link-driver\",\"sha256\":\"%s\"}],\n"
+      "  \"pipeline\":["
+      "{\"tool\":\"mlir-opt\",\"args\":[\"--convert-scf-to-cf\","
+      "\"--convert-arith-to-llvm\",\"--convert-func-to-llvm\","
+      "\"--convert-cf-to-llvm\",\"--verify-each\",\"--canonicalize\","
+      "\"--cse\"]},"
+      "{\"tool\":\"mlir-translate\",\"args\":[\"--mlir-to-llvmir\"]},"
+      "{\"tool\":\"llvm-opt\",\"args\":[\"-O3\",\"-S\"]},"
+      "{\"tool\":\"llc-product\",\"args\":[\"-mtriple=%s\","
+      "\"-filetype=obj\",\"-relocation-model=%s\",\"-O3\"]},"
+      "{\"tool\":\"llc-wrt0\",\"args\":[\"-mtriple=%s\","
+      "\"-filetype=obj\",\"-relocation-model=%s\",\"-O3\"]}],\n"
+      "  \"link\":{\"arguments\":[\"%s\",\"--no-dynamic-linker\","
+      "\"--hash-style=gnu\",\"-e\",\"_start\",\"--gc-sections\","
+      "\"-z\",\"noexecstack\",\"-s\"],"
+      "\"inputs\":[\"output.obj\",\"wrt0.obj\"]},\n"
+      "  \"artifacts\":[",
+      compiler_digest, source_id_digest, request->target, pie, mlir_opt_digest,
+      mlir_translate_digest, llvm_opt_digest, llc_digest, linker_digest,
+      W_SEED_NATIVE_TARGET_LINUX,
+      request->pie_mode == W_SEED_RUN_COMPILE_PIE_OFF ? "static" : "pic",
+      W_SEED_NATIVE_TARGET_LINUX,
+      request->pie_mode == W_SEED_RUN_COMPILE_PIE_OFF ? "static" : "pic",
+      link_pie);
+  if (length < 0 || (size_t)length >= sizeof(manifest)) return false;
+  size_t offset = (size_t)length;
+  for (size_t index = 0u; index < sizeof(files) / sizeof(files[0]);
+       index += 1u) {
+    length = snprintf(
+        manifest + offset, sizeof(manifest) - offset,
+        "%s{\"name\":\"%s\",\"kind\":\"%s\",\"bytes\":%llu,"
+        "\"sha256\":\"%s\"}",
+        index == 0u ? "" : ",", files[index].name, files[index].kind,
+        files[index].bytes, files[index].digest);
+    if (length < 0 || (size_t)length >= sizeof(manifest) - offset) return false;
+    offset += (size_t)length;
+  }
+  if (offset + 4u >= sizeof(manifest)) return false;
+  manifest[offset++] = ']';
+  manifest[offset++] = '\n';
+  manifest[offset++] = '}';
+  manifest[offset++] = '\n';
+  wchar_t manifest_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  if (!windows_path_join(manifest_path,
+                         sizeof(manifest_path) / sizeof(manifest_path[0]),
+                         directory, L"manifest.json"))
+    return false;
+  return windows_write_audit_file(manifest_path, (const uint8_t *)manifest,
+                                  offset);
 }
 
 static int windows_native_status_exit(w_seed_native0_status status) {
@@ -891,7 +1508,10 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
        request->profile != W_SEED_RUN_COMPILE_PROFILE_RELEASE) ||
       (request->pie_mode != W_SEED_RUN_COMPILE_PIE_ON &&
        request->pie_mode != W_SEED_RUN_COMPILE_PIE_OFF) ||
-      (windows_target && request->pie_mode == W_SEED_RUN_COMPILE_PIE_OFF))
+      (windows_target && request->pie_mode == W_SEED_RUN_COMPILE_PIE_OFF) ||
+      (request->retain_audit_trace &&
+       (!linux_target ||
+        request->profile != W_SEED_RUN_COMPILE_PROFILE_RELEASE)))
     return 2;
   const size_t path_length = strlen(request->source_path);
   if (path_length == 0u || path_length > W_SEED_NATIVE0_MAX_PATH_BYTES)
@@ -942,6 +1562,8 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   wchar_t kernel32[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
   wchar_t runtime_ll_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
   wchar_t runtime_object_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t final_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t manifest_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
   w_seed_wrt0_artifact wrt0 = {NULL, 0u};
   int exit_code = source_status;
   if (source_status != 0) {
@@ -989,6 +1611,14 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
                            sizeof(runtime_object_path) /
                                sizeof(runtime_object_path[0]),
                            directory, L"wrt0.obj"))) ||
+      (request->retain_audit_trace &&
+       (!windows_path_join(final_path,
+                           sizeof(final_path) / sizeof(final_path[0]),
+                           directory, L"final-artifact") ||
+        !windows_path_join(manifest_path,
+                           sizeof(manifest_path) /
+                               sizeof(manifest_path[0]),
+                           directory, L"manifest.json"))) ||
       (linux_target &&
        !w_seed_wrt0_get(W_SEED_WRT0_TARGET_LINUX_X86_64,
                         native_storage.runtime_requirements, &wrt0)) ||
@@ -1128,6 +1758,14 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
     exit_code = windows_run_tool(ld_lld, link_arguments, link_argument_count);
   }
   if (exit_code != 0) goto cleanup;
+  if (request->retain_audit_trace) {
+    if (!windows_copy_private_file(artifact_path, final_path)) goto cleanup;
+    if (!windows_run_write_audit_manifest(request, &source_id, directory,
+                                          mlir_opt, mlir_translate, llvm_opt,
+                                          llc, ld_lld))
+      goto cleanup;
+    return 0;
+  }
   if (!windows_remove_file(input_path) ||
       !windows_remove_file(verified_path) || !windows_remove_file(ll_path) ||
       !windows_remove_file(optimized_ll_path) ||
@@ -1150,13 +1788,33 @@ bool w_seed_run_cleanup_compiled(const char *directory,
                                  const char *artifact_path) {
   wchar_t wide_directory[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
   wchar_t wide_artifact[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t input_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t verified_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t ll_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t optimized_ll_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t object_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
   if (!windows_utf8_to_wide(directory, wide_directory,
                             sizeof(wide_directory) / sizeof(wide_directory[0])) ||
       !windows_utf8_to_wide(artifact_path, wide_artifact,
-                            sizeof(wide_artifact) / sizeof(wide_artifact[0])))
+                            sizeof(wide_artifact) / sizeof(wide_artifact[0])) ||
+      !windows_path_join(input_path, sizeof(input_path) / sizeof(input_path[0]),
+                         wide_directory, L"input.mlir") ||
+      !windows_path_join(verified_path,
+                         sizeof(verified_path) / sizeof(verified_path[0]),
+                         wide_directory, L"verified.mlir") ||
+      !windows_path_join(ll_path, sizeof(ll_path) / sizeof(ll_path[0]),
+                         wide_directory, L"output.ll") ||
+      !windows_path_join(optimized_ll_path,
+                         sizeof(optimized_ll_path) /
+                             sizeof(optimized_ll_path[0]),
+                         wide_directory, L"optimized.ll") ||
+      !windows_path_join(object_path,
+                         sizeof(object_path) / sizeof(object_path[0]),
+                         wide_directory, L"output.obj"))
     return false;
-  return windows_cleanup_directory(wide_directory, NULL, NULL, NULL, NULL,
-                                   NULL, wide_artifact);
+  return windows_cleanup_directory(
+      wide_directory, input_path, verified_path, ll_path, optimized_ll_path,
+      object_path, wide_artifact);
 }
 
 int w_seed_run_execute(const w_seed_run_request *request) {
