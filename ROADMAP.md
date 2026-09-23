@@ -119,6 +119,40 @@ seed-compiler receipt. It binds target environment, WRT and CRT selections,
 provider implementation and version, target/ABI, both link modes, provider
 manifests, allowed and observed dependencies, and a closure digest.
 
+### Product optimization feedback loop
+
+Treat optimization as a concurrent product lane, not as a late cleanup phase.
+Once a new executable has passed its exact source-to-native oracle, pin the
+source, target, profile, runtime closure and compiler revision. While the next
+language family advances, inspect that immutable product's verified HIR,
+pre/post-opt MLIR or LLVM IR, object references, final imports, sections and
+disassembly. Separate semantic work, reachable WRT code and file-format/linker
+overhead; total file bytes alone cannot identify a lowering defect. Publish
+one compact current receipt and a ranked actionable finding, or explicitly
+record that no safe change was found. Do not retain raw traces in Git.
+
+Put generally useful rewrites at the earliest authority that can prove them:
+semantic reachability and effect-aware constant facts before target lowering;
+canonical typed HIR/MLIR simplification and dead-code elimination before
+object emission; target-specific instruction selection only after ABI and
+runtime closure are fixed. An absent process argument or context must compile
+away from idiomatic W source without requiring a handwritten unsafe entry.
+Do not turn a Hello-only string match into an optimizer pass. Check each new
+rewrite against adversarial non-Hello witnesses so eliding an unused value
+cannot erase an observable effect, resource release, failure or concurrency
+relation. LLVM-discovered libc idioms, including byte scans, are candidates
+for a semantically equivalent WRT primitive or target intrinsic, not automatic
+permission to link a CRT or evidence that scalar W lowering is optimal.
+
+The audit may proceed beside the next implementation package, but promotes a
+rewrite only after debug/release exact output and failure behavior, all three
+dependency-closure boundaries, Windows/Linux target behavior where relevant,
+and comparable compile latency, runtime, memory and binary/section bytes are
+measured. Keep PIE, RELRO and auditability in the comparison policy: removing
+metadata or protection to meet a sub-1-KiB target is a distinct product mode,
+not proof of a better default compiler. A safe no-change result is valid; an
+unproven size target must not block bottom-up language work.
+
 ### Evidence promotion and safety closure
 
 A vertical witness proves only the exact boundary that it executes. Every
@@ -409,6 +443,7 @@ the end-to-end feature until integration executes the same source and oracle.
 | Native selection | Product closure, target subset, layout/ABI and dependency requirements | Frontend closes the bounded witness; emitter uses a verified fixture | Independent shape rejection and target/product receipt |
 | Code generation | MLIR/LLVM lowering, optimized IR and target objects | Selection closes its separate matcher | Exact output, post-opt/object/final dependencies, debug/release equivalence |
 | Runtime and measurement | WRT/provider closure, target adapters, C23/Rust oracles and family benchmark | Compiler lanes produce a correctness fixture | Windows/Linux execution, target-sensitive gates and a comparable benchmark disposition |
+| Product optimization audit | Pinned successful product, IR/object/final-artifact inspection and ranked generic rewrite candidate | The next source family advances in an isolated worktree or immutable snapshot | Promote only a semantics-preserving change with closure and cost comparison; otherwise record a no-change result |
 
 Use one semantic family or substantial compiler subsystem per package, not one
 operator width or one tiny executable per agent. Cap concurrent writers by
