@@ -657,11 +657,36 @@ static void fixture_configure_process_abi_external(fixture *fixture_value) {
           .return_type = (w_seed_frontend_text){"ExitCode", 8u},
           .is_const = true,
           .receiver_type = (w_seed_frontend_text){"ExitCode", 8u}};
+  fixture_value->external_parameters[0] =
+      (w_seed_frontend_external_parameter){
+          .name = (w_seed_frontend_text){"code", 4u},
+          .type = (w_seed_frontend_text){"i32", 3u},
+          .label_kind = W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY};
+  fixture_value->external_symbols[4] =
+      (w_seed_frontend_external_symbol){
+          .name = (w_seed_frontend_text){"failure", 7u},
+          .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+          .exported = true,
+          .parameters = fixture_value->external_parameters,
+          .parameter_count = 1u,
+          .return_type = (w_seed_frontend_text){"ExitCode", 8u},
+          .is_const = true,
+          .receiver_type = (w_seed_frontend_text){"ExitCode", 8u}};
+  fixture_value->external_symbols[5] =
+      (w_seed_frontend_external_symbol){
+          .name = (w_seed_frontend_text){"isEmpty", 7u},
+          .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+          .exported = true,
+          .parameters = NULL,
+          .parameter_count = 0u,
+          .return_type = (w_seed_frontend_text){"Bool", 4u},
+          .is_const = true,
+          .receiver_type = (w_seed_frontend_text){"Arguments", 9u}};
   fixture_value->external_modules[0] =
       (w_seed_frontend_external_module){
           .module_id = (w_seed_frontend_text){"std.process", 11u},
           .symbols = fixture_value->external_symbols,
-          .symbol_count = 4u};
+          .symbol_count = 6u};
   fixture_value->input.external_modules = fixture_value->external_modules;
   fixture_value->input.external_module_count = 1u;
 }
@@ -7038,6 +7063,220 @@ static bool test_flat_aggregate_pair_frontend(void) {
   return true;
 }
 
+static bool test_flat_value_struct_pair_frontend(void) {
+  static const char SOURCE[] =
+      "struct Pair { let left: i64 let right: i64 }\n"
+      "\n"
+      "fn makePair(left: i64, right: i64): Pair {\n"
+      "  let pair: Pair = Pair(right: right, left: left)\n"
+      "  return pair\n"
+      "}\n"
+      "\n"
+      "fn combine(pair: Pair, scale: i64): i64 {\n"
+      "  let product = pair.left * scale\n"
+      "  return product + pair.right\n"
+      "}\n"
+      "\n"
+      "entry {\n"
+      "  let original = makePair(left: 7, right: 5)\n"
+      "  let result = combine(pair: original, scale: 3)\n"
+      "  print(\"${original.left},${original.right},${result}\")\n"
+      "}\n";
+  fixture *value = &fixture_literal;
+  CHECK(fixture_run_with_print_host(value, SOURCE));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE);
+  CHECK(value->result.status == W_SEED_FRONTEND_OK);
+  CHECK(counts_equal(&value->result.required, &value->result.written));
+  CHECK(value->result.required.receipt_bytes == value->result.receipt_bytes);
+  CHECK(value->result.written.structs == 1u);
+  CHECK(value->result.written.fields == 2u);
+  CHECK(value->result.written.functions == 3u);
+  CHECK(value->result.written.entries == 1u);
+  const size_t required_arguments = value->result.required.arguments;
+
+  uint32_t pair_index = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u; index < value->result.written.structs; index += 1u) {
+    if (frontend_text_is(value->structs[index].name, "Pair")) {
+      CHECK(pair_index == W_SEED_FRONTEND_NONE);
+      pair_index = (uint32_t)index;
+    }
+  }
+  CHECK(pair_index == 0u);
+  const w_seed_frontend_struct *pair = &value->structs[pair_index];
+  CHECK(pair->field_count == 2u && pair->first_field == 0u &&
+        pair->generic_parameter_count == 0u);
+  static const char *const FIELD_NAMES[] = {"left", "right"};
+  for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+    const w_seed_frontend_field *field =
+        &value->fields[(size_t)pair->first_field + ordinal];
+    CHECK(field->owner_struct == pair_index &&
+          frontend_text_is(field->name, FIELD_NAMES[ordinal]) &&
+          field->type_index < value->result.written.types &&
+          value->types[field->type_index].kind ==
+              W_SEED_FRONTEND_TYPE_INTEGER &&
+          value->types[field->type_index].is_signed &&
+          value->types[field->type_index].bit_width == 64u &&
+          field->span.start_byte < field->span.end_byte);
+  }
+
+  size_t nominal_pair_types = 0u;
+  for (size_t index = 0u; index < value->result.written.types; index += 1u) {
+    const w_seed_frontend_type *type = &value->types[index];
+    if (type->kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
+        frontend_text_is(type->spelling, "Pair")) {
+      CHECK(type->enum_base_index == pair_index &&
+            type->external_module_index == W_SEED_FRONTEND_NONE &&
+            type->external_symbol_index == W_SEED_FRONTEND_NONE);
+      nominal_pair_types += 1u;
+    }
+  }
+  CHECK(nominal_pair_types >= 3u);
+
+  uint32_t make_pair_function = W_SEED_FRONTEND_NONE;
+  uint32_t combine_function = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u; index < value->result.written.functions; index += 1u) {
+    const w_seed_frontend_function *function = &value->functions[index];
+    if (frontend_text_is(function->name, "makePair"))
+      make_pair_function = (uint32_t)index;
+    if (frontend_text_is(function->name, "combine"))
+      combine_function = (uint32_t)index;
+  }
+  CHECK(make_pair_function != W_SEED_FRONTEND_NONE &&
+        combine_function != W_SEED_FRONTEND_NONE &&
+        value->functions[make_pair_function].return_type <
+            value->result.written.types &&
+        value->types[value->functions[make_pair_function].return_type].kind ==
+            W_SEED_FRONTEND_TYPE_NOMINAL &&
+        value->types[value->functions[make_pair_function].return_type]
+                .enum_base_index == pair_index &&
+        value->functions[combine_function].parameter_count == 2u);
+  const w_seed_frontend_parameter *pair_parameter =
+      &value->parameters[value->functions[combine_function].first_parameter];
+  CHECK(frontend_text_is(pair_parameter->name, "pair") &&
+        pair_parameter->type_index < value->result.written.types &&
+        value->types[pair_parameter->type_index].kind ==
+            W_SEED_FRONTEND_TYPE_NOMINAL &&
+        value->types[pair_parameter->type_index].enum_base_index == pair_index);
+
+  size_t struct_constructors = 0u;
+  size_t left_projections = 0u;
+  size_t right_projections = 0u;
+  size_t labelled_pair_argument = 0u;
+  size_t pair_local_bindings = 0u;
+  for (size_t index = 0u; index < value->result.written.expressions; index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_CALL &&
+        expression->resolved_callee_kind ==
+            W_SEED_FRONTEND_CALLEE_LOCAL_STRUCT_CONSTRUCTOR) {
+      CHECK(expression->supported &&
+            expression->resolved_function_index == pair_index &&
+            expression->argument_count == 2u &&
+            expression->first_argument < value->result.written.arguments);
+      const w_seed_frontend_expression *callee =
+          &value->expressions[expression->left];
+      CHECK(callee->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+            frontend_text_is(callee->spelling, "Pair") &&
+            callee->resolved_callee_kind ==
+                W_SEED_FRONTEND_CALLEE_LOCAL_STRUCT_CONSTRUCTOR &&
+            callee->resolved_function_index == pair_index);
+      const w_seed_frontend_argument *first =
+          &value->arguments[expression->first_argument];
+      const w_seed_frontend_argument *second =
+          &value->arguments[(size_t)expression->first_argument + 1u];
+      CHECK(frontend_text_is(first->label, "right") &&
+            first->resolved_parameter_ordinal == 1u &&
+            frontend_text_is(second->label, "left") &&
+            second->resolved_parameter_ordinal == 0u);
+      struct_constructors += 1u;
+    } else if (expression->kind == W_SEED_FRONTEND_EXPR_MEMBER &&
+               (frontend_text_is(expression->member_name, "left") ||
+                frontend_text_is(expression->member_name, "right")) &&
+               expression->supported) {
+      CHECK(expression->left < value->result.written.expressions &&
+            expression->resolved_parameter_ordinal < 2u &&
+            expression->inferred_type < value->result.written.types &&
+            value->types[expression->inferred_type].kind ==
+                W_SEED_FRONTEND_TYPE_INTEGER &&
+            value->types[expression->inferred_type].is_signed &&
+            value->types[expression->inferred_type].bit_width == 64u);
+      const w_seed_frontend_expression *receiver =
+          &value->expressions[expression->left];
+      CHECK(receiver->inferred_type < value->result.written.types &&
+            value->types[receiver->inferred_type].kind ==
+                W_SEED_FRONTEND_TYPE_NOMINAL &&
+            value->types[receiver->inferred_type].enum_base_index ==
+                pair_index);
+      if (frontend_text_is(expression->member_name, "left")) {
+        CHECK(expression->resolved_parameter_ordinal == 0u);
+        left_projections += 1u;
+      } else {
+        CHECK(expression->resolved_parameter_ordinal == 1u);
+        right_projections += 1u;
+      }
+    }
+  }
+  for (size_t index = 0u; index < value->result.written.arguments; index += 1u) {
+    const w_seed_frontend_argument *argument = &value->arguments[index];
+    if (frontend_text_is(argument->label, "pair") &&
+        argument->resolved_parameter_ordinal == 0u)
+      labelled_pair_argument += 1u;
+  }
+  for (size_t index = 0u; index < value->result.written.statements; index += 1u) {
+    const w_seed_frontend_statement *statement = &value->statements[index];
+    if ((statement->kind == W_SEED_FRONTEND_STMT_LET ||
+         statement->kind == W_SEED_FRONTEND_STMT_VAR) &&
+        (frontend_text_is(statement->binding_name, "pair") ||
+         frontend_text_is(statement->binding_name, "original")) &&
+        statement->effective_type < value->result.written.types &&
+        value->types[statement->effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_NOMINAL &&
+        value->types[statement->effective_type].enum_base_index == pair_index)
+      pair_local_bindings += 1u;
+  }
+  CHECK(struct_constructors == 1u && left_projections == 2u &&
+        right_projections == 2u && labelled_pair_argument == 1u &&
+        pair_local_bindings == 2u &&
+        receipt_contains(value, "struct-constructor=", 19u) &&
+        receipt_contains(value, "struct-field-projection=", 24u));
+
+  static const char *const INVALID_INITIALIZERS[] = {
+      "struct Pair { let left: i64 let right: i64 }\n"
+      "fn build(): Pair { return Pair(left: 1, left: 2) }\nentry(build)\n",
+      "struct Pair { let left: i64 let right: i64 }\n"
+      "fn build(): Pair { return Pair(left: 1) }\nentry(build)\n",
+      "struct Pair { let left: i64 let right: i64 }\n"
+      "fn build(): Pair { return Pair(left: 1, other: 2) }\nentry(build)\n",
+      "struct Pair { let left: i64 let right: i64 }\n"
+      "fn build(): Pair { return Pair(1, 2) }\nentry(build)\n",
+      "struct Pair { let left: i64 let right: i64 }\n"
+      "fn build(): Pair { return Pair(left: true, right: 2) }\n"
+      "entry(build)\n",
+      "struct Pair { let left: i64 let left: i64 }\n"
+      "fn build(): Pair { return Pair(left: 1, right: 2) }\nentry(build)\n",
+  };
+  for (size_t index = 0u;
+       index < sizeof(INVALID_INITIALIZERS) / sizeof(INVALID_INITIALIZERS[0]);
+       index += 1u) {
+    CHECK(fixture_run(value, INVALID_INITIALIZERS[index]));
+    CHECK(value->parse.status == W_SEED_PARSE_COMPLETE);
+    CHECK(value->result.status != W_SEED_FRONTEND_OK);
+  }
+
+  const uint8_t sentinel = 0xacu;
+  CHECK(required_arguments > 0u);
+  CHECK(fixture_parse(value, SOURCE));
+  fixture_configure_print_host(value);
+  fixture_fill_output(value, sentinel);
+  value->output.argument_capacity = required_arguments - 1u;
+  (void)w_seed_frontend_run(&value->input, &value->output, &value->result);
+  CHECK(value->result.status == W_SEED_FRONTEND_CAPACITY &&
+        value->result.required.arguments == required_arguments &&
+        fixture_output_is(value, sentinel, true));
+  value->output.argument_capacity = TEST_ARGUMENTS;
+
+  return true;
+}
+
 static bool test_u64_overflowing_products_frontend(void) {
   static const char SOURCE[] =
       "entry { "
@@ -7668,7 +7907,7 @@ static bool test_f32_scalar_projection(void) {
 }
 
 static bool test_numeric_widening_frontend(void) {
-  CHECK(strcmp(W_SEED_FRONTEND_SCHEMA_VERSION, "w-seed-frontend-74") == 0);
+  CHECK(strcmp(W_SEED_FRONTEND_SCHEMA_VERSION, "w-seed-frontend-75") == 0);
   typedef struct {
     const char *source_name;
     bool source_is_float;
@@ -8312,6 +8551,29 @@ static bool test_process_abi_alias_and_exit_case(void) {
   CHECK(test_process_abi_duplicate_import_aliases(duplicate_alias_source));
   CHECK(test_process_abi_duplicate_import_aliases(
       duplicate_value_type_source));
+
+  /* Keep the exact process-handler source healthy through the same import,
+   * external receiver/member, conditional, and labelled-result flows used by
+   * the selected handler witness. */
+  static const char process_handler_source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode, } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode {\n"
+      "  if args.isEmpty { print(\"missing\"); return .failure(2) }\n"
+      "  else { print(\"received\"); return .success }\n"
+      "}\n"
+      "entry(run)\n";
+  CHECK(fixture_parse(value, process_handler_source));
+  fixture_configure_process_abi_external(value);
+  fixture_configure_print_host(value);
+  CHECK(fixture_resolve_external_imports(value));
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(value->result.written.functions == 1u &&
+        value->result.written.entries == 1u &&
+        value->result.written.expressions > 0u &&
+        value->result.written.arguments > 0u);
   return true;
 }
 
@@ -10562,6 +10824,7 @@ int main(int argc, char **argv) {
   if (!test_checked_shift_binding_interpolation_frontend()) return 1;
   if (!test_u64_binary_frontend()) return 1;
   if (!test_flat_aggregate_pair_frontend()) return 1;
+  if (!test_flat_value_struct_pair_frontend()) return 1;
   if (!test_u64_overflowing_products_frontend()) return 1;
   if (!test_u64_saturating_policy_frontend()) return 1;
   if (!test_u64_bool_tuple_product_boundary_frontend()) return 1;

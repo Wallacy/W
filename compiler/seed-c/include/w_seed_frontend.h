@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-74"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-75"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -389,6 +389,8 @@ typedef enum {
   W_SEED_FRONTEND_CALLEE_HOST_PRELUDE_SYMBOL,
   W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL,
   W_SEED_FRONTEND_CALLEE_KERNEL_BINDING,
+  /* Append-only generated initializer for a local nominal struct. */
+  W_SEED_FRONTEND_CALLEE_LOCAL_STRUCT_CONSTRUCTOR,
 } w_seed_frontend_callee_kind;
 
 /* Closed compiler-owned associated operations. These are semantic identities,
@@ -791,7 +793,8 @@ typedef struct {
   uint32_t return_type;
   uint32_t first_parameter;
   uint32_t parameter_count;
-  /* Append-only closed-enum identity and normalized case-set fields. */
+  /* Kind-discriminated nominal identity: enum base for ENUM/SUBSET, or
+   * local struct index for NOMINAL. Other kinds require NONE. */
   uint32_t enum_base_index;
   uint32_t first_subset_member;
   uint32_t subset_member_count;
@@ -947,7 +950,8 @@ typedef struct {
   w_seed_frontend_text label;
   w_seed_span span;
   uint32_t expression_index;
-  /* Append-only frontend resolution fact for downstream call lowering. */
+  /* Append-only ordinal: parameter for calls, local struct field for a
+   * generated value initializer. */
   uint32_t resolved_parameter_ordinal;
 } w_seed_frontend_argument;
 
@@ -1106,8 +1110,11 @@ typedef struct {
    * spelling or depend on the host floating representation. */
   bool has_float_value;
   uint64_t float_bits;
-  /* Append-only frontend resolution facts for downstream const lowering. */
+  /* Append-only ordinal. On MEMBER, a local nominal flat projection stores
+   * its struct field ordinal; on identifier, the function parameter ordinal. */
   uint32_t resolved_parameter_ordinal;
+  /* Discriminated by resolved_callee_kind: local function index, or local
+   * struct index for LOCAL_STRUCT_CONSTRUCTOR. */
   uint32_t resolved_function_index;
   /* Append-only discriminated callee identity. The numeric fields are valid
    * only for their corresponding kind and are never pointer identities. */

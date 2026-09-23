@@ -142,6 +142,8 @@ typedef struct {
   /* Resolver-owned identity for an imported external nominal type. */
   uint32_t external_module_index;
   uint32_t external_symbol_index;
+  /* Kind-discriminated nominal identity: enum index for ENUM/SUBSET or local
+   * struct index for NOMINAL. */
   uint32_t enum_index;
   w_seed_frontend_text enum_name;
   w_seed_frontend_text enum_alias_name;
@@ -182,6 +184,8 @@ typedef struct {
   bool has_name;
   bool is_enum_case;
   bool is_external_enum_case;
+  /* enum_index is NONE for local struct initializers; enum_case_index then
+   * carries the struct table index. */
   uint32_t enum_index;
   uint32_t enum_case_index;
   w_seed_frontend_text name;
@@ -5758,6 +5762,11 @@ static bool type_equal(frontend_simple_type left, frontend_simple_type right) {
    * fall back to spelling equality for aggregate values. */
   if (left.kind == W_SEED_FRONTEND_TYPE_TUPLE) return false;
   if (left.kind == W_SEED_FRONTEND_TYPE_NOMINAL) {
+    const bool left_struct = left.enum_index != W_SEED_FRONTEND_NONE;
+    const bool right_struct = right.enum_index != W_SEED_FRONTEND_NONE;
+    if (left_struct || right_struct)
+      return left_struct && right_struct &&
+             left.enum_index == right.enum_index;
     const bool left_external =
         left.external_module_index != W_SEED_FRONTEND_NONE ||
         left.external_symbol_index != W_SEED_FRONTEND_NONE;
@@ -6947,6 +6956,124 @@ static bool struct_declaration_for_name(
   return found;
 }
 
+/* Struct indices are declaration-order identities across the complete input
+ * set, matching the append-only `structs` arena. */
+static bool struct_declaration_for_index(
+    const frontend_context *context, uint32_t wanted_index,
+    const w_seed_frontend_document **owner_doc, uint32_t *struct_node) {
+  if (owner_doc != NULL) *owner_doc = NULL;
+  if (struct_node != NULL) *struct_node = W_SEED_CST_NONE;
+  if (context == NULL || wanted_index == W_SEED_FRONTEND_NONE) return false;
+  size_t ordinal = 0u;
+  for (size_t document_index = 0u;
+       document_index < context->input.document_count; document_index += 1u) {
+    const w_seed_frontend_document *doc =
+        &context->input.documents[document_index];
+    uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+    uint32_t child = W_SEED_CST_NONE;
+    size_t guard = 0u;
+    while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+      if (doc->nodes[child].kind == W_SEED_CST_STRUCT) {
+        if (ordinal == (size_t)wanted_index) {
+          if (owner_doc != NULL) *owner_doc = doc;
+          if (struct_node != NULL) *struct_node = child;
+          return true;
+        }
+        ordinal += 1u;
+      }
+      guard += 1u;
+    }
+  }
+  return false;
+}
+
+/* This frontend slice deliberately admits only the current flat two-i64
+ * value record. It is structural and source-generic: no fixture or type name
+ * is privileged. `let` fields are required so the frontend never models
+ * mutation through a value projection. */
+static bool local_flat_value_struct_supported(
+    const frontend_context *context, uint32_t struct_index) {
+  const w_seed_frontend_document *doc = NULL;
+  uint32_t struct_node = W_SEED_CST_NONE;
+  if (!struct_declaration_for_index(context, struct_index, &doc,
+                                    &struct_node) ||
+      doc == NULL || struct_node == W_SEED_CST_NONE ||
+      count_direct_kind(doc, struct_node, W_SEED_CST_FIELD) != 2u ||
+      count_direct_kind(doc, struct_node, W_SEED_CST_GENERIC_PARAMETER) != 0u)
+    return false;
+  w_seed_frontend_text names[2] = {{NULL, 0u}, {NULL, 0u}};
+  size_t ordinal = 0u;
+  uint32_t cursor = doc->nodes[struct_node].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0u;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == W_SEED_CST_FIELD) {
+      if (ordinal >= 2u) return false;
+      frontend_token_cursor field_cursor =
+          token_cursor_for(doc, doc->nodes[child].raw_span);
+      frontend_token first;
+      if (!cursor_take(&field_cursor, &first) ||
+          !token_text(doc, &first, "let"))
+        return false;
+      names[ordinal] = name_after_keyword(doc, doc->nodes[child].raw_span,
+                                          "let");
+      if (names[ordinal].length == 0u ||
+          (ordinal != 0u && text_equal_text(names[0], names[ordinal])))
+        return false;
+      const uint32_t type_node = direct_type_index(doc, child);
+      if (type_node == W_SEED_CST_NONE) return false;
+      const frontend_simple_type field_type = contextual_type_from_span(
+          context, doc, doc->nodes[type_node].raw_span);
+      if (field_type.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+          !field_type.is_signed || field_type.bit_width != 64u)
+        return false;
+      ordinal += 1u;
+    }
+    guard += 1u;
+  }
+  return ordinal == 2u;
+}
+
+static bool local_flat_value_struct_field(
+    const frontend_context *context, uint32_t struct_index,
+    w_seed_frontend_text field_name, uint32_t *field_ordinal,
+    frontend_simple_type *field_type) {
+  if (field_ordinal != NULL) *field_ordinal = W_SEED_FRONTEND_NONE;
+  if (field_type != NULL) *field_type = simple_type_unknown();
+  if (field_name.length == 0u ||
+      !local_flat_value_struct_supported(context, struct_index))
+    return false;
+  const w_seed_frontend_document *doc = NULL;
+  uint32_t struct_node = W_SEED_CST_NONE;
+  if (!struct_declaration_for_index(context, struct_index, &doc,
+                                    &struct_node))
+    return false;
+  uint32_t cursor = doc->nodes[struct_node].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0u;
+  uint32_t ordinal = 0u;
+  bool found = false;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == W_SEED_CST_FIELD) {
+      const w_seed_frontend_text name =
+          name_after_keyword(doc, doc->nodes[child].raw_span, "let");
+      if (text_equal_text(name, field_name)) {
+        if (found) return false;
+        const uint32_t type_node = direct_type_index(doc, child);
+        if (type_node == W_SEED_CST_NONE) return false;
+        const frontend_simple_type type = contextual_type_from_span(
+            context, doc, doc->nodes[type_node].raw_span);
+        if (field_ordinal != NULL) *field_ordinal = ordinal;
+        if (field_type != NULL) *field_type = type;
+        found = true;
+      }
+      ordinal += 1u;
+    }
+    guard += 1u;
+  }
+  return found;
+}
+
 static bool enum_case_node_for_index(
     const frontend_context *context, uint32_t wanted_case,
     const w_seed_frontend_document **owner_doc, uint32_t *case_node) {
@@ -7462,9 +7589,12 @@ static frontend_simple_type contextual_type_from_span(
       type.enum_index = enum_index;
       type.enum_name = type.spelling;
     } else {
-      (void)external_type_identity_for_name(
-          context, type.spelling, &type.external_module_index,
-          &type.external_symbol_index, NULL);
+      if (!struct_declaration_for_name(context, type.spelling,
+                                       &type.enum_index, NULL, NULL)) {
+        (void)external_type_identity_for_name(
+            context, type.spelling, &type.external_module_index,
+            &type.external_symbol_index, NULL);
+      }
     }
   }
   return type;
@@ -9703,9 +9833,12 @@ static bool normalize_type_tree_depth(frontend_context *context,
     }
   }
   if (value.kind == W_SEED_FRONTEND_TYPE_NOMINAL) {
-    (void)external_type_identity_for_name(
-        context, value.spelling, &value.external_module_index,
-        &value.external_symbol_index, NULL);
+    if (!struct_declaration_for_name(context, value.spelling,
+                                     &value.enum_base_index, NULL, NULL)) {
+      (void)external_type_identity_for_name(
+          context, value.spelling, &value.external_module_index,
+          &value.external_symbol_index, NULL);
+    }
   }
   frontend_enum_subset_shape subset_shape = {0};
   bool has_subset_shape =
@@ -15065,6 +15198,41 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
       }
       if (!resolved) {
         frontend_token next;
+        uint32_t struct_index = W_SEED_FRONTEND_NONE;
+        if (cursor_peek(&parser->cursor, &next) &&
+            token_text(parser->document, &next, "(") &&
+            struct_declaration_for_name(parser->context, spelling,
+                                         &struct_index, NULL, NULL) &&
+            local_flat_value_struct_supported(parser->context,
+                                              struct_index)) {
+          /* A generated initializer is a parser-local constructor head. Its
+           * existing enum-case discriminator is reserved here by storing
+           * NONE as the enum identity and the struct index in the case slot;
+           * emitted CALL resolution publishes the dedicated callee kind. */
+          type = simple_type_from_view(spelling);
+          type.kind = W_SEED_FRONTEND_TYPE_NOMINAL;
+          type.enum_index = struct_index;
+          if (!expression_append(
+                  parser, W_SEED_FRONTEND_EXPR_IDENTIFIER, token.span,
+                  spelling, (w_seed_frontend_text){NULL, 0u}, type, true,
+                  (size_t)W_SEED_FRONTEND_NONE,
+                  (size_t)W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_NONE, 0,
+                  value))
+            return false;
+          value->is_enum_case = true;
+          value->is_external_enum_case = false;
+          value->enum_index = W_SEED_FRONTEND_NONE;
+          value->enum_case_index = struct_index;
+          if (parser->context->emit && parser->context->output != NULL &&
+              value->index < parser->context->output->expression_capacity) {
+            w_seed_frontend_expression *record =
+                &parser->context->output->expressions[value->index];
+            record->resolved_callee_kind =
+                W_SEED_FRONTEND_CALLEE_LOCAL_STRUCT_CONSTRUCTOR;
+            record->resolved_function_index = struct_index;
+          }
+          return true;
+        }
         frontend_simple_type constructor_type = simple_type_unknown();
         if (cursor_peek(&parser->cursor, &next) &&
             token_text(parser->document, &next, "(") &&
@@ -15901,6 +16069,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       const w_seed_frontend_text member_name =
           text_from_span(parser->document, member.span);
       bool supported = false;
+      bool local_struct_projection = false;
+      uint32_t local_struct_field_ordinal = W_SEED_FRONTEND_NONE;
       frontend_simple_type result_type = simple_type_unknown();
       uint32_t external_module_index = W_SEED_FRONTEND_NONE;
       uint32_t external_symbol_index = W_SEED_FRONTEND_NONE;
@@ -15997,11 +16167,22 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                                      &result_type, NULL, NULL))
           supported = true;
       }
+      if (!supported && !optional_member && !followed_by_call &&
+          value->type.kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
+          value->type.enum_index != W_SEED_FRONTEND_NONE) {
+        supported = local_flat_value_struct_field(
+            parser->context, value->type.enum_index, member_name,
+            &local_struct_field_ordinal, &result_type);
+        local_struct_projection = supported;
+      }
       if (value->type.kind == W_SEED_FRONTEND_TYPE_STATIC_LIST &&
           text_equal(member_name, "count")) {
         result_type = simple_type_from_view((w_seed_frontend_text){"usize", 5});
         supported = true;
       }
+      const uint32_t local_struct_identity =
+          local_struct_projection ? value->type.enum_index
+                                  : W_SEED_FRONTEND_NONE;
       if (!supported && value->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
           value->supported &&
           external_member_for_receiver(
@@ -16031,18 +16212,34 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                              W_SEED_FRONTEND_NONE, 0, value)) {
         return false;
       }
+      if (!parser->context->emit && local_struct_projection &&
+          (!receipt_size_literal(parser->context,
+                                "struct-field-projection=") ||
+           !receipt_size_size(parser->context, value->index) ||
+           !receipt_size_literal(parser->context, "|struct=") ||
+           !receipt_size_size(parser->context, local_struct_identity) ||
+           !receipt_size_literal(parser->context, "|field=") ||
+           !receipt_size_size(parser->context,
+                              local_struct_field_ordinal) ||
+           !receipt_size_literal(parser->context, "\n")))
+        return false;
       if (parser->context->emit && parser->context->output != NULL &&
           value->index < parser->context->count.expressions) {
-        parser->context->output->expressions[value->index].member_name =
-            member_name;
+        w_seed_frontend_expression *record =
+            &parser->context->output->expressions[value->index];
+        record->member_name = member_name;
+        if (local_struct_projection) {
+          /* On MEMBER only, this existing ordinal carrier records the field
+           * declaration ordinal and is independently rechecked by the link
+           * verifier against receiver type and member spelling. */
+          record->resolved_parameter_ordinal =
+              local_struct_field_ordinal;
+        }
         if (supported && external_member != NULL) {
-          parser->context->output->expressions[value->index]
-              .resolved_callee_kind =
+          record->resolved_callee_kind =
               W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL;
-          parser->context->output->expressions[value->index]
-              .resolved_external_module_index = external_module_index;
-          parser->context->output->expressions[value->index]
-              .resolved_external_symbol_index = external_symbol_index;
+          record->resolved_external_module_index = external_module_index;
+          record->resolved_external_symbol_index = external_symbol_index;
         }
       }
       value->is_external_member = supported && external_member != NULL;
@@ -16128,7 +16325,15 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     uint32_t enum_bound_parameters[W_SEED_FRONTEND_MAX_NESTING];
     size_t enum_bound_parameter_count = 0u;
     bool labels_valid = true;
-    const bool enum_case_constructor = value->is_enum_case;
+    const bool local_struct_constructor =
+        value->is_enum_case && !value->is_external_enum_case &&
+        value->enum_index == W_SEED_FRONTEND_NONE &&
+        value->enum_case_index != W_SEED_FRONTEND_NONE;
+    const uint32_t local_struct_identity =
+        local_struct_constructor ? value->enum_case_index
+                                 : W_SEED_FRONTEND_NONE;
+    const bool enum_case_constructor =
+        value->is_enum_case && !local_struct_constructor;
     const bool external_enum_case =
         enum_case_constructor && value->is_external_enum_case;
     const w_seed_frontend_text diagnostic_declaration =
@@ -16142,7 +16347,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
             : enum_case_constructor
                   ? enum_case_parameter_count(parser->context,
                                               value->enum_case_index)
-                  : 0;
+                  : local_struct_constructor ? 2u : 0u;
     if (enum_case_constructor) enum_case_constructor_called = true;
     const w_seed_frontend_document *signature_doc = NULL;
     uint32_t signature_node = W_SEED_CST_NONE;
@@ -16188,7 +16393,14 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       if (label.length != 0 && value->has_name) {
         bool resolved = false;
         bool known = false;
-        if (value->is_external_member) {
+        if (local_struct_constructor) {
+          uint32_t field_ordinal = W_SEED_FRONTEND_NONE;
+          frontend_simple_type ignored_type = simple_type_unknown();
+          resolved = true;
+          known = local_flat_value_struct_field(
+              parser->context, value->enum_case_index, label,
+              &field_ordinal, &ignored_type);
+        } else if (value->is_external_member) {
           resolved = external_signature_found;
           if (resolved && external_signature != NULL) {
             known = label.length == 0u;
@@ -16296,6 +16508,19 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
             enum_label_previous = true;
             break;
           }
+      } else if (local_struct_constructor) {
+        expected_found = local_flat_value_struct_field(
+            parser->context, value->enum_case_index, label,
+            &enum_parameter_ordinal, &expected);
+        enum_label_valid = expected_found;
+        for (size_t used = 0u;
+             expected_found && used < enum_bound_parameter_count; used += 1u) {
+          if (enum_bound_parameters[used] == enum_parameter_ordinal) {
+            enum_label_valid = false;
+            enum_label_previous = true;
+            break;
+          }
+        }
       } else if (local_signature || external_signature_found ||
                  host_signature_found) {
         expected_found = local_signature
@@ -16357,7 +16582,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                                                  expected)) {
         argument_value.supported = false;
       }
-      if (builtin_u64_call || enum_case_constructor || local_signature ||
+      if (builtin_u64_call || enum_case_constructor ||
+          local_struct_constructor || local_signature ||
           external_signature_found || host_signature_found) {
         if (!expected_found) {
           labels_valid = false;
@@ -16405,6 +16631,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
             }
             enum_constructor_diagnostic_emitted = true;
           }
+        } else if (local_struct_constructor && !enum_label_valid) {
+          labels_valid = false;
         } else if (argument_value.type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
                    expected.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
                    !frontend_widening_allowed(parser->context,
@@ -16476,13 +16704,15 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                                       ? W_SEED_FRONTEND_NONE
                                       : (uint32_t)argument_value.index;
       argument.resolved_parameter_ordinal =
-          enum_case_constructor && !external_enum_case && expected_found &&
-                  enum_label_valid
+          ((enum_case_constructor && !external_enum_case) ||
+           local_struct_constructor) &&
+                  expected_found && enum_label_valid
               ? enum_parameter_ordinal
               : W_SEED_FRONTEND_NONE;
       pending_arguments[argument_count] = argument;
-      if (enum_case_constructor && !external_enum_case && expected_found &&
-          enum_label_valid) {
+      if (((enum_case_constructor && !external_enum_case) ||
+           local_struct_constructor) &&
+          expected_found && enum_label_valid) {
         if (enum_bound_parameter_count >= W_SEED_FRONTEND_MAX_NESTING) {
           labels_valid = false;
         } else {
@@ -16526,6 +16756,9 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
           enum_constructor_diagnostic_emitted = true;
         }
       }
+    } else if (local_struct_constructor &&
+               enum_constructor_parameter_count != argument_count) {
+      labels_valid = false;
     } else if (local_signature) {
       const uint32_t parameters = first_direct_kind(
           signature_doc, signature_node, W_SEED_CST_PARAMETER_LIST);
@@ -16544,7 +16777,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                argument_count != (builtin_u64_unary ? 1u : 2u)) {
       labels_valid = false;
     }
-    if (value->has_name && !value->is_external_member) {
+    if (value->has_name && !value->is_external_member &&
+        !local_struct_constructor) {
       bool resolved = false;
       if (local_signature) {
         resolved = true;
@@ -16567,7 +16801,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       }
     }
     frontend_simple_type return_type = simple_type_unknown();
-    if (enum_case_constructor) {
+    if (enum_case_constructor || local_struct_constructor) {
       return_type = value->type;
     } else if (builtin_u64_call) {
       return_type = builtin_u64_operation_returns_tuple(
@@ -16610,7 +16844,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     }
     bool const_call_safe = true;
     if (parser->context->current_function_is_const && value->has_name &&
-        !enum_case_constructor) {
+        !enum_case_constructor && !local_struct_constructor) {
       const bool local_const =
           local_signature && function_node_is_const(signature_doc, signature_node);
       const bool external_const =
@@ -16647,6 +16881,14 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     value->builtin_operation = builtin_u64_call
                                    ? builtin_u64_operation
                                    : W_SEED_FRONTEND_BUILTIN_NONE;
+    if (local_struct_constructor) {
+      /* The call's canonical identity uses resolved_function_index under the
+       * LOCAL_STRUCT_CONSTRUCTOR callee kind; do not duplicate it in the
+       * enum-case fields. */
+      value->is_enum_case = false;
+      value->enum_index = W_SEED_FRONTEND_NONE;
+      value->enum_case_index = W_SEED_FRONTEND_NONE;
+    }
     if (!expression_append(parser, W_SEED_FRONTEND_EXPR_CALL, span,
                            text_from_span(parser->document, span),
                            (w_seed_frontend_text){NULL, 0}, return_type,
@@ -16683,6 +16925,9 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       uint32_t external_symbol_identity = W_SEED_FRONTEND_NONE;
       if (builtin_u64_call) {
         identity_kind = W_SEED_FRONTEND_CALLEE_NONE;
+      } else if (local_struct_constructor) {
+        identity_kind =
+            W_SEED_FRONTEND_CALLEE_LOCAL_STRUCT_CONSTRUCTOR;
       } else if (accelerator_call) {
         identity_kind = W_SEED_FRONTEND_CALLEE_KERNEL_BINDING;
       } else if (local_signature) {
@@ -16706,6 +16951,12 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
               identity_kind, host_symbol_identity, external_module_identity,
               external_symbol_identity, kernel_module_identity,
               kernel_binding_identity) ||
+          (local_struct_constructor &&
+           (!receipt_size_literal(parser->context, "struct-constructor=") ||
+            !receipt_size_size(parser->context, value->index) ||
+            !receipt_size_literal(parser->context, "|struct=") ||
+            !receipt_size_size(parser->context, local_struct_identity) ||
+            !receipt_size_literal(parser->context, "\n"))) ||
           (builtin_u64_call &&
            (!receipt_size_literal(parser->context, "builtin-operation=") ||
             !receipt_size_size(
@@ -16732,7 +16983,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     }
     value->is_integer_literal = false;
   }
-  if (value->is_enum_case && !value->is_external_enum_case &&
+  if (value->is_enum_case && value->enum_index != W_SEED_FRONTEND_NONE &&
+      !value->is_external_enum_case &&
       !enum_case_constructor_called &&
       enum_case_parameter_count(parser->context, value->enum_case_index) != 0) {
     (void)context_append_fact(parser->context,
@@ -18894,6 +19146,14 @@ static frontend_simple_type infer_expression_span_inner(
             tuple_component_type_at(context, receiver, ordinal, &component,
                                     NULL, NULL))
           return component;
+      }
+      if (receiver.kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
+          receiver.enum_index != W_SEED_FRONTEND_NONE) {
+        frontend_simple_type field_type = simple_type_unknown();
+        if (local_flat_value_struct_field(
+                context, receiver.enum_index, member_name, NULL,
+                &field_type))
+          return field_type;
       }
       const w_seed_frontend_external_symbol *member = NULL;
       if (receiver.kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
@@ -22343,12 +22603,182 @@ static bool resolve_frontend_links(frontend_context *context) {
         }
       }
     }
+    if (expression->kind == W_SEED_FRONTEND_EXPR_MEMBER &&
+        !expression_is_call_callee(context, (uint32_t)expression_index) &&
+        expression->resolved_callee_kind == W_SEED_FRONTEND_CALLEE_NONE &&
+        expression->left != W_SEED_FRONTEND_NONE &&
+        (size_t)expression->left < context->count.expressions) {
+      const w_seed_frontend_expression *receiver =
+          &context->output->expressions[expression->left];
+      if (receiver->inferred_type != W_SEED_FRONTEND_NONE &&
+          (size_t)receiver->inferred_type < context->count.types) {
+        const w_seed_frontend_type *receiver_type =
+            &context->output->types[receiver->inferred_type];
+        if (receiver_type->kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
+            receiver_type->enum_base_index != W_SEED_FRONTEND_NONE) {
+          uint32_t expected_ordinal = W_SEED_FRONTEND_NONE;
+          frontend_simple_type expected_field_type = simple_type_unknown();
+          const uint32_t struct_index = receiver_type->enum_base_index;
+          bool valid = local_flat_value_struct_field(
+              context, struct_index, expression->member_name,
+              &expected_ordinal, &expected_field_type);
+          if (struct_index >= context->count.structs ||
+              context->output->structs == NULL ||
+              context->output->fields == NULL ||
+              expression->resolved_parameter_ordinal != expected_ordinal ||
+              expression->resolved_parameter_ordinal >=
+                  context->output->structs[struct_index].field_count ||
+              expression->operator_text.length != 1u ||
+              expression->operator_text.data == NULL ||
+              expression->operator_text.data[0] != '.' ||
+              expression->inferred_type == W_SEED_FRONTEND_NONE ||
+              (size_t)expression->inferred_type >= context->count.types) {
+            valid = false;
+          } else {
+            const w_seed_frontend_struct *structure =
+                &context->output->structs[struct_index];
+            const size_t field_index =
+                (size_t)structure->first_field + expected_ordinal;
+            if (structure->field_count != 2u ||
+                structure->first_field > context->count.fields ||
+                structure->field_count >
+                    context->count.fields - structure->first_field ||
+                field_index >= context->count.fields) {
+              valid = false;
+            } else {
+              const w_seed_frontend_field *field =
+                  &context->output->fields[field_index];
+              const frontend_simple_type actual_field_type =
+                  field->type_index != W_SEED_FRONTEND_NONE &&
+                          (size_t)field->type_index < context->count.types
+                      ? simple_type_from_frontend_type(
+                            &context->output->types[field->type_index])
+                      : simple_type_unknown();
+              valid = field->owner_struct == struct_index &&
+                      text_equal_text(field->name, expression->member_name) &&
+                      field->type_index != W_SEED_FRONTEND_NONE &&
+                      frontend_type_equal(context, actual_field_type,
+                                           expected_field_type) &&
+                      frontend_type_equal(
+                          context,
+                          simple_type_from_frontend_type(
+                              &context->output->types[
+                                  expression->inferred_type]),
+                          expected_field_type);
+            }
+          }
+          if (!valid) expression->supported = false;
+        }
+      }
+    }
     if (expression->kind != W_SEED_FRONTEND_EXPR_CALL ||
         expression->left == W_SEED_FRONTEND_NONE ||
         (size_t)expression->left >= context->count.expressions)
       continue;
     w_seed_frontend_expression *callee =
         &context->output->expressions[expression->left];
+    if (callee->resolved_callee_kind ==
+        W_SEED_FRONTEND_CALLEE_LOCAL_STRUCT_CONSTRUCTOR) {
+      const uint32_t struct_index = callee->resolved_function_index;
+      bool valid = callee->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+                   callee->supported && expression->supported &&
+                   struct_index != W_SEED_FRONTEND_NONE &&
+                   (size_t)struct_index < context->count.structs &&
+                   context->output->structs != NULL &&
+                   context->output->fields != NULL &&
+                   expression->resolved_callee_kind ==
+                       W_SEED_FRONTEND_CALLEE_NONE &&
+                   expression->resolved_function_index ==
+                       W_SEED_FRONTEND_NONE &&
+                   expression->resolved_external_module_index ==
+                       W_SEED_FRONTEND_NONE &&
+                   expression->resolved_external_symbol_index ==
+                       W_SEED_FRONTEND_NONE &&
+                   expression->argument_count == 2u &&
+                   expression->first_argument != W_SEED_FRONTEND_NONE &&
+                   (size_t)expression->first_argument <=
+                       context->count.arguments &&
+                   expression->argument_count <=
+                       context->count.arguments -
+                           (size_t)expression->first_argument &&
+                   local_flat_value_struct_supported(context, struct_index);
+      const w_seed_frontend_struct *structure =
+          valid ? &context->output->structs[struct_index] : NULL;
+      if (valid &&
+          (structure->field_count != 2u ||
+           structure->first_field > context->count.fields ||
+           structure->field_count >
+               context->count.fields - structure->first_field ||
+           callee->inferred_type == W_SEED_FRONTEND_NONE ||
+           (size_t)callee->inferred_type >= context->count.types ||
+           expression->inferred_type == W_SEED_FRONTEND_NONE ||
+           (size_t)expression->inferred_type >= context->count.types)) {
+        valid = false;
+      }
+      if (valid) {
+        const w_seed_frontend_type *callee_type =
+            &context->output->types[callee->inferred_type];
+        const w_seed_frontend_type *result_type =
+            &context->output->types[expression->inferred_type];
+        valid = callee_type->kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
+                callee_type->enum_base_index == struct_index &&
+                result_type->kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
+                result_type->enum_base_index == struct_index &&
+                text_equal_text(callee_type->spelling, structure->name) &&
+                text_equal_text(result_type->spelling, structure->name) &&
+                text_equal_text(callee->spelling, structure->name);
+      }
+      bool seen_fields[2] = {false, false};
+      for (uint32_t offset = 0u; valid &&
+                                 offset < expression->argument_count;
+           offset += 1u) {
+        const size_t argument_index =
+            (size_t)expression->first_argument + offset;
+        const w_seed_frontend_argument *argument =
+            &context->output->arguments[argument_index];
+        if (argument->module_index != expression->module_index ||
+            argument->owner_expression != expression->left ||
+            argument->expression_index == W_SEED_FRONTEND_NONE ||
+            (size_t)argument->expression_index >= context->count.expressions ||
+            argument->label.length == 0u ||
+            argument->resolved_parameter_ordinal >= 2u ||
+            seen_fields[argument->resolved_parameter_ordinal]) {
+          valid = false;
+          break;
+        }
+        const uint32_t ordinal = argument->resolved_parameter_ordinal;
+        const w_seed_frontend_field *field =
+            &context->output->fields[(size_t)structure->first_field + ordinal];
+        const w_seed_frontend_expression *argument_expression =
+            &context->output->expressions[argument->expression_index];
+        if (field->owner_struct != struct_index ||
+            !text_equal_text(field->name, argument->label) ||
+            field->type_index == W_SEED_FRONTEND_NONE ||
+            (size_t)field->type_index >= context->count.types ||
+            !argument_expression->supported ||
+            argument_expression->inferred_type == W_SEED_FRONTEND_NONE ||
+            (size_t)argument_expression->inferred_type >= context->count.types ||
+            !frontend_type_equal(
+                context,
+                simple_type_from_frontend_type(
+                    &context->output->types[argument_expression->inferred_type]),
+                simple_type_from_frontend_type(
+                    &context->output->types[field->type_index]))) {
+          valid = false;
+          break;
+        }
+        seen_fields[ordinal] = true;
+      }
+      valid = valid && seen_fields[0] && seen_fields[1];
+      if (!valid) {
+        expression->supported = false;
+      } else {
+        expression->resolved_callee_kind =
+            W_SEED_FRONTEND_CALLEE_LOCAL_STRUCT_CONSTRUCTOR;
+        expression->resolved_function_index = struct_index;
+      }
+      continue;
+    }
     if (callee->kind == W_SEED_FRONTEND_EXPR_ENUM_CASE) {
       if (callee->enum_index != W_SEED_FRONTEND_NONE) {
         if (!callee->supported || !expression->supported ||
@@ -24407,6 +24837,32 @@ static void receipt_write_records(frontend_receipt_writer *writer,
     for (size_t index = 0u; index < context->count.expressions; index += 1u) {
       const w_seed_frontend_expression *expression =
           &output->expressions[index];
+      if (expression->kind == W_SEED_FRONTEND_EXPR_MEMBER &&
+          expression->supported &&
+          expression->resolved_parameter_ordinal != W_SEED_FRONTEND_NONE &&
+          expression->left != W_SEED_FRONTEND_NONE &&
+          (size_t)expression->left < context->count.expressions &&
+          !expression_is_call_callee(context, (uint32_t)index)) {
+        const w_seed_frontend_expression *receiver =
+            &output->expressions[expression->left];
+        if (receiver->inferred_type != W_SEED_FRONTEND_NONE &&
+            (size_t)receiver->inferred_type < context->count.types &&
+            output->types[receiver->inferred_type].kind ==
+                W_SEED_FRONTEND_TYPE_NOMINAL &&
+            output->types[receiver->inferred_type].enum_base_index !=
+                W_SEED_FRONTEND_NONE) {
+          receipt_write_literal(writer, "struct-field-projection=");
+          receipt_write_size(writer, index);
+          receipt_write_literal(writer, "|struct=");
+          receipt_write_size(
+              writer,
+              output->types[receiver->inferred_type].enum_base_index);
+          receipt_write_literal(writer, "|field=");
+          receipt_write_size(writer,
+                             expression->resolved_parameter_ordinal);
+          receipt_write_literal(writer, "\n");
+        }
+      }
       if (expression->kind == W_SEED_FRONTEND_EXPR_TUPLE) {
         receipt_write_literal(writer, "tuple-expression=");
         receipt_write_size(writer, index);
@@ -24559,6 +25015,14 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       receipt_write_size(writer,
                          expression->resolved_kernel_binding_index);
       receipt_write_literal(writer, "\n");
+      if (expression->resolved_callee_kind ==
+          W_SEED_FRONTEND_CALLEE_LOCAL_STRUCT_CONSTRUCTOR) {
+        receipt_write_literal(writer, "struct-constructor=");
+        receipt_write_size(writer, index);
+        receipt_write_literal(writer, "|struct=");
+        receipt_write_size(writer, expression->resolved_function_index);
+        receipt_write_literal(writer, "\n");
+      }
       if (expression->builtin_operation != W_SEED_FRONTEND_BUILTIN_NONE) {
         receipt_write_literal(writer, "builtin-operation=");
         receipt_write_size(writer, (size_t)expression->builtin_operation);

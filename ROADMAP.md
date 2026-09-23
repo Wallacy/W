@@ -632,14 +632,21 @@ start its HIR writer until the nested-loop HIR change is integrated. This
 bounded product-value slice would not close payload enums, fixed arrays,
 general aggregate layout, or the C ABI boundary; those need later exact
 witnesses. A parser-accepted aggregate form is not yet an executable product.
-The [flat-pair witness](compiler/seed-c/fixtures/flat-aggregate-pair.w) now
-pins a positional two-`i64` tuple, construction, projection, labelled calls,
-return and body entry. It parses completely, and the bounded frontend now
-records unlabeled tuple types, ordered construction, and projection. Verified
-HIR and native lowering still reject this witness; a simple nominal struct
-also parses but remains frontend-unsupported. Labeled tuple type syntax is a
-separate seed-parser gap. Its C23/Rust fixtures are correctness oracles only;
-no W native output or performance result exists for this family.
+The [flat-pair witness](compiler/seed-c/fixtures/flat-aggregate-pair.w) pins a
+positional two-`i64` tuple, construction, projection, labelled calls, return,
+and body entry. The bounded frontend records its unlabeled tuple types,
+ordered construction, and projection. The separate
+[`flat-value-struct-pair.w`](compiler/seed-c/fixtures/flat-value-struct-pair.w)
+witness now proves one immutable nominal two-`i64` value struct through the
+frontend: initializer labels may be reordered, while duplicate, missing,
+unknown, positional, or wrongly typed fields fail closed; field projections,
+local bindings, labelled arguments, and returns retain exact nominal and
+ordinal identities. The representation reuses kind-discriminated record
+fields and does not increase the fixed Native0 storage footprint. Verified
+HIR and native lowering still reject both aggregate witnesses. Labeled tuple
+type syntax remains a separate seed-parser gap. Their C23/Rust fixtures are
+correctness oracles only; no W native output or performance result exists for
+this family.
 
 ### Active rank 1 closure order
 

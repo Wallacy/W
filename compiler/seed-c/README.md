@@ -188,9 +188,17 @@ Cada aplicação tem owner type, head, envelope, argumentos ordenados e status d
 binding; cada argumento preserva ordinal, span, label, parâmetro, kind, o índice
 de type ou `ConstValue` e o índice sentinel/relacionado de `TypedConstExpr`. O
 root liga à aplicação por `generic_application_index`.
-`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-74`. Version 74 appends
+`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-75`. Version 75 adds a
+discriminated local-struct initializer identity without growing the public
+type, expression, or argument records. The bounded frontend slice accepts an
+immutable nominal value struct with exactly two `i64` fields, labelled
+construction in either label order, projection by field name, local bindings,
+labelled arguments, and returns. It rejects duplicate, missing, unknown,
+positional, or wrongly typed initializer fields and keeps short-capacity
+failure all-or-nothing. This is parser/frontend evidence only: verified HIR,
+native layout, ABI, and execution remain unsupported. Version 74 appended
 ordered tuple component and construction-element relations, plus a distinct
-tuple expression. This frontend-only slice recognizes unlabeled tuple types,
+tuple expression. That frontend-only slice recognizes unlabeled tuple types,
 contextually typed two-or-more-element construction, and bounded numeric
 projection; it does not claim HIR lowering, native execution, labeled tuples,
 or singleton tuples.
