@@ -387,15 +387,15 @@ target-specific shortcut. Keep rank-8 self-hosting prerequisites visible in
 each lane, but do not start a second compiler implementation before functions,
 modules, ownership and error flow can support it.
 
-For the current rank-3 tranche, run a small dependency graph rather than a
-single-file queue. One executor owns source-to-HIR terminal-return CFG, one
-owns the independent executable-catalog/oracle projection, and the principal
-owns native admission, end-to-end integration and adversarial review. A
-separate executor may work on the minimal Hello binary because its WRT entry
-path does not share the CFG writers. Do not call the CFG slice complete until
-the exact same `.w` source reaches verified HIR, native Windows and Linux
-products, and the declared output oracle; do not rank its performance before
-equivalent native work exists in the comparison lanes.
+For the active rank-3 tranche, run a dependency graph rather than a
+single-file queue. The source-semantics lane owns the bounded loop CFG and its
+verifier; the native lane starts from that verified HIR contract, not from a
+second source-shape recognizer. An independent correctness-reference lane may
+advance while those two lanes close. The principal owns end-to-end integration
+and adversarial review. Do not call the slice complete until the same `.w`
+source reaches verified HIR, native Windows and Linux products, and the
+declared output oracle; do not rank its performance before equivalent native
+work exists in the comparison lanes.
 
 After that proof, form the next packages around whole semantic families:
 general CFG/loops, aggregate-and-enum values, module graph/specialization,
@@ -404,10 +404,10 @@ only after a pinned witness and HIR contract give each writer a stable
 boundary. Prefer a larger family package with one integration gate over a
 series of width-by-width or one-op commits. Keep at most four executors and
 retire each at its finite gate; parallel occupancy is not itself progress.
-The next proposed rank-3 family is unlabeled `break`/`continue` in one
+The selected rank-3 family is unlabeled `break`/`continue` in one
 pre-test `while` with multiple carried scalar values. Pin one source witness
-and expected HIR edge/carrier mapping before splitting frontend/HIR,
-native/MLIR, and executable-evidence writers. This package should establish
+and expected HIR edge/carrier mapping before splitting native/MLIR and
+executable-evidence writers from frontend/HIR. This package should establish
 a reusable source-to-CFG control-transfer builder rather than another
 source-shape recognizer; otherwise the apparent parallel speedup merely moves
 cost into future maintenance. Nested/labeled loops and general mixed CFG
