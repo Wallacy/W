@@ -620,7 +620,13 @@ The native Hello optimization sentinel is closed through the public Release
 route and exact-output oracle. The live catalog now retains the 2,048-byte
 Windows CRT-free PE and the 1,712-byte Linux/WSL CRT-free PIE together with
 compile, process-run, CPU, and memory measurements; the catalog retains no
-produced executable. The Windows reduction folds unwind metadata into the existing
+produced executable. The 1,712-byte ELF is reproducible byte-for-byte through
+the pinned Windows-to-Linux LLD recipe. The catalog also records a 2,096-byte
+native WSL Hello lane with the same source/recipe digest but a different
+toolchain digest. That gap cannot yet be assigned solely to the linker, and
+the rows must not be pooled. A portable native-Linux LLD lane remains an
+opt-in toolchain task, not a default switch.
+The Windows reduction folds unwind metadata into the existing
 read-only section while preserving separate executable and writable sections.
 Sub-1-KiB is feasible but not yet a `w build` product: stripping only ELF
 section headers and non-loaded section data from the exact Hello yields 784
