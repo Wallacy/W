@@ -9879,6 +9879,13 @@ static bool test_while_break_continue_shared_exit(void) {
   fixture.hir_edge_arguments[break_edge_index] = saved_break_edge;
   reseal_hir_fixture();
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_edge_arguments[break_edge_index].value_index =
+      fixture.hir_edge_arguments[break_edge_index + 1u].value_index;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_edge_arguments[break_edge_index] = saved_break_edge;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
   return true;
 }
 
@@ -9906,6 +9913,31 @@ static bool test_nested_labeled_while_hir_boundary(void) {
   CHECK(fixture.result.status == W_SEED_FRONTEND_OK);
   setup_hir_output();
   const w_seed_hir0_input nested_input = hir_input();
+  hir0_function_cfg_plan nested_plan;
+  CHECK(hir0_function_cfg_plan_build(&nested_input, 0u, &nested_plan));
+  CHECK(nested_plan.frame_count == 2u && nested_plan.maximum_depth == 2u &&
+        nested_plan.nested_or_multiple &&
+        nested_plan.frames[0].parent_frame == W_SEED_FRONTEND_NONE &&
+        nested_plan.frames[1].parent_frame == 0u &&
+        nested_plan.frames[0].transfer_count == 2u &&
+        nested_plan.frames[1].transfer_count == 2u);
+  uint32_t outer_break_statement = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u; index < fixture.result.written.statements;
+       index += 1u) {
+    if (fixture.statements[index].kind == W_SEED_FRONTEND_STMT_BREAK &&
+        text_is(fixture.statements[index].transfer_label, "outerLoop")) {
+      outer_break_statement = (uint32_t)index;
+      break;
+    }
+  }
+  CHECK(outer_break_statement != W_SEED_FRONTEND_NONE);
+  const uint32_t outer_break_target =
+      fixture.statements[outer_break_statement].transfer_target_statement;
+  fixture.statements[outer_break_statement].transfer_target_statement =
+      nested_plan.frames[1].source_statement;
+  CHECK(!hir0_function_cfg_plan_build(&nested_input, 0u, &nested_plan));
+  fixture.statements[outer_break_statement].transfer_target_statement =
+      outer_break_target;
   w_seed_hir0_counts nested_counts;
   w_seed_hir0_result nested_measure;
   CHECK(w_seed_hir0_measure(&nested_input, &nested_counts, &nested_measure) ==

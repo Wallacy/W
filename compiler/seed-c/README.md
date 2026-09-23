@@ -1771,9 +1771,13 @@ The Linux build gate checks CRT-free ELF closure. The parser/frontend now
 represent nested `while` loops and bind `break`/`continue` (with or without a
 label) to an explicit enclosing loop statement. HIR0 admits a label on its
 single bounded loop when each labeled transfer names and targets that loop;
-forged labels or targets fail before output. Nested loops still fail closed,
-and a source-backed NativeSubset0/MLIR0 test selects and emits the same-loop
-labeled CFG. No public executable labeled-loop witness is claimed.
+forged labels or targets fail before output. The source-to-HIR preflight now
+plans bounded lexical loop frames, their parentage and transfer targets; a
+two-loop planning witness rejects a forged outer-to-inner target. This does not
+admit nested HIR: per-header typed carrier and dominance proof remains open.
+Nested loops still fail closed. A source-backed NativeSubset0/MLIR0 test
+selects and emits the same-loop labeled CFG. No public executable labeled-loop
+witness is claimed.
 NativeSubset0's broader bounded i64-carrier CFG screen is only a preparatory
 selection change. General mixed CFG, other carrier types, and performance
 equivalence remain open.

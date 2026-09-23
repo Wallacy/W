@@ -508,10 +508,13 @@ an explicit lexical loop statement; malformed, shadowed, or unresolved labels
 fail closed. Verified HIR now admits a label on its one bounded loop only when
 every labeled transfer resolves to that exact loop and matches its spelling;
 nested loops remain rejected. NativeSubset0 selects the resulting verified HIR
-and MLIR0 emits its CFG, but public executable evidence is still pending. Next,
-replace HIR0's single-loop count/emit state
-with one bounded source-to-HIR CFG plan shared by measurement and emission,
-plus independent verification of the emitted graph;
+and MLIR0 emits its CFG, but public executable evidence is still pending. HIR0
+now preflights a bounded per-function source CFG plan: it records lexical loop
+parentage and frontend-resolved transfer targets, and its emission passes use
+the same deterministic planner. A two-loop source proves the plan and a forged
+wrong-loop target fails closed, but nested HIR emission remains unsupported.
+Next, extend that plan into the count/layout/value/terminator emission contract
+and independently verify the emitted graph;
 prove typed edge/carrier mapping and failure atomicity on a source-backed
 two-loop witness. NativeSubset0's broader i64-carrier screen is preparatory,
 not evidence for that witness. Only then extend MLIR/codegen and public
@@ -526,9 +529,10 @@ both loops and the source-to-HIR gate rejects an adversarial wrong lexical
 target before writing output. A standalone, well-typed HIR graph cannot prove
 which source label was written; its verifier proves graph and carrier validity,
 not source equivalence. The next coherent HIR package needs one per-function
-plan shared by count/layout/value/terminator emission, bounded nested loop
-frames, frontend-resolved transfer targets, and per-header typed-carrier
-verification. Do not ship a special two-loop source-shape recognizer.
+plan shared by count/layout/value/terminator emission, with the already
+recorded bounded nested frames and frontend-resolved transfer targets, plus
+per-header typed-carrier verification. Do not ship a special two-loop
+source-shape recognizer.
 
 The next disjoint family can be prepared beside the rank-3 CFG proof work:
 flat copyable tuple and value-struct construction, projection, local argument,
