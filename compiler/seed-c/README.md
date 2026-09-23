@@ -4180,9 +4180,12 @@ The route supports the current seed subset, including `if.w`,
 without changing language semantics. Separate compile/run benchmark migration
 is not part of this bundle.
 
-The current Hello observations are 2,048 bytes for the Windows CRT-free PE and
-2,096 bytes for the Linux/WSL CRT-free PIE. These artifact values do not change
-the `<=64 MiB` packaged-compiler budget.
+The [executable benchmark catalog](../../benchmarks/EXECUTABLES.md) is the
+source of current Hello sizes and timings. Keep its Windows PE, pinned
+Windows-host cross-Linux LLD ELF, and native WSL GNU-ld ELF lanes separate:
+they have different link recipes and are not interchangeable size baselines.
+These artifact observations do not change the `<=64 MiB` packaged-compiler
+budget.
 
 The Linux/WSL and native Windows gates cover the retained-artifact route:
 
