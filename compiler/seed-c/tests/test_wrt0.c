@@ -58,7 +58,8 @@ int main(int argc, char **argv) {
       contains(&compact, "@w_seed_linux_initial_argc") ||
       contains(&compact, "@w_seed_linux_initial_argv") ||
       !contains(&compact, "declare i32 @main()") ||
-      !contains(&compact, "define i32 @w_seed_linux_start()") ||
+      contains(&compact, "w_seed_linux_start") ||
+      !contains(&compact, "callq main") ||
       contains(&compact, "%stack") ||
       !contains(&compact, "syscall"))
     return 1;

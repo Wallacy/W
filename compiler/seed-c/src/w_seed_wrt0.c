@@ -50,19 +50,13 @@ static const uint8_t LINUX_X86_64_NO_ARGUMENTS_LLVM_IR[] =
     "\n"
     "declare i32 @main()\n"
     "\n"
-    "define i32 @w_seed_linux_start() nounwind {\n"
-    "entry:\n"
-    "  %status = call i32 @main()\n"
-    "  ret i32 %status\n"
-    "}\n"
-    "\n"
     "define i64 @write(i32 %fd, ptr %buffer, i64 %count) nounwind {\n"
     "entry:\n"
     "  %result = call i64 asm sideeffect \"syscall\", \"={rax},{rax},{rdi},{rsi},{rdx},~{rcx},~{r11},~{memory}\"(i64 1, i32 %fd, ptr %buffer, i64 %count)\n"
     "  ret i64 %result\n"
     "}\n"
     "\n"
-    "module asm \".text\\0A.globl _start\\0A.type _start,@function\\0A_start:\\0A  callq w_seed_linux_start\\0A  movl %eax, %edi\\0A  movl $60, %eax\\0A  syscall\\0A  ud2\\0A.size _start, .-_start\\0A\"\n";
+    "module asm \".text\\0A.globl _start\\0A.type _start,@function\\0A_start:\\0A  callq main\\0A  movl %eax, %edi\\0A  movl $60, %eax\\0A  syscall\\0A  ud2\\0A.size _start, .-_start\\0A\"\n";
 
 bool w_seed_wrt0_get(w_seed_wrt0_target target,
                      w_seed_runtime_requirements requirements,
