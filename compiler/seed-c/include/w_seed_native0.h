@@ -53,6 +53,13 @@ enum {
   W_SEED_NATIVE0_EXPRESSIONS = 512,
   W_SEED_NATIVE0_ARGUMENTS = 128,
   W_SEED_NATIVE0_INTERPOLATION_SEGMENTS = 128,
+  /* Source tuple components are bounded by type records; the existing
+   * overflowing builtins add two rows per admitted argument. Tuple elements
+   * are at most half the measured expression arena (which counts each CST
+   * expression and its primary separately). */
+  W_SEED_NATIVE0_TUPLE_COMPONENTS =
+      W_SEED_NATIVE0_TYPES + (2 * W_SEED_NATIVE0_ARGUMENTS),
+  W_SEED_NATIVE0_TUPLE_ELEMENTS = W_SEED_NATIVE0_EXPRESSIONS / 2,
   W_SEED_NATIVE0_SYMBOLS = 128,
   W_SEED_NATIVE0_FACTS = 64,
   W_SEED_NATIVE0_DIAGNOSTICS = 32,
@@ -96,6 +103,8 @@ enum {
   W_SEED_NATIVE0_FRONTEND_RECEIPT = 65536,
 };
 
+_Static_assert(W_SEED_NATIVE0_EXPRESSIONS % 2u == 0u,
+               "Native0 measured expression capacity is pair-aligned");
 _Static_assert(W_SEED_NATIVE0_STATEMENTS >=
                    W_SEED_HIR0_MAX_NESTING + 1u,
                "Native0 statements cover the HIR0 nesting witness");
@@ -131,6 +140,8 @@ _Static_assert(W_SEED_NATIVE0_STATEMENTS <= UINT32_MAX &&
                    W_SEED_NATIVE0_EXPRESSIONS <= UINT32_MAX &&
                    W_SEED_NATIVE0_ARGUMENTS <= UINT32_MAX &&
                    W_SEED_NATIVE0_INTERPOLATION_SEGMENTS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_TUPLE_COMPONENTS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_TUPLE_ELEMENTS <= UINT32_MAX &&
                    W_SEED_NATIVE0_SYMBOLS <= UINT32_MAX &&
                    W_SEED_NATIVE0_FACTS <= UINT32_MAX &&
                    W_SEED_NATIVE0_DIAGNOSTICS <= UINT32_MAX &&
@@ -248,6 +259,10 @@ typedef struct {
   w_seed_frontend_argument arguments[W_SEED_NATIVE0_ARGUMENTS];
   w_seed_frontend_interpolation_segment
       interpolation_segments[W_SEED_NATIVE0_INTERPOLATION_SEGMENTS];
+  w_seed_frontend_tuple_component
+      tuple_components[W_SEED_NATIVE0_TUPLE_COMPONENTS];
+  w_seed_frontend_tuple_element
+      tuple_elements[W_SEED_NATIVE0_TUPLE_ELEMENTS];
   w_seed_frontend_symbol symbols[W_SEED_NATIVE0_SYMBOLS];
   w_seed_frontend_fact facts[W_SEED_NATIVE0_FACTS];
   w_seed_frontend_diagnostic diagnostics[W_SEED_NATIVE0_DIAGNOSTICS];

@@ -16,7 +16,11 @@ const fixture = resolve(root, "reference", "last-light", "checker_bootstrap.w")
 const expectedHelp =
   "usage: w check <path/file.w> [--json]\n" +
   "usage: w run <path/file.w> [-- <args...>]\n" +
-  "usage: w build <path/file.w> --target <target> --output <artifact>\n"
+  "usage: w build <path/file.w> --target <target> --output <artifact> " +
+  "[--pie <on|off>] (temporary Linux x86_64 seed option; default: on)\n" +
+  "usage: w bench process --exe <absolute-path> [options]\n" +
+  "  options: --cwd <absolute-dir> --arg <value> --warmup <n> --samples <n> --timeout-ms <n> --expect-exit <n> --expect-stdout-hex <bytes> --expect-stderr-hex <bytes>\n" +
+  "  Windows-native cold process measurement only; does not compile or execute .w source\n"
 const sourceCapacity = 16 * 1024 * 1024
 
 function fail(message) {

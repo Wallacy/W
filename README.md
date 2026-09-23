@@ -114,7 +114,9 @@ or `ref` use implies a heap, header, address, or storage class.
   its CRT-free Linux x86_64 ELF for WSL2 execution. This is not a general
   runtime, scheduler, parallelism, or ranked performance claim.
 - w run and w build require one explicit source path. w build also requires an
-  exact target triple and a new output artifact.
+  exact target triple and a new output artifact. Linux x64 builds default to
+  static PIE; `--pie off` selects a separate, bounded ET_EXEC experiment. The
+  explicit PIE option is not a Windows PE/ASLR switch.
 - Public process execution has bounded native Windows x64 and CRT-free
   Linux/WSL x64 candidate routes. They compose only admitted normal-HIR body
   forms and scalar/enum values. General CFG, runtime, and argument-processing

@@ -72,8 +72,14 @@ startup closure after code generation: a product with no reachable process-
 argument accessors must not retain argc/argv capture, while an unknown receipt
 selects the complete closure. Do not infer this from filenames, imports, or a
 host-specific ELF parser; the same target product must be selected from any
-supported compiler host. Keep static PIE and CRT-free linkage unchanged while
-comparing Hello size, compile latency, and runtime against equivalent policies.
+supported compiler host. Keep static PIE and CRT-free linkage as the default
+Hello product policy. An explicit non-PIE build is a separate, target-bound
+experiment for platform limits and later kernel/firmware work, not a silent
+replacement for the default. Compare size, compile latency, and runtime only
+within equivalent link and dependency policies. The seed CLI's `--pie on|off`
+is a temporary way to exercise this axis; a future target-aware build/profile
+policy should own the durable setting without conflating it with optimization
+or runtime closure.
 
 The runtime-closure axis is independent from target environment and W program
 or toolchain profiles:
@@ -508,11 +514,12 @@ general aggregate layout, or the C ABI boundary; those need later exact
 witnesses. A parser-accepted aggregate form is not yet an executable product.
 The [flat-pair witness](compiler/seed-c/fixtures/flat-aggregate-pair.w) now
 pins a positional two-`i64` tuple, construction, projection, labelled calls,
-return and body entry. It parses completely, but the frontend rejects tuple
-construction/projection with `W-SEM-0001`; a simple nominal struct also parses
-but remains frontend-unsupported. Labeled tuple type syntax is a separate
-seed-parser gap. Its C23/Rust fixtures are correctness oracles only; no W
-native output or performance result exists for this family.
+return and body entry. It parses completely, and the bounded frontend now
+records unlabeled tuple types, ordered construction, and projection. Verified
+HIR and native lowering still reject this witness; a simple nominal struct
+also parses but remains frontend-unsupported. Labeled tuple type syntax is a
+separate seed-parser gap. Its C23/Rust fixtures are correctness oracles only;
+no W native output or performance result exists for this family.
 
 ### Active rank 1 closure order
 

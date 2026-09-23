@@ -24,8 +24,10 @@ static bool build_source_path_is_valid(const char *path) {
 bool w_seed_build_parse(int argc, char **argv,
                         w_seed_build_request *request) {
   if (request != NULL)
-    *request = (w_seed_build_request){NULL, NULL, NULL};
-  if (request == NULL || argv == NULL || argc != 7 || argv[1] == NULL ||
+    *request = (w_seed_build_request){NULL, NULL, NULL,
+                                      W_SEED_RUN_COMPILE_PIE_ON, false};
+  if (request == NULL || argv == NULL || (argc != 7 && argc != 9) ||
+      argv[1] == NULL ||
       strcmp(argv[1], "build") != 0 ||
       !build_source_path_is_valid(argv[2]))
     return false;
@@ -34,6 +36,8 @@ bool w_seed_build_parse(int argc, char **argv,
   const char *output = NULL;
   bool target_seen = false;
   bool output_seen = false;
+  bool pie_seen = false;
+  w_seed_run_compile_pie_mode pie_mode = W_SEED_RUN_COMPILE_PIE_ON;
   for (int index = 3; index < argc; index += 2) {
     const char *option = argv[index];
     const char *value = argv[index + 1];
@@ -48,14 +52,28 @@ bool w_seed_build_parse(int argc, char **argv,
       if (output_seen) return false;
       output_seen = true;
       output = value;
+    } else if (strcmp(option, "--pie") == 0) {
+      if (pie_seen) return false;
+      pie_seen = true;
+      if (strcmp(value, "on") == 0)
+        pie_mode = W_SEED_RUN_COMPILE_PIE_ON;
+      else if (strcmp(value, "off") == 0)
+        pie_mode = W_SEED_RUN_COMPILE_PIE_OFF;
+      else
+        return false;
     } else {
       return false;
     }
   }
-  if (!target_seen || !output_seen) return false;
+  if (!target_seen || !output_seen ||
+      (pie_seen &&
+       strcmp(target, W_SEED_NATIVE_TARGET_LINUX) != 0))
+    return false;
   request->path = argv[2];
   request->target = target;
   request->output = output;
+  request->pie_mode = pie_mode;
+  request->pie_mode_explicit = pie_seen;
   return true;
 }
 
@@ -224,7 +242,8 @@ static int build_execute_linux(const w_seed_build_request *request) {
       .target = request->target,
       .directory = stage,
       .artifact_path = artifact,
-      .profile = W_SEED_RUN_COMPILE_PROFILE_RELEASE};
+      .profile = W_SEED_RUN_COMPILE_PROFILE_RELEASE,
+      .pie_mode = request->pie_mode};
   int exit_code = w_seed_run_compile(&compile_request);
   char hidden[PATH_MAX] = {0};
   bool hidden_linked = false;
@@ -486,7 +505,8 @@ static int build_execute_windows(const w_seed_build_request *request) {
       .target = request->target,
       .directory = stage,
       .artifact_path = artifact,
-      .profile = W_SEED_RUN_COMPILE_PROFILE_RELEASE};
+      .profile = W_SEED_RUN_COMPILE_PROFILE_RELEASE,
+      .pie_mode = request->pie_mode};
   int exit_code = w_seed_run_compile(&compile_request);
   if (exit_code == 0) {
     if (!build_windows_hidden_artifact_path(
@@ -540,7 +560,13 @@ static int build_execute_windows(const w_seed_build_request *request) {
 int w_seed_build_execute(const w_seed_build_request *request) {
   if (request == NULL || !build_source_path_is_valid(request->path) ||
       request->target == NULL || request->output == NULL ||
-      request->target[0] == '\0' || request->output[0] == '\0')
+      request->target[0] == '\0' || request->output[0] == '\0' ||
+      (request->pie_mode != W_SEED_RUN_COMPILE_PIE_ON &&
+       request->pie_mode != W_SEED_RUN_COMPILE_PIE_OFF) ||
+      (request->pie_mode_explicit &&
+       strcmp(request->target, W_SEED_NATIVE_TARGET_LINUX) != 0) ||
+      (request->pie_mode == W_SEED_RUN_COMPILE_PIE_OFF &&
+       strcmp(request->target, W_SEED_NATIVE_TARGET_LINUX) != 0))
     return 2;
 #if defined(__linux__)
   return build_execute_linux(request);

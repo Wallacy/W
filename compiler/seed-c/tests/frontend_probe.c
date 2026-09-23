@@ -39,6 +39,8 @@ enum {
   PROBE_DECLARATIONS = 4096,
   PROBE_CONST_DECLARATIONS = 4096,
   PROBE_TYPES = 32768,
+  PROBE_TUPLE_COMPONENTS = 262144,
+  PROBE_TUPLE_ELEMENTS = 262144,
   PROBE_FUNCTIONS = 4096,
   PROBE_PARAMETERS = 32768,
   PROBE_ENTRIES = 4096,
@@ -91,6 +93,8 @@ static w_seed_frontend_alias aliases[PROBE_DECLARATIONS];
 static w_seed_frontend_const_declaration const_declarations[
     PROBE_CONST_DECLARATIONS];
 static w_seed_frontend_type types[PROBE_TYPES];
+static w_seed_frontend_tuple_component tuple_components[PROBE_TUPLE_COMPONENTS];
+static w_seed_frontend_tuple_element tuple_elements[PROBE_TUPLE_ELEMENTS];
 static w_seed_frontend_function functions[PROBE_FUNCTIONS];
 static w_seed_frontend_parameter parameters[PROBE_PARAMETERS];
 static w_seed_frontend_entry entries[PROBE_ENTRIES];
@@ -283,6 +287,10 @@ int main(void) {
       .const_declaration_capacity = PROBE_CONST_DECLARATIONS,
       .types = types,
       .type_capacity = PROBE_TYPES,
+      .tuple_components = tuple_components,
+      .tuple_component_capacity = PROBE_TUPLE_COMPONENTS,
+      .tuple_elements = tuple_elements,
+      .tuple_element_capacity = PROBE_TUPLE_ELEMENTS,
       .functions = functions,
       .function_capacity = PROBE_FUNCTIONS,
       .parameters = parameters,

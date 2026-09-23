@@ -10,7 +10,8 @@
 static const char *usage_text =
     "usage: w check <path/file.w> [--json]\n"
     "usage: w run <path/file.w> [-- <args...>]\n"
-    "usage: w build <path/file.w> --target <target> --output <artifact>\n"
+    "usage: w build <path/file.w> --target <target> --output <artifact> "
+    "[--pie <on|off>] (temporary Linux x86_64 seed option; default: on)\n"
     "usage: w bench process --exe <absolute-path> [options]\n"
     "  options: --cwd <absolute-dir> --arg <value> --warmup <n> "
     "--samples <n> --timeout-ms <n> --expect-exit <n> "

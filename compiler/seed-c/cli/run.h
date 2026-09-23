@@ -17,6 +17,13 @@ typedef enum {
   W_SEED_RUN_COMPILE_PROFILE_RELEASE = 1
 } w_seed_run_compile_profile;
 
+/* Zero deliberately preserves the current static-PIE recipe for callers that
+ * leave this option uninitialized by older designated initializers. */
+typedef enum {
+  W_SEED_RUN_COMPILE_PIE_ON = 0,
+  W_SEED_RUN_COMPILE_PIE_OFF = 1
+} w_seed_run_compile_pie_mode;
+
 typedef struct {
   const char *path;
   size_t argument_count;
@@ -29,6 +36,7 @@ typedef struct {
   const char *directory;
   const char *artifact_path;
   w_seed_run_compile_profile profile;
+  w_seed_run_compile_pie_mode pie_mode;
 } w_seed_run_compile_request;
 
 /* Parse only the public run grammar. Argument strings remain borrowed from

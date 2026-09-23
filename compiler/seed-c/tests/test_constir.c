@@ -27,6 +27,8 @@ enum {
   STATEMENTS = 8192,
   EXPRESSIONS = 32768,
   ARGUMENTS = 8192,
+  TUPLE_COMPONENTS = TOKENS * 2,
+  TUPLE_ELEMENTS = TOKENS,
   SWITCH_ARMS = 8192,
   MEMBERSHIP = 32768,
   CONST_BYTES = 65536,
@@ -87,6 +89,8 @@ typedef struct {
   w_seed_frontend_statement statements[STATEMENTS];
   w_seed_frontend_expression expressions[EXPRESSIONS];
   w_seed_frontend_argument arguments[ARGUMENTS];
+  w_seed_frontend_tuple_component tuple_components[TUPLE_COMPONENTS];
+  w_seed_frontend_tuple_element tuple_elements[TUPLE_ELEMENTS];
   w_seed_frontend_switch_arm switch_arms[SWITCH_ARMS];
   w_seed_frontend_enum_membership_case membership[MEMBERSHIP];
   w_seed_frontend_symbol symbols[ARRAY];
@@ -175,6 +179,10 @@ static void fixture_init_output(fixture *value) {
       .parameter_capacity = PARAMETERS,
       .arguments = value->arguments,
       .argument_capacity = ARGUMENTS,
+      .tuple_components = value->tuple_components,
+      .tuple_component_capacity = TUPLE_COMPONENTS,
+      .tuple_elements = value->tuple_elements,
+      .tuple_element_capacity = TUPLE_ELEMENTS,
       .switch_arms = value->switch_arms,
       .switch_arm_capacity = SWITCH_ARMS,
       .enum_membership_cases = value->membership,

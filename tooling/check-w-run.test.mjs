@@ -10,6 +10,8 @@ import { join, resolve } from "node:path"
 import { describe, expect, test } from "bun:test"
 import {
   assertCrtFreeElf,
+  assertCrtFreeExecElf,
+  assertElfNoExecutableStack,
   parseArguments,
   validateManifest,
 } from "./check-w-run.mjs"
@@ -63,26 +65,42 @@ function normalizedOutput(result) {
 
 describe("W RUN native CI contract", () => {
   test("accepts only x86_64 ELF without an interpreter or DT_NEEDED", () => {
-    const elf = Buffer.alloc(120)
+    const elf = Buffer.alloc(176)
     Buffer.from([0x7f, 0x45, 0x4c, 0x46, 2, 1]).copy(elf)
     elf.writeUInt16LE(3, 16)
     elf.writeUInt16LE(62, 18)
     elf.writeBigUInt64LE(64n, 32)
     elf.writeUInt16LE(56, 54)
-    elf.writeUInt16LE(1, 56)
+    elf.writeUInt16LE(2, 56)
     elf.writeUInt32LE(1, 64)
+    elf.writeUInt32LE(0x6474e551, 120)
+    elf.writeUInt32LE(6, 124)
     expect(() => assertCrtFreeElf(elf)).not.toThrow()
+    expect(() => assertElfNoExecutableStack(elf)).not.toThrow()
+
+    const executable = Buffer.from(elf)
+    executable.writeUInt16LE(2, 16)
+    expect(() => assertCrtFreeExecElf(executable)).not.toThrow()
+    expect(() => assertCrtFreeElf(executable)).toThrow("static PIE")
+
+    const executableStack = Buffer.from(elf)
+    executableStack.writeUInt32LE(7, 124)
+    expect(() => assertElfNoExecutableStack(executableStack)).toThrow(
+      "executable stack",
+    )
 
     const interpreted = Buffer.from(elf)
     interpreted.writeUInt32LE(3, 64)
     expect(() => assertCrtFreeElf(interpreted)).toThrow("dynamic interpreter")
 
-    const dependent = Buffer.alloc(152)
+    const dependent = Buffer.alloc(256)
     elf.copy(dependent)
-    dependent.writeUInt32LE(2, 64)
-    dependent.writeBigUInt64LE(120n, 72)
-    dependent.writeBigUInt64LE(32n, 96)
-    dependent.writeBigInt64LE(1n, 120)
+    dependent.writeUInt16LE(3, 56)
+    dependent.writeUInt32LE(2, 176)
+    dependent.writeBigUInt64LE(224n, 184)
+    dependent.writeBigUInt64LE(32n, 208)
+    dependent.writeBigInt64LE(1n, 224)
+    dependent.writeBigInt64LE(0n, 240)
     expect(() => assertCrtFreeElf(dependent)).toThrow("DT_NEEDED")
   })
 

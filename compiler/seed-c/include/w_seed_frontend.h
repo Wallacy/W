@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-73"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-74"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -135,9 +135,7 @@ typedef enum {
   W_SEED_FRONTEND_TYPE_TASK,
   /* Bottom type for expressions that do not complete normally. */
   W_SEED_FRONTEND_TYPE_NEVER,
-  /* Append-only fixed tuple value. The closed seed product family is the
-   * compiler-owned `(u64, Bool)` result of the overflowing u64 arithmetic
-   * builtins; it has no identity or allocation of its own. */
+  /* Append-only fixed tuple value. */
   W_SEED_FRONTEND_TYPE_TUPLE,
 } w_seed_frontend_type_kind;
 
@@ -236,6 +234,9 @@ typedef enum {
    * owned by a plain `try` expression and retains a closed rounding identity
    * plus the statically possible NumericConversionError cases. */
   W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING,
+  /* Append-only ordered tuple value construction. Its children are in the
+   * tuple_elements relation; it is never represented as CALL/PARENTHESIS. */
+  W_SEED_FRONTEND_EXPR_TUPLE,
 } w_seed_frontend_expr_kind;
 
 /* Core rounding identities. These are semantic values, not source text or
@@ -552,6 +553,9 @@ typedef struct {
   /* Append-only compiler-owned kernel-module and kernel-binding records. */
   size_t kernel_modules;
   size_t kernel_bindings;
+  /* Append-only canonical tuple component and construction element records. */
+  size_t tuple_components;
+  size_t tuple_elements;
 } w_seed_frontend_counts;
 
 typedef struct {
@@ -801,7 +805,21 @@ typedef struct {
    * resolver-owned external module/symbol tables and is never a pointer. */
   uint32_t external_module_index;
   uint32_t external_symbol_index;
+  /* Append-only ordered tuple component range; NONE/zero on non-tuples. */
+  uint32_t first_tuple_component;
+  uint32_t tuple_component_count;
 } w_seed_frontend_type;
+
+/* Ordered, source-backed component of a tuple type. `label` is empty for the
+ * currently supported unlabeled tuple grammar and is reserved for the
+ * all-labeled form without imposing a fixed tuple arity. */
+typedef struct {
+  uint32_t owner_type;
+  uint32_t ordinal;
+  w_seed_frontend_text label;
+  uint32_t type_index;
+  w_seed_span span;
+} w_seed_frontend_tuple_component;
 
 typedef struct {
   uint32_t owner_type;
@@ -1155,7 +1173,22 @@ typedef struct {
    * claim about the particular source value. */
   w_seed_frontend_rounding_mode conversion_rounding_mode;
   uint32_t conversion_possible_error_facts;
+  /* Append-only ordered tuple construction element range; NONE/zero unless
+   * kind is W_SEED_FRONTEND_EXPR_TUPLE. */
+  uint32_t first_tuple_element;
+  uint32_t tuple_element_count;
 } w_seed_frontend_expression;
+
+/* Ordered child value of a tuple constructor. `label` is empty for the
+ * currently supported unlabeled tuple grammar and is reserved for the
+ * all-labeled form. */
+typedef struct {
+  uint32_t owner_expression;
+  uint32_t ordinal;
+  w_seed_frontend_text label;
+  uint32_t expression_index;
+  w_seed_span span;
+} w_seed_frontend_tuple_element;
 
 typedef enum {
   W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING = 0,
@@ -1288,6 +1321,11 @@ typedef struct {
   size_t const_element_capacity;
   uint8_t *const_bytes;
   size_t const_bytes_capacity;
+  /* Append-only typed tuple relations. */
+  w_seed_frontend_tuple_component *tuple_components;
+  size_t tuple_component_capacity;
+  w_seed_frontend_tuple_element *tuple_elements;
+  size_t tuple_element_capacity;
 } w_seed_frontend_output;
 
 typedef struct {

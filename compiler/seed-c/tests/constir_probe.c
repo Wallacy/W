@@ -25,6 +25,10 @@ enum {
   FRONTEND_STATEMENTS = 65536,
   FRONTEND_EXPRESSIONS = 262144,
   FRONTEND_ARGUMENTS = 65536,
+  /* Token-bounded probe input admits at most two builtin type components per
+   * source token and one tuple element per token. */
+  FRONTEND_TUPLE_COMPONENTS = TOKENS * 2,
+  FRONTEND_TUPLE_ELEMENTS = TOKENS,
   FRONTEND_TYPED_CONST_EXPRESSIONS = 65536,
   FRONTEND_GENERIC_PARAMETERS = 65536,
   FRONTEND_GENERIC_APPLICATIONS = 65536,
@@ -69,6 +73,9 @@ static w_seed_frontend_parameter parameters[FRONTEND_PARAMETERS];
 static w_seed_frontend_statement statements[FRONTEND_STATEMENTS];
 static w_seed_frontend_expression expressions[FRONTEND_EXPRESSIONS];
 static w_seed_frontend_argument arguments[FRONTEND_ARGUMENTS];
+static w_seed_frontend_tuple_component
+    tuple_components[FRONTEND_TUPLE_COMPONENTS];
+static w_seed_frontend_tuple_element tuple_elements[FRONTEND_TUPLE_ELEMENTS];
 static w_seed_frontend_typed_const_expression
     typed_const_expressions[FRONTEND_TYPED_CONST_EXPRESSIONS];
 static w_seed_frontend_generic_parameter
@@ -199,6 +206,10 @@ int main(void) {
       .parameter_capacity = FRONTEND_PARAMETERS,
       .arguments = arguments,
       .argument_capacity = FRONTEND_ARGUMENTS,
+      .tuple_components = tuple_components,
+      .tuple_component_capacity = FRONTEND_TUPLE_COMPONENTS,
+      .tuple_elements = tuple_elements,
+      .tuple_element_capacity = FRONTEND_TUPLE_ELEMENTS,
       .typed_const_expressions = typed_const_expressions,
       .typed_const_expression_capacity = FRONTEND_TYPED_CONST_EXPRESSIONS,
       .generic_parameters = generic_parameters,

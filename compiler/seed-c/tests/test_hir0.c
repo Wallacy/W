@@ -1118,6 +1118,8 @@ enum {
   TEST_STATEMENTS = 256,
   TEST_EXPRESSIONS = 512,
   TEST_ARGUMENTS = 96,
+  TEST_TUPLE_COMPONENTS = TEST_TYPES + (2 * TEST_ARGUMENTS),
+  TEST_TUPLE_ELEMENTS = TEST_EXPRESSIONS / 2,
   TEST_INTERPOLATION_SEGMENTS = 16,
   TEST_SYMBOLS = 96,
   TEST_FACTS = 16,
@@ -1163,6 +1165,9 @@ typedef struct {
   w_seed_frontend_statement statements[TEST_STATEMENTS];
   w_seed_frontend_expression expressions[TEST_EXPRESSIONS];
   w_seed_frontend_argument arguments[TEST_ARGUMENTS];
+  w_seed_frontend_tuple_component
+      tuple_components[TEST_TUPLE_COMPONENTS];
+  w_seed_frontend_tuple_element tuple_elements[TEST_TUPLE_ELEMENTS];
   w_seed_frontend_switch_arm switch_arms[TEST_SWITCH_ARMS];
   w_seed_frontend_pattern_capture pattern_captures[TEST_SWITCH_ARMS];
   w_seed_frontend_interpolation_segment
@@ -1349,6 +1354,10 @@ static bool fixture_parse(const char *text) {
       .expression_capacity = TEST_EXPRESSIONS,
       .arguments = fixture.arguments,
       .argument_capacity = TEST_ARGUMENTS,
+      .tuple_components = fixture.tuple_components,
+      .tuple_component_capacity = TEST_TUPLE_COMPONENTS,
+      .tuple_elements = fixture.tuple_elements,
+      .tuple_element_capacity = TEST_TUPLE_ELEMENTS,
       .switch_arms = fixture.switch_arms,
       .switch_arm_capacity = TEST_SWITCH_ARMS,
       .pattern_captures = fixture.pattern_captures,

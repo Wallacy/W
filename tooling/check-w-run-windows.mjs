@@ -12,6 +12,10 @@ import {
   findWindowsSdkKernel32,
 } from "./windows-build-support.mjs"
 import { validateElfX64 } from "./executable-benchmark-runner.mjs"
+import {
+  assertCrtFreeExecElf,
+  assertElfNoExecutableStack,
+} from "./check-w-run.mjs"
 
 const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
@@ -198,7 +202,8 @@ const maxWindowsCommandLineChars = 32767
 const expectedHelp =
   "usage: w check <path/file.w> [--json]\n" +
   "usage: w run <path/file.w> [-- <args...>]\n" +
-  "usage: w build <path/file.w> --target <target> --output <artifact>\n" +
+  "usage: w build <path/file.w> --target <target> --output <artifact> " +
+  "[--pie <on|off>] (temporary Linux x86_64 seed option; default: on)\n" +
   "usage: w bench process --exe <absolute-path> [options]\n" +
   "  options: --cwd <absolute-dir> --arg <value> --warmup <n> " +
   "--samples <n> --timeout-ms <n> --expect-exit <n> " +
@@ -539,6 +544,8 @@ for (const marker of ["CreateProcessW", "lpApplicationName", "CREATE_NEW",
   "GetStdHandle", "WriteFile", "ExitProcess", "mainCRTStartup",
   "-mtriple=x86_64-pc-windows-msvc", "/nodefaultlib", "--canonicalize",
   "--cse", "-O3", "no-builtin-wcslen", "no-builtin-strlen",
+  "-relocation-model=static", "-no-pie", "--no-dynamic-linker",
+  "--gc-sections", "noexecstack",
   "/Brepro", "/opt:ref", "/opt:icf", "/incremental:no",
   "/merge:.pdata=.rdata"]) {
   assert(`${runSource}\n${emitterSource}`.includes(marker),
@@ -1222,6 +1229,10 @@ try {
     "ordered process count input with three arguments")
 
   const buildHello = join(fixtureDirectory, "hello-build.exe")
+  const buildWindowsTargetPie = join(fixtureDirectory,
+    "pie-on-windows-target-build.exe")
+  const buildWindowsTargetNoPie = join(fixtureDirectory,
+    "pie-off-windows-target-build.exe")
   const buildLocalGraph = join(fixtureDirectory, "local-graph-build.exe")
   const buildPrivateGraph = join(fixtureDirectory, "private-graph-build.exe")
   const buildRestaurantIf = join(fixtureDirectory, "if-build.exe")
@@ -1257,6 +1268,7 @@ try {
   const buildWrongTarget = join(fixtureDirectory, "wrong-target-build.exe")
   const buildLinuxTarget = join(fixtureDirectory,
     "main-dispatch-linux")
+  const buildLinuxHelloNoPie = join(fixtureDirectory, "hello-linux-no-pie")
   const buildMissingParent = join(fixtureDirectory, "missing", "artifact.exe")
   expectExact(binary, ["build", helloFixture, "--target", targetTriple,
     "--output", buildHello], 0, Buffer.alloc(0), "build Hello fixture")
@@ -1513,6 +1525,15 @@ try {
   expectExact(wsl, ["-d", "Ubuntu", "--", wslPath(buildLinuxTarget)], 0,
     Buffer.from("Dispatched 92\n", "utf8"),
   "execute cross-built main-domain cardinality Linux artifact through WSL2")
+  expectExact(binary, ["build", helloFixture, "--target", linuxTargetTriple,
+    "--output", buildLinuxHelloNoPie, "--pie", "off"], 0, Buffer.alloc(0),
+  "cross-build Hello as a non-PIE Linux executable")
+  const linuxNoPieBytes = await readFile(buildLinuxHelloNoPie)
+  assertCrtFreeExecElf(linuxNoPieBytes)
+  assertElfNoExecutableStack(linuxNoPieBytes)
+  expectExact(wsl, ["-d", "Ubuntu", "--", wslPath(buildLinuxHelloNoPie)], 0,
+    Buffer.from("Hello, world!\n", "utf8"),
+  "execute cross-built non-PIE Hello through WSL2")
   expectBuildFailure(binary, ["build", helloFixture, "--target",
     "aarch64-unknown-linux-gnu", "--output", buildWrongTarget],
     "reject unsupported build target")
@@ -1557,6 +1578,16 @@ try {
   assert(unsupportedOption.exitCode === 2 && unsupportedOption.stdout.length === 0 &&
     unsupportedOption.stderr.toString() === expectedWindowsErrorHelp,
   "unsupported run option was not rejected with exact usage")
+  for (const [mode, output] of [["on", buildWindowsTargetPie],
+    ["off", buildWindowsTargetNoPie]]) {
+    const explicitWindowsTargetPie = spawn(binary, ["build", helloFixture,
+      "--target", targetTriple, "--output", output, "--pie", mode])
+    assert(explicitWindowsTargetPie.exitCode === 2 &&
+      explicitWindowsTargetPie.stdout.length === 0 &&
+      explicitWindowsTargetPie.stderr.toString() === expectedWindowsErrorHelp &&
+      !existsSync(output),
+    `explicit PIE mode ${mode} was not rejected on Windows without staging`)
+  }
 
   const smoke = runRequired("native PE size smoke", process.execPath,
     [smokePath, "--toolchain", defaultCacheDirectory(), "--sdk", sdk.root])

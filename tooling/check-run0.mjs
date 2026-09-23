@@ -10,7 +10,8 @@ const expectedOutput = Buffer.from("Hello, world!\n", "utf8")
 const expectedPublicHelp =
   "usage: w check <path/file.w> [--json]\n" +
   "usage: w run <path/file.w> [-- <args...>]\n" +
-  "usage: w build <path/file.w> --target <target> --output <artifact>\n" +
+  "usage: w build <path/file.w> --target <target> --output <artifact> " +
+  "[--pie <on|off>] (temporary Linux x86_64 seed option; default: on)\n" +
   "usage: w bench process --exe <absolute-path> [options]\n" +
   "  options: --cwd <absolute-dir> --arg <value> --warmup <n> --samples <n> --timeout-ms <n> --expect-exit <n> --expect-stdout-hex <bytes> --expect-stderr-hex <bytes>\n" +
   "  Windows-native cold process measurement only; does not compile or execute .w source\n"

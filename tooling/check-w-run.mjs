@@ -191,7 +191,8 @@ const targetTriple = "x86_64-unknown-linux-gnu"
 const expectedHelp =
   "usage: w check <path/file.w> [--json]\n" +
   "usage: w run <path/file.w> [-- <args...>]\n" +
-  "usage: w build <path/file.w> --target <target> --output <artifact>\n" +
+  "usage: w build <path/file.w> --target <target> --output <artifact> " +
+  "[--pie <on|off>] (temporary Linux x86_64 seed option; default: on)\n" +
   "usage: w bench process --exe <absolute-path> [options]\n" +
   "  options: --cwd <absolute-dir> --arg <value> --warmup <n> " +
   "--samples <n> --timeout-ms <n> --expect-exit <n> " +
@@ -592,12 +593,20 @@ function readBuildArtifact(path) {
 }
 
 export function assertCrtFreeElf(bytes) {
+  return assertCrtFreeElfType(bytes, 3, "static PIE")
+}
+
+export function assertCrtFreeExecElf(bytes) {
+  return assertCrtFreeElfType(bytes, 2, "static executable")
+}
+
+function assertCrtFreeElfType(bytes, expectedType, expectedKind) {
   assert(Buffer.isBuffer(bytes) && bytes.length >= 64 &&
     bytes.subarray(0, 4).equals(Buffer.from([0x7f, 0x45, 0x4c, 0x46])) &&
     bytes[4] === 2 && bytes[5] === 1,
   "built artifact is not little-endian ELF64")
-  assert(bytes.readUInt16LE(16) === 3 && bytes.readUInt16LE(18) === 62,
-    "built artifact is not an x86_64 static PIE")
+  assert(bytes.readUInt16LE(16) === expectedType && bytes.readUInt16LE(18) === 62,
+    `built artifact is not an x86_64 ${expectedKind}`)
   const headerOffset = Number(bytes.readBigUInt64LE(32))
   const headerSize = bytes.readUInt16LE(54)
   const headerCount = bytes.readUInt16LE(56)
@@ -629,6 +638,28 @@ export function assertCrtFreeElf(bytes) {
   }
 }
 
+export function assertElfNoExecutableStack(bytes) {
+  assert(Buffer.isBuffer(bytes) && bytes.length >= 64 &&
+    bytes.subarray(0, 4).equals(Buffer.from([0x7f, 0x45, 0x4c, 0x46])) &&
+    bytes[4] === 2 && bytes[5] === 1,
+  "built artifact is not little-endian ELF64")
+  const headerOffset = Number(bytes.readBigUInt64LE(32))
+  const headerSize = bytes.readUInt16LE(54)
+  const headerCount = bytes.readUInt16LE(56)
+  assert(Number.isSafeInteger(headerOffset) && headerSize >= 56 &&
+    headerCount > 0 && headerOffset + headerSize * headerCount <= bytes.length,
+  "ELF program-header table is invalid")
+  let foundStack = false
+  for (let index = 0; index < headerCount; index += 1) {
+    const offset = headerOffset + index * headerSize
+    if (bytes.readUInt32LE(offset) !== 0x6474e551) continue
+    foundStack = true
+    assert((bytes.readUInt32LE(offset + 4) & 1) === 0,
+      "built ELF requests an executable stack")
+  }
+  assert(foundStack, "built ELF has no GNU_STACK program header")
+}
+
 if (import.meta.main) {
 if (isMacos) unavailable("macOS has no pinned MLIR/LLVM/native-link evidence")
 if (!isWindows && !isLinux) unavailable(`unsupported host ${process.platform}`)
@@ -650,7 +681,8 @@ for (const marker of ["W_SEED_LINUX_MLIR_OPT_PATH",
   assert(runSource.includes(marker), `cli/run.c does not use ${marker}`)
 for (const marker of ["--convert-scf-to-cf", "--convert-arith-to-llvm",
   "--convert-func-to-llvm", "--convert-cf-to-llvm",
-  "--canonicalize", "--cse", "-O3", "-s",
+  "--canonicalize", "--cse", "-O3", "-s", "-no-pie",
+  "-relocation-model=static",
   "--no-dynamic-linker", "--gc-sections", "_start", "w_seed_wrt0_get"])
   assert(runSource.includes(marker),
     `cli/run.c is missing the release build flag ${marker}`)
@@ -1492,6 +1524,9 @@ try {
     ? `${buildArtifactDirectory}/${name}`
     : join(buildArtifactDirectory, name)
   const buildHello = buildOutput("hello-build")
+  const buildHelloNoPie = buildOutput("hello-build-no-pie")
+  const buildWindowsTargetPie = buildOutput("pie-on-windows-target-build")
+  const buildWindowsTargetNoPie = buildOutput("pie-off-windows-target-build")
   const buildLocalGraph = buildOutput("local-graph-build")
   const buildPrivateGraph = buildOutput("private-graph-build")
   const buildRestaurantIf = buildOutput("if-build")
@@ -1528,6 +1563,22 @@ try {
     "build Hello fixture")
   expectSuccess(buildHello, [], expectedHello,
     "execute built Hello artifact")
+  expectSuccess(binary, ["build", toWsl(helloFixture), "--target",
+    targetTriple, "--output", buildHelloNoPie, "--pie", "off"],
+  Buffer.alloc(0), "build Hello as a non-PIE Linux executable")
+  expectSuccess(buildHelloNoPie, [], expectedHello,
+    "execute built non-PIE Hello artifact")
+  const noPieHelloBytes = await readBuildArtifact(buildHelloNoPie)
+  assertCrtFreeExecElf(noPieHelloBytes)
+  assertElfNoExecutableStack(noPieHelloBytes)
+  for (const [mode, output] of [["on", buildWindowsTargetPie],
+    ["off", buildWindowsTargetNoPie]]) {
+    expectUnsupportedOption(binary, ["build", toWsl(helloFixture), "--target",
+      "x86_64-pc-windows-msvc", "--output", output, "--pie", mode],
+    `reject explicit PIE mode ${mode} on a Windows target`)
+    assert(!artifactExists(output),
+      `Windows-target PIE mode ${mode} left an artifact`)
+  }
   expectSuccess(binary, ["build", toWsl(localGraphFixture), "--target",
     targetTriple, "--output", buildLocalGraph], Buffer.alloc(0),
     "build resolved local-module graph")
@@ -1540,6 +1591,7 @@ try {
     "private cross-module build left an artifact")
   const helloBytes = await readBuildArtifact(buildHello)
   assertCrtFreeElf(helloBytes)
+  assertElfNoExecutableStack(helloBytes)
   expectBuildFailure(binary, ["build", toWsl(helloFixture), "--target",
     targetTriple, "--output", buildHello],
   "reject existing build output")

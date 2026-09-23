@@ -4702,6 +4702,47 @@ static bool test_u64_overflowing_power_slice(void) {
   return true;
 }
 
+static bool test_u64_overflowing_add_slice(void) {
+  static const uint8_t source[] =
+      "entry { "
+      "let maximum = u64.overflowingAdd(18446744073709551615_u64, 1_u64) "
+      "let ordinary = u64.overflowingAdd(10_u64, 1_u64) "
+      "print(\"Overflowing \x24{maximum.0}/\x24{maximum.1}/"
+      "\x24{ordinary.0}/\x24{ordinary.1}\") }\n";
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(source, sizeof(source) - 1u, "uint-overflowing-add",
+                   sizeof("uint-overflowing-add") - 1u, output,
+                   sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  size_t overflowing_add_count = 0u;
+  size_t projection_count = 0u;
+  for (size_t index = 0u; index < storage.hir_program.value_count;
+       index += 1u) {
+    const w_seed_hir0_value *value = &storage.hir_program.values[index];
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64 &&
+        value->binary_operator == W_SEED_HIR0_BINARY_OVERFLOWING_ADD)
+      overflowing_add_count += 1u;
+    else if (value->kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT)
+      projection_count += 1u;
+  }
+  CHECK(overflowing_add_count == 2u && projection_count == 4u &&
+        storage.hir_program.call_count == 1u);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(!selection.has_local_calls && !selection.has_cfg &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.intr.uadd.with.overflow") == 2u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.extractvalue") == projection_count &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.call @w_seed_append_u64") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.call @w_seed_append_bool"));
+  return true;
+}
+
 static bool test_u64_overflowing_family_slice(void) {
   static const uint8_t source[] =
       "entry { "
@@ -7053,6 +7094,7 @@ int main(void) {
       test_u64_wrapping_subtract_slice() &&
       test_u64_wrapping_multiply_slice() && test_u64_wrapping_power_slice() &&
       test_u64_overflowing_power_slice() &&
+      test_u64_overflowing_add_slice() &&
       test_u64_overflowing_family_slice() &&
       test_u64_wrapping_shift_left_slice() &&
       test_fixed_integer_shift_policy_native_matrix() &&

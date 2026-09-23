@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "run.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -12,6 +14,8 @@ typedef struct {
   const char *path;
   const char *target;
   const char *output;
+  w_seed_run_compile_pie_mode pie_mode;
+  bool pie_mode_explicit;
 } w_seed_build_request;
 
 /* Parse only the bounded seed build grammar. All strings remain borrowed from

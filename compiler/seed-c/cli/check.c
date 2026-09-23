@@ -49,6 +49,11 @@ enum {
   CHECK_EXPRESSIONS = 262144,
   CHECK_INTERPOLATION_SEGMENTS = 262144,
   CHECK_ARGUMENTS = 65536,
+  /* Source components fit under the type ceiling; overflowing builtins add
+   * at most two rows per admitted argument. Frontend expressions are measured
+   * as CST/primary pairs, so tuple elements fit in half that arena. */
+  CHECK_TUPLE_COMPONENTS = CHECK_TYPES + (2 * CHECK_ARGUMENTS),
+  CHECK_TUPLE_ELEMENTS = CHECK_EXPRESSIONS / 2,
   CHECK_SWITCH_ARMS = 65536,
   CHECK_PATTERN_CAPTURES = 65536,
   CHECK_ENUM_MEMBERSHIP_CASES = 262144,
@@ -141,6 +146,9 @@ static w_seed_frontend_statement statements[CHECK_STATEMENTS];
 static w_seed_frontend_expression expressions[CHECK_EXPRESSIONS];
 static w_seed_frontend_interpolation_segment
     interpolation_segments[CHECK_INTERPOLATION_SEGMENTS];
+static w_seed_frontend_tuple_component
+    tuple_components[CHECK_TUPLE_COMPONENTS];
+static w_seed_frontend_tuple_element tuple_elements[CHECK_TUPLE_ELEMENTS];
 static w_seed_frontend_argument arguments[CHECK_ARGUMENTS];
 static w_seed_frontend_switch_arm switch_arms[CHECK_SWITCH_ARMS];
 static w_seed_frontend_pattern_capture pattern_captures[CHECK_PATTERN_CAPTURES];
@@ -281,6 +289,10 @@ static w_seed_frontend_output frontend_output_value(void) {
       .expression_capacity = CHECK_EXPRESSIONS,
       .interpolation_segments = interpolation_segments,
       .interpolation_segment_capacity = CHECK_INTERPOLATION_SEGMENTS,
+      .tuple_components = tuple_components,
+      .tuple_component_capacity = CHECK_TUPLE_COMPONENTS,
+      .tuple_elements = tuple_elements,
+      .tuple_element_capacity = CHECK_TUPLE_ELEMENTS,
       .symbols = symbols,
       .symbol_capacity = CHECK_SYMBOLS,
       .facts = facts,

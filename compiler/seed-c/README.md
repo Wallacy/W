@@ -188,7 +188,13 @@ Cada aplicação tem owner type, head, envelope, argumentos ordenados e status d
 binding; cada argumento preserva ordinal, span, label, parâmetro, kind, o índice
 de type ou `ConstValue` e o índice sentinel/relacionado de `TypedConstExpr`. O
 root liga à aplicação por `generic_application_index`.
-`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-72`. Version 71 appends
+`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-74`. Version 74 appends
+ordered tuple component and construction-element relations, plus a distinct
+tuple expression. This frontend-only slice recognizes unlabeled tuple types,
+contextually typed two-or-more-element construction, and bounded numeric
+projection; it does not claim HIR lowering, native execution, labeled tuples,
+or singleton tuples.
+Version 71 appends
 a distinct expression for the bounded fixed-width integer
 `try D(exactly: source)` conversion. Version 72 appends the bounded
 `try D(rounding: source, mode: .policy)` expression and preserves its closed
@@ -4148,7 +4154,7 @@ claimed.
 The finite seed build command is limited to:
 
 ```text
-w build <explicit-path.w> --target <exact-supported-triple> --output <new-artifact>
+w build <explicit-path.w> --target <exact-supported-triple> --output <new-artifact> [--pie on|off]
 ```
 
 Source, target, and output are mandatory. Linux accepts only
@@ -4156,6 +4162,17 @@ Source, target, and output are mandatory. Linux accepts only
 Native Windows accepts only `x86_64-pc-windows-msvc` in an explicitly enabled
 Windows native build. Disabled or unsupported routes return 2 without staging
 or tool invocation.
+
+On the Linux x86_64 target, the omitted `--pie` option defaults to `on` and
+produces the current static PIE (`ET_DYN`) recipe. `--pie off` requests a
+separate fixed-address `ET_EXEC` recipe, changing both W and selected WRT
+objects to a static relocation model before linking. An explicit `--pie`
+option on other targets fails closed; the PE image policy is not claimed to
+be equivalent to ELF PIE. This is a bounded platform experiment, not evidence
+that firmware or kernel targets are implemented. Both Linux modes must keep
+the exact-output and CRT-free dependency checks. The flag is a temporary seed
+control; durable position-independence policy belongs with future target-aware
+build configuration, not as a permanent standalone CLI promise.
 
 The output must not exist. Its parent must already be a physical directory.
 The route creates private staging under that parent and publishes one

@@ -165,6 +165,10 @@ typedef struct {
   bool has_origin;
   size_t origin_document_index;
   w_seed_span origin_span;
+  /* Source owner for an unlabeled tuple type. These are compiler scratch
+   * only; public consumers use the normalized component relation. */
+  size_t tuple_document_index;
+  uint32_t tuple_node;
 } frontend_simple_type;
 
 typedef struct {
@@ -252,6 +256,8 @@ typedef struct {
   size_t const_declarations;
   size_t kernel_modules;
   size_t kernel_bindings;
+  size_t tuple_components;
+  size_t tuple_elements;
 } frontend_measure;
 
 typedef struct {
@@ -351,6 +357,7 @@ typedef struct {
   bool current_const_body_active;
   bool current_const_body_supported;
   bool current_const_root_emitted;
+  size_t tuple_relation_scratch_used;
   uint32_t current_module_const;
   uint32_t builtin_usize_type_index;
   uint32_t default_integer_type_index;
@@ -414,6 +421,11 @@ static _Thread_local uint32_t frontend_const_inferred_type_indices_scratch
     [W_SEED_FRONTEND_MAX_CONST_DECLARATIONS];
 static _Thread_local uint8_t frontend_const_inference_states_scratch
     [W_SEED_FRONTEND_MAX_CONST_DECLARATIONS];
+/* Tuple nesting reuses source-bounded scratch for component type indices and
+ * constructor child indices. An open tuple reserves its direct children,
+ * nested tuples use the following region, and then release their region. */
+static _Thread_local uint32_t frontend_tuple_relation_index_scratch
+    [W_SEED_FRONTEND_MAX_CST_NODES];
 static _Thread_local w_seed_module_origin frontend_module_origins_scratch
     [FRONTEND_MAX_IMPORTS];
 /* CONTRACT-0002 facts add a stable category prefix to a source spelling. The
@@ -424,6 +436,27 @@ static _Thread_local char frontend_diagnostic_category_scratch
     [FRONTEND_DIAGNOSTIC_CATEGORY_SLOTS]
     [FRONTEND_DIAGNOSTIC_CATEGORY_TEXT_MAX];
 static _Thread_local size_t frontend_diagnostic_category_scratch_count;
+
+static bool tuple_relation_scratch_reserve(frontend_context *context,
+                                           size_t count,
+                                           size_t *first_out) {
+  if (first_out != NULL) *first_out = 0u;
+  if (context == NULL || first_out == NULL ||
+      context->tuple_relation_scratch_used >
+          W_SEED_FRONTEND_MAX_CST_NODES ||
+      count > W_SEED_FRONTEND_MAX_CST_NODES -
+                  context->tuple_relation_scratch_used)
+    return false;
+  *first_out = context->tuple_relation_scratch_used;
+  context->tuple_relation_scratch_used += count;
+  return true;
+}
+
+static void tuple_relation_scratch_release(frontend_context *context,
+                                           size_t first) {
+  if (context != NULL && first <= context->tuple_relation_scratch_used)
+    context->tuple_relation_scratch_used = first;
+}
 
 static bool diagnostic_category_compose(w_seed_frontend_text prefix,
                                         w_seed_frontend_text suffix,
@@ -600,6 +633,12 @@ static bool frontend_type_equal(const frontend_context *context,
 static bool frontend_widening_allowed(const frontend_context *context,
                                       frontend_simple_type actual,
                                       frontend_simple_type expected);
+static size_t tuple_component_count(const frontend_context *context,
+                                    frontend_simple_type tuple_type);
+static bool tuple_component_type_at(
+    const frontend_context *context, frontend_simple_type tuple_type,
+    size_t ordinal, frontend_simple_type *component_type,
+    w_seed_span *component_span, w_seed_frontend_text *component_label);
 static bool enum_subset_shape_for_type(
     const frontend_context *context, const w_seed_frontend_document *doc,
     uint32_t type_node, frontend_enum_subset_shape *shape);
@@ -609,6 +648,9 @@ static bool enum_subset_shape_for_alias(
 static bool enum_subset_contains_case(
     const frontend_context *context, frontend_simple_type type,
     uint32_t enum_case_index);
+static bool expression_is_exact_u64_builtin_call(
+    const w_seed_frontend_document *doc, w_seed_span span,
+    w_seed_frontend_builtin_operation operation);
 static frontend_simple_type contextual_type_from_span(
     const frontend_context *context, const w_seed_frontend_document *doc,
     w_seed_span span);
@@ -618,6 +660,10 @@ static bool normalize_expression_node(frontend_context *context,
                                       frontend_simple_type expected,
                                       frontend_simple_type *actual_out,
                                       frontend_expr_value *root_out);
+static bool normalize_tuple_expression_node(
+    frontend_context *context, uint32_t tuple_node,
+    uint32_t *expression_index, frontend_simple_type expected,
+    frontend_simple_type *actual_out, frontend_expr_value *root_out);
 static bool normalize_expression_span(frontend_context *context,
                                       w_seed_span span,
                                       frontend_simple_type expected,
@@ -675,7 +721,7 @@ static bool append_type0120_diagnostic(
     frontend_context *context, w_seed_span primary,
     frontend_simple_type left, w_seed_span left_span, size_t left_document,
     frontend_simple_type right, w_seed_span right_span,
-    size_t right_document);
+    size_t right_document, const char *left_role, const char *right_role);
 static bool append_match0001_diagnostic(
     frontend_context *context, w_seed_span primary,
     w_seed_frontend_text subject_type, w_seed_span subject_span,
@@ -2023,6 +2069,19 @@ static frontend_simple_type simple_type_from_type_index(
   result.bit_width = type->bit_width;
   result.enum_index = type->enum_base_index;
   result.enum_name = type->nominal_name;
+  if (result.kind == W_SEED_FRONTEND_TYPE_TUPLE) {
+    result.tuple_document_index = context->module_index;
+    const w_seed_frontend_document *doc = context_document(context);
+    uint32_t type_node = W_SEED_CST_NONE;
+    if (doc != NULL &&
+        find_type_node_for_span(doc, type->span, &type_node)) {
+      result.tuple_node =
+          first_direct_kind(doc, type_node, W_SEED_CST_TUPLE_TYPE);
+      result.has_origin = true;
+      result.origin_document_index = context->module_index;
+      result.origin_span = type->span;
+    }
+  }
   return result.kind == W_SEED_FRONTEND_TYPE_UNKNOWN ? fallback : result;
 }
 
@@ -3605,6 +3664,53 @@ static bool receipt_size_type(frontend_context *context,
          receipt_size_size(context, type->subset_member_count) &&
          receipt_size_literal(context, "|task-result=") &&
          receipt_size_size(context, type->task_result_type) &&
+         receipt_size_literal(context, "|tuple-components=") &&
+         receipt_size_size(context, type->first_tuple_component) &&
+         receipt_size_literal(context, ":") &&
+         receipt_size_size(context, type->tuple_component_count) &&
+         receipt_size_literal(context, "\n");
+}
+
+static bool receipt_size_tuple_component(
+    frontend_context *context, const w_seed_frontend_tuple_component *value) {
+  return receipt_size_literal(context, "tuple-component=") &&
+         receipt_size_size(context, value->owner_type) &&
+         receipt_size_literal(context, "|") &&
+         receipt_size_size(context, value->ordinal) &&
+         receipt_size_literal(context, "|label=") &&
+         receipt_size_text(context, value->label) &&
+         receipt_size_literal(context, "|type=") &&
+         receipt_size_size(context, value->type_index) &&
+         receipt_size_literal(context, "|span=") &&
+         receipt_size_span(context, value->span) &&
+         receipt_size_literal(context, "\n");
+}
+
+static bool receipt_size_tuple_element(
+    frontend_context *context, const w_seed_frontend_tuple_element *value) {
+  return receipt_size_literal(context, "tuple-element=") &&
+         receipt_size_size(context, value->owner_expression) &&
+         receipt_size_literal(context, "|") &&
+         receipt_size_size(context, value->ordinal) &&
+         receipt_size_literal(context, "|label=") &&
+         receipt_size_text(context, value->label) &&
+         receipt_size_literal(context, "|expression=") &&
+         receipt_size_size(context, value->expression_index) &&
+         receipt_size_literal(context, "|span=") &&
+         receipt_size_span(context, value->span) &&
+         receipt_size_literal(context, "\n");
+}
+
+static bool receipt_size_tuple_expression(frontend_context *context,
+                                          size_t expression_index,
+                                          uint32_t first_element,
+                                          uint32_t element_count) {
+  return receipt_size_literal(context, "tuple-expression=") &&
+         receipt_size_size(context, expression_index) &&
+         receipt_size_literal(context, "|elements=") &&
+         receipt_size_size(context, first_element) &&
+         receipt_size_literal(context, ":") &&
+         receipt_size_size(context, element_count) &&
          receipt_size_literal(context, "\n");
 }
 
@@ -5262,6 +5368,8 @@ static frontend_simple_type simple_type_unknown(void) {
   type.subset_span = empty_span(0);
   type.element_kind = W_SEED_FRONTEND_TYPE_UNKNOWN;
   type.element_enum_index = W_SEED_FRONTEND_NONE;
+  type.tuple_document_index = W_SEED_FRONTEND_NONE_SIZE;
+  type.tuple_node = W_SEED_CST_NONE;
   type.task_result_kind = W_SEED_FRONTEND_TYPE_UNKNOWN;
   type.task_result_spelling = (w_seed_frontend_text){NULL, 0u};
   return type;
@@ -5506,9 +5614,8 @@ static frontend_simple_type simple_type_from_text(
   const w_seed_frontend_text spelling = text_from_span(doc, span);
   frontend_simple_type type = simple_type_unknown();
   type.spelling = spelling;
-  /* Tuple syntax is admitted only as the one compiler-owned product.  Read
-   * tokens rather than source bytes so ordinary whitespace and trivia do not
-   * change the type identity, then retain the canonical spelling below. */
+  /* The overflowing-u64 result remains a compiler-owned tuple identity, but
+   * source tuple shapes come from the parser's explicit tuple-type node. */
   frontend_token_cursor tuple_cursor = token_cursor_for(doc, span);
   frontend_token tuple_token;
   if (cursor_take_text(&tuple_cursor, "(", &tuple_token) &&
@@ -5520,7 +5627,21 @@ static frontend_simple_type simple_type_from_text(
     type.kind = W_SEED_FRONTEND_TYPE_TUPLE;
     type.spelling =
         (w_seed_frontend_text){"(u64, Bool)", sizeof("(u64, Bool)") - 1u};
+    uint32_t source_type_node = W_SEED_CST_NONE;
+    if (find_type_node_for_span(doc, span, &source_type_node))
+      type.tuple_node = first_direct_kind(
+          doc, source_type_node, W_SEED_CST_TUPLE_TYPE);
     return type;
+  }
+  uint32_t source_type_node = W_SEED_CST_NONE;
+  if (find_type_node_for_span(doc, span, &source_type_node)) {
+    const uint32_t tuple_node =
+        first_direct_kind(doc, source_type_node, W_SEED_CST_TUPLE_TYPE);
+    if (tuple_node != W_SEED_CST_NONE) {
+      type.kind = W_SEED_FRONTEND_TYPE_TUPLE;
+      type.tuple_node = tuple_node;
+      return type;
+    }
   }
   if (text_equal(spelling, "()")) {
     type.kind = W_SEED_FRONTEND_TYPE_UNIT;
@@ -5633,6 +5754,9 @@ static bool type_equal(frontend_simple_type left, frontend_simple_type right) {
            text_equal_text(left.task_result_spelling,
                            right.task_result_spelling);
   }
+  /* Tuple equality needs source-backed component edges and a context; never
+   * fall back to spelling equality for aggregate values. */
+  if (left.kind == W_SEED_FRONTEND_TYPE_TUPLE) return false;
   if (left.kind == W_SEED_FRONTEND_TYPE_NOMINAL) {
     const bool left_external =
         left.external_module_index != W_SEED_FRONTEND_NONE ||
@@ -5763,6 +5887,9 @@ static bool unsuffixed_integer_fits(w_seed_frontend_text spelling,
 
 static bool widening_allowed(frontend_simple_type actual,
                              frontend_simple_type expected) {
+  if (actual.kind == W_SEED_FRONTEND_TYPE_TUPLE ||
+      expected.kind == W_SEED_FRONTEND_TYPE_TUPLE)
+    return false;
   if (type_equal(actual, expected)) return true;
   if (actual.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
       expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
@@ -5883,9 +6010,10 @@ static bool enum_subset_set_equal(const frontend_context *context,
   return true;
 }
 
-static bool frontend_type_equal(const frontend_context *context,
-                                frontend_simple_type left,
-                                frontend_simple_type right) {
+static bool frontend_type_equal_inner(const frontend_context *context,
+                                      frontend_simple_type left,
+                                      frontend_simple_type right,
+                                      size_t depth) {
   if (!external_simple_type_identity_valid(context, left) ||
       !external_simple_type_identity_valid(context, right)) {
     return false;
@@ -5893,7 +6021,36 @@ static bool frontend_type_equal(const frontend_context *context,
   if (frontend_type_is_enum(left) || frontend_type_is_enum(right)) {
     return enum_subset_set_equal(context, left, right);
   }
+  if (left.kind != right.kind) return false;
+  if (left.kind == W_SEED_FRONTEND_TYPE_TUPLE) {
+    if (depth >= W_SEED_FRONTEND_MAX_NESTING) return false;
+    const size_t left_count = tuple_component_count(context, left);
+    const size_t right_count = tuple_component_count(context, right);
+    if (left_count == 0u || left_count != right_count) return false;
+    for (size_t ordinal = 0u; ordinal < left_count; ordinal += 1u) {
+      frontend_simple_type left_component = simple_type_unknown();
+      frontend_simple_type right_component = simple_type_unknown();
+      w_seed_frontend_text left_label = {NULL, 0u};
+      w_seed_frontend_text right_label = {NULL, 0u};
+      if (!tuple_component_type_at(context, left, ordinal, &left_component,
+                                    NULL, &left_label) ||
+          !tuple_component_type_at(context, right, ordinal, &right_component,
+                                    NULL, &right_label) ||
+          !text_equal_text(left_label, right_label) ||
+          !frontend_type_equal_inner(context, left_component, right_component,
+                                     depth + 1u)) {
+        return false;
+      }
+    }
+    return true;
+  }
   return type_equal(left, right);
+}
+
+static bool frontend_type_equal(const frontend_context *context,
+                                frontend_simple_type left,
+                                frontend_simple_type right) {
+  return frontend_type_equal_inner(context, left, right, 0u);
 }
 
 static bool frontend_widening_allowed(const frontend_context *context,
@@ -5944,6 +6101,11 @@ static bool frontend_widening_allowed(const frontend_context *context,
     }
     return true;
   }
+  if (actual.kind == W_SEED_FRONTEND_TYPE_TUPLE ||
+      expected.kind == W_SEED_FRONTEND_TYPE_TUPLE)
+    return actual.kind == W_SEED_FRONTEND_TYPE_TUPLE &&
+           expected.kind == W_SEED_FRONTEND_TYPE_TUPLE &&
+           frontend_type_equal(context, actual, expected);
   return widening_allowed(actual, expected);
 }
 
@@ -6137,6 +6299,39 @@ static bool measure_document(const w_seed_frontend_document *doc,
     if (kind == W_SEED_CST_SWITCH_ARM) measure->switch_arms += 1;
     if (kind == W_SEED_CST_CAPTURE_PATTERN) measure->pattern_captures += 1;
     if (kind == W_SEED_CST_TYPE) measure->types += 1;
+    if (kind == W_SEED_CST_TUPLE_TYPE) {
+      const size_t components =
+          count_direct_kind(doc, (uint32_t)index, W_SEED_CST_TYPE);
+      if (!add_size(measure->tuple_components, components,
+                    &measure->tuple_components))
+        return false;
+    }
+    if (kind == W_SEED_CST_TUPLE_EXPRESSION) {
+      const size_t elements =
+          count_direct_kind(doc, (uint32_t)index, W_SEED_CST_EXPRESSION);
+      if (!add_size(measure->tuple_elements, elements,
+                    &measure->tuple_elements))
+        return false;
+    }
+    if (kind == W_SEED_CST_EXPRESSION) {
+      static const w_seed_frontend_builtin_operation TUPLE_BUILTINS[] = {
+          W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_ADD,
+          W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT,
+          W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_MULTIPLY,
+          W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_NEGATE,
+          W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_POWER};
+      for (size_t operation = 0u;
+           operation < sizeof(TUPLE_BUILTINS) / sizeof(TUPLE_BUILTINS[0]);
+           operation += 1u) {
+        if (expression_is_exact_u64_builtin_call(
+                doc, doc->nodes[index].raw_span, TUPLE_BUILTINS[operation])) {
+          if (!add_size(measure->tuple_components, 2u,
+                        &measure->tuple_components))
+            return false;
+          break;
+        }
+      }
+    }
     if (kind == W_SEED_CST_ARGUMENT) measure->arguments += 1;
     if (kind_is_statement(kind)) measure->statements += 1;
     if (kind == W_SEED_CST_EXPRESSION) measure->expressions += 1;
@@ -6419,6 +6614,8 @@ static void counts_from_measure(const frontend_measure *measure,
   counts->const_declarations = measure->const_declarations;
   counts->kernel_modules = measure->kernel_modules;
   counts->kernel_bindings = measure->kernel_bindings;
+  counts->tuple_components = measure->tuple_components;
+  counts->tuple_elements = measure->tuple_elements;
 }
 
 w_seed_frontend_status w_seed_frontend_measure(
@@ -7156,6 +7353,64 @@ static bool enum_subset_contains_case(
   return false;
 }
 
+static bool tuple_type_declaration_for_name(
+    const frontend_context *context, w_seed_frontend_text name,
+    size_t *document_index_out, const w_seed_frontend_document **doc_out,
+    uint32_t *tuple_node_out) {
+  if (document_index_out != NULL)
+    *document_index_out = W_SEED_FRONTEND_NONE_SIZE;
+  if (doc_out != NULL) *doc_out = NULL;
+  if (tuple_node_out != NULL) *tuple_node_out = W_SEED_CST_NONE;
+  if (context == NULL || name.length == 0u || name.data == NULL ||
+      tuple_node_out == NULL)
+    return false;
+  const w_seed_frontend_document *current = context_document(context);
+  if (current == NULL) return false;
+  size_t found_count = 0u;
+  for (size_t document_index = 0u;
+       document_index < context->input.document_count; document_index += 1u) {
+    const w_seed_frontend_document *doc =
+        &context->input.documents[document_index];
+    if (!module_id_equal(document_module_name(doc),
+                         document_module_name(current)))
+      continue;
+    uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+    uint32_t declaration = W_SEED_CST_NONE;
+    size_t guard = 0u;
+    while (next_child(doc, &cursor, &declaration) &&
+           guard < doc->parse.node_count) {
+      const w_seed_cst_kind kind = doc->nodes[declaration].kind;
+      const char *keyword =
+          kind == W_SEED_CST_TYPE_DECLARATION
+              ? "type"
+              : kind == W_SEED_CST_ALIAS_DECLARATION ? "alias" : NULL;
+      if (keyword != NULL &&
+          text_equal_text(name_after_keyword(doc,
+                                             doc->nodes[declaration].raw_span,
+                                             keyword),
+                          name)) {
+        const uint32_t type_node =
+            first_direct_kind(doc, declaration, W_SEED_CST_TYPE);
+        const uint32_t tuple_node =
+            type_node == W_SEED_CST_NONE
+                ? W_SEED_CST_NONE
+                : first_direct_kind(doc, type_node, W_SEED_CST_TUPLE_TYPE);
+        if (tuple_node != W_SEED_CST_NONE) {
+          found_count += 1u;
+          if (found_count == 1u) {
+            if (document_index_out != NULL)
+              *document_index_out = document_index;
+            if (doc_out != NULL) *doc_out = doc;
+            *tuple_node_out = tuple_node;
+          }
+        }
+      }
+      guard += 1u;
+    }
+  }
+  return found_count == 1u;
+}
+
 static frontend_simple_type contextual_type_from_span(
     const frontend_context *context, const w_seed_frontend_document *doc,
     w_seed_span span) {
@@ -7168,10 +7423,26 @@ static frontend_simple_type contextual_type_from_span(
     type.origin_document_index = document_index;
     type.origin_span = trimmed;
   }
+  if (type.kind == W_SEED_FRONTEND_TYPE_TUPLE) {
+    type.tuple_document_index = document_index;
+  }
   if (type.kind == W_SEED_FRONTEND_TYPE_STATIC_LIST) {
     (void)static_list_element_from_span(context, doc, span, &type);
   }
   if (type.kind == W_SEED_FRONTEND_TYPE_NOMINAL && context != NULL) {
+    const w_seed_frontend_document *tuple_doc = NULL;
+    size_t tuple_document_index = W_SEED_FRONTEND_NONE_SIZE;
+    uint32_t tuple_node = W_SEED_CST_NONE;
+    if (tuple_type_declaration_for_name(
+            context, type.spelling, &tuple_document_index, &tuple_doc,
+            &tuple_node)) {
+      type.kind = W_SEED_FRONTEND_TYPE_TUPLE;
+      type.spelling = text_from_span(tuple_doc,
+                                     tuple_doc->nodes[tuple_node].raw_span);
+      type.tuple_document_index = tuple_document_index;
+      type.tuple_node = tuple_node;
+      return type;
+    }
     frontend_enum_subset_shape shape;
     if (enum_subset_shape_for_alias(context, type.spelling, &shape) &&
         shape.has_contract && shape.valid) {
@@ -7197,6 +7468,114 @@ static frontend_simple_type contextual_type_from_span(
     }
   }
   return type;
+}
+
+static size_t tuple_component_count(const frontend_context *context,
+                                   frontend_simple_type tuple_type) {
+  if (tuple_type.kind != W_SEED_FRONTEND_TYPE_TUPLE) return 0u;
+  if (text_equal(tuple_type.spelling, "(u64, Bool)")) return 2u;
+  size_t document_index = tuple_type.tuple_document_index;
+  uint32_t tuple_node = tuple_type.tuple_node;
+  if (document_index == W_SEED_FRONTEND_NONE_SIZE &&
+      tuple_type.has_origin)
+    document_index = tuple_type.origin_document_index;
+  if (document_index == W_SEED_FRONTEND_NONE_SIZE && context != NULL)
+    document_index = context->module_index;
+  if (context == NULL || document_index >= context->input.document_count)
+    return 0u;
+  const w_seed_frontend_document *doc =
+      &context->input.documents[document_index];
+  if (tuple_node == W_SEED_CST_NONE) {
+    uint32_t type_node = W_SEED_CST_NONE;
+    const w_seed_span span = tuple_type.has_origin
+                                 ? tuple_type.origin_span
+                                 : empty_span(0u);
+    if (!find_type_node_for_span(doc, span, &type_node)) return 0u;
+    tuple_node = first_direct_kind(doc, type_node, W_SEED_CST_TUPLE_TYPE);
+  }
+  if (tuple_node == W_SEED_CST_NONE || tuple_node >= doc->parse.node_count)
+    return 0u;
+  return count_direct_kind(doc, tuple_node, W_SEED_CST_TYPE);
+}
+
+static bool tuple_component_type_at(
+    const frontend_context *context, frontend_simple_type tuple_type,
+    size_t ordinal, frontend_simple_type *component_type,
+    w_seed_span *component_span, w_seed_frontend_text *component_label) {
+  if (component_type != NULL) *component_type = simple_type_unknown();
+  if (component_span != NULL) *component_span = empty_span(0u);
+  if (component_label != NULL)
+    *component_label = (w_seed_frontend_text){NULL, 0u};
+  if (context == NULL || tuple_type.kind != W_SEED_FRONTEND_TYPE_TUPLE ||
+      component_type == NULL)
+    return false;
+  if (text_equal(tuple_type.spelling, "(u64, Bool)")) {
+    if (ordinal == 0u) {
+      *component_type = simple_type_from_view(
+          (w_seed_frontend_text){"u64", 3u});
+      return true;
+    }
+    if (ordinal == 1u) {
+      *component_type = simple_type_from_view(
+          (w_seed_frontend_text){"Bool", 4u});
+      return true;
+    }
+    return false;
+  }
+  size_t document_index = tuple_type.tuple_document_index;
+  uint32_t tuple_node = tuple_type.tuple_node;
+  if (document_index == W_SEED_FRONTEND_NONE_SIZE &&
+      tuple_type.has_origin)
+    document_index = tuple_type.origin_document_index;
+  if (document_index == W_SEED_FRONTEND_NONE_SIZE)
+    document_index = context->module_index;
+  if (document_index >= context->input.document_count) return false;
+  const w_seed_frontend_document *doc =
+      &context->input.documents[document_index];
+  if (tuple_node == W_SEED_CST_NONE) {
+    uint32_t type_node = W_SEED_CST_NONE;
+    if (!tuple_type.has_origin ||
+        !find_type_node_for_span(doc, tuple_type.origin_span, &type_node))
+      return false;
+    tuple_node = first_direct_kind(doc, type_node, W_SEED_CST_TUPLE_TYPE);
+  }
+  if (tuple_node == W_SEED_CST_NONE || tuple_node >= doc->parse.node_count)
+    return false;
+  uint32_t cursor = doc->nodes[tuple_node].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t current_ordinal = 0u;
+  size_t guard = 0u;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == W_SEED_CST_TYPE) {
+      if (current_ordinal == ordinal) {
+        *component_type = contextual_type_from_span(
+            context, doc, doc->nodes[child].raw_span);
+        if (component_span != NULL)
+          *component_span = doc->nodes[child].raw_span;
+        return component_type->kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
+      }
+      current_ordinal += 1u;
+    }
+    guard += 1u;
+  }
+  return false;
+}
+
+static bool tuple_ordinal_from_text(w_seed_frontend_text text,
+                                    size_t *ordinal_out) {
+  if (ordinal_out != NULL) *ordinal_out = 0u;
+  if (text.data == NULL || text.length == 0u || ordinal_out == NULL)
+    return false;
+  size_t ordinal = 0u;
+  for (size_t index = 0u; index < text.length; index += 1u) {
+    const unsigned char digit = (unsigned char)text.data[index];
+    if (digit < (unsigned char)'0' || digit > (unsigned char)'9' ||
+        ordinal > (SIZE_MAX - (size_t)(digit - (unsigned char)'0')) / 10u)
+      return false;
+    ordinal = ordinal * 10u + (size_t)(digit - (unsigned char)'0');
+  }
+  *ordinal_out = ordinal;
+  return true;
 }
 
 static bool context_append_fact(frontend_context *context,
@@ -7653,12 +8032,13 @@ static bool append_type0120_diagnostic(
     frontend_context *context, w_seed_span primary,
     frontend_simple_type left, w_seed_span left_span, size_t left_document,
     frontend_simple_type right, w_seed_span right_span,
-    size_t right_document) {
+    size_t right_document, const char *left_role, const char *right_role) {
   if (context == NULL || left.spelling.data == NULL ||
       left.spelling.length == 0u || right.spelling.data == NULL ||
       right.spelling.length == 0u ||
       left_document >= context->input.document_count ||
-      right_document >= context->input.document_count)
+      right_document >= context->input.document_count || left_role == NULL ||
+      right_role == NULL)
     return false;
   const w_seed_frontend_text left_type = left.spelling;
   const w_seed_frontend_text right_type = right.spelling;
@@ -7670,8 +8050,8 @@ static bool append_type0120_diagnostic(
                                                W_SEED_FRONTEND_DIAGNOSTIC_FACT_STRING,
                                                right_type, 0, NULL, 0u};
   frontend_diagnostic_label_input labels[2];
-  diagnostic_label_at(&labels[0], "branch-result", left_span, left_document);
-  diagnostic_label_at(&labels[1], "branch-result", right_span, right_document);
+  diagnostic_label_at(&labels[0], left_role, left_span, left_document);
+  diagnostic_label_at(&labels[1], right_role, right_span, right_document);
   return context_append_diagnostic_raw(context, "W-TYPE-0120", primary, facts,
                                        2u, labels, 2u);
 }
@@ -8389,6 +8769,12 @@ static bool context_append_kernel_binding(
 static bool context_append_type(frontend_context *context,
                                 w_seed_frontend_type value,
                                 uint32_t *index) {
+  if (value.kind != W_SEED_FRONTEND_TYPE_TUPLE) {
+    value.first_tuple_component = W_SEED_FRONTEND_NONE;
+    value.tuple_component_count = 0u;
+  } else if (value.tuple_component_count == 0u) {
+    value.first_tuple_component = W_SEED_FRONTEND_NONE;
+  }
   if (value.kind != W_SEED_FRONTEND_TYPE_TASK) {
     value.task_result_type = W_SEED_FRONTEND_NONE;
   } else if (value.task_result_type == W_SEED_FRONTEND_NONE) {
@@ -8430,6 +8816,24 @@ static bool context_append_type(frontend_context *context,
       return false;
     }
     context->output->types[ordinal] = value;
+  }
+  return true;
+}
+
+static bool context_append_tuple_component(
+    frontend_context *context, w_seed_frontend_tuple_component value,
+    uint32_t *index) {
+  if (context == NULL || index == NULL) return false;
+  const size_t ordinal = context->count.tuple_components;
+  context->count.tuple_components += 1u;
+  if (!add_u32(ordinal, index)) return false;
+  if (!context->emit && !receipt_size_tuple_component(context, &value))
+    return false;
+  if (context->emit) {
+    if (context->output == NULL || context->output->tuple_components == NULL ||
+        ordinal >= context->output->tuple_component_capacity)
+      return false;
+    context->output->tuple_components[ordinal] = value;
   }
   return true;
 }
@@ -8793,6 +9197,12 @@ static bool context_append_statement(frontend_context *context,
 static bool context_append_expression(frontend_context *context,
                                       w_seed_frontend_expression value,
                                       uint32_t *index) {
+  if (value.kind != W_SEED_FRONTEND_EXPR_TUPLE) {
+    value.first_tuple_element = W_SEED_FRONTEND_NONE;
+    value.tuple_element_count = 0u;
+  } else if (value.tuple_element_count == 0u) {
+    value.first_tuple_element = W_SEED_FRONTEND_NONE;
+  }
   const size_t ordinal = context->count.expressions;
   context->count.expressions += 1;
   return context_append_record(context, ordinal, &value, sizeof(value),
@@ -8803,6 +9213,24 @@ static bool context_append_expression(frontend_context *context,
                                    ? 0
                                    : context->output->expression_capacity,
                                index);
+}
+
+static bool context_append_tuple_element(
+    frontend_context *context, w_seed_frontend_tuple_element value,
+    uint32_t *index) {
+  if (context == NULL || index == NULL) return false;
+  const size_t ordinal = context->count.tuple_elements;
+  context->count.tuple_elements += 1u;
+  if (!add_u32(ordinal, index)) return false;
+  if (!context->emit && !receipt_size_tuple_element(context, &value))
+    return false;
+  if (context->emit) {
+    if (context->output == NULL || context->output->tuple_elements == NULL ||
+        ordinal >= context->output->tuple_element_capacity)
+      return false;
+    context->output->tuple_elements[ordinal] = value;
+  }
+  return true;
 }
 
 static bool context_append_interpolation_segment(
@@ -9136,7 +9564,12 @@ static w_seed_frontend_type type_record_from_span(
   value.generic_application_index = W_SEED_FRONTEND_NONE;
   value.external_module_index = W_SEED_FRONTEND_NONE;
   value.external_symbol_index = W_SEED_FRONTEND_NONE;
-  if (simple.kind == W_SEED_FRONTEND_TYPE_OPTION && value.spelling.length > 0) {
+  value.first_tuple_component = W_SEED_FRONTEND_NONE;
+  value.tuple_component_count = 0u;
+  if (simple.kind == W_SEED_FRONTEND_TYPE_TUPLE) {
+    value.nominal_name = (w_seed_frontend_text){NULL, 0u};
+  } else if (simple.kind == W_SEED_FRONTEND_TYPE_OPTION &&
+             value.spelling.length > 0) {
     value.nominal_name.data = value.spelling.data;
     value.nominal_name.length = value.spelling.length - 1;
   }
@@ -9184,6 +9617,81 @@ static bool normalize_type_tree_depth(frontend_context *context,
   }
   if (application_candidate) type_span = generic_head_type_span(doc, type_node);
   w_seed_frontend_type value = type_record_from_span(doc, type_span);
+  const uint32_t tuple_node = first_direct_kind(
+      doc, type_node, W_SEED_CST_TUPLE_TYPE);
+  if (value.kind == W_SEED_FRONTEND_TYPE_TUPLE &&
+      tuple_node != W_SEED_CST_NONE) {
+    const size_t component_count =
+        count_direct_kind(doc, tuple_node, W_SEED_CST_TYPE);
+    if (component_count == 0u || component_count >= (size_t)UINT32_MAX ||
+        context->count.tuple_components > (size_t)UINT32_MAX ||
+        component_count >
+            (size_t)UINT32_MAX - context->count.tuple_components)
+      return false;
+    size_t scratch_first = 0u;
+    if (!tuple_relation_scratch_reserve(context, component_count,
+                                        &scratch_first))
+      return false;
+    uint32_t component_cursor = doc->nodes[tuple_node].first_child;
+    uint32_t component_node = W_SEED_CST_NONE;
+    size_t component_ordinal = 0u;
+    size_t component_guard = 0u;
+    while (next_child(doc, &component_cursor, &component_node) &&
+           component_guard < doc->parse.node_count) {
+      if (doc->nodes[component_node].kind == W_SEED_CST_TYPE) {
+        uint32_t component_type_index = W_SEED_FRONTEND_NONE;
+        if (!normalize_type_tree_depth(context, component_node,
+                                       &component_type_index, depth + 1u)) {
+          tuple_relation_scratch_release(context, scratch_first);
+          return false;
+        }
+        frontend_tuple_relation_index_scratch[
+            scratch_first + component_ordinal] = component_type_index;
+        component_ordinal += 1u;
+      }
+      component_guard += 1u;
+    }
+    if (component_ordinal != component_count) {
+      tuple_relation_scratch_release(context, scratch_first);
+      return false;
+    }
+    if (!add_u32(context->count.tuple_components,
+                 &value.first_tuple_component)) {
+      tuple_relation_scratch_release(context, scratch_first);
+      return false;
+    }
+    value.tuple_component_count = (uint32_t)component_count;
+    if (!context_append_type(context, value, root_index)) {
+      tuple_relation_scratch_release(context, scratch_first);
+      return false;
+    }
+    component_cursor = doc->nodes[tuple_node].first_child;
+    component_node = W_SEED_CST_NONE;
+    component_ordinal = 0u;
+    component_guard = 0u;
+    while (next_child(doc, &component_cursor, &component_node) &&
+           component_guard < doc->parse.node_count) {
+      if (doc->nodes[component_node].kind == W_SEED_CST_TYPE) {
+        w_seed_frontend_tuple_component component;
+        component.owner_type = *root_index;
+        component.ordinal = (uint32_t)component_ordinal;
+        component.label = (w_seed_frontend_text){NULL, 0u};
+        component.type_index = frontend_tuple_relation_index_scratch[
+            scratch_first + component_ordinal];
+        component.span = doc->nodes[component_node].raw_span;
+        uint32_t ignored_component_index = W_SEED_FRONTEND_NONE;
+        if (!context_append_tuple_component(context, component,
+                                            &ignored_component_index)) {
+          tuple_relation_scratch_release(context, scratch_first);
+          return false;
+        }
+        component_ordinal += 1u;
+      }
+      component_guard += 1u;
+    }
+    tuple_relation_scratch_release(context, scratch_first);
+    return component_ordinal == component_count;
+  }
   if (value.kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
       enum_declaration_name_count(context, value.spelling) == 1u) {
     uint32_t enum_index = W_SEED_FRONTEND_NONE;
@@ -12553,11 +13061,122 @@ static bool output_type_index_for_simple(frontend_context *context,
       tuple.generic_application_index = W_SEED_FRONTEND_NONE;
       tuple.external_module_index = W_SEED_FRONTEND_NONE;
       tuple.external_symbol_index = W_SEED_FRONTEND_NONE;
+      tuple.first_tuple_component =
+          context->count.tuple_components < (size_t)UINT32_MAX
+              ? (uint32_t)context->count.tuple_components
+              : W_SEED_FRONTEND_NONE;
+      tuple.tuple_component_count = 2u;
       uint32_t tuple_index = W_SEED_FRONTEND_NONE;
       if (!context_append_type(context, tuple, &tuple_index)) return false;
+      for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+        frontend_simple_type component_type = simple_type_unknown();
+        if (!tuple_component_type_at(context, type, ordinal, &component_type,
+                                     NULL, NULL))
+          return false;
+        uint32_t component_type_index = W_SEED_FRONTEND_NONE;
+        if (!output_type_index_for_simple(context, component_type,
+                                          &component_type_index) ||
+            component_type_index == W_SEED_FRONTEND_NONE)
+          return false;
+        w_seed_frontend_tuple_component component;
+        component.owner_type = tuple_index;
+        component.ordinal = (uint32_t)ordinal;
+        component.label = (w_seed_frontend_text){NULL, 0u};
+        component.type_index = component_type_index;
+        component.span = empty_span(0u);
+        uint32_t ignored_component_index = W_SEED_FRONTEND_NONE;
+        if (!context_append_tuple_component(context, component,
+                                            &ignored_component_index))
+          return false;
+      }
       context->builtin_u64_bool_tuple_type_index = tuple_index;
     }
     *index = context->builtin_u64_bool_tuple_type_index;
+    return true;
+  }
+  if (type.kind == W_SEED_FRONTEND_TYPE_TUPLE) {
+    const size_t component_count = tuple_component_count(context, type);
+    if (component_count == 0u || component_count >= (size_t)UINT32_MAX ||
+        context->count.tuple_components > (size_t)UINT32_MAX ||
+        component_count >
+            (size_t)UINT32_MAX - context->count.tuple_components)
+      return false;
+    size_t scratch_first = 0u;
+    if (!tuple_relation_scratch_reserve(context, component_count,
+                                        &scratch_first))
+      return false;
+    /* Resolve nested component types before opening this tuple's contiguous
+     * component range. Their own rows therefore cannot split this range. */
+    for (size_t ordinal = 0u; ordinal < component_count; ordinal += 1u) {
+      frontend_simple_type component_type = simple_type_unknown();
+      if (!tuple_component_type_at(context, type, ordinal, &component_type,
+                                    NULL, NULL)) {
+        tuple_relation_scratch_release(context, scratch_first);
+        return false;
+      }
+      uint32_t component_type_index = W_SEED_FRONTEND_NONE;
+      if (!output_type_index_for_simple(context, component_type,
+                                        &component_type_index) ||
+          component_type_index == W_SEED_FRONTEND_NONE) {
+        tuple_relation_scratch_release(context, scratch_first);
+        return false;
+      }
+      frontend_tuple_relation_index_scratch[scratch_first + ordinal] =
+          component_type_index;
+    }
+
+    w_seed_frontend_type tuple;
+    (void)memset(&tuple, 0, sizeof(tuple));
+    tuple.kind = W_SEED_FRONTEND_TYPE_TUPLE;
+    tuple.spelling = type.spelling;
+    tuple.nominal_name = (w_seed_frontend_text){NULL, 0u};
+    tuple.span = type.tuple_document_index < context->input.document_count &&
+                         type.tuple_node != W_SEED_CST_NONE
+                     ? context->input.documents[type.tuple_document_index]
+                           .nodes[type.tuple_node]
+                           .raw_span
+                     : type.has_origin ? type.origin_span : empty_span(0u);
+    tuple.element_type = W_SEED_FRONTEND_NONE;
+    tuple.return_type = W_SEED_FRONTEND_NONE;
+    tuple.first_parameter = W_SEED_FRONTEND_NONE;
+    tuple.enum_base_index = W_SEED_FRONTEND_NONE;
+    tuple.first_subset_member = W_SEED_FRONTEND_NONE;
+    tuple.subset_member_count = 0u;
+    tuple.generic_application_index = W_SEED_FRONTEND_NONE;
+    tuple.external_module_index = W_SEED_FRONTEND_NONE;
+    tuple.external_symbol_index = W_SEED_FRONTEND_NONE;
+    tuple.first_tuple_component = (uint32_t)context->count.tuple_components;
+    tuple.tuple_component_count = (uint32_t)component_count;
+    uint32_t tuple_index = W_SEED_FRONTEND_NONE;
+    if (!context_append_type(context, tuple, &tuple_index)) {
+      tuple_relation_scratch_release(context, scratch_first);
+      return false;
+    }
+    for (size_t ordinal = 0u; ordinal < component_count; ordinal += 1u) {
+      frontend_simple_type ignored_component_type = simple_type_unknown();
+      w_seed_span component_span = empty_span(0u);
+      if (!tuple_component_type_at(context, type, ordinal,
+                                    &ignored_component_type,
+                                    &component_span, NULL)) {
+        tuple_relation_scratch_release(context, scratch_first);
+        return false;
+      }
+      w_seed_frontend_tuple_component component;
+      component.owner_type = tuple_index;
+      component.ordinal = (uint32_t)ordinal;
+      component.label = (w_seed_frontend_text){NULL, 0u};
+      component.type_index =
+          frontend_tuple_relation_index_scratch[scratch_first + ordinal];
+      component.span = component_span;
+      uint32_t ignored_component_index = W_SEED_FRONTEND_NONE;
+      if (!context_append_tuple_component(context, component,
+                                          &ignored_component_index)) {
+        tuple_relation_scratch_release(context, scratch_first);
+        return false;
+      }
+    }
+    tuple_relation_scratch_release(context, scratch_first);
+    *index = tuple_index;
     return true;
   }
   size_t task_slot = 0u;
@@ -13386,9 +14005,10 @@ static bool expression_append_integer_widen(
       destination.kind != W_SEED_FRONTEND_TYPE_INTEGER) {
     return false;
   }
-  if (type_equal(value->type, destination)) return true;
+  if (frontend_type_equal(parser->context, value->type, destination))
+    return true;
   if (value->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN ||
-      !widening_allowed(value->type, destination) ||
+      !frontend_widening_allowed(parser->context, value->type, destination) ||
       value->index >= (size_t)UINT32_MAX) {
     return false;
   }
@@ -13842,18 +14462,18 @@ static bool expression_value_set_type(frontend_expression_parser *parser,
                                       frontend_expr_value *value,
                                       frontend_simple_type type) {
   if (parser == NULL || parser->context == NULL || value == NULL) return false;
-  if (!type_equal(value->type, type) &&
+  if (!frontend_type_equal(parser->context, value->type, type) &&
       type.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
       expression_value_is_unsuffixed_integer(value)) {
     return expression_materialize_unsuffixed_float(parser, value, type);
   }
-  if (!type_equal(value->type, type) &&
+  if (!frontend_type_equal(parser->context, value->type, type) &&
       numeric_widening_route(value->type, type)) {
     return expression_append_numeric_widen(
         parser, value, type, value->span,
         text_from_span(parser->document, value->span), false);
   }
-  if (!type_equal(value->type, type) &&
+  if (!frontend_type_equal(parser->context, value->type, type) &&
       value->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
       type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
       value->type.bit_width != 0u) {
@@ -13884,7 +14504,7 @@ static bool expression_apply_expected_type(frontend_expression_parser *parser,
                                            frontend_simple_type expected) {
   if (parser == NULL || value == NULL ||
       expected.kind == W_SEED_FRONTEND_TYPE_UNKNOWN ||
-      type_equal(value->type, expected)) {
+      frontend_type_equal(parser->context, value->type, expected)) {
     return true;
   }
   if (value->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
@@ -15369,16 +15989,13 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       }
       if (!supported && !optional_member && !followed_by_call &&
           value->type.kind == W_SEED_FRONTEND_TYPE_TUPLE &&
-          text_equal(value->type.spelling, "(u64, Bool)")) {
-        if (text_equal(member_name, "0")) {
-          result_type =
-              simple_type_from_view((w_seed_frontend_text){"u64", 3u});
+          member.kind == W_SEED_CST_NUMBER) {
+        size_t ordinal = 0u;
+        if (tuple_ordinal_from_text(member_name, &ordinal) &&
+            ordinal < tuple_component_count(parser->context, value->type) &&
+            tuple_component_type_at(parser->context, value->type, ordinal,
+                                     &result_type, NULL, NULL))
           supported = true;
-        } else if (text_equal(member_name, "1")) {
-          result_type =
-              simple_type_from_view((w_seed_frontend_text){"Bool", 4u});
-          supported = true;
-        }
       }
       if (value->type.kind == W_SEED_FRONTEND_TYPE_STATIC_LIST &&
           text_equal(member_name, "count")) {
@@ -15707,7 +16324,9 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       parser->expected_type = saved_expected;
       parser->has_expected_type = saved_has_expected;
       parser->suppress_short_diagnostic = saved_suppress_short;
-      if (expected_found && !type_equal(argument_value.type, expected) &&
+      if (expected_found &&
+          !frontend_type_equal(parser->context, argument_value.type,
+                               expected) &&
           ((expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
             argument_value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER) ||
            (expected.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
@@ -15724,7 +16343,9 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
          * literals remain contextually materialized at the required width. */
         argument_value.supported = false;
         labels_valid = false;
-      } else if (expected_found && !type_equal(argument_value.type, expected) &&
+      } else if (expected_found &&
+                 !frontend_type_equal(parser->context, argument_value.type,
+                                      expected) &&
                  ((expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
                    argument_value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER) ||
                   (expected.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
@@ -16303,7 +16924,8 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
         nested.kind == W_SEED_FRONTEND_EXPR_CALL && nested.is_local_call &&
         !nested.local_call_is_async && nested.local_call_is_throws &&
         owner_throws && !parser->context->current_function_is_const &&
-        type_equal(nested.local_call_error_type, owner_error);
+        frontend_type_equal(parser->context, nested.local_call_error_type,
+                            owner_error);
     uint32_t numeric_error_type = W_SEED_FRONTEND_NONE;
     const bool supported_exactly =
         !optional && nested.supported &&
@@ -17267,6 +17889,20 @@ static bool normalize_expression_node(frontend_context *context,
       expression_node >= doc->parse.node_count) {
     return false;
   }
+  uint32_t tuple_node =
+      doc->nodes[expression_node].kind == W_SEED_CST_TUPLE_EXPRESSION
+          ? expression_node
+          : first_direct_kind(doc, expression_node,
+                              W_SEED_CST_TUPLE_EXPRESSION);
+  if (tuple_node != W_SEED_CST_NONE &&
+      trim_span(doc, doc->nodes[expression_node].raw_span).start_byte ==
+          trim_span(doc, doc->nodes[tuple_node].raw_span).start_byte &&
+      trim_span(doc, doc->nodes[expression_node].raw_span).end_byte ==
+          trim_span(doc, doc->nodes[tuple_node].raw_span).end_byte) {
+    return normalize_tuple_expression_node(context, tuple_node,
+                                           expression_index, expected,
+                                           actual_out, root_out);
+  }
   const uint32_t if_node =
       first_direct_kind(doc, expression_node, W_SEED_CST_IF_EXPRESSION);
   const bool if_owner_exact =
@@ -17442,7 +18078,7 @@ static bool normalize_expression_node(frontend_context *context,
     }
     return appended;
   }
-  if (!type_equal(value.type, expected) &&
+  if (!frontend_type_equal(context, value.type, expected) &&
       ((expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
         value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER) ||
        (expected.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
@@ -17483,7 +18119,7 @@ static bool normalize_expression_span(frontend_context *context,
   if (!expression_parse_bp(&parser, 0, &value)) return false;
   frontend_token trailing;
   if (cursor_peek(&parser.cursor, &trailing)) return false;
-  if (!type_equal(value.type, expected) &&
+  if (!frontend_type_equal(context, value.type, expected) &&
       ((expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
         value.type.kind == W_SEED_FRONTEND_TYPE_INTEGER) ||
        (expected.kind == W_SEED_FRONTEND_TYPE_FLOAT &&
@@ -18063,6 +18699,21 @@ static bool grouped_expression_inner_span(
   return false;
 }
 
+static bool exact_tuple_expression_for_span(
+    const w_seed_frontend_document *doc, w_seed_span span) {
+  if (doc == NULL || doc->nodes == NULL) return false;
+  const w_seed_span target = trim_span(doc, span);
+  for (size_t index = 0u; index < doc->parse.node_count; index += 1u) {
+    const w_seed_cst_node *node = &doc->nodes[index];
+    if (node->kind != W_SEED_CST_TUPLE_EXPRESSION) continue;
+    const w_seed_span candidate = trim_span(doc, node->raw_span);
+    if (candidate.start_byte == target.start_byte &&
+        candidate.end_byte == target.end_byte)
+      return true;
+  }
+  return false;
+}
+
 static frontend_simple_type infer_expression_span_inner(
     frontend_context *context, w_seed_span span, size_t depth) {
   const w_seed_frontend_document *doc = context_document(context);
@@ -18081,6 +18732,12 @@ static frontend_simple_type infer_expression_span_inner(
     if (rounded_try.kind != W_SEED_FRONTEND_TYPE_UNKNOWN)
       return rounded_try;
   }
+  /* A tuple's first token is not its type. Until this dry inference path can
+   * assemble a source-backed structural tuple type, fail closed instead of
+   * publishing the first component as an unannotated binding's type. Tuple
+   * constructors with an explicit expected tuple type use the normalizer. */
+  if (exact_tuple_expression_for_span(doc, span))
+    return simple_type_unknown();
   w_seed_span grouped_span;
   if (grouped_expression_inner_span(doc, span, &grouped_span))
     return infer_expression_span_inner(context, grouped_span, depth + 1u);
@@ -18229,11 +18886,14 @@ static frontend_simple_type infer_expression_span_inner(
       const w_seed_frontend_text member_name =
           text_from_span(doc, member_token.span);
       if (receiver.kind == W_SEED_FRONTEND_TYPE_TUPLE &&
-          text_equal(receiver.spelling, "(u64, Bool)")) {
-        if (text_equal(member_name, "0"))
-          return simple_type_from_view((w_seed_frontend_text){"u64", 3u});
-        if (text_equal(member_name, "1"))
-          return simple_type_from_view((w_seed_frontend_text){"Bool", 4u});
+          member_token.kind == W_SEED_CST_NUMBER) {
+        size_t ordinal = 0u;
+        frontend_simple_type component = simple_type_unknown();
+        if (tuple_ordinal_from_text(member_name, &ordinal) &&
+            ordinal < tuple_component_count(context, receiver) &&
+            tuple_component_type_at(context, receiver, ordinal, &component,
+                                    NULL, NULL))
+          return component;
       }
       const w_seed_frontend_external_symbol *member = NULL;
       if (receiver.kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
@@ -18561,7 +19221,8 @@ static bool normalize_if_expression(
     (void)append_type0120_diagnostic(
         context, if_cst->raw_span, then_type,
         doc->nodes[then_node].raw_span, context->module_index, else_type,
-        doc->nodes[else_node].raw_span, context->module_index);
+        doc->nodes[else_node].raw_span, context->module_index,
+        "branch-result", "branch-result");
     supported = false;
   }
   if (!scalar_if_type(then_type) || !scalar_if_type(else_type) ||
@@ -18603,6 +19264,166 @@ static bool normalize_if_expression(
   if (actual_out != NULL) *actual_out = join_type;
   if (root_out != NULL) *root_out = value;
   *expression_index = (uint32_t)value.index;
+  return true;
+}
+
+static bool normalize_tuple_expression_node(
+    frontend_context *context, uint32_t tuple_node,
+    uint32_t *expression_index, frontend_simple_type expected,
+    frontend_simple_type *actual_out, frontend_expr_value *root_out) {
+  const w_seed_frontend_document *doc = context_document(context);
+  if (actual_out != NULL) *actual_out = simple_type_unknown();
+  if (root_out != NULL) (void)memset(root_out, 0, sizeof(*root_out));
+  if (context == NULL || doc == NULL || expression_index == NULL ||
+      tuple_node >= doc->parse.node_count ||
+      doc->nodes[tuple_node].kind != W_SEED_CST_TUPLE_EXPRESSION)
+    return false;
+
+  const size_t element_count =
+      count_direct_kind(doc, tuple_node, W_SEED_CST_EXPRESSION);
+  const size_t expected_count = tuple_component_count(context, expected);
+  bool supported = expected.kind == W_SEED_FRONTEND_TYPE_TUPLE &&
+                   element_count != 0u && element_count == expected_count &&
+                   expected_count != 0u && element_count < (size_t)UINT32_MAX &&
+                   context->count.tuple_elements <= (size_t)UINT32_MAX &&
+                   element_count <= (size_t)UINT32_MAX -
+                                        context->count.tuple_elements;
+  size_t scratch_first = 0u;
+  if (!tuple_relation_scratch_reserve(context, element_count,
+                                      &scratch_first))
+    return false;
+
+  frontend_expression_parser parser = {0};
+  parser.context = context;
+  parser.document = doc;
+  const w_seed_span span = doc->nodes[tuple_node].raw_span;
+  frontend_expr_value root;
+  (void)memset(&root, 0, sizeof(root));
+  root.index = W_SEED_FRONTEND_NONE;
+  size_t parsed_count = 0u;
+  uint32_t cursor = doc->nodes[tuple_node].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0u;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind != W_SEED_CST_EXPRESSION) {
+      guard += 1u;
+      continue;
+    }
+    frontend_expr_value item;
+    uint32_t item_index = W_SEED_FRONTEND_NONE;
+    frontend_simple_type actual = simple_type_unknown();
+    frontend_simple_type component = simple_type_unknown();
+    w_seed_span component_span = empty_span(0u);
+    if (parsed_count < expected_count) {
+      (void)tuple_component_type_at(context, expected, parsed_count,
+                                    &component, &component_span, NULL);
+    }
+    if (!normalize_expression_node(context, child, &item_index, component,
+                                   &actual, &item)) {
+      tuple_relation_scratch_release(context, scratch_first);
+      return false;
+    }
+    if (component.kind == W_SEED_FRONTEND_TYPE_UNKNOWN ||
+        actual.kind == W_SEED_FRONTEND_TYPE_UNKNOWN || !item.supported) {
+      supported = false;
+    } else if (!frontend_widening_allowed(context, actual, component)) {
+      supported = false;
+      const size_t component_document_index =
+          expected.tuple_document_index == W_SEED_FRONTEND_NONE_SIZE
+              ? context->module_index
+              : expected.tuple_document_index;
+      (void)append_type0120_diagnostic(
+          context, doc->nodes[child].raw_span, actual,
+          doc->nodes[child].raw_span, context->module_index, component,
+          component_span, component_document_index, "actual-component",
+          "expected-component");
+    }
+    if (parsed_count >= element_count || item.index >= (size_t)UINT32_MAX) {
+      tuple_relation_scratch_release(context, scratch_first);
+      return false;
+    }
+    frontend_tuple_relation_index_scratch[scratch_first + parsed_count] =
+        item_index;
+    parsed_count += 1u;
+    guard += 1u;
+  }
+  if (parsed_count != element_count) {
+    tuple_relation_scratch_release(context, scratch_first);
+    return false;
+  }
+
+  /* Child constructors append their own relation rows while they normalize.
+   * Open this expression only after those rows so its element range stays
+   * contiguous without a fixed tuple-arity scratch array. */
+  size_t first_element = context->count.tuple_elements;
+  uint32_t first_element_index = W_SEED_FRONTEND_NONE;
+  if (element_count > 0u && !add_u32(first_element, &first_element_index)) {
+    tuple_relation_scratch_release(context, scratch_first);
+    return false;
+  }
+  const uint32_t first_range = element_count == 0u
+                                   ? W_SEED_FRONTEND_NONE
+                                   : first_element_index;
+  const uint32_t range_count = (uint32_t)element_count;
+  if (!expression_append(
+          &parser, W_SEED_FRONTEND_EXPR_TUPLE, span,
+          text_from_span(doc, span), (w_seed_frontend_text){NULL, 0u},
+          expected, supported, W_SEED_FRONTEND_NONE,
+          W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_NONE, 0u, &root) ||
+      !receipt_size_tuple_expression(context, root.index, first_range,
+                                     range_count)) {
+    tuple_relation_scratch_release(context, scratch_first);
+    return false;
+  }
+  if (context->emit && context->output != NULL &&
+      root.index < context->output->expression_capacity) {
+    context->output->expressions[root.index].first_tuple_element = first_range;
+    context->output->expressions[root.index].tuple_element_count = range_count;
+  }
+
+  size_t element_ordinal = 0u;
+  cursor = doc->nodes[tuple_node].first_child;
+  child = W_SEED_CST_NONE;
+  guard = 0u;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == W_SEED_CST_EXPRESSION) {
+      w_seed_frontend_tuple_element element;
+      element.owner_expression = (uint32_t)root.index;
+      element.ordinal = (uint32_t)element_ordinal;
+      element.label = (w_seed_frontend_text){NULL, 0u};
+      element.expression_index = frontend_tuple_relation_index_scratch[
+          scratch_first + element_ordinal];
+      element.span = doc->nodes[child].raw_span;
+      uint32_t ignored_element_index = W_SEED_FRONTEND_NONE;
+      if (!context_append_tuple_element(context, element,
+                                        &ignored_element_index)) {
+        tuple_relation_scratch_release(context, scratch_first);
+        return false;
+      }
+      element_ordinal += 1u;
+    }
+    guard += 1u;
+  }
+  if (element_ordinal != element_count) {
+    tuple_relation_scratch_release(context, scratch_first);
+    return false;
+  }
+  if (!supported)
+    (void)context_append_fact(
+        context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION, span,
+        text_from_span(doc, span));
+  root.supported = supported;
+  if (context->emit && context->output != NULL &&
+      root.index < context->output->expression_capacity)
+    context->output->expressions[root.index].supported = supported;
+  root.kind = W_SEED_FRONTEND_EXPR_TUPLE;
+  root.type = expected;
+  root.supported = supported;
+  root.span = span;
+  tuple_relation_scratch_release(context, scratch_first);
+  *expression_index = (uint32_t)root.index;
+  if (actual_out != NULL) *actual_out = expected;
+  if (root_out != NULL) *root_out = root;
   return true;
 }
 
@@ -19081,7 +19902,7 @@ static bool normalize_switch_expression(
       (void)append_type0120_diagnostic(
           context, doc->nodes[result_node].raw_span, arm_type,
           doc->nodes[result_node].raw_span, context->module_index, join_type,
-          join_span, join_document);
+          join_span, join_document, "branch-result", "branch-result");
     } else if (frontend_widening_allowed(context, join_type, arm_type)) {
       join_type = arm_type;
       join_span = doc->nodes[result_node].raw_span;
@@ -23521,6 +24342,26 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       receipt_write_size(writer, type->subset_member_count);
       receipt_write_literal(writer, "|task-result=");
       receipt_write_size(writer, type->task_result_type);
+      receipt_write_literal(writer, "|tuple-components=");
+      receipt_write_size(writer, type->first_tuple_component);
+      receipt_write_literal(writer, ":");
+      receipt_write_size(writer, type->tuple_component_count);
+      receipt_write_literal(writer, "\n");
+    }
+    for (size_t index = 0u; index < context->count.tuple_components;
+         index += 1u) {
+      const w_seed_frontend_tuple_component *component =
+          &output->tuple_components[index];
+      receipt_write_literal(writer, "tuple-component=");
+      receipt_write_size(writer, component->owner_type);
+      receipt_write_literal(writer, "|");
+      receipt_write_size(writer, component->ordinal);
+      receipt_write_literal(writer, "|label=");
+      receipt_write_text(writer, component->label);
+      receipt_write_literal(writer, "|type=");
+      receipt_write_size(writer, component->type_index);
+      receipt_write_literal(writer, "|span=");
+      receipt_write_span(writer, component->span);
       receipt_write_literal(writer, "\n");
     }
     for (size_t index = 0; index < context->count.enum_subset_members;
@@ -23566,6 +24407,15 @@ static void receipt_write_records(frontend_receipt_writer *writer,
     for (size_t index = 0u; index < context->count.expressions; index += 1u) {
       const w_seed_frontend_expression *expression =
           &output->expressions[index];
+      if (expression->kind == W_SEED_FRONTEND_EXPR_TUPLE) {
+        receipt_write_literal(writer, "tuple-expression=");
+        receipt_write_size(writer, index);
+        receipt_write_literal(writer, "|elements=");
+        receipt_write_size(writer, expression->first_tuple_element);
+        receipt_write_literal(writer, ":");
+        receipt_write_size(writer, expression->tuple_element_count);
+        receipt_write_literal(writer, "\n");
+      }
       if (expression->kind == W_SEED_FRONTEND_EXPR_ENUM_CASE &&
           expression->resolved_callee_kind ==
               W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL) {
@@ -23715,6 +24565,22 @@ static void receipt_write_records(frontend_receipt_writer *writer,
         receipt_write_literal(writer, "\n");
       }
     }
+    for (size_t index = 0u; index < context->count.tuple_elements;
+         index += 1u) {
+      const w_seed_frontend_tuple_element *element =
+          &output->tuple_elements[index];
+      receipt_write_literal(writer, "tuple-element=");
+      receipt_write_size(writer, element->owner_expression);
+      receipt_write_literal(writer, "|");
+      receipt_write_size(writer, element->ordinal);
+      receipt_write_literal(writer, "|label=");
+      receipt_write_text(writer, element->label);
+      receipt_write_literal(writer, "|expression=");
+      receipt_write_size(writer, element->expression_index);
+      receipt_write_literal(writer, "|span=");
+      receipt_write_span(writer, element->span);
+      receipt_write_literal(writer, "\n");
+    }
     for (size_t index = 0; index < context->count.facts; index += 1) {
       const w_seed_frontend_fact *fact = &output->facts[index];
       receipt_write_literal(writer, "fact=");
@@ -23800,6 +24666,149 @@ static bool capacity_ok(size_t required, const void *array, size_t capacity) {
   return required == 0 || (array != NULL && capacity >= required);
 }
 
+typedef struct {
+  const void *pointer;
+  size_t bytes;
+  bool tuple_relation;
+} frontend_output_memory_range;
+
+static bool frontend_output_range_add(frontend_output_memory_range *ranges,
+                                      size_t *range_count,
+                                      size_t range_capacity,
+                                      const void *pointer, size_t elements,
+                                      size_t element_size,
+                                      bool tuple_relation) {
+  if (ranges == NULL || range_count == NULL || *range_count >= range_capacity ||
+      element_size == 0u || elements > SIZE_MAX / element_size)
+    return false;
+  const size_t bytes = pointer == NULL ? 0u : elements * element_size;
+  if (bytes != 0u) {
+    const uintptr_t start = (uintptr_t)pointer;
+    if (bytes > (size_t)(UINTPTR_MAX - start)) return false;
+  }
+  ranges[*range_count] =
+      (frontend_output_memory_range){pointer, bytes, tuple_relation};
+  *range_count += 1u;
+  return true;
+}
+
+static bool frontend_output_ranges_overlap(
+    const frontend_output_memory_range *left,
+    const frontend_output_memory_range *right) {
+  if (left == NULL || right == NULL || left->pointer == NULL ||
+      right->pointer == NULL || left->bytes == 0u || right->bytes == 0u)
+    return false;
+  const uintptr_t left_start = (uintptr_t)left->pointer;
+  const uintptr_t right_start = (uintptr_t)right->pointer;
+  const uintptr_t left_end = left_start + (uintptr_t)left->bytes;
+  const uintptr_t right_end = right_start + (uintptr_t)right->bytes;
+  return left_start < right_end && right_start < left_end;
+}
+
+/* The pre-existing frontend did not need to cross-check output ranges. The
+ * new append-only tuple relations must at least be disjoint from every other
+ * caller-owned output, otherwise one relation can overwrite a record it
+ * indexes before the successful receipt is returned. */
+static bool frontend_tuple_output_ranges_disjoint(
+    const w_seed_frontend_output *output) {
+  if (output == NULL) return false;
+  frontend_output_memory_range ranges[48];
+  size_t range_count = 0u;
+#define FRONTEND_OUTPUT_RANGE(field, capacity_field, type)                  \
+  if (!frontend_output_range_add(                                           \
+          ranges, &range_count, sizeof(ranges) / sizeof(ranges[0]),          \
+          output->field, output->capacity_field, sizeof(type), false))       \
+    return false
+  FRONTEND_OUTPUT_RANGE(modules, module_capacity, w_seed_frontend_module);
+  FRONTEND_OUTPUT_RANGE(imports, import_capacity, w_seed_frontend_import);
+  FRONTEND_OUTPUT_RANGE(import_items, import_item_capacity,
+                        w_seed_frontend_import_item);
+  FRONTEND_OUTPUT_RANGE(structs, struct_capacity, w_seed_frontend_struct);
+  FRONTEND_OUTPUT_RANGE(fields, field_capacity, w_seed_frontend_field);
+  FRONTEND_OUTPUT_RANGE(type_declarations, type_declaration_capacity,
+                        w_seed_frontend_type_declaration);
+  FRONTEND_OUTPUT_RANGE(aliases, alias_capacity, w_seed_frontend_alias);
+  FRONTEND_OUTPUT_RANGE(types, type_capacity, w_seed_frontend_type);
+  FRONTEND_OUTPUT_RANGE(functions, function_capacity,
+                        w_seed_frontend_function);
+  FRONTEND_OUTPUT_RANGE(parameters, parameter_capacity,
+                        w_seed_frontend_parameter);
+  FRONTEND_OUTPUT_RANGE(arguments, argument_capacity,
+                        w_seed_frontend_argument);
+  FRONTEND_OUTPUT_RANGE(entries, entry_capacity, w_seed_frontend_entry);
+  FRONTEND_OUTPUT_RANGE(statements, statement_capacity,
+                        w_seed_frontend_statement);
+  FRONTEND_OUTPUT_RANGE(expressions, expression_capacity,
+                        w_seed_frontend_expression);
+  FRONTEND_OUTPUT_RANGE(interpolation_segments,
+                        interpolation_segment_capacity,
+                        w_seed_frontend_interpolation_segment);
+  FRONTEND_OUTPUT_RANGE(symbols, symbol_capacity, w_seed_frontend_symbol);
+  FRONTEND_OUTPUT_RANGE(facts, fact_capacity, w_seed_frontend_fact);
+  FRONTEND_OUTPUT_RANGE(diagnostics, diagnostic_capacity,
+                        w_seed_frontend_diagnostic);
+  FRONTEND_OUTPUT_RANGE(diagnostic_facts, diagnostic_fact_capacity,
+                        w_seed_frontend_diagnostic_fact);
+  FRONTEND_OUTPUT_RANGE(diagnostic_items, diagnostic_item_capacity,
+                        w_seed_frontend_diagnostic_item);
+  FRONTEND_OUTPUT_RANGE(diagnostic_labels, diagnostic_label_capacity,
+                        w_seed_frontend_diagnostic_label);
+  FRONTEND_OUTPUT_RANGE(receipt, receipt_capacity, uint8_t);
+  FRONTEND_OUTPUT_RANGE(enums, enum_capacity, w_seed_frontend_enum);
+  FRONTEND_OUTPUT_RANGE(enum_cases, enum_case_capacity,
+                        w_seed_frontend_enum_case);
+  FRONTEND_OUTPUT_RANGE(enum_case_parameters, enum_case_parameter_capacity,
+                        w_seed_frontend_enum_case_parameter);
+  FRONTEND_OUTPUT_RANGE(const_declarations, const_declaration_capacity,
+                        w_seed_frontend_const_declaration);
+  FRONTEND_OUTPUT_RANGE(kernel_modules, kernel_module_capacity,
+                        w_seed_frontend_kernel_module);
+  FRONTEND_OUTPUT_RANGE(kernel_bindings, kernel_binding_capacity,
+                        w_seed_frontend_kernel_binding);
+  FRONTEND_OUTPUT_RANGE(switch_arms, switch_arm_capacity,
+                        w_seed_frontend_switch_arm);
+  FRONTEND_OUTPUT_RANGE(pattern_captures, pattern_capture_capacity,
+                        w_seed_frontend_pattern_capture);
+  FRONTEND_OUTPUT_RANGE(enum_subset_members, enum_subset_member_capacity,
+                        w_seed_frontend_enum_subset_member);
+  FRONTEND_OUTPUT_RANGE(enum_membership_cases,
+                        enum_membership_case_capacity,
+                        w_seed_frontend_enum_membership_case);
+  FRONTEND_OUTPUT_RANGE(generic_parameters, generic_parameter_capacity,
+                        w_seed_frontend_generic_parameter);
+  FRONTEND_OUTPUT_RANGE(generic_applications,
+                        generic_application_capacity,
+                        w_seed_frontend_generic_application);
+  FRONTEND_OUTPUT_RANGE(generic_arguments, generic_argument_capacity,
+                        w_seed_frontend_generic_argument);
+  FRONTEND_OUTPUT_RANGE(typed_const_expressions,
+                        typed_const_expression_capacity,
+                        w_seed_frontend_typed_const_expression);
+  FRONTEND_OUTPUT_RANGE(const_values, const_value_capacity,
+                        w_seed_frontend_const_value);
+  FRONTEND_OUTPUT_RANGE(const_elements, const_element_capacity,
+                        w_seed_frontend_const_element);
+  FRONTEND_OUTPUT_RANGE(const_bytes, const_bytes_capacity, uint8_t);
+  if (!frontend_output_range_add(
+          ranges, &range_count, sizeof(ranges) / sizeof(ranges[0]),
+          output->tuple_components, output->tuple_component_capacity,
+          sizeof(w_seed_frontend_tuple_component), true) ||
+      !frontend_output_range_add(
+          ranges, &range_count, sizeof(ranges) / sizeof(ranges[0]),
+          output->tuple_elements, output->tuple_element_capacity,
+          sizeof(w_seed_frontend_tuple_element), true))
+    return false;
+#undef FRONTEND_OUTPUT_RANGE
+  for (size_t first = 0u; first < range_count; first += 1u) {
+    for (size_t second = first + 1u; second < range_count; second += 1u) {
+      if ((ranges[first].tuple_relation || ranges[second].tuple_relation) &&
+          frontend_output_ranges_overlap(&ranges[first], &ranges[second]))
+        return false;
+    }
+  }
+  return true;
+}
+
 static bool output_capacity_ok(const w_seed_frontend_output *output,
                                const frontend_measure *required,
                                size_t receipt_required) {
@@ -23873,6 +24882,10 @@ static bool output_capacity_ok(const w_seed_frontend_output *output,
                      output->const_element_capacity) &&
          capacity_ok(required->const_bytes, output->const_bytes,
                      output->const_bytes_capacity) &&
+         capacity_ok(required->tuple_components, output->tuple_components,
+                     output->tuple_component_capacity) &&
+         capacity_ok(required->tuple_elements, output->tuple_elements,
+                     output->tuple_element_capacity) &&
          capacity_ok(required->symbols, output->symbols,
                      output->symbol_capacity) &&
          capacity_ok(required->facts, output->facts, output->fact_capacity) &&
@@ -23998,6 +25011,10 @@ w_seed_frontend_status w_seed_frontend_run(
   result->receipt_bytes = required_receipt;
   if (!output_capacity_ok(output, &dry.count, required_receipt)) {
     result->status = W_SEED_FRONTEND_CAPACITY;
+    return result->status;
+  }
+  if (!frontend_tuple_output_ranges_disjoint(output)) {
+    result->status = W_SEED_FRONTEND_INVALID;
     return result->status;
   }
 

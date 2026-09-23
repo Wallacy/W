@@ -241,7 +241,9 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
       request->artifact_path[0] == '\0' ||
       strcmp(request->target, W_SEED_NATIVE_TARGET_LINUX) != 0 ||
       (request->profile != W_SEED_RUN_COMPILE_PROFILE_DEV &&
-       request->profile != W_SEED_RUN_COMPILE_PROFILE_RELEASE))
+       request->profile != W_SEED_RUN_COMPILE_PROFILE_RELEASE) ||
+      (request->pie_mode != W_SEED_RUN_COMPILE_PIE_ON &&
+       request->pie_mode != W_SEED_RUN_COMPILE_PIE_OFF))
     return 2;
   const size_t path_length = strlen(request->source_path);
   if (path_length == 0u || path_length > W_SEED_NATIVE0_MAX_PATH_BYTES)
@@ -332,6 +334,10 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
     exit_code = run_tool(MLIR_OPT, arguments);
   }
   if (exit_code != 0) goto cleanup;
+  const char *relocation_model =
+      request->pie_mode == W_SEED_RUN_COMPILE_PIE_OFF
+          ? "-relocation-model=static"
+          : "-relocation-model=pic";
   {
     char *arguments[] = {(char *)MLIR_TRANSLATE, (char *)"--mlir-to-llvmir",
                          verified_path, (char *)"-o", ll_path, NULL};
@@ -357,7 +363,7 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
         (char *)LLC,
         (char *)"-mtriple=x86_64-unknown-linux-gnu",
         (char *)"-filetype=obj",
-        (char *)"-relocation-model=pic",
+        (char *)relocation_model,
         optimized_ll_path,
         (char *)"-o",
         object_path,
@@ -373,7 +379,7 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
         (char *)LLC,
         (char *)"-mtriple=x86_64-unknown-linux-gnu",
         (char *)"-filetype=obj",
-        (char *)"-relocation-model=pic",
+        (char *)relocation_model,
         runtime_ll_path,
         (char *)"-o",
         runtime_object_path,
@@ -388,7 +394,10 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
     char *arguments[15] = {0};
     size_t count = 0u;
     arguments[count++] = (char *)LINK_DRIVER;
-    arguments[count++] = (char *)"-pie";
+    arguments[count++] =
+        request->pie_mode == W_SEED_RUN_COMPILE_PIE_OFF
+            ? (char *)"-no-pie"
+            : (char *)"-pie";
     arguments[count++] = (char *)"--no-dynamic-linker";
     arguments[count++] = (char *)"--hash-style=gnu";
     arguments[count++] = (char *)"-e";
@@ -879,7 +888,10 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
       request->artifact_path[0] == '\0' ||
       (!windows_target && !linux_target) ||
       (request->profile != W_SEED_RUN_COMPILE_PROFILE_DEV &&
-       request->profile != W_SEED_RUN_COMPILE_PROFILE_RELEASE))
+       request->profile != W_SEED_RUN_COMPILE_PROFILE_RELEASE) ||
+      (request->pie_mode != W_SEED_RUN_COMPILE_PIE_ON &&
+       request->pie_mode != W_SEED_RUN_COMPILE_PIE_OFF) ||
+      (windows_target && request->pie_mode == W_SEED_RUN_COMPILE_PIE_OFF))
     return 2;
   const size_t path_length = strlen(request->source_path);
   if (path_length == 0u || path_length > W_SEED_NATIVE0_MAX_PATH_BYTES)
@@ -1002,6 +1014,10 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
                                  argument_count);
   }
   if (exit_code != 0) goto cleanup;
+  const wchar_t *relocation_model =
+      request->pie_mode == W_SEED_RUN_COMPILE_PIE_OFF
+          ? L"-relocation-model=static"
+          : L"-relocation-model=pic";
   {
     const wchar_t *arguments[] = {L"--mlir-to-llvmir", verified_path, L"-o",
                                   ll_path};
@@ -1032,7 +1048,7 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
         NULL};
     size_t argument_count = linux_target ? 6u : 5u;
     if (linux_target) {
-      arguments[2] = L"-relocation-model=pic";
+      arguments[2] = relocation_model;
     } else {
       arguments[2] = optimized_ll_path;
       arguments[3] = L"-o";
@@ -1075,7 +1091,7 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
     const wchar_t *arguments[8] = {
         L"-filetype=obj",
         L"-mtriple=x86_64-unknown-linux-gnu",
-        L"-relocation-model=pic",
+        relocation_model,
         runtime_ll_path,
         L"-o",
         runtime_object_path,
@@ -1090,7 +1106,9 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   if (!windows_target) {
     const wchar_t *link_arguments[14] = {NULL};
     size_t link_argument_count = 0u;
-    link_arguments[link_argument_count++] = L"-pie";
+    link_arguments[link_argument_count++] =
+        request->pie_mode == W_SEED_RUN_COMPILE_PIE_OFF ? L"-no-pie"
+                                                         : L"-pie";
     link_arguments[link_argument_count++] = L"--no-dynamic-linker";
     link_arguments[link_argument_count++] = L"--hash-style=gnu";
     link_arguments[link_argument_count++] = L"-e";

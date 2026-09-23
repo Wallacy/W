@@ -36,6 +36,8 @@ enum {
   TEST_CONST_VALUES = 512,
   TEST_CONST_ELEMENTS = 512,
   TEST_CONST_BYTES = 8192,
+  TEST_TUPLE_COMPONENTS = TEST_NODES * 4,
+  TEST_TUPLE_ELEMENTS = TEST_NODES * 4,
   TEST_ENUMS = 16,
   TEST_ENUM_CASES = 128,
   TEST_ENUM_CASE_PARAMETERS = 256,
@@ -105,6 +107,8 @@ typedef struct {
   w_seed_frontend_kernel_binding
       kernel_bindings[TEST_KERNEL_BINDINGS];
   w_seed_frontend_type types[TEST_TYPES];
+  w_seed_frontend_tuple_component tuple_components[TEST_TUPLE_COMPONENTS];
+  w_seed_frontend_tuple_element tuple_elements[TEST_TUPLE_ELEMENTS];
   w_seed_frontend_function functions[TEST_FUNCTIONS];
   w_seed_frontend_parameter parameters[TEST_PARAMETERS];
   w_seed_frontend_entry entries[TEST_ENTRIES];
@@ -138,6 +142,8 @@ typedef struct {
   w_seed_frontend_output output;
   w_seed_frontend_result result;
 } fixture;
+
+static bool fixture_run_with_print_host(fixture *value, const char *source);
 
 static fixture fixture_a;
 static fixture fixture_b;
@@ -233,6 +239,10 @@ static void fixture_fill_output(fixture *fixture_value, uint8_t value) {
   (void)memset(fixture_value->kernel_bindings, value,
                sizeof(fixture_value->kernel_bindings));
   (void)memset(fixture_value->types, value, sizeof(fixture_value->types));
+  (void)memset(fixture_value->tuple_components, value,
+               sizeof(fixture_value->tuple_components));
+  (void)memset(fixture_value->tuple_elements, value,
+               sizeof(fixture_value->tuple_elements));
   (void)memset(fixture_value->functions, value,
                sizeof(fixture_value->functions));
   (void)memset(fixture_value->parameters, value,
@@ -310,6 +320,10 @@ static bool fixture_output_is(const fixture *fixture_value, uint8_t value,
                           sizeof(fixture_value->kernel_bindings), value) &&
          all_bytes_equal(fixture_value->types, sizeof(fixture_value->types),
                          value) &&
+         all_bytes_equal(fixture_value->tuple_components,
+                         sizeof(fixture_value->tuple_components), value) &&
+         all_bytes_equal(fixture_value->tuple_elements,
+                         sizeof(fixture_value->tuple_elements), value) &&
          all_bytes_equal(fixture_value->functions,
                          sizeof(fixture_value->functions), value) &&
          all_bytes_equal(fixture_value->parameters,
@@ -439,6 +453,10 @@ static bool fixture_parse(fixture *fixture_value, const char *text) {
       .kernel_binding_capacity = TEST_KERNEL_BINDINGS,
       .types = fixture_value->types,
       .type_capacity = TEST_TYPES,
+      .tuple_components = fixture_value->tuple_components,
+      .tuple_component_capacity = TEST_TUPLE_COMPONENTS,
+      .tuple_elements = fixture_value->tuple_elements,
+      .tuple_element_capacity = TEST_TUPLE_ELEMENTS,
       .functions = fixture_value->functions,
       .function_capacity = TEST_FUNCTIONS,
       .parameters = fixture_value->parameters,
@@ -660,6 +678,8 @@ static bool counts_equal(const w_seed_frontend_counts *left,
          left->const_values == right->const_values &&
          left->const_elements == right->const_elements &&
          left->const_bytes == right->const_bytes &&
+         left->tuple_components == right->tuple_components &&
+         left->tuple_elements == right->tuple_elements &&
          left->enums == right->enums &&
          left->enum_cases == right->enum_cases &&
          left->enum_case_parameters == right->enum_case_parameters &&
@@ -759,6 +779,70 @@ static bool fixture_span_text_is(const fixture *fixture_value,
          span.end_byte <= source->bytes.length &&
          (length == 0u ||
           memcmp(source->bytes.data + span.start_byte, literal, length) == 0);
+}
+
+static bool fixture_type_records_equal(const fixture *fixture_value,
+                                       uint32_t left_index,
+                                       uint32_t right_index, size_t depth) {
+  if (fixture_value == NULL ||
+      left_index >= fixture_value->result.written.types ||
+      right_index >= fixture_value->result.written.types ||
+      depth >= W_SEED_FRONTEND_MAX_NESTING)
+    return false;
+  const w_seed_frontend_type *left = &fixture_value->types[left_index];
+  const w_seed_frontend_type *right = &fixture_value->types[right_index];
+  if (left->kind != right->kind) return false;
+  if (left->kind == W_SEED_FRONTEND_TYPE_TUPLE) {
+    if (left->tuple_component_count == 0u ||
+        left->tuple_component_count != right->tuple_component_count ||
+        left->first_tuple_component == W_SEED_FRONTEND_NONE ||
+        right->first_tuple_component == W_SEED_FRONTEND_NONE ||
+        (size_t)left->first_tuple_component + left->tuple_component_count >
+            fixture_value->result.written.tuple_components ||
+        (size_t)right->first_tuple_component + right->tuple_component_count >
+            fixture_value->result.written.tuple_components)
+      return false;
+    for (uint32_t ordinal = 0u; ordinal < left->tuple_component_count;
+         ordinal += 1u) {
+      const w_seed_frontend_tuple_component *left_component =
+          &fixture_value->tuple_components[left->first_tuple_component +
+                                           ordinal];
+      const w_seed_frontend_tuple_component *right_component =
+          &fixture_value->tuple_components[right->first_tuple_component +
+                                           ordinal];
+      if (left_component->ordinal != ordinal ||
+          right_component->ordinal != ordinal ||
+          left_component->owner_type != left_index ||
+          right_component->owner_type != right_index ||
+          left_component->label.length != right_component->label.length ||
+          (left_component->label.length != 0u &&
+           (left_component->label.data == NULL ||
+            right_component->label.data == NULL ||
+            memcmp(left_component->label.data, right_component->label.data,
+                   left_component->label.length) != 0)) ||
+          !fixture_type_records_equal(fixture_value,
+                                      left_component->type_index,
+                                      right_component->type_index, depth + 1u))
+        return false;
+    }
+    return true;
+  }
+  if (left->kind == W_SEED_FRONTEND_TYPE_INTEGER)
+    return left->is_signed == right->is_signed &&
+           left->bit_width == right->bit_width;
+  if (left->kind == W_SEED_FRONTEND_TYPE_FLOAT)
+    return left->bit_width == right->bit_width;
+  if (left->external_module_index != W_SEED_FRONTEND_NONE ||
+      right->external_module_index != W_SEED_FRONTEND_NONE ||
+      left->external_symbol_index != W_SEED_FRONTEND_NONE ||
+      right->external_symbol_index != W_SEED_FRONTEND_NONE)
+    return left->external_module_index == right->external_module_index &&
+           left->external_symbol_index == right->external_symbol_index;
+  return left->spelling.length == right->spelling.length &&
+         (left->spelling.length == 0u ||
+          (left->spelling.data != NULL && right->spelling.data != NULL &&
+           memcmp(left->spelling.data, right->spelling.data,
+                  left->spelling.length) == 0));
 }
 
 static const w_seed_frontend_diagnostic *diagnostic_for_code(
@@ -6488,6 +6572,472 @@ static bool test_u64_binary_frontend(void) {
   return true;
 }
 
+static bool test_flat_aggregate_pair_frontend(void) {
+  static const char SOURCE[] =
+      "type Pair = (i64, i64)\n"
+      "\n"
+      "fn makePair(left: i64, right: i64): Pair {\n"
+      "  let pair: Pair = (left, right)\n"
+      "  return pair\n"
+      "}\n"
+      "\n"
+      "fn combine(pair: Pair, scale: i64): i64 {\n"
+      "  let product = pair.0 * scale\n"
+      "  return product + pair.1\n"
+      "}\n"
+      "\n"
+      "entry {\n"
+      "  let original = makePair(left: 7, right: 5)\n"
+      "  let result = combine(pair: original, scale: 3)\n"
+      "  print(\"${original.0},${original.1},${result}\")\n"
+      "}\n";
+  fixture *value = &fixture_literal;
+  CHECK(fixture_run_with_print_host(value, SOURCE));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+        value->result.status == W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written) &&
+        value->result.required.receipt_bytes == value->result.receipt_bytes &&
+        value->result.written.tuple_components >= 2u &&
+        value->result.written.tuple_elements == 2u);
+
+  w_seed_frontend_counts measured;
+  w_seed_frontend_result measure_result;
+  CHECK(w_seed_frontend_measure(&value->input, &measured, &measure_result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(counts_equal(&measured, &value->result.required) &&
+        measure_result.required.receipt_bytes == value->result.receipt_bytes &&
+        frontend_text_is(measure_result.schema_version,
+                         W_SEED_FRONTEND_SCHEMA_VERSION));
+
+  size_t pair_declarations = 0u;
+  for (size_t index = 0u; index < value->result.written.type_declarations;
+       index += 1u) {
+    const w_seed_frontend_type_declaration *declaration =
+        &value->type_declarations[index];
+    if (!frontend_text_is(declaration->name, "Pair")) continue;
+    CHECK(declaration->type_index < value->result.written.types);
+    const w_seed_frontend_type *type = &value->types[declaration->type_index];
+    CHECK(type->kind == W_SEED_FRONTEND_TYPE_TUPLE &&
+          type->tuple_component_count == 2u &&
+          type->first_tuple_component != W_SEED_FRONTEND_NONE &&
+          (size_t)type->first_tuple_component <=
+              value->result.written.tuple_components &&
+          (size_t)type->tuple_component_count <=
+              value->result.written.tuple_components -
+                  (size_t)type->first_tuple_component);
+    for (size_t ordinal = 0u; ordinal < type->tuple_component_count;
+         ordinal += 1u) {
+      const w_seed_frontend_tuple_component *component =
+          &value->tuple_components[(size_t)type->first_tuple_component +
+                                   ordinal];
+      CHECK(component->owner_type == declaration->type_index &&
+            component->ordinal == ordinal && component->label.length == 0u &&
+            component->type_index < value->result.written.types);
+      const w_seed_frontend_type *component_type =
+          &value->types[component->type_index];
+      CHECK(component_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            component_type->is_signed && component_type->bit_width == 64u);
+      CHECK(component->span.start_byte < component->span.end_byte &&
+            component_type->span.start_byte == component->span.start_byte &&
+            component_type->span.end_byte == component->span.end_byte &&
+            fixture_span_text_is(value, declaration->module_index,
+                                 component->span, "i64"));
+    }
+    pair_declarations += 1u;
+  }
+  CHECK(pair_declarations == 1u);
+
+  size_t tuple_constructors = 0u;
+  size_t projection_zero = 0u;
+  size_t projection_one = 0u;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_TUPLE) {
+      CHECK(expression->supported &&
+            expression->inferred_type < value->result.written.types &&
+            value->types[expression->inferred_type].kind ==
+                W_SEED_FRONTEND_TYPE_TUPLE &&
+            expression->tuple_element_count == 2u &&
+            expression->first_tuple_element != W_SEED_FRONTEND_NONE &&
+            (size_t)expression->first_tuple_element <=
+                value->result.written.tuple_elements &&
+            (size_t)expression->tuple_element_count <=
+                value->result.written.tuple_elements -
+                    (size_t)expression->first_tuple_element);
+      static const char *const element_names[] = {"left", "right"};
+      for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+        const w_seed_frontend_tuple_element *element =
+            &value->tuple_elements[(size_t)expression->first_tuple_element +
+                                   ordinal];
+        CHECK(element->owner_expression == index &&
+              element->ordinal == ordinal && element->label.length == 0u &&
+              element->expression_index < value->result.written.expressions &&
+              element->span.start_byte < element->span.end_byte);
+        const w_seed_frontend_expression *child =
+            &value->expressions[element->expression_index];
+        CHECK(child->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+              child->supported &&
+              frontend_text_is(child->spelling, element_names[ordinal]) &&
+              child->span.start_byte == element->span.start_byte &&
+              child->span.end_byte == element->span.end_byte &&
+              fixture_span_text_is(value, expression->module_index,
+                                   element->span, element_names[ordinal]));
+        const w_seed_frontend_type *tuple_type =
+            &value->types[expression->inferred_type];
+        const w_seed_frontend_tuple_component *component =
+            &value->tuple_components[(size_t)tuple_type->first_tuple_component +
+                                     ordinal];
+        CHECK(component->type_index == child->inferred_type);
+      }
+      tuple_constructors += 1u;
+    } else if (expression->kind == W_SEED_FRONTEND_EXPR_MEMBER &&
+               frontend_text_is(expression->member_name, "0")) {
+      CHECK(expression->supported &&
+            expression->inferred_type < value->result.written.types &&
+            value->types[expression->inferred_type].kind ==
+                W_SEED_FRONTEND_TYPE_INTEGER &&
+            value->types[expression->inferred_type].is_signed &&
+            value->types[expression->inferred_type].bit_width == 64u);
+      CHECK(expression->left < value->result.written.expressions);
+      const w_seed_frontend_expression *receiver =
+          &value->expressions[expression->left];
+      CHECK(receiver->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+            receiver->inferred_type < value->result.written.types &&
+            value->types[receiver->inferred_type].kind ==
+                W_SEED_FRONTEND_TYPE_TUPLE &&
+            receiver->span.start_byte < receiver->span.end_byte &&
+            expression->span.start_byte == receiver->span.start_byte);
+      const w_seed_frontend_type *receiver_type =
+          &value->types[receiver->inferred_type];
+      const w_seed_frontend_tuple_component *component =
+          &value->tuple_components[receiver_type->first_tuple_component];
+      CHECK(component->ordinal == 0u &&
+            component->type_index == expression->inferred_type);
+      projection_zero += 1u;
+    } else if (expression->kind == W_SEED_FRONTEND_EXPR_MEMBER &&
+               frontend_text_is(expression->member_name, "1")) {
+      CHECK(expression->supported &&
+            expression->inferred_type < value->result.written.types &&
+            value->types[expression->inferred_type].kind ==
+                W_SEED_FRONTEND_TYPE_INTEGER &&
+            value->types[expression->inferred_type].is_signed &&
+            value->types[expression->inferred_type].bit_width == 64u);
+      CHECK(expression->left < value->result.written.expressions);
+      const w_seed_frontend_expression *receiver =
+          &value->expressions[expression->left];
+      CHECK(receiver->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+            receiver->inferred_type < value->result.written.types &&
+            value->types[receiver->inferred_type].kind ==
+                W_SEED_FRONTEND_TYPE_TUPLE &&
+            receiver->span.start_byte < receiver->span.end_byte &&
+            expression->span.start_byte == receiver->span.start_byte);
+      const w_seed_frontend_type *receiver_type =
+          &value->types[receiver->inferred_type];
+      const w_seed_frontend_tuple_component *component =
+          &value->tuple_components[(size_t)receiver_type->first_tuple_component +
+                                   1u];
+      CHECK(component->ordinal == 1u &&
+            component->type_index == expression->inferred_type);
+      projection_one += 1u;
+    }
+  }
+  CHECK(tuple_constructors == 1u && projection_zero == 2u &&
+        projection_one == 2u &&
+        receipt_contains(value, "tuple-component=", 16u) &&
+        receipt_contains(value, "tuple-element=", 14u) &&
+        receipt_contains(value, "|label=0:|type=", 15u));
+
+  fixture *repeat = &fixture_a;
+  CHECK(fixture_run_with_print_host(repeat, SOURCE));
+  CHECK(repeat->result.status == W_SEED_FRONTEND_OK &&
+        repeat->result.receipt_bytes == value->result.receipt_bytes &&
+        memcmp(repeat->receipt, value->receipt,
+               value->result.receipt_bytes) == 0);
+
+  const uint8_t sentinel = 0xa5u;
+  const size_t tuple_component_capacity =
+      value->result.required.tuple_components;
+  const size_t tuple_element_capacity = value->result.required.tuple_elements;
+  CHECK(tuple_component_capacity > 0u && tuple_element_capacity > 0u);
+  const size_t short_capacities[] = {tuple_component_capacity - 1u,
+                                     tuple_element_capacity - 1u};
+  for (size_t target = 0u; target < 2u; target += 1u) {
+    CHECK(fixture_parse(value, SOURCE));
+    fixture_configure_print_host(value);
+    fixture_fill_output(value, sentinel);
+    if (target == 0u)
+      value->output.tuple_component_capacity = short_capacities[target];
+    else
+      value->output.tuple_element_capacity = short_capacities[target];
+    (void)w_seed_frontend_run(&value->input, &value->output, &value->result);
+    CHECK(value->result.status == W_SEED_FRONTEND_CAPACITY &&
+          value->result.required.tuple_components == tuple_component_capacity &&
+          value->result.required.tuple_elements == tuple_element_capacity &&
+          fixture_output_is(value, sentinel, true));
+    value->output.tuple_component_capacity = TEST_TUPLE_COMPONENTS;
+    value->output.tuple_element_capacity = TEST_TUPLE_ELEMENTS;
+  }
+
+  CHECK(fixture_parse(value, SOURCE));
+  fixture_configure_print_host(value);
+  fixture_fill_output(value, sentinel);
+  value->output.tuple_components =
+      (w_seed_frontend_tuple_component *)(void *)value->types;
+  value->output.tuple_component_capacity = tuple_component_capacity;
+  (void)w_seed_frontend_run(&value->input, &value->output, &value->result);
+  CHECK(value->result.status == W_SEED_FRONTEND_INVALID &&
+        fixture_output_is(value, sentinel, true));
+  value->output.tuple_components = value->tuple_components;
+  value->output.tuple_component_capacity = TEST_TUPLE_COMPONENTS;
+
+  CHECK(fixture_parse(value, SOURCE));
+  fixture_configure_print_host(value);
+  fixture_fill_output(value, sentinel);
+  value->output.tuple_elements =
+      (w_seed_frontend_tuple_element *)(void *)value->expressions;
+  value->output.tuple_element_capacity = tuple_element_capacity;
+  (void)w_seed_frontend_run(&value->input, &value->output, &value->result);
+  CHECK(value->result.status == W_SEED_FRONTEND_INVALID &&
+        fixture_output_is(value, sentinel, true));
+  value->output.tuple_elements = value->tuple_elements;
+  value->output.tuple_element_capacity = TEST_TUPLE_ELEMENTS;
+
+  static const char *const PARSER_REJECTIONS[] = {
+      "type Single = (i64,)\n",
+      "fn single(value: i64): (i64, i64) { return (value,) }\n",
+      "type Named = (left: i64, right: i64)\n",
+      "fn named(left: i64, right: i64): (i64, i64) { "
+      "return (first: left, second: right) }\n",
+  };
+  for (size_t index = 0u;
+       index < sizeof(PARSER_REJECTIONS) / sizeof(PARSER_REJECTIONS[0]);
+       index += 1u) {
+    CHECK(fixture_parse(value, PARSER_REJECTIONS[index]));
+    CHECK(value->parse.status != W_SEED_PARSE_COMPLETE);
+  }
+
+  static const char MISMATCH[] =
+      "fn reversed(): (i64, Bool) { return (true, 1_i64) }\n"
+      "entry(reversed)\n";
+  CHECK(fixture_run(value, MISMATCH));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+        value->result.status != W_SEED_FRONTEND_OK &&
+        has_diagnostic(value, "W-TYPE-0120"));
+  const w_seed_frontend_diagnostic *tuple_mismatch =
+      diagnostic_for_code(value, "W-TYPE-0120");
+  CHECK(tuple_mismatch != NULL && tuple_mismatch->label_count == 2u &&
+        diagnostic_record_ranges_are_valid(value, tuple_mismatch) &&
+        diagnostic_label_role_is(value, tuple_mismatch, 0u,
+                                 "actual-component") &&
+        diagnostic_label_role_is(value, tuple_mismatch, 1u,
+                                 "expected-component"));
+  bool saw_reversed_tuple = false;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_TUPLE) continue;
+    CHECK(expression->tuple_element_count == 2u &&
+          expression->first_tuple_element != W_SEED_FRONTEND_NONE);
+    const w_seed_frontend_tuple_element *first =
+        &value->tuple_elements[expression->first_tuple_element];
+    const w_seed_frontend_tuple_element *second =
+        &value->tuple_elements[(size_t)expression->first_tuple_element + 1u];
+    CHECK(first->ordinal == 0u && second->ordinal == 1u &&
+          value->expressions[first->expression_index].kind ==
+              W_SEED_FRONTEND_EXPR_BOOL &&
+          value->expressions[second->expression_index].kind ==
+              W_SEED_FRONTEND_EXPR_INTEGER &&
+          first->span.start_byte ==
+              value->expressions[first->expression_index].span.start_byte &&
+          first->span.end_byte ==
+              value->expressions[first->expression_index].span.end_byte &&
+          fixture_span_text_is(value, 0u, first->span, "true"));
+    const w_seed_frontend_diagnostic_label *actual_label =
+        &value->diagnostic_labels[tuple_mismatch->first_label];
+    const w_seed_frontend_diagnostic_label *expected_label =
+        &value->diagnostic_labels[tuple_mismatch->first_label + 1u];
+    CHECK(actual_label->span.start_byte == first->span.start_byte &&
+          actual_label->span.end_byte == first->span.end_byte &&
+          fixture_span_text_is(value, actual_label->document_index,
+                               actual_label->span, "true"));
+    bool expected_component_span_found = false;
+    for (size_t type_index = 0u;
+         type_index < value->result.written.types; type_index += 1u) {
+      const w_seed_frontend_type *type = &value->types[type_index];
+      if (type->kind != W_SEED_FRONTEND_TYPE_TUPLE ||
+          !frontend_text_is(type->spelling, "(i64, Bool)"))
+        continue;
+      const w_seed_frontend_tuple_component *component =
+          &value->tuple_components[type->first_tuple_component];
+      if (expected_label->span.start_byte == component->span.start_byte &&
+          expected_label->span.end_byte == component->span.end_byte &&
+          fixture_span_text_is(value, expected_label->document_index,
+                               expected_label->span, "i64"))
+        expected_component_span_found = true;
+    }
+    CHECK(expected_component_span_found);
+    saw_reversed_tuple = true;
+  }
+  CHECK(saw_reversed_tuple);
+
+  static const char WHITESPACE_TYPES[] =
+      "fn flat(value: (i64,i64)): ( i64 , i64 ) { return value }\n"
+      "fn nested(value: ( i64 , (Bool,i64) )): (i64,( Bool , i64 )) { "
+      "return value }\n"
+      "entry(flat)\n";
+  fixture *whitespace = &fixture_external;
+  CHECK(fixture_run(whitespace, WHITESPACE_TYPES));
+  CHECK(whitespace->parse.status == W_SEED_PARSE_COMPLETE &&
+        whitespace->result.status == W_SEED_FRONTEND_OK &&
+        counts_equal(&whitespace->result.required,
+                     &whitespace->result.written));
+
+  static const char UNANNOTATED_TUPLE[] =
+      "fn unannotated(left: i64, right: i64): i64 { "
+      "let pair = (left, right)\nreturn left }\n"
+      "entry(unannotated)\n";
+  fixture *unannotated = &fixture_capacity;
+  CHECK(fixture_run(unannotated, UNANNOTATED_TUPLE));
+  CHECK(unannotated->parse.status == W_SEED_PARSE_COMPLETE &&
+        unannotated->result.status != W_SEED_FRONTEND_OK);
+  bool saw_unannotated_pair = false;
+  for (size_t index = 0u; index < unannotated->result.written.statements;
+       index += 1u) {
+    const w_seed_frontend_statement *statement =
+        &unannotated->statements[index];
+    if (statement->kind != W_SEED_FRONTEND_STMT_LET ||
+        !frontend_text_is(statement->binding_name, "pair"))
+      continue;
+    CHECK(statement->effective_type == W_SEED_FRONTEND_NONE &&
+          statement->expression_index <
+              unannotated->result.written.expressions &&
+          unannotated->expressions[statement->expression_index].kind ==
+              W_SEED_FRONTEND_EXPR_TUPLE &&
+          unannotated->expressions[statement->expression_index].inferred_type ==
+              W_SEED_FRONTEND_NONE);
+    saw_unannotated_pair = true;
+  }
+  CHECK(saw_unannotated_pair);
+
+  CHECK(fixture_run(value, "fn unit(): () { return () }\nentry(unit)\n"));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+        value->result.status == W_SEED_FRONTEND_OK &&
+        value->result.written.tuple_components == 0u &&
+        value->result.written.tuple_elements == 0u);
+
+  static const char NESTED[] =
+      "fn nested(value: i64, flag: Bool): (i64, (Bool, i64)) { "
+      "return (value, (flag, value)) }\n"
+      "entry(nested)\n";
+  fixture *nested = &fixture_b;
+  CHECK(fixture_run(nested, NESTED));
+  CHECK(nested->parse.status == W_SEED_PARSE_COMPLETE);
+  CHECK(nested->result.status == W_SEED_FRONTEND_OK);
+  CHECK(counts_equal(&nested->result.required, &nested->result.written));
+  CHECK(nested->result.written.tuple_components >= 4u);
+  CHECK(nested->result.written.tuple_elements == 4u);
+  size_t tuple_type_count = 0u;
+  size_t tuple_expression_count = 0u;
+  for (size_t index = 0u; index < nested->result.written.types; index += 1u) {
+    const w_seed_frontend_type *type = &nested->types[index];
+    if (type->kind != W_SEED_FRONTEND_TYPE_TUPLE) {
+      CHECK(type->first_tuple_component == W_SEED_FRONTEND_NONE &&
+            type->tuple_component_count == 0u);
+      continue;
+    }
+    CHECK(type->tuple_component_count == 2u &&
+          type->first_tuple_component != W_SEED_FRONTEND_NONE &&
+          (size_t)type->first_tuple_component <=
+              nested->result.written.tuple_components &&
+          (size_t)type->tuple_component_count <=
+              nested->result.written.tuple_components -
+                  (size_t)type->first_tuple_component);
+    for (size_t ordinal = 0u; ordinal < type->tuple_component_count;
+         ordinal += 1u) {
+      const w_seed_frontend_tuple_component *component =
+          &nested->tuple_components[(size_t)type->first_tuple_component +
+                                    ordinal];
+      CHECK(component->owner_type == index && component->ordinal == ordinal &&
+            component->label.length == 0u &&
+            component->type_index < nested->result.written.types);
+      const w_seed_frontend_type *component_type =
+          &nested->types[component->type_index];
+      CHECK(component->span.start_byte < component->span.end_byte);
+      if (component_type->kind == W_SEED_FRONTEND_TYPE_TUPLE) {
+        CHECK(fixture_span_text_is(nested, 0u, component->span,
+                                   "(Bool, i64)"));
+      } else if (component_type->kind == W_SEED_FRONTEND_TYPE_BOOL) {
+        CHECK(fixture_span_text_is(nested, 0u, component->span, "Bool"));
+      } else {
+        CHECK(component_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+              component_type->is_signed && component_type->bit_width == 64u &&
+              fixture_span_text_is(nested, 0u, component->span, "i64"));
+      }
+      if (component_type->kind == W_SEED_FRONTEND_TYPE_TUPLE) {
+        CHECK(component_type->tuple_component_count == 2u &&
+              component_type->first_tuple_component !=
+                  W_SEED_FRONTEND_NONE);
+        const w_seed_frontend_tuple_component *inner_first =
+            &nested->tuple_components[component_type->first_tuple_component];
+        const w_seed_frontend_tuple_component *inner_second =
+            &nested->tuple_components[
+                (size_t)component_type->first_tuple_component + 1u];
+        CHECK(inner_first->ordinal == 0u && inner_second->ordinal == 1u &&
+              nested->types[inner_first->type_index].kind ==
+                  W_SEED_FRONTEND_TYPE_BOOL &&
+              nested->types[inner_second->type_index].kind ==
+                  W_SEED_FRONTEND_TYPE_INTEGER &&
+              nested->types[inner_second->type_index].is_signed &&
+              nested->types[inner_second->type_index].bit_width == 64u);
+      }
+    }
+    tuple_type_count += 1u;
+  }
+  for (size_t index = 0u; index < nested->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression =
+        &nested->expressions[index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_TUPLE) {
+      CHECK(expression->first_tuple_element == W_SEED_FRONTEND_NONE &&
+            expression->tuple_element_count == 0u);
+      continue;
+    }
+    CHECK(expression->supported &&
+          expression->tuple_element_count == 2u &&
+          expression->first_tuple_element != W_SEED_FRONTEND_NONE &&
+          (size_t)expression->first_tuple_element <=
+              nested->result.written.tuple_elements &&
+          (size_t)expression->tuple_element_count <=
+              nested->result.written.tuple_elements -
+                  (size_t)expression->first_tuple_element);
+    for (size_t ordinal = 0u; ordinal < expression->tuple_element_count;
+         ordinal += 1u) {
+      const w_seed_frontend_tuple_element *element =
+          &nested->tuple_elements[(size_t)expression->first_tuple_element +
+                                  ordinal];
+      CHECK(element->owner_expression == index &&
+            element->ordinal == ordinal && element->label.length == 0u &&
+            element->expression_index < nested->result.written.expressions &&
+            element->span.start_byte < element->span.end_byte);
+      const w_seed_frontend_expression *child =
+          &nested->expressions[element->expression_index];
+      const w_seed_frontend_type *expression_type =
+          &nested->types[expression->inferred_type];
+      const w_seed_frontend_tuple_component *component =
+          &nested->tuple_components[(size_t)expression_type->first_tuple_component +
+                                    ordinal];
+      CHECK(element->span.start_byte == child->span.start_byte &&
+            element->span.end_byte == child->span.end_byte &&
+            fixture_type_records_equal(nested, component->type_index,
+                                       child->inferred_type, 0u));
+    }
+    tuple_expression_count += 1u;
+  }
+  CHECK(tuple_type_count >= 2u && tuple_expression_count == 2u);
+  return true;
+}
+
 static bool test_u64_overflowing_products_frontend(void) {
   static const char SOURCE[] =
       "entry { "
@@ -7118,7 +7668,7 @@ static bool test_f32_scalar_projection(void) {
 }
 
 static bool test_numeric_widening_frontend(void) {
-  CHECK(strcmp(W_SEED_FRONTEND_SCHEMA_VERSION, "w-seed-frontend-73") == 0);
+  CHECK(strcmp(W_SEED_FRONTEND_SCHEMA_VERSION, "w-seed-frontend-74") == 0);
   typedef struct {
     const char *source_name;
     bool source_is_float;
@@ -10011,6 +10561,7 @@ int main(int argc, char **argv) {
   if (!test_checked_shift_frontend_matrix()) return 1;
   if (!test_checked_shift_binding_interpolation_frontend()) return 1;
   if (!test_u64_binary_frontend()) return 1;
+  if (!test_flat_aggregate_pair_frontend()) return 1;
   if (!test_u64_overflowing_products_frontend()) return 1;
   if (!test_u64_saturating_policy_frontend()) return 1;
   if (!test_u64_bool_tuple_product_boundary_frontend()) return 1;
