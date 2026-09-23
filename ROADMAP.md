@@ -454,6 +454,13 @@ start its HIR writer until the nested-loop HIR change is integrated. This
 bounded product-value slice would not close payload enums, fixed arrays,
 general aggregate layout, or the C ABI boundary; those need later exact
 witnesses. A parser-accepted aggregate form is not yet an executable product.
+The [flat-pair witness](compiler/seed-c/fixtures/flat-aggregate-pair.w) now
+pins a positional two-`i64` tuple, construction, projection, labelled calls,
+return and body entry. It parses completely, but the frontend rejects tuple
+construction/projection with `W-SEM-0001`; a simple nominal struct also parses
+but remains frontend-unsupported. Labeled tuple type syntax is a separate
+seed-parser gap. Its C23/Rust fixtures are correctness oracles only; no W
+native output or performance result exists for this family.
 
 ### Active rank 1 closure order
 
