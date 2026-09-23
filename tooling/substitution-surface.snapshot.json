@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:37bf05217f40b35335b3479183620009f03ce7b4ee5fc64ba703cb06d95ce6b8",
+  "corpusDigest": "sha256:057ca87475485311013017e0df234181b984f79409b07fea4b594e24de1bc4aa",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -3231,7 +3231,7 @@
           }
         },
         {
-          "name": "restaurant-substring-witness",
+          "name": "substring-witness",
           "language": "w-adversarial",
           "sourceDigest": "sha256:c1d97f9d360f42e5713c2ca1f4f77de7b2fbfa116f79952fb4423c1537be6315",
           "metrics": {
@@ -4816,13 +4816,13 @@
       "selected": {
         "name": "selected",
         "language": "w",
-        "sourceDigest": "sha256:20b43ca04661730cc9d4c49f7a4e65819c72f1a083757ba8c345eed69822a1d4",
+        "sourceDigest": "sha256:16b033d97a54a5ef15c5bceb8680baae2f86e32d74cf987fe19bc13dec177504",
         "metrics": {
-          "utf8Bytes": 689,
-          "codePoints": 689,
-          "nonWhitespaceCodePoints": 576,
+          "utf8Bytes": 678,
+          "codePoints": 678,
+          "nonWhitespaceCodePoints": 565,
           "lines": 16,
-          "surfaceLexemes": 151
+          "surfaceLexemes": 149
         }
       },
       "alternatives": [
@@ -5140,13 +5140,13 @@
       "selected": {
         "name": "selected",
         "language": "text",
-        "sourceDigest": "sha256:c5740363b6771046ad423742bdcbfb90852ccf2c8b349dbbcbbe23db5d72fb34",
+        "sourceDigest": "sha256:410afa59b708c4ca529cc68e6ab4f14f55eb9fe817d4484a8ac28f5c7bb309b5",
         "metrics": {
-          "utf8Bytes": 141,
-          "codePoints": 141,
-          "nonWhitespaceCodePoints": 124,
+          "utf8Bytes": 158,
+          "codePoints": 158,
+          "nonWhitespaceCodePoints": 140,
           "lines": 3,
-          "surfaceLexemes": 48
+          "surfaceLexemes": 55
         }
       },
       "alternatives": [
@@ -6641,13 +6641,13 @@
         {
           "name": "fixture-name-output-shortcut",
           "language": "text",
-          "sourceDigest": "sha256:e9e898dd9a2c1887b90f1465f9e2e0f53903fa7bfd36b22fec5b85bc791e5cea",
+          "sourceDigest": "sha256:7f23f201dc0f696cc5b224a16a8f33bea6680935090335e550f81a681ddc4920",
           "metrics": {
-            "utf8Bytes": 53,
-            "codePoints": 53,
-            "nonWhitespaceCodePoints": 47,
+            "utf8Bytes": 42,
+            "codePoints": 42,
+            "nonWhitespaceCodePoints": 36,
             "lines": 1,
-            "surfaceLexemes": 11
+            "surfaceLexemes": 9
           }
         },
         {
@@ -11200,13 +11200,13 @@
       "selected": {
         "name": "selected",
         "language": "w",
-        "sourceDigest": "sha256:9165ff8c3bddebf192d3d92b736f35f8cc8aedd0549794b456f8e82f1b354039",
+        "sourceDigest": "sha256:06ec39e255da3377b73bff0fd076fba0c91cb573432516509cb01f4f8aa04628",
         "metrics": {
-          "utf8Bytes": 644,
-          "codePoints": 644,
-          "nonWhitespaceCodePoints": 556,
+          "utf8Bytes": 633,
+          "codePoints": 633,
+          "nonWhitespaceCodePoints": 545,
           "lines": 5,
-          "surfaceLexemes": 114
+          "surfaceLexemes": 112
         }
       },
       "alternatives": [

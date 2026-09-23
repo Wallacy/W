@@ -4005,6 +4005,72 @@ static bool program_scalar_cfg_is_supported(
   return false;
 }
 
+/* A terminal branch has no synthetic join: each reachable path returns its
+ * own value. Keep this separate from the value-producing diamond above. The
+ * forward-only walk admits a sequence of conditional early returns without
+ * assuming one exact source spelling or block count. */
+static bool program_scalar_terminal_returns_are_supported(
+    const w_seed_hir0_program *program, size_t function_index) {
+  if (program == NULL || function_index >= program->function_count)
+    return false;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  if (!native_scalar_type_supported(program, function->return_type) ||
+      function->block_count < 3u ||
+      function->block_count > W_SEED_NATIVE_SUBSET0_MAX_BLOCKS ||
+      function->first_block >= program->block_count ||
+      function->block_count > program->block_count - function->first_block)
+    return false;
+  const size_t start = function->first_block;
+  const size_t end = start + function->block_count;
+  bool reachable[W_SEED_NATIVE_SUBSET0_MAX_BLOCKS] = {false};
+  reachable[0] = true;
+  size_t branch_count = 0u;
+  size_t return_count = 0u;
+  for (size_t block_index = start; block_index < end; block_index += 1u) {
+    const w_seed_hir0_block *block = &program->blocks[block_index];
+    if (!reachable[block_index - start] ||
+        block->owner_function != function_index ||
+        block->terminator_index >= program->terminator_count)
+      return false;
+    const w_seed_hir0_terminator *term =
+        &program->terminators[block->terminator_index];
+    if (term->owner_block != block_index) return false;
+    if (term->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE) {
+      if (term->value_index >= program->value_count ||
+          term->result_type != function->return_type ||
+          program->values[term->value_index].type_index !=
+              function->return_type ||
+          term->target_block != W_SEED_HIR0_NONE ||
+          term->else_block != W_SEED_HIR0_NONE ||
+          term->edge_argument_count != 0u)
+        return false;
+      return_count += 1u;
+      continue;
+    }
+    if (term->kind != W_SEED_HIR0_TERMINATOR_BRANCH &&
+        term->kind != W_SEED_HIR0_TERMINATOR_JUMP)
+      return false;
+    if (term->target_block <= block_index || term->target_block >= end ||
+        term->edge_argument_count != 0u)
+      return false;
+    reachable[term->target_block - start] = true;
+    if (term->kind == W_SEED_HIR0_TERMINATOR_JUMP) {
+      if (term->else_block != W_SEED_HIR0_NONE) return false;
+      continue;
+    }
+    if (term->else_block <= block_index || term->else_block >= end ||
+        term->else_block == term->target_block ||
+        term->value_index >= program->value_count ||
+        program->values[term->value_index].type_index >= program->type_count ||
+        program->types[program->values[term->value_index].type_index].kind !=
+            W_SEED_HIR0_TYPE_BOOL)
+      return false;
+    reachable[term->else_block - start] = true;
+    branch_count += 1u;
+  }
+  return branch_count != 0u && return_count >= 2u;
+}
+
 /* The process entry may end in a terminal source-level if. HIR deliberately
  * elides that if's synthetic join because each arm exits directly, either by
  * returning ExitCode or by panicking. Keep this admission separate from the
@@ -5160,6 +5226,8 @@ static bool program_function_maximum(
   if (program->types[function->return_type].kind != W_SEED_HIR0_TYPE_UNIT &&
       function->block_count > 1u &&
       !program_scalar_cfg_is_supported(program, function_index) &&
+      !(!process_entry && program_scalar_terminal_returns_are_supported(
+                              program, function_index)) &&
       !program_natural_loop_is_supported(program, function_index) &&
       !post_test_loop &&
       !enum_switch && !process_terminal_return_cfg)

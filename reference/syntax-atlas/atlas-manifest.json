@@ -3103,14 +3103,14 @@
           "digest": "sha256:c59db27e6acb51975c56109741934bb11d9b4ebce08edc6baaeefd6c8eac794c"
         }
       ],
-      "snippetDigest": "sha256:ef91564f1dd5e7da5fe0cf420c3f3fa0001b818d341b444038973c00281736ef",
-      "snippetBytes": 676
+      "snippetDigest": "sha256:900fc0307010f7739ae81cf7a3883951db5239aacc6369a01db90c27fad7f60d",
+      "snippetBytes": 775
     },
     {
       "id": "execution-forms",
       "file": "execution.w",
       "order": 10,
-      "line": 84,
+      "line": 90,
       "title": "Direct sync entry, await, async and spawn initializers, and calls",
       "family": "execution",
       "designStatus": "current",
@@ -3152,7 +3152,7 @@
       "id": "restricted-expressions",
       "file": "execution.w",
       "order": 11,
-      "line": 134,
+      "line": 140,
       "title": "Pipelines, locks, transactions, unsafe, and closures",
       "family": "effects",
       "designStatus": "current",
@@ -3226,7 +3226,7 @@
       "id": "stream-and-channel",
       "file": "execution.w",
       "order": 13,
-      "line": 200,
+      "line": 206,
       "title": "Streams, channels, and directional contracts",
       "family": "streams",
       "designStatus": "current",
@@ -3280,7 +3280,7 @@
       "id": "module-run-entry",
       "file": "execution.w",
       "order": 15,
-      "line": 229,
+      "line": 235,
       "title": "Explicit module-run entry",
       "family": "entry",
       "designStatus": "current",
@@ -3374,6 +3374,6 @@
   ],
   "generated": {
     "coverage": "SYNTAX-COVERAGE.md",
-    "coverageDigest": "sha256:32022f8b6ecb26a7a8851acdb3f0ca55941f03cbb229d3727195c58cb1efaa82"
+    "coverageDigest": "sha256:9ec9759d8ea1e71c597ad9808cdda0f9fe676071d4252546d1dddd57dd235c75"
   }
 }

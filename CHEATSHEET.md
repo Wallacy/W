@@ -1413,7 +1413,7 @@ test "capture lists preserve ownership modes" for captures {
 
 ## Control flow and patterns
 
-<!-- w-example role=executable use=Signal,classify,accumulate,nextAvailableSeats,adjustedSeats,branchAdjustedSeats,multiBranchAdjustedState,availability observable=value -->
+<!-- w-example role=executable use=Signal,classify,accumulate,nextAvailableSeats,adjustedSeats,branchAdjustedSeats,multiBranchAdjustedState,availability,sign observable=value -->
 ```w
 enum Signal {
   quiet
@@ -1469,6 +1469,12 @@ fn availability(requested: Bool): Bool {
   return open
 }
 
+fn sign(value: i64): i64 {
+  if value < 0 { return -1 }
+  if value == 0 { return 0 }
+  return 1
+}
+
 fn branchAdjustedSeats(isOpen: Bool): i64 {
   var seats = 5
   if isOpen { seats = seats + 1 }
@@ -1502,6 +1508,9 @@ test "control flow returns an observable value" for accumulate {
   expect multiBranchAdjustedState(isOpen: false) == -4
   expect availability(requested: true)
   expect !availability(requested: false)
+  expect sign(value: -5) == -1
+  expect sign(value: 0) == 0
+  expect sign(value: 7) == 1
 }
 ```
 

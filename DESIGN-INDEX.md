@@ -33,7 +33,7 @@
 | decisões ainda sem classe de freeze | 0 |
 | decisões com múltiplos eixos obrigatórios | 2 |
 | formas R0 com baseline estática | 809 |
-| surface lexemes das formas vigentes R0 | 9842 total; mediana 39; máximo 400 |
+| surface lexemes das formas vigentes R0 | 9845 total; mediana 39; máximo 400 |
 | bundles executáveis R1 | 57 |
 | variantes/tarefas R1 | 162/228 |
 | casos R0 promovidos a R1 | 69/203 |

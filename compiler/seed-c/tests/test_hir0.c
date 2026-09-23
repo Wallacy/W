@@ -14231,6 +14231,151 @@ static bool test_if_without_else_cfg(void) {
   return true;
 }
 
+static bool terminal_return_ladder_hir_shape(void) {
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 2u && program->block_count == 6u &&
+        program->terminator_count == 6u && program->functions[0].first_block ==
+            0u &&
+        program->functions[0].block_count == 5u &&
+        program->functions[1].first_block == 5u &&
+        program->functions[1].block_count == 1u);
+  const w_seed_hir0_terminator *terms = program->terminators;
+  CHECK(terms[0].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        terms[0].target_block == 1u && terms[0].else_block == 2u &&
+        terms[1].kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        terms[2].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        terms[2].target_block == 3u && terms[2].else_block == 4u &&
+        terms[3].kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        terms[4].kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        terms[5].kind == W_SEED_HIR0_TERMINATOR_RETURN_UNIT);
+  for (size_t block = 0u; block < 5u; block += 1u)
+    if (terms[block].kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE)
+      CHECK(terms[block].value_index < program->value_count &&
+            terms[block].result_type == W_SEED_HIR0_TYPE_I64 &&
+            program->values[terms[block].value_index].type_index ==
+                W_SEED_HIR0_TYPE_I64 &&
+            program->values[terms[block].value_index].owner_kind ==
+                W_SEED_HIR0_VALUE_OWNER_TERMINATOR &&
+            program->values[terms[block].value_index].owner_index == block);
+  CHECK(terms[0].value_index < program->value_count &&
+        terms[2].value_index < program->value_count &&
+        program->values[terms[0].value_index].kind ==
+            W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON &&
+        program->values[terms[2].value_index].kind ==
+            W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON &&
+        program->values[terms[0].value_index].type_index == 3u &&
+        program->values[terms[2].value_index].type_index == 3u);
+  CHECK(program->call_count == 4u && program->binding_count == 3u);
+  for (size_t ordinal = 0u; ordinal < 3u; ordinal += 1u) {
+    const w_seed_hir0_call *call = &program->calls[ordinal];
+    const w_seed_hir0_binding *binding = &program->bindings[ordinal];
+    CHECK(call->result_type == W_SEED_HIR0_TYPE_I64 &&
+          call->owner_block == 5u && call->argument_count == 1u &&
+          call->callee_identity < program->identity_count &&
+          program->identities[call->callee_identity].target_index == 0u &&
+          call->owner_instruction < program->instruction_count &&
+          program->instructions[call->owner_instruction].kind ==
+              W_SEED_HIR0_INSTRUCTION_CALL &&
+          binding->initializer_value < program->value_count &&
+          program->values[binding->initializer_value].kind ==
+              W_SEED_HIR0_VALUE_CALL_RESULT &&
+          program->values[binding->initializer_value].call_index == ordinal);
+  }
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_terminal_return_ladder_cfg(void) {
+  static const char NESTED[] =
+      "fn sign(value: i64): i64 { "
+      "if value < 0 { return -1 } else if value == 0 { return 0 } "
+      "return 1 }\n"
+      "fn main() { let negative = sign(value: -5) "
+      "let zero = sign(value: 0) let positive = sign(value: 7) "
+      "print(message: \"${negative},${zero},${positive}\", suffix: \"\") }\n"
+      "entry(main)\n";
+  static const char SEQUENTIAL[] =
+      "fn sign(value: i64): i64 { "
+      "if value < 0 { return -1 } "
+      "if value == 0 { return 0 } return 1 }\n"
+      "fn main() { let negative = sign(value: -5) "
+      "let zero = sign(value: 0) let positive = sign(value: 7) "
+      "print(message: \"${negative},${zero},${positive}\", suffix: \"\") }\n"
+      "entry(main)\n";
+  CHECK(lower(NESTED));
+  CHECK(terminal_return_ladder_hir_shape());
+  const w_seed_hir0_terminator saved_branch = fixture.hir_terminators[2];
+  fixture.hir_terminators[2].else_block = 3u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_terminators[2] = saved_branch;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  CHECK(fixture_frontend(NESTED));
+  setup_hir_output();
+  const w_seed_hir0_input exact_input = hir_input();
+  w_seed_hir0_counts exact_counts;
+  w_seed_hir0_result exact_measure_result;
+  CHECK(w_seed_hir0_measure(&exact_input, &exact_counts,
+                            &exact_measure_result) == W_SEED_HIR0_OK);
+  CHECK(exact_counts.blocks == 6u);
+
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  fixture.hir_output.block_capacity = exact_counts.blocks - 1u;
+  w_seed_hir0_result capacity_rejected;
+  (void)memset(&capacity_rejected, 0x42, sizeof(capacity_rejected));
+  const w_seed_hir0_result capacity_snapshot = capacity_rejected;
+  CHECK(w_seed_hir0_run(&exact_input, &fixture.hir_output,
+                        &capacity_rejected) !=
+        W_SEED_HIR0_OK);
+  CHECK(hir_output_is_byte(0xa5u) &&
+        memcmp(&capacity_rejected, &capacity_snapshot,
+               sizeof(capacity_rejected)) == 0);
+
+  setup_hir_output();
+  fixture.hir_output.block_capacity = exact_counts.blocks;
+  CHECK(w_seed_hir0_run(&exact_input, &fixture.hir_output,
+                        &fixture.hir_result) == W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_program_from_output(&fixture.hir_output,
+                                        &fixture.hir_result,
+                                        &fixture.hir_program));
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_counts = exact_counts;
+  CHECK(terminal_return_ladder_hir_shape());
+
+  CHECK(lower(SEQUENTIAL));
+  CHECK(terminal_return_ladder_hir_shape());
+
+  static const char MISMATCHED_RETURN[] =
+      "fn sign(value: i64): i64 { "
+      "if value < 0 { return -1 } else if value == 0 { return false } "
+      "return 1 }\n"
+      "entry { let result = sign(value: 0) }\n";
+  CHECK(frontend_rejects_quietly(MISMATCHED_RETURN));
+
+  static const char MISSING_RETURN[] =
+      "fn sign(value: i64): i64 { if value < 0 { return -1 } }\n"
+      "entry { let result = sign(value: 0) }\n";
+  CHECK(fixture_frontend(MISSING_RETURN));
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  w_seed_hir0_result rejected;
+  (void)memset(&rejected, 0x42, sizeof(rejected));
+  const w_seed_hir0_result rejected_snapshot = rejected;
+  const w_seed_hir0_input input = hir_input();
+  w_seed_hir0_counts measured;
+  w_seed_hir0_result measure_result;
+  CHECK(w_seed_hir0_measure(&input, &measured, &measure_result) !=
+        W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &rejected) !=
+        W_SEED_HIR0_OK);
+  CHECK(hir_output_is_byte(0xa5u) &&
+        memcmp(&rejected, &rejected_snapshot, sizeof(rejected)) == 0);
+  return true;
+}
+
 static bool test_sequential_if_diamonds(void) {
   static const char SOURCE[] =
       "fn main() { if true { print(message: \"first\", suffix: \"\") } "
@@ -20170,6 +20315,7 @@ int main(int argc, char **argv) {
   if (!test_nested_scalar_if_value_diamond()) return 1;
   if (!test_if_diamond_cfg()) return 1;
   if (!test_if_without_else_cfg()) return 1;
+  if (!test_terminal_return_ladder_cfg()) return 1;
   if (!test_sequential_if_diamonds()) return 1;
   if (!test_nested_if_diamonds()) return 1;
   if (!test_nested_if_depth_boundary()) return 1;

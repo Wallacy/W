@@ -1438,8 +1438,10 @@ fn choose(outer: Bool, inner: Bool, open: i64, middle: i64, closed: i64): i64 {
 HIR0 and Native0 accept at most 64 nested scalar `if` values. Depth 65 fails
 before HIR output changes. Conditions are Bool. The root and pure arms yield
 the same `i64` or Bool type. Calls/effects, String/enum/aggregate values, `var`,
-mutation, loops, `else if`, terminal branch returns and general CFG remain
-unsupported. HIR0, MLIR0 and Native0 public record schemas are unchanged.
+mutation, loops, and `else if` scalar values remain unsupported by this nested
+scalar-value cut. Terminal branch returns are a separate bounded statement
+shape below; general CFG remains outside this slice. HIR0, MLIR0 and Native0
+public record schemas are unchanged.
 
 The nested scalar-if fixture `fixtures/nested-scalar-if.w` has two typed
 scalar diamonds and writes exact `1,2,3\n`, exit zero and empty stderr through
@@ -1447,6 +1449,29 @@ scalar diamonds and writes exact `1,2,3\n`, exit zero and empty stderr through
 arm block during recursive traversal; C/Rust equivalents, public Windows
 execution, imports, async process entry, other targets and performance remain
 gaps. This is compiler-lifecycle correctness evidence only.
+
+### Bounded terminal branch returns
+
+The W-only `terminal-returns.w` witness covers one early-return ladder. Its
+negative/zero/positive sign function has exactly five HIR0 blocks and five
+terminators: `B0` branches on `value < 0` to `B1`/`B2`; `B1` returns `-1`;
+`B2` branches on `value == 0` to `B3`/`B4`; `B3` returns `0`; and `B4` returns
+`1`. All three terminal values are typed `i64` return operands owned by their
+return terminators, so there is no synthetic join. `main` contributes one
+additional block and Unit return, for six blocks and six terminators in the
+whole HIR program.
+
+The HIR test verifies that both the nested spelling
+`if value < 0 { return -1 } else if value == 0 { return 0 }; return 1` and the
+sequential spelling `if value < 0 { return -1 }; if value == 0 { return 0 };
+return 1` produce that same five-block function shape. The public fixture uses
+the nested spelling and prints `-1,0,1\n`. The Windows
+`bun check --target w-run-windows` and Linux/WSL `bun check --target w-run`
+public gates passed with exit `0`, that exact stdout, and empty stderr.
+
+This is bounded compiler-lifecycle correctness evidence, not general CFG
+support. It does not establish arbitrary branch composition, general joins,
+loop interactions, or unrestricted control-flow lowering; those remain gaps.
 
 ### ARITH0 checked signed-`i64` arithmetic (W-1540)
 

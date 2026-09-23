@@ -46,6 +46,7 @@ const integerComparisonFixture = resolve(seedDirectory,
   "fixtures", "integer-comparison.w")
 const boolShortCircuitFixture = resolve(seedDirectory, "fixtures", "bool-short-circuit.w")
 const scalarIfFixture = resolve(seedDirectory, "fixtures", "scalar-if.w")
+const terminalReturnsFixture = resolve(seedDirectory, "fixtures", "terminal-returns.w")
 const interpolationFixture = resolve(
   seedDirectory, "fixtures", "interpolation.w")
 const linearFixture = resolve(seedDirectory, "fixtures", "linear.w")
@@ -908,6 +909,9 @@ try {
   expectExact(binary, ["run", scalarIfFixture], 0,
     Buffer.from("Open 5; closed 2\n", "utf8"),
     "Restaurant scalar-if fixture")
+  expectExact(binary, ["run", terminalReturnsFixture], 0,
+    Buffer.from("-1,0,1\n", "utf8"),
+    "terminal scalar branch returns")
   expectExact(binary, ["run", interpolationFixture], 0,
     Buffer.from("Table 42 remains open\n", "utf8"),
     "Restaurant interpolation fixture")

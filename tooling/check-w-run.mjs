@@ -11,6 +11,7 @@ const helloFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
 const linearFixture = resolve(seedDirectory, "fixtures", "linear.w")
 const interpolationFixture = resolve(seedDirectory, "fixtures", "interpolation.w")
 const ifFixture = resolve(seedDirectory, "fixtures", "if.w")
+const terminalReturnsFixture = resolve(seedDirectory, "fixtures", "terminal-returns.w")
 const comparisonsFixture = resolve(seedDirectory, "fixtures", "comparisons.w")
 const enumFixture = resolve(seedDirectory, "fixtures", "enum.w")
 const enumSubsetFixture = resolve(seedDirectory, "fixtures", "enum-subset.w")
@@ -352,7 +353,7 @@ export function validateManifest(manifest, mode = ciMode) {
       ]), "WRT0 object recipe changed")
     assert(pipeline[5]?.tool === "link-driver" &&
       JSON.stringify(pipeline[5].args) === JSON.stringify([
-        "-pie", "--no-dynamic-linker", "-e", "_start", "--gc-sections",
+        "-pie", "--no-dynamic-linker", "--hash-style=gnu", "-e", "_start", "--gc-sections",
         "-z", "noexecstack", "<output.o>", "<wrt0.o>", "-o",
         "<executable>",
       ]), "native CRT-free link recipe changed")
@@ -1075,6 +1076,9 @@ try {
   expectSuccess(binary, ["run", toWsl(ifFixture)],
     expectedRestaurantIf,
     "Restaurant if diamond")
+  expectSuccess(binary, ["run", toWsl(terminalReturnsFixture)],
+    Buffer.from("-1,0,1\n", "utf8"),
+    "terminal scalar branch returns")
   expectSuccess(binary, ["run", toWsl(comparisonsFixture)],
     Buffer.from("Seat party\nSeat party\nWaitlist\n", "utf8"),
     "Restaurant signed-i64 admission comparison")

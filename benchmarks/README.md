@@ -148,6 +148,16 @@ coverage inventories track selected design separately from native-exercised
 behavior. A source-backed witness proves only its listed cases: ready means
 that this witness is runnable, not that the design or language is complete.
 
+The `terminal-returns` witness is a W-only correctness row in the control-flow
+family, not a performance candidate. It covers negative, zero, and positive
+returns through an `else if` chain followed by a sequential return, with exit
+`0`, stdout `-1,0,1\n`, and empty stderr. Reproduce the public Release `w run`
+gates with `bun run tooling/check-w-run-windows.mjs` on Windows and
+`bun run tooling/check-w-run.mjs` for Linux/WSL. Both public gates passed that
+exact oracle, so the catalog records `demoEvidence: bounded-w-demo`. C and Rust
+equivalents remain blocked; this row makes no runtime-equivalence or timing
+claim and records no best metrics.
+
 `hello-platform-minimal` is registered and runner-supported for contextual,
 non-ranking measurement; the catalog status does not make it an idiomatic
 comparison or a language ranking. Its source/oracle registration is not

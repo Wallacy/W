@@ -390,6 +390,7 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
     arguments[count++] = (char *)LINK_DRIVER;
     arguments[count++] = (char *)"-pie";
     arguments[count++] = (char *)"--no-dynamic-linker";
+    arguments[count++] = (char *)"--hash-style=gnu";
     arguments[count++] = (char *)"-e";
     arguments[count++] = (char *)"_start";
     arguments[count++] = (char *)"--gc-sections";
@@ -1087,10 +1088,11 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   }
   if (exit_code != 0) goto cleanup;
   if (!windows_target) {
-    const wchar_t *link_arguments[13] = {NULL};
+    const wchar_t *link_arguments[14] = {NULL};
     size_t link_argument_count = 0u;
     link_arguments[link_argument_count++] = L"-pie";
     link_arguments[link_argument_count++] = L"--no-dynamic-linker";
+    link_arguments[link_argument_count++] = L"--hash-style=gnu";
     link_arguments[link_argument_count++] = L"-e";
     link_arguments[link_argument_count++] = L"_start";
     link_arguments[link_argument_count++] = L"--gc-sections";

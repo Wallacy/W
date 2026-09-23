@@ -668,6 +668,71 @@
       "family": "control-flow"
     },
     {
+      "id": "terminal-returns",
+      "family": "control-flow",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Return -1, 0, or 1 for negative, zero, or positive inputs through an else-if chain and a sequential return, then preserve the exact output.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "-1,0,1\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/terminal-returns.w",
+          "digest": "sha256:a0416e81dd00f5d2c948e50ef4533142d3ecd7bf4de094ade8593576b846fa5a",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-run",
+          "recipeClass": "terminal-returns-w-run-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b",
+          "runtimeClosure": {
+            "class": "freestanding",
+            "status": "unverified"
+          }
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/terminal-returns.w",
+          "digest": "sha256:a0416e81dd00f5d2c948e50ef4533142d3ecd7bf4de094ade8593576b846fa5a",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-run",
+          "recipeClass": "terminal-returns-w-run-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only",
+          "runtimeClosure": {
+            "class": "freestanding",
+            "status": "unverified"
+          }
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "cross-language-source-variants"
+      ]
+    },
+    {
       "id": "while-post",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",

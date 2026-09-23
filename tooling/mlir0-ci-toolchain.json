@@ -89,6 +89,7 @@
       "args": [
         "-pie",
         "--no-dynamic-linker",
+        "--hash-style=gnu",
         "-e",
         "_start",
         "--gc-sections",

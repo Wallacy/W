@@ -6432,7 +6432,10 @@ static bool frontend_function_has_terminal_if(const w_seed_hir0_input *input,
                                               size_t function_index);
 static bool frontend_if_is_terminal(
     const w_seed_hir0_input *input,
-    const w_seed_frontend_statement *statement);
+    const w_seed_frontend_statement *statement, size_t depth);
+static bool frontend_function_terminal_return_ladder(
+    const w_seed_hir0_input *input, size_t function_index,
+    uint32_t *first_if, uint32_t *fallback_return, size_t *if_count);
 
 static bool frontend_function_root_contains(
     const w_seed_frontend_output *output,
@@ -7643,7 +7646,8 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
              add_size(*walk->merge_total, merge.count, walk->merge_total);
     }
     const bool terminal =
-        !branch && frontend_if_is_terminal(walk->input, statement);
+        allow_branch_exit ||
+        (!branch && frontend_if_is_terminal(walk->input, statement, 0u));
     if (!hir0_walk_statement_chain(walk, statement->first_child, true,
                                    terminal, depth + 1u) ||
         !hir0_walk_statement_chain(walk, statement->else_child, true,
@@ -7766,6 +7770,15 @@ static bool hir0_walk_statement_chain(hir0_statement_walk *walk,
                                       uint32_t first_statement, bool branch,
                                       bool allow_branch_exit, size_t depth) {
   if (walk == NULL || first_statement == W_SEED_FRONTEND_NONE) return true;
+  if (!branch && !allow_branch_exit) {
+    uint32_t first_if = W_SEED_FRONTEND_NONE;
+    uint32_t fallback_return = W_SEED_FRONTEND_NONE;
+    size_t if_count = 0u;
+    if (frontend_function_terminal_return_ladder(
+            walk->input, walk->function_index, &first_if, &fallback_return,
+            &if_count))
+      allow_branch_exit = true;
+  }
   uint32_t cursor = first_statement;
   size_t guard = 0u;
   while (cursor != W_SEED_FRONTEND_NONE &&
@@ -8420,10 +8433,14 @@ static bool frontend_usize_count_comparison_ok(
   return (left_count && right_literal) || (right_count && left_literal);
 }
 
+static bool frontend_if_is_terminal(
+    const w_seed_hir0_input *input,
+    const w_seed_frontend_statement *statement, size_t depth);
+
 static bool frontend_statement_chain_ends_in_exit(
-    const w_seed_hir0_input *input, uint32_t first_statement) {
+    const w_seed_hir0_input *input, uint32_t first_statement, size_t depth) {
   if (input == NULL || input->frontend_output == NULL ||
-      input->frontend_result == NULL)
+      input->frontend_result == NULL || depth > W_SEED_HIR0_MAX_NESTING)
     return false;
   uint32_t cursor = first_statement;
   size_t guard = 0u;
@@ -8435,6 +8452,8 @@ static bool frontend_statement_chain_ends_in_exit(
       if (statement->kind == W_SEED_FRONTEND_STMT_RETURN ||
           statement->kind == W_SEED_FRONTEND_STMT_THROW)
         return true;
+      if (statement->kind == W_SEED_FRONTEND_STMT_IF)
+        return frontend_if_is_terminal(input, statement, depth + 1u);
       if (statement->kind == W_SEED_FRONTEND_STMT_EXPRESSION &&
           statement->expression_index != W_SEED_FRONTEND_NONE &&
           (size_t)statement->expression_index <
@@ -8452,15 +8471,195 @@ static bool frontend_statement_chain_ends_in_exit(
 
 static bool frontend_if_is_terminal(
     const w_seed_hir0_input *input,
-    const w_seed_frontend_statement *statement) {
+    const w_seed_frontend_statement *statement, size_t depth) {
   return input != NULL && statement != NULL &&
+         depth <= W_SEED_HIR0_MAX_NESTING &&
          statement->kind == W_SEED_FRONTEND_STMT_IF &&
          statement->next_sibling == W_SEED_FRONTEND_NONE &&
          statement->first_child != W_SEED_FRONTEND_NONE &&
          statement->else_child != W_SEED_FRONTEND_NONE &&
          frontend_statement_chain_ends_in_exit(input,
-                                               statement->first_child) &&
-         frontend_statement_chain_ends_in_exit(input, statement->else_child);
+                                               statement->first_child,
+                                               depth + 1u) &&
+         frontend_statement_chain_ends_in_exit(input, statement->else_child,
+                                               depth + 1u);
+}
+
+static bool frontend_direct_return(const w_seed_hir0_input *input,
+                                   uint32_t statement_index) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL ||
+      statement_index == W_SEED_FRONTEND_NONE ||
+      (size_t)statement_index >= input->frontend_result->written.statements)
+    return false;
+  const w_seed_frontend_statement *statement =
+      &input->frontend_output->statements[statement_index];
+  return statement->kind == W_SEED_FRONTEND_STMT_RETURN &&
+         statement->next_sibling == W_SEED_FRONTEND_NONE &&
+         statement->expression_index != W_SEED_FRONTEND_NONE &&
+         (size_t)statement->expression_index <
+             input->frontend_result->written.expressions;
+}
+
+/* Recognize only a tail decision ladder: each true arm returns directly, and
+ * the false successor is either another `if` or the one final return. This
+ * keeps the CFG normalization structural and leaves ordinary statements,
+ * effects, and loops on their existing paths. */
+static bool frontend_terminal_return_ladder_at(
+    const w_seed_hir0_input *input, uint32_t if_index,
+    uint32_t continuation, bool nested_else, size_t depth,
+    size_t *if_count, uint32_t *fallback_return,
+    bool *has_implicit_fallback) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || if_count == NULL ||
+      fallback_return == NULL || has_implicit_fallback == NULL ||
+      if_index == W_SEED_FRONTEND_NONE ||
+      (size_t)if_index >= input->frontend_result->written.statements ||
+      depth > W_SEED_HIR0_MAX_NESTING)
+    return false;
+  const w_seed_frontend_statement *statement =
+      &input->frontend_output->statements[if_index];
+  if (statement->kind != W_SEED_FRONTEND_STMT_IF ||
+      statement->condition_expression == W_SEED_FRONTEND_NONE ||
+      statement->first_child == W_SEED_FRONTEND_NONE ||
+      (nested_else && statement->next_sibling != W_SEED_FRONTEND_NONE) ||
+      !frontend_direct_return(input, statement->first_child) ||
+      input->frontend_output->statements[statement->first_child]
+              .next_sibling != W_SEED_FRONTEND_NONE)
+    return false;
+
+  size_t nested_count = 1u;
+  uint32_t false_statement = statement->else_child;
+  if (false_statement == W_SEED_FRONTEND_NONE) {
+    false_statement = statement->next_sibling != W_SEED_FRONTEND_NONE
+                          ? statement->next_sibling
+                          : continuation;
+    if (false_statement == W_SEED_FRONTEND_NONE) return false;
+    *has_implicit_fallback = true;
+  }
+  if ((size_t)false_statement >= input->frontend_result->written.statements)
+    return false;
+  const w_seed_frontend_statement *false_branch =
+      &input->frontend_output->statements[false_statement];
+  if (false_branch->kind == W_SEED_FRONTEND_STMT_IF) {
+    if (statement->else_child != W_SEED_FRONTEND_NONE &&
+        false_branch->next_sibling != W_SEED_FRONTEND_NONE)
+      return false;
+    size_t child_count = 0u;
+    uint32_t child_continuation = statement->else_child !=
+                                          W_SEED_FRONTEND_NONE
+                                      ? statement->next_sibling
+                                      : false_branch->next_sibling;
+    if (child_continuation == W_SEED_FRONTEND_NONE &&
+        statement->else_child != W_SEED_FRONTEND_NONE)
+      child_continuation = continuation;
+    if (!frontend_terminal_return_ladder_at(
+            input, false_statement, child_continuation,
+            statement->else_child != W_SEED_FRONTEND_NONE, depth + 1u,
+            &child_count, fallback_return, has_implicit_fallback) ||
+        child_count > SIZE_MAX - nested_count)
+      return false;
+    nested_count += child_count;
+  } else {
+    if (!frontend_direct_return(input, false_statement) ||
+        (statement->else_child != W_SEED_FRONTEND_NONE &&
+         (statement->next_sibling != W_SEED_FRONTEND_NONE ||
+          continuation != W_SEED_FRONTEND_NONE)))
+      return false;
+    if (*has_implicit_fallback) *fallback_return = false_statement;
+  }
+  *if_count = nested_count;
+  return true;
+}
+
+static bool frontend_terminal_if_count_in_chain(
+    const w_seed_hir0_input *input, uint32_t first_statement, size_t depth,
+    size_t *count) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || count == NULL ||
+      depth > W_SEED_HIR0_MAX_NESTING)
+    return false;
+  uint32_t cursor = first_statement;
+  size_t guard = 0u;
+  while (cursor != W_SEED_FRONTEND_NONE &&
+         guard < input->frontend_result->written.statements) {
+    const w_seed_frontend_statement *statement =
+        &input->frontend_output->statements[cursor];
+    if (statement->kind == W_SEED_FRONTEND_STMT_IF) {
+      if (frontend_if_is_terminal(input, statement, depth + 1u)) {
+        if (*count == SIZE_MAX) return false;
+        *count += 1u;
+      }
+      if (!frontend_terminal_if_count_in_chain(
+              input, statement->first_child, depth + 1u, count) ||
+          !frontend_terminal_if_count_in_chain(
+              input, statement->else_child, depth + 1u, count))
+        return false;
+    }
+    cursor = statement->next_sibling;
+    guard += 1u;
+  }
+  return cursor == W_SEED_FRONTEND_NONE;
+}
+
+static bool frontend_function_terminal_return_ladder(
+    const w_seed_hir0_input *input, size_t function_index,
+    uint32_t *first_if, uint32_t *fallback_return, size_t *if_count) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL ||
+      function_index >= input->frontend_result->written.functions ||
+      first_if == NULL || fallback_return == NULL || if_count == NULL)
+    return false;
+  const w_seed_frontend_function *function =
+      &input->frontend_output->functions[function_index];
+  if (function->is_throws || function->is_async ||
+      function->return_type == W_SEED_FRONTEND_NONE ||
+      (size_t)function->return_type >= input->frontend_result->written.types ||
+      input->frontend_output->types[function->return_type].kind ==
+          W_SEED_FRONTEND_TYPE_UNIT ||
+      function->first_statement == W_SEED_FRONTEND_NONE ||
+      (size_t)function->first_statement >=
+          input->frontend_result->written.statements)
+    return false;
+  const w_seed_frontend_statement *first =
+      &input->frontend_output->statements[function->first_statement];
+  if (first->kind != W_SEED_FRONTEND_STMT_IF) return false;
+  uint32_t fallback = W_SEED_FRONTEND_NONE;
+  size_t count = 0u;
+  bool has_implicit_fallback = false;
+  if (!frontend_terminal_return_ladder_at(
+          input, function->first_statement, W_SEED_FRONTEND_NONE, false, 0u,
+          &count, &fallback, &has_implicit_fallback) ||
+      !has_implicit_fallback || !frontend_direct_return(input, fallback))
+    return false;
+  *first_if = function->first_statement;
+  *fallback_return = fallback;
+  *if_count = count;
+  return true;
+}
+
+static size_t frontend_function_terminal_if_count(
+    const w_seed_hir0_input *input, size_t function_index) {
+  uint32_t first_if = W_SEED_FRONTEND_NONE;
+  uint32_t fallback_return = W_SEED_FRONTEND_NONE;
+  size_t ladder_count = 0u;
+  if (frontend_function_terminal_return_ladder(
+          input, function_index, &first_if, &fallback_return, &ladder_count))
+    return ladder_count;
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL ||
+      function_index >= input->frontend_result->written.functions)
+    return 0u;
+  const w_seed_frontend_function *function =
+      &input->frontend_output->functions[function_index];
+  size_t total = 0u;
+  if (!frontend_terminal_if_count_in_chain(
+          input, function->statement_count == 0u
+                     ? W_SEED_FRONTEND_NONE
+                     : function->first_statement,
+          0u, &total))
+    return 0u;
+  return total;
 }
 
 static bool frontend_function_has_terminal_if(const w_seed_hir0_input *input,
@@ -8471,6 +8670,13 @@ static bool frontend_function_has_terminal_if(const w_seed_hir0_input *input,
     return false;
   const w_seed_frontend_function *function =
       &input->frontend_output->functions[function_index];
+  uint32_t ladder_if = W_SEED_FRONTEND_NONE;
+  uint32_t fallback_return = W_SEED_FRONTEND_NONE;
+  size_t ladder_count = 0u;
+  if (frontend_function_terminal_return_ladder(
+          input, function_index, &ladder_if, &fallback_return,
+          &ladder_count))
+    return true;
   uint32_t cursor = function->statement_count == 0u
                         ? W_SEED_FRONTEND_NONE
                         : function->first_statement;
@@ -8480,7 +8686,7 @@ static bool frontend_function_has_terminal_if(const w_seed_hir0_input *input,
     const w_seed_frontend_statement *statement =
         &input->frontend_output->statements[cursor];
     if (statement->next_sibling == W_SEED_FRONTEND_NONE)
-      return frontend_if_is_terminal(input, statement);
+      return frontend_if_is_terminal(input, statement, 0u);
     cursor = statement->next_sibling;
     guard += 1u;
   }
@@ -9070,6 +9276,9 @@ static bool frontend_rounding_split_count(const w_seed_hir0_input *input,
   return count_u32(*count);
 }
 
+static bool hir0_function_block_count(const w_seed_hir0_input *input,
+                                     size_t function_index, size_t *count);
+
 static hir0_prepare_status collect(const w_seed_hir0_input *input,
                                    w_seed_hir0_counts *counts) {
   if (counts == NULL) return HIR0_PREPARE_INVALID;
@@ -9365,11 +9574,23 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
     return HIR0_PREPARE_UNSUPPORTED;
   size_t terminal_if_count = 0u;
   for (size_t function = 0u; function < functions; function += 1u)
-    if (frontend_function_has_terminal_if(input, function) &&
-        !add_size(terminal_if_count, 1u, &terminal_if_count))
+    if (!add_size(terminal_if_count,
+                  frontend_function_terminal_if_count(input, function),
+                  &terminal_if_count))
       return HIR0_PREPARE_UNSUPPORTED;
   if (terminal_if_count > block_count) return HIR0_PREPARE_UNSUPPORTED;
   block_count -= terminal_if_count;
+  size_t function_block_count_sum = 0u;
+  for (size_t function = 0u; function < functions; function += 1u) {
+    size_t function_blocks = 0u;
+    if (!hir0_function_block_count(input, function, &function_blocks) ||
+        function_blocks == 0u ||
+        !add_size(function_block_count_sum, function_blocks,
+                  &function_block_count_sum))
+      return HIR0_PREPARE_UNSUPPORTED;
+  }
+  if (function_block_count_sum != block_count)
+    return HIR0_PREPARE_UNSUPPORTED;
   counts->blocks = block_count;
   counts->switch_edges = switch_edge_count;
   counts->switch_captures = switch_capture_count;
@@ -10320,6 +10541,94 @@ typedef struct {
   size_t loop_exit_block;
 } hir0_emit_context;
 
+typedef struct {
+  uint32_t if_statement[W_SEED_HIR0_MAX_NESTING + 1u];
+  uint32_t return_statement[W_SEED_HIR0_MAX_NESTING + 1u];
+  size_t count;
+  uint32_t fallback_return;
+} hir0_terminal_return_ladder;
+
+static bool hir0_terminal_return_ladder_collect_at(
+    const w_seed_hir0_input *input, uint32_t if_index,
+    uint32_t continuation, bool nested_else, size_t depth,
+    hir0_terminal_return_ladder *ladder) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || ladder == NULL ||
+      if_index == W_SEED_FRONTEND_NONE ||
+      (size_t)if_index >= input->frontend_result->written.statements ||
+      depth > W_SEED_HIR0_MAX_NESTING ||
+      ladder->count >= W_SEED_HIR0_MAX_NESTING + 1u)
+    return false;
+  const w_seed_frontend_statement *statement =
+      &input->frontend_output->statements[if_index];
+  if (statement->kind != W_SEED_FRONTEND_STMT_IF ||
+      statement->first_child == W_SEED_FRONTEND_NONE ||
+      !frontend_direct_return(input, statement->first_child) ||
+      (nested_else && statement->next_sibling != W_SEED_FRONTEND_NONE))
+    return false;
+
+  const size_t ordinal = ladder->count++;
+  ladder->if_statement[ordinal] = if_index;
+  ladder->return_statement[ordinal] = statement->first_child;
+  uint32_t false_statement = statement->else_child;
+  if (false_statement == W_SEED_FRONTEND_NONE)
+    false_statement = statement->next_sibling != W_SEED_FRONTEND_NONE
+                          ? statement->next_sibling
+                          : continuation;
+  if (false_statement == W_SEED_FRONTEND_NONE ||
+      (size_t)false_statement >= input->frontend_result->written.statements)
+    return false;
+  const w_seed_frontend_statement *false_branch =
+      &input->frontend_output->statements[false_statement];
+  if (false_branch->kind == W_SEED_FRONTEND_STMT_IF) {
+    if (statement->else_child != W_SEED_FRONTEND_NONE &&
+        false_branch->next_sibling != W_SEED_FRONTEND_NONE)
+      return false;
+    uint32_t child_continuation =
+        statement->else_child != W_SEED_FRONTEND_NONE
+            ? statement->next_sibling
+            : false_branch->next_sibling;
+    if (child_continuation == W_SEED_FRONTEND_NONE &&
+        statement->else_child != W_SEED_FRONTEND_NONE)
+      child_continuation = continuation;
+    return hir0_terminal_return_ladder_collect_at(
+        input, false_statement, child_continuation,
+        statement->else_child != W_SEED_FRONTEND_NONE, depth + 1u, ladder);
+  }
+  if (!frontend_direct_return(input, false_statement) ||
+      (statement->else_child != W_SEED_FRONTEND_NONE &&
+       (statement->next_sibling != W_SEED_FRONTEND_NONE ||
+        continuation != W_SEED_FRONTEND_NONE)))
+    return false;
+  ladder->fallback_return = false_statement;
+  return true;
+}
+
+static bool hir0_terminal_return_ladder_build(
+    const hir0_emit_context *context, hir0_terminal_return_ladder *ladder) {
+  if (context == NULL || ladder == NULL) return false;
+  const w_seed_hir0_input input = {
+      .frontend_input = context->frontend_input,
+      .frontend_output = context->frontend,
+      .frontend_result = context->frontend_result};
+  uint32_t first_if = W_SEED_FRONTEND_NONE;
+  uint32_t fallback_return = W_SEED_FRONTEND_NONE;
+  size_t if_count = 0u;
+  if (!frontend_function_terminal_return_ladder(
+          &input, context->function, &first_if, &fallback_return, &if_count))
+    return false;
+  *ladder = (hir0_terminal_return_ladder){
+      .count = 0u,
+      .fallback_return = W_SEED_FRONTEND_NONE};
+  if (!hir0_terminal_return_ladder_collect_at(
+          &input, first_if, W_SEED_FRONTEND_NONE, false, 0u, ladder) ||
+      ladder->count != if_count ||
+      ladder->fallback_return != fallback_return ||
+      !frontend_direct_return(&input, ladder->fallback_return))
+    return false;
+  return true;
+}
+
 /* The frontend walk has already proved the loop body shape.  Re-derive the
  * carried-root list in each emission pass so layout, values, and terminators
  * consume exactly the same source-ordered carriers without adding frontend
@@ -10725,8 +11034,9 @@ static bool hir0_integer_exactly_try_m2(
     const w_seed_frontend_expression **try_expression,
     const w_seed_frontend_expression **conversion);
 
-static size_t hir0_region_block_count(const hir0_emit_context *context,
-                                      uint32_t first_statement, size_t depth) {
+static size_t hir0_region_block_count_internal(
+    const hir0_emit_context *context, uint32_t first_statement, size_t depth,
+    bool elide_terminal_joins) {
   const size_t if_count = hir0_region_if_count(context, first_statement, depth);
   const size_t logical_count =
       hir0_region_logical_count(context, first_statement, depth);
@@ -10791,7 +11101,8 @@ static size_t hir0_region_block_count(const hir0_emit_context *context,
     const w_seed_frontend_statement *statement =
         &context->frontend->statements[cursor];
     if (statement->next_sibling == W_SEED_FRONTEND_NONE) {
-      if (hir0_terminal_if(context, statement, depth)) {
+      if (elide_terminal_joins &&
+          hir0_terminal_if(context, statement, depth)) {
         if (diamond_blocks == 0u) return 0u;
         diamond_blocks -= 1u;
       }
@@ -10803,6 +11114,36 @@ static size_t hir0_region_block_count(const hir0_emit_context *context,
   return switch_extra > SIZE_MAX - diamond_blocks
              ? 0u
              : diamond_blocks + switch_extra;
+}
+
+static size_t hir0_region_block_count(const hir0_emit_context *context,
+                                      uint32_t first_statement, size_t depth) {
+  return hir0_region_block_count_internal(context, first_statement, depth,
+                                           true);
+}
+
+static bool hir0_function_block_count(const w_seed_hir0_input *input,
+                                      size_t function_index, size_t *count) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || count == NULL ||
+      function_index >= input->frontend_result->written.functions)
+    return false;
+  const w_seed_frontend_function *function =
+      &input->frontend_output->functions[function_index];
+  const hir0_emit_context context = {
+      .frontend = input->frontend_output,
+      .frontend_result = input->frontend_result,
+      .function = function_index};
+  const size_t raw_count = hir0_region_block_count_internal(
+      &context,
+      function->statement_count == 0u ? W_SEED_FRONTEND_NONE
+                                      : function->first_statement,
+      0u, false);
+  const size_t terminal_count =
+      frontend_function_terminal_if_count(input, function_index);
+  if (raw_count == 0u || terminal_count > raw_count) return false;
+  *count = raw_count - terminal_count;
+  return *count != 0u;
 }
 
 /* M2 emission is deliberately split into layout, instruction-value, and
@@ -11147,10 +11488,45 @@ static size_t hir0_emit_expression_values_m2(hir0_emit_context *context,
   return current_block;
 }
 
+static void hir0_emit_terminal_return_ladder_values_m2(
+    hir0_emit_context *context, size_t current_block,
+    hir0_terminal_return_ladder *ladder) {
+  for (size_t ordinal = 0u; ordinal < ladder->count; ordinal += 1u) {
+    const uint32_t if_index = ladder->if_statement[ordinal];
+    const uint32_t return_index = ladder->return_statement[ordinal];
+    const w_seed_frontend_statement *decision =
+        &context->frontend->statements[if_index];
+    const w_seed_frontend_statement *returned =
+        &context->frontend->statements[return_index];
+    context->statement_index = if_index;
+    const size_t condition_end = hir0_emit_expression_values_m2(
+        context, decision->condition_expression, current_block, if_index, 0u);
+    context->statement_index = return_index;
+    const size_t return_end = hir0_emit_expression_values_m2(
+        context, returned->expression_index, condition_end + 1u, return_index,
+        0u);
+    current_block = return_end + 1u;
+  }
+  const w_seed_frontend_statement *fallback =
+      &context->frontend->statements[ladder->fallback_return];
+  context->statement_index = ladder->fallback_return;
+  (void)hir0_emit_expression_values_m2(
+      context, fallback->expression_index, current_block,
+      ladder->fallback_return, 0u);
+}
+
 static void hir0_emit_chain_values_m2(hir0_emit_context *context,
                                       uint32_t first_statement,
                                       size_t current_block, size_t depth,
                                       size_t *binding_cursor) {
+  if (depth == 0u) {
+    hir0_terminal_return_ladder ladder;
+    if (hir0_terminal_return_ladder_build(context, &ladder)) {
+      hir0_emit_terminal_return_ladder_values_m2(context, current_block,
+                                                 &ladder);
+      return;
+    }
+  }
   uint32_t cursor = first_statement;
   size_t guard = 0u;
   while (cursor != W_SEED_FRONTEND_NONE &&
@@ -11601,9 +11977,58 @@ static size_t hir0_emit_try_binding_terms_m2(
   return normal_block;
 }
 
+static void hir0_emit_terminal_return_ladder_terms_m2(
+    hir0_emit_context *context, size_t current_block,
+    hir0_terminal_return_ladder *ladder) {
+  for (size_t ordinal = 0u; ordinal < ladder->count; ordinal += 1u) {
+    const uint32_t if_index = ladder->if_statement[ordinal];
+    const uint32_t return_index = ladder->return_statement[ordinal];
+    const w_seed_frontend_statement *decision =
+        &context->frontend->statements[if_index];
+    const w_seed_frontend_statement *returned =
+        &context->frontend->statements[return_index];
+    context->statement_index = if_index;
+    const size_t condition_end = hir0_emit_expression_terms_m2(
+        context, decision->condition_expression, current_block, if_index, 0u);
+    context->output->terminators[condition_end].value_index =
+        hir0_emit_value_m2(
+            context, decision->condition_expression,
+            W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)condition_end, 0u,
+            condition_end, 0u);
+    context->statement_index = return_index;
+    const size_t return_end = hir0_emit_expression_terms_m2(
+        context, returned->expression_index, condition_end + 1u, return_index,
+        0u);
+    context->output->terminators[return_end].value_index =
+        hir0_emit_value_m2(
+            context, returned->expression_index,
+            W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)return_end, 0u,
+            return_end, 0u);
+    current_block = return_end + 1u;
+  }
+  const w_seed_frontend_statement *fallback =
+      &context->frontend->statements[ladder->fallback_return];
+  context->statement_index = ladder->fallback_return;
+  const size_t fallback_end = hir0_emit_expression_terms_m2(
+      context, fallback->expression_index, current_block,
+      ladder->fallback_return, 0u);
+  context->output->terminators[fallback_end].value_index = hir0_emit_value_m2(
+      context, fallback->expression_index,
+      W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)fallback_end, 0u,
+      fallback_end, 0u);
+}
+
 static void hir0_emit_chain_terms_m2(hir0_emit_context *context,
                                      uint32_t first_statement,
                                      size_t current_block, size_t depth) {
+  if (depth == 0u) {
+    hir0_terminal_return_ladder ladder;
+    if (hir0_terminal_return_ladder_build(context, &ladder)) {
+      hir0_emit_terminal_return_ladder_terms_m2(context, current_block,
+                                                &ladder);
+      return;
+    }
+  }
   uint32_t cursor = first_statement;
   size_t guard = 0u;
   while (cursor != W_SEED_FRONTEND_NONE &&
@@ -13047,11 +13472,99 @@ static void hir0_emit_switch_return_layout_m2(
   }
 }
 
+static void hir0_emit_terminal_return_ladder_layout_m2(
+    hir0_emit_context *context, size_t current_block,
+    hir0_terminal_return_ladder *ladder) {
+  for (size_t ordinal = 0u; ordinal < ladder->count; ordinal += 1u) {
+    const uint32_t if_index = ladder->if_statement[ordinal];
+    const uint32_t return_index = ladder->return_statement[ordinal];
+    const w_seed_frontend_statement *decision =
+        &context->frontend->statements[if_index];
+    const w_seed_frontend_statement *returned =
+        &context->frontend->statements[return_index];
+    hir0_begin_block_m2(context, current_block);
+    const size_t condition_end = hir0_emit_expression_layout_m2(
+        context, decision->condition_expression, current_block, if_index, 0u);
+    hir0_finish_block_m2(context, condition_end);
+    const size_t then_block = condition_end + 1u;
+    hir0_begin_block_m2(context, then_block);
+    const size_t return_end = hir0_emit_expression_layout_m2(
+        context, returned->expression_index, then_block, return_index, 0u);
+    hir0_finish_block_m2(context, return_end);
+    const w_seed_hir0_block *return_block =
+        &context->output->blocks[return_end];
+    context->output->terminators[return_end] =
+        (w_seed_hir0_terminator){
+            .owner_block = (uint32_t)return_end,
+            .kind = W_SEED_HIR0_TERMINATOR_RETURN_VALUE,
+            .ordinal = return_block->instruction_count,
+            .value_index = W_SEED_HIR0_NONE,
+            .result_type =
+                context->output->functions[context->function].return_type,
+            .target_block = W_SEED_HIR0_NONE,
+            .else_block = W_SEED_HIR0_NONE,
+            .first_edge_argument = W_SEED_HIR0_NONE,
+            .edge_argument_count = 0u,
+            .logical_operator = W_SEED_HIR0_LOGICAL_NONE,
+            .source_span = returned->span};
+    const size_t false_block = return_end + 1u;
+    const w_seed_hir0_block *condition_block =
+        &context->output->blocks[condition_end];
+    context->output->terminators[condition_end] =
+        (w_seed_hir0_terminator){
+            .owner_block = (uint32_t)condition_end,
+            .kind = W_SEED_HIR0_TERMINATOR_BRANCH,
+            .ordinal = condition_block->instruction_count,
+            .value_index = W_SEED_HIR0_NONE,
+            .result_type = 0u,
+            .target_block = (uint32_t)then_block,
+            .else_block = (uint32_t)false_block,
+            .first_edge_argument = W_SEED_HIR0_NONE,
+            .edge_argument_count = 0u,
+            .logical_operator = W_SEED_HIR0_LOGICAL_NONE,
+            .source_span = decision->span};
+    current_block = false_block;
+  }
+
+  const w_seed_frontend_statement *fallback =
+      &context->frontend->statements[ladder->fallback_return];
+  hir0_begin_block_m2(context, current_block);
+  const size_t return_end = hir0_emit_expression_layout_m2(
+      context, fallback->expression_index, current_block,
+      ladder->fallback_return, 0u);
+  hir0_finish_block_m2(context, return_end);
+  const w_seed_hir0_block *return_block =
+      &context->output->blocks[return_end];
+  context->output->terminators[return_end] =
+      (w_seed_hir0_terminator){
+          .owner_block = (uint32_t)return_end,
+          .kind = W_SEED_HIR0_TERMINATOR_RETURN_VALUE,
+          .ordinal = return_block->instruction_count,
+          .value_index = W_SEED_HIR0_NONE,
+          .result_type =
+              context->output->functions[context->function].return_type,
+          .target_block = W_SEED_HIR0_NONE,
+          .else_block = W_SEED_HIR0_NONE,
+          .first_edge_argument = W_SEED_HIR0_NONE,
+          .edge_argument_count = 0u,
+          .logical_operator = W_SEED_HIR0_LOGICAL_NONE,
+          .source_span = fallback->span};
+}
+
 static void hir0_emit_chain_layout_m2(hir0_emit_context *context,
                                       uint32_t first_statement,
                                       size_t current_block,
                                       uint32_t terminal_target, bool root,
                                       size_t depth) {
+  if (root && depth == 0u) {
+    hir0_terminal_return_ladder ladder;
+    if (hir0_terminal_return_ladder_build(context, &ladder)) {
+      hir0_begin_block_m2(context, current_block);
+      hir0_emit_terminal_return_ladder_layout_m2(context, current_block,
+                                                 &ladder);
+      return;
+    }
+  }
   hir0_begin_block_m2(context, current_block);
   uint32_t cursor = first_statement;
   size_t guard = 0u;
@@ -15345,15 +15858,10 @@ static void emit_records(const w_seed_hir0_input *input,
   size_t cleanup_index = 0u;
   size_t block_cursor = 0u;
   for (size_t function = 0u; function < counts->functions; function += 1u) {
-    const w_seed_frontend_function *source = &frontend->functions[function];
-    hir0_emit_context layout = {
-        .frontend = frontend,
-        .frontend_result = frontend_result};
-    const size_t function_block_count = hir0_region_block_count(
-        &layout,
-        source->statement_count == 0u ? W_SEED_FRONTEND_NONE
-                                       : source->first_statement,
-        0u);
+    size_t function_block_count = 0u;
+    /* collect() ran this exact helper and proved its positive result and the
+     * aggregate sum before output writes begin. */
+    (void)hir0_function_block_count(input, function, &function_block_count);
     w_seed_hir0_function *target_function = &output->functions[function];
     target_function->first_block = (uint32_t)block_cursor;
     target_function->block_count = (uint32_t)function_block_count;

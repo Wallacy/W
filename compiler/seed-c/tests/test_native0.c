@@ -3126,10 +3126,64 @@ static bool test_nested_scalar_if_value_native(void) {
   return true;
 }
 
-static bool test_scalar_if_remains_unsupported(void) {
+static bool test_terminal_branch_returns_native(void) {
   static const uint8_t source[] =
-      "fn invalid(left: Bool): Bool { if left { return true } else { "
-      "return false } }\n"
+      "fn sign(value: i64): i64 { if value < 0 { return -1 } "
+      "if value == 0 { return 0 } return 1 }\n"
+      "fn main() { let negative = sign(value: -5) "
+      "let zero = sign(value: 0) let positive = sign(value: 7) "
+      "print(\"${negative},${zero},${positive}\") }\n"
+      "entry(main)\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(source, sizeof(source) - 1u, "terminal-returns", 16u,
+                   output, sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  const w_seed_hir0_program *program = &storage.hir_program;
+  CHECK(program->function_count == 2u && program->block_count == 6u &&
+        program->functions[0].block_count == 5u &&
+        program->functions[1].block_count == 1u &&
+        program->terminators[0].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[1].kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        program->terminators[2].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[3].kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        program->terminators[4].kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE);
+  CHECK(count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.cond_br %v") == 2u &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "^w_fn_0_b_1, ^w_fn_0_b_2") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "^w_fn_0_b_3, ^w_fn_0_b_4") &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.return %v") == 3u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.call @w_fn_0") == 3u &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "-1,0,1"));
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(program, &storage.hir_result,
+                                             &selection) ==
+            W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_cfg && selection.has_local_calls &&
+        selection.has_interpolation && selection.maximum_stdout_bytes == 63u);
+
+  const w_seed_hir0_terminator saved = storage.hir_terminators[0];
+  const w_seed_native_subset0_program selection_snapshot = selection;
+  storage.hir_terminators[0].else_block =
+      storage.hir_terminators[0].target_block;
+  CHECK(w_seed_native_subset0_select_program(program, &storage.hir_result,
+                                             &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  CHECK(memcmp(&selection, &selection_snapshot, sizeof(selection)) == 0);
+  storage.hir_terminators[0] = saved;
+  CHECK(w_seed_native_subset0_select_program(program, &storage.hir_result,
+                                             &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  return true;
+}
+
+static bool test_missing_terminal_return_remains_unsupported(void) {
+  static const uint8_t source[] =
+      "fn invalid(left: Bool): Bool { if left { return true } }\n"
       "fn main() { print(\"invalid\") }\n"
       "entry(main)\n";
   static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
@@ -6855,7 +6909,8 @@ int main(void) {
                        test_explicit_integer_saturating_native() &&
                        test_scalar_if_value_native() &&
                        test_nested_scalar_if_value_native() &&
-                       test_scalar_if_remains_unsupported() &&
+                       test_terminal_branch_returns_native() &&
+                       test_missing_terminal_return_remains_unsupported() &&
                        test_direct_scalar_call_return_remains_unsupported();
   const bool nested = logical && test_nested_depth_and_linear_analysis();
   const bool failures = nested && test_failures_and_capacity();

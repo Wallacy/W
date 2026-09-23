@@ -52,6 +52,12 @@ fn requireNonnegative(_ value: i32): i32 throws WalkError {
   return value
 }
 
+fn sign(value: i64): i64 {
+  if value < 0 { return -1 }
+  if value == 0 { return 0 }
+  return 1
+}
+
 fn walk(_ values: Array<i32>): i32 throws WalkError {
   var total = 0
   rows: for ref value in values {

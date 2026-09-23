@@ -3820,7 +3820,7 @@
         "source": [
           "program.mlir -> program.ll -> program.o",
           "WRT0.ll -> WRT0.o",
-          "ld -pie --no-dynamic-linker -e _start --gc-sections -z noexecstack program.o WRT0.o"
+          "ld -pie --no-dynamic-linker --hash-style=gnu -e _start --gc-sections -z noexecstack program.o WRT0.o"
         ]
       },
       "alternatives": [
