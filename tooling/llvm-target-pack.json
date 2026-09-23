@@ -1,0 +1,130 @@
+{
+  "$schema": "w-llvm-target-pack-bootstrap-1",
+  "version": 1,
+  "status": "manual-bootstrap-scaffold-not-run",
+  "purpose": "W-owned LLVM/MLIR/LLD development pack",
+  "packBoundary": {
+    "developmentOnly": true,
+    "endUserPackage": false,
+    "selectedToolchainPinChanged": false,
+    "runtimeClosureProven": false
+  },
+  "source": {
+    "repository": "https://github.com/llvm/llvm-project.git",
+    "tagPattern": "^llvmorg-[0-9]+\\.[0-9]+\\.[0-9]+$",
+    "commitHexLengths": [40, 64],
+    "digest": "required SHA-256 of `git archive --format=tar <expected-commit>` output"
+  },
+  "hosts": [
+    {
+      "id": "linux-x86_64",
+      "runner": "ubuntu-24.04",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "generator": "Ninja",
+      "generatorArguments": [],
+      "parallelJobs": 2,
+      "targets": ["X86", "AArch64", "ARM", "RISCV", "WebAssembly", "NVPTX", "AMDGPU"]
+    },
+    {
+      "id": "windows-x86_64",
+      "runner": "windows-2025",
+      "platform": "windows",
+      "architecture": "x86_64",
+      "generator": "Ninja",
+      "generatorArguments": [],
+      "parallelJobs": 2,
+      "targets": ["X86", "AArch64", "ARM", "RISCV", "WebAssembly", "NVPTX", "AMDGPU"]
+    },
+    {
+      "id": "macos-arm64",
+      "runner": "macos-15",
+      "platform": "macos",
+      "architecture": "arm64",
+      "generator": "Ninja",
+      "generatorArguments": [],
+      "parallelJobs": 1,
+      "targets": ["X86", "AArch64", "ARM", "RISCV", "WebAssembly"],
+      "omittedForRunnerCapacity": ["NVPTX", "AMDGPU"]
+    }
+  ],
+  "projects": ["clang", "lld", "mlir"],
+  "tools": [
+    "mlir-opt",
+    "mlir-translate",
+    "opt",
+    "llc",
+    "llvm-config",
+    "clang",
+    "clang-cl",
+    "ld.lld",
+    "lld-link",
+    "ld64.lld",
+    "wasm-ld",
+    "llvm-objdump",
+    "llvm-readobj",
+    "llvm-nm"
+  ],
+  "distributionComponents": [
+    "mlir-opt",
+    "mlir-translate",
+    "opt",
+    "llc",
+    "llvm-config",
+    "llvm-nm",
+    "llvm-objdump",
+    "llvm-readobj",
+    "clang",
+    "lld"
+  ],
+  "developmentComponents": [
+    "llvm-headers",
+    "llvm-libraries",
+    "cmake-exports",
+    "mlir-headers",
+    "mlir-libraries",
+    "mlir-cmake-exports",
+    "clang-resource-headers"
+  ],
+  "cmake": {
+    "buildType": "Release",
+    "buildConfiguration": "Release",
+    "disableTestsExamplesAndDocs": true,
+    "disableOptionalHostLibraries": true,
+    "disableMLIRAggregateObjects": true,
+    "useRelativeSourcePaths": true,
+    "distributionInstallTarget": "install-distribution"
+  },
+  "smoke": {
+    "versionArguments": ["--version"],
+    "targetProbe": "llvm-config --targets-built",
+    "requiredTools": "tools"
+  },
+  "packaging": {
+    "format": "deterministic-ustar",
+    "timestampSeconds": 0,
+    "ownerAndGroup": 0,
+    "sha256Inventory": "sha256-inventory.json",
+    "receipt": "build-receipt.json",
+    "sbomInputs": "sbom-inputs.json",
+    "provenanceInputs": "provenance-inputs.json",
+    "claims": "bootstrap-only; no cross-run reproducibility, end-user support, signing, or complete dependency-closure claim"
+  },
+  "structuralReference": {
+    "repository": "https://github.com/munich-quantum-software/portable-mlir-toolchain",
+    "license": "Apache-2.0",
+    "adaptedPatterns": [
+      "staged host-specific builds",
+      "Release-only Windows",
+      "Apple-silicon macOS",
+      "direct Ubuntu CI build rather than a manylinux portability claim",
+      "deterministic USTAR archive rather than a zstd-specific asset format"
+    ],
+    "copiedFiles": false
+  },
+  "actionPins": {
+    "actions/checkout": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+    "oven-sh/setup-bun": "0c5077e51419868618aeaa5fe8019c62421857d6",
+    "actions/upload-artifact": "ea165f8d65b6e75b540449e92b4886f43607fa02"
+  }
+}

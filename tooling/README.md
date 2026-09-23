@@ -62,6 +62,22 @@ Use [`command-runner.mjs`](command-runner.mjs) for a named internal leaf when
 the public target facade does not provide a narrower scope. The old colon
 aliases are no longer root package commands.
 
+## Artifact inspection receipts
+
+`artifact-inspection-receipt.mjs` resolves LLVM inspection tools from `PATH`
+when no toolchain option is supplied. On native Windows, pass the root of an
+already materialized portable MLIR0 toolchain to use its pinned cache instead;
+the command revalidates the materialization and resolves exact, unique tool
+basenames from its archive inventory without falling back to `PATH`:
+
+```powershell
+bun tooling/artifact-inspection-receipt.mjs build/w-windows/w.exe `
+  --toolchain-dir "$env:LOCALAPPDATA/W/toolchains/portable-mlir-toolchain/2026.09.11/x86_64-pc-windows-msvc"
+```
+
+The selected executable paths and resolution source are recorded in the
+receipt. `llvm-nm.exe` is required only when `--object` is supplied.
+
 Use o runner para inspecionar uma suíte antes de executá-la:
 
 ```sh
@@ -498,6 +514,45 @@ selected manifest: on Linux/WSL run
 an exact `X.Y.Z` stable version. This gate covers the Clang-based MLIR route,
 not the public `llc`/LLD link or a pin promotion. Clear the environment
 variable afterward; the default gate still uses the selected manifest.
+
+The manual-only `Build W LLVM target-pack bootstrap` workflow is a separate
+upstream acceptance/build lane. Dispatch it with an exact stable upstream tag,
+its full resolved commit, and the SHA-256 of `git archive --format=tar <commit>`.
+It stages Release development packs on Linux x86_64, Windows x86_64, and
+Apple-silicon macOS; the Windows benchmark/C-oracle lane needs both `clang` and
+`clang-cl`, so these are included here even though a future compact end-user W
+package will exclude them and LLVM command-line tools. Linux and Windows request
+X86, AArch64, ARM, RISCV, WebAssembly, NVPTX, and AMDGPU backend support; the
+7-GiB arm64 macOS hosted runner requests the first five and records both GPU
+backends as omitted for runner capacity.
+
+For example, after independently resolving the tag and calculating the archive
+digest from an official `llvm-project` checkout:
+
+```sh
+gh workflow run build-llvm-target-pack.yml --ref <W-ref> -f llvm_tag=llvmorg-X.Y.Z -f expected_commit=<full-peeled-commit> -f expected_source_sha256=<64-hex-git-archive-sha256>
+```
+
+The workflow re-resolves the tag and checks both supplied values before CMake
+configuration. It never chooses a version or digest on the caller's behalf.
+
+The development payload includes LLVM/MLIR headers, static-library targets and
+CMake exports, Clang resource headers, `clang`, `clang-cl`, the LLD driver and
+its host aliases, plus `llvm-readobj`, `llvm-objdump`, and `llvm-nm` for artifact
+inspection. It does not ship Clang/LLD API libraries or headers that W does not
+currently consume. LLVM's configure-time distribution check validates each
+selected install component for the exact dispatched source revision. The
+Windows build uses Ninja with the runner's x64 MSVC environment; Visual Studio
+generators are incompatible with this scoped distribution mode.
+
+This is a bootstrap scaffold, not a selected LLVM pin, supported target-pack,
+complete dependency SBOM/closure receipt, signature, or reproducibility result.
+No run has established that all three hosted builds fit their storage/time
+budgets; each job has a six-hour limit, and the arm64 macOS build is serialized
+to one compiler job to limit memory pressure. The layout adapts the staged host builds documented by the
+[Apache-2.0 portable-mlir-toolchain project](https://github.com/munich-quantum-software/portable-mlir-toolchain);
+its files are not copied. The workflow uses upstream LLVM distribution
+components for this deliberately scoped development payload.
 `bun tooling/command-runner.mjs --command check:w-run -- --ci` requires Linux x64 and the separately acquired
 23.1.1 toolchain. Missing prerequisites fail instead of SKIP. On a local Linux
 or WSL host, set `W_MLIR0_TOOLCHAIN_ROOT` to the persistent external root

@@ -2,6 +2,11 @@ import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
+import {
+  MATERIALIZED_MANIFEST,
+  validateManifest,
+  validateMaterialized,
+} from "./acquire-mlir0-windows.mjs";
 
 const MAX_TOOL_OUTPUT_BYTES = 128 * 1024 * 1024;
 const MAX_INPUT_FILE_BYTES = 128 * 1024 * 1024;
@@ -82,6 +87,83 @@ function defaultFindTool(name) {
   return Bun.which(name) ?? Bun.which(`${name}.exe`) ?? undefined;
 }
 
+function isReparsePoint(stats) {
+  return stats.isSymbolicLink() || (stats.mode & 0xf000) === 0xa000;
+}
+
+async function loadPinnedMaterialization(toolchainDirectory) {
+  const manifestPath = path.join(import.meta.dir, "mlir0-windows-toolchain.json");
+  let manifestBytes;
+  try {
+    manifestBytes = await readFile(manifestPath);
+  } catch (error) {
+    fail(`pinned toolchain manifest cannot be read: ${error.message}`);
+  }
+  let manifest;
+  try {
+    manifest = JSON.parse(manifestBytes.toString("utf8"));
+  } catch (error) {
+    fail(`pinned toolchain manifest is not valid JSON: ${error.message}`);
+  }
+  const manifestErrors = validateManifest(manifest);
+  if (manifestErrors.length > 0) fail(manifestErrors.join("; "));
+
+  await validateMaterialized(toolchainDirectory, manifest, sha256(manifestBytes));
+  const materializedPath = path.join(toolchainDirectory, MATERIALIZED_MANIFEST);
+  let materializedBytes;
+  try {
+    materializedBytes = await readFile(materializedPath);
+  } catch (error) {
+    fail(`validated materialized manifest cannot be read: ${error.message}`);
+  }
+  try {
+    return JSON.parse(materializedBytes.toString("utf8"));
+  } catch (error) {
+    fail(`validated materialized manifest is not valid JSON: ${error.message}`);
+  }
+}
+
+async function resolveMaterializedTools(toolchainDirectory, cwd, loadMaterialization) {
+  const absoluteDirectory = path.resolve(cwd, toolchainDirectory);
+  let materialized;
+  try {
+    materialized = await loadMaterialization(absoluteDirectory);
+  } catch (error) {
+    if (String(error?.message ?? "").startsWith("artifact-inspection-receipt:")) throw error;
+    fail(`--toolchain-dir is not a valid pinned materialization: ${error?.message ?? String(error)}`);
+  }
+  const archiveEntries = materialized?.archiveEntries;
+  if (!Array.isArray(archiveEntries)) fail("validated materialized toolchain has no archive inventory");
+
+  const selected = new Map();
+  for (const name of ["llvm-readobj", "llvm-objdump", "llvm-nm"]) {
+    const basename = `${name}.exe`;
+    const matches = archiveEntries.filter((entry) => entry?.type === "file" &&
+      typeof entry.path === "string" && path.posix.basename(entry.path) === basename);
+    if (matches.length > 1) fail(`tool basename is ambiguous for ${basename}`);
+    if (matches.length === 0) continue;
+    const relativePath = matches[0].path;
+    if (relativePath.includes("\\") || relativePath.includes("\0") ||
+        relativePath.startsWith("/") || /^[A-Za-z]:/u.test(relativePath) ||
+        relativePath.split("/").some((part) => part.length === 0 || part === "." || part === "..")) {
+      fail(`materialized tool path is invalid for ${basename}`);
+    }
+    const executable = path.resolve(absoluteDirectory, ...relativePath.split("/"));
+    const relativeToDirectory = path.relative(absoluteDirectory, executable);
+    if (relativeToDirectory === ".." || relativeToDirectory.startsWith(`..${path.sep}`) || path.isAbsolute(relativeToDirectory))
+      fail(`materialized tool path escapes --toolchain-dir: ${basename}`);
+    let stats;
+    try {
+      stats = await lstat(executable);
+    } catch (error) {
+      fail(`materialized tool is unavailable for ${basename}: ${error.message}`);
+    }
+    if (!stats.isFile() || isReparsePoint(stats)) fail(`materialized tool is not a regular file: ${basename}`);
+    selected.set(name, executable);
+  }
+  return { directory: absoluteDirectory, selected };
+}
+
 function defaultRunTool(executable, args) {
   const result = spawnSync(executable, args, {
     encoding: "utf8",
@@ -96,9 +178,12 @@ function defaultRunTool(executable, args) {
   return { stdout: String(result.stdout ?? ""), stderr: String(result.stderr ?? "") };
 }
 
-function invokeTool(name, args, { findTool, runTool }) {
+function invokeTool(name, args, { findTool, runTool, resolution }) {
   const executable = findTool(name);
-  if (!executable) fail(`${name} is required but was not found on PATH`);
+  if (!executable) {
+    const source = resolution === "PATH" ? "PATH" : "the validated --toolchain-dir";
+    fail(`${name} is required but was not found in ${source}`);
+  }
   try {
     const result = runTool(executable, args);
     if (!result || typeof result.stdout !== "string" || typeof result.stderr !== "string") {
@@ -299,6 +384,7 @@ export function parseArtifactInspectionArguments(argv) {
   let artifact;
   let postOptIr;
   let object;
+  let toolchainDirectory;
   let positionalOnly = false;
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -307,16 +393,19 @@ export function parseArtifactInspectionArguments(argv) {
       continue;
     }
     const option = !positionalOnly && argument.startsWith("--") ? argument.split("=", 1)[0] : undefined;
-    if (option === "--post-opt-ir" || option === "--object") {
+    if (option === "--post-opt-ir" || option === "--object" || option === "--toolchain-dir") {
       const inline = argument.startsWith(`${option}=`) ? argument.slice(option.length + 1) : undefined;
       const value = inline ?? argv[++index];
       if (typeof value !== "string" || value.length === 0 || value.startsWith("--")) fail(`${option} requires a path`);
       if (option === "--post-opt-ir") {
         if (postOptIr !== undefined) fail("--post-opt-ir may be specified only once");
         postOptIr = value;
-      } else {
+      } else if (option === "--object") {
         if (object !== undefined) fail("--object may be specified only once");
         object = value;
+      } else {
+        if (toolchainDirectory !== undefined) fail("--toolchain-dir may be specified only once");
+        toolchainDirectory = value;
       }
       continue;
     }
@@ -325,15 +414,22 @@ export function parseArtifactInspectionArguments(argv) {
     artifact = argument;
   }
   if (!artifact) fail("an explicit artifact path is required");
-  return { help: false, artifact, postOptIr, object };
+  return {
+    help: false,
+    artifact,
+    postOptIr,
+    object,
+    ...(toolchainDirectory === undefined ? {} : { toolchainDirectory }),
+  };
 }
 
 export function artifactInspectionUsage() {
   return [
-    "usage: bun tooling/artifact-inspection-receipt.mjs <artifact> [--post-opt-ir <file.ll>] [--object <file.o|file.obj>]",
+    "usage: bun tooling/artifact-inspection-receipt.mjs <artifact> [--post-opt-ir <file.ll>] [--object <file.o|file.obj>] [--toolchain-dir <materialized-toolchain>]",
     "",
     "Reads one PE or ELF artifact and emits a compact JSON evidence receipt.",
-    "llvm-readobj, llvm-objdump, and (when --object is used) llvm-nm must be on PATH.",
+    "By default llvm-readobj, llvm-objdump, and (when --object is used) llvm-nm are resolved on PATH.",
+    "--toolchain-dir validates an existing pinned Windows materialization and resolves exact tool basenames from its archive inventory without PATH fallback.",
     "Input files and each tool's combined output are capped at 128 MiB.",
     "Dependency closure and CRT-free status are always reported as unknown; inventories are not an allowlist proof.",
   ].join("\n");
@@ -343,22 +439,35 @@ export async function createArtifactInspectionReceipt({
   artifactPath,
   postOptIrPath,
   objectPath,
+  toolchainDir,
   cwd = process.cwd(),
   findTool = defaultFindTool,
   runTool = defaultRunTool,
+  loadMaterialization = loadPinnedMaterialization,
 } = {}) {
   const artifact = await readRegularFile(artifactPath, "artifact", cwd);
   const format = detectArtifactFormat(artifact.bytes);
+  const toolchain = toolchainDir === undefined
+    ? { directory: null, selected: null }
+    : await resolveMaterializedTools(toolchainDir, cwd, loadMaterialization);
+  const toolResolution = toolchain.selected === null
+    ? findTool
+    : (name) => toolchain.selected.get(name);
+  const toolFindContext = {
+    findTool: toolResolution,
+    runTool,
+    resolution: toolchain.selected === null ? "PATH" : "validated-materialized-toolchain",
+  };
   const readobjArgs = format === "ELF"
     ? ["--elf-output-style=JSON", "--pretty-print", "--sections", "--dynamic-table", "--needed-libs", artifact.path]
     : ["--sections", "--coff-imports", artifact.path];
-  const readobj = invokeTool("llvm-readobj", readobjArgs, { findTool, runTool });
+  const readobj = invokeTool("llvm-readobj", readobjArgs, toolFindContext);
   const inventory = format === "ELF"
     ? inspectElf(readobj.stdout, artifact.size)
     : inspectCoff(readobj.stdout, artifact.size);
   const coveredSectionBytes = sectionCoverageFileBytes(inventory.sections);
   if (coveredSectionBytes > artifact.size) fail("section file ranges exceed artifact size");
-  const disassembly = invokeTool("llvm-objdump", ["--disassemble", "--no-show-raw-insn", artifact.path], { findTool, runTool });
+  const disassembly = invokeTool("llvm-objdump", ["--disassemble", "--no-show-raw-insn", artifact.path], toolFindContext);
 
   let postOptIr;
   let postOptIrSnapshot;
@@ -379,7 +488,7 @@ export async function createArtifactInspectionReceipt({
   let llvmNmPath = null;
   if (objectPath !== undefined) {
     const object = await readRegularFile(objectPath, "object", cwd);
-    const nm = invokeTool("llvm-nm", ["--undefined-only", "--format=posix", object.path], { findTool, runTool });
+    const nm = invokeTool("llvm-nm", ["--undefined-only", "--format=posix", object.path], toolFindContext);
     objectSnapshot = object;
     llvmNmPath = nm.executable;
     objectUndefinedSymbols = {
@@ -420,6 +529,8 @@ export async function createArtifactInspectionReceipt({
       crtFree: { status: "unknown", reason: "inventory alone cannot rule out statically linked runtime code or establish the product's runtime policy" },
     },
     tools: {
+      resolution: toolchain.selected === null ? "PATH" : "validated-materialized-toolchain",
+      toolchainDirectory: toolchain.directory,
       llvmReadobj: readobj.executable,
       llvmObjdump: disassembly.executable,
       llvmNm: llvmNmPath,
@@ -438,6 +549,7 @@ export async function main(argv = process.argv.slice(2)) {
       artifactPath: args.artifact,
       postOptIrPath: args.postOptIr,
       objectPath: args.object,
+      toolchainDir: args.toolchainDirectory,
     });
     process.stdout.write(`${JSON.stringify(receipt)}\n`);
     return 0;

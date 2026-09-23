@@ -34,7 +34,7 @@ function mockedTools(readobjOutput, extras = {}) {
     calls,
     findTool: (name) => `mock-tools/${name}.exe`,
     runTool: (executable, args) => {
-      const tool = path.posix.basename(executable).replace(/\.exe$/iu, "");
+      const tool = path.basename(executable).replace(/\.exe$/iu, "");
       calls.push({ tool, args });
       if (tool === "llvm-readobj") {
         if (extras.readobjError) throw new Error(extras.readobjError);
@@ -86,12 +86,28 @@ test("argument parser requires one explicit artifact and accepts optional eviden
     postOptIr: "after.ll",
     object: "obj.obj",
   });
+  assert.deepEqual(parseArtifactInspectionArguments(["sample.exe", "--toolchain-dir", "cache", "--object", "x.obj"]), {
+    help: false,
+    artifact: "sample.exe",
+    postOptIr: undefined,
+    object: "x.obj",
+    toolchainDirectory: "cache",
+  });
+  assert.deepEqual(parseArtifactInspectionArguments(["sample.exe", "--toolchain-dir=cache"]), {
+    help: false,
+    artifact: "sample.exe",
+    postOptIr: undefined,
+    object: undefined,
+    toolchainDirectory: "cache",
+  });
   assert.deepEqual(parseArtifactInspectionArguments(["--help"]), { help: true });
   assert.throws(() => parseArtifactInspectionArguments([]), /explicit artifact path/u);
   assert.throws(() => parseArtifactInspectionArguments(["a.exe", "b.exe"]), /exactly one artifact/u);
   assert.throws(() => parseArtifactInspectionArguments(["a.exe", "--object"]), /--object requires/u);
   assert.throws(() => parseArtifactInspectionArguments(["a.exe", "--nope"]), /unknown option/u);
   assert.throws(() => parseArtifactInspectionArguments(["a.exe", "--object", "a.obj", "--object", "b.obj"]), /only once/u);
+  assert.throws(() => parseArtifactInspectionArguments(["a.exe", "--toolchain-dir"]), /--toolchain-dir requires/u);
+  assert.throws(() => parseArtifactInspectionArguments(["a.exe", "--toolchain-dir", "one", "--toolchain-dir", "two"]), /--toolchain-dir may be specified only once/u);
 });
 
 test("PE receipt inventories section bytes, imports, IR declarations, and one object's undefined symbols", async (t) => {
@@ -253,6 +269,160 @@ test("an explicitly requested object fails clearly when llvm-nm is unavailable",
     findTool,
     runTool: tools.runTool,
   }), /llvm-nm is required but was not found/u);
+});
+
+test("explicit toolchain directory uses only validated archive basenames and records selected paths", async (t) => {
+  const directory = withTempDirectory(t);
+  const artifactPath = path.join(directory, "sample.exe");
+  const toolchainDir = path.join(directory, "toolchain");
+  const binDirectory = path.join(toolchainDir, "bin");
+  fs.mkdirSync(binDirectory, { recursive: true });
+  fs.writeFileSync(artifactPath, makePeFixture());
+  const objectPath = path.join(directory, "sample.obj");
+  fs.writeFileSync(objectPath, "mock object");
+  const toolPaths = Object.fromEntries(["llvm-readobj", "llvm-objdump", "llvm-nm"].map((name) => {
+    const toolPath = path.join(binDirectory, `${name}.exe`);
+    fs.writeFileSync(toolPath, "mock executable");
+    return [name, toolPath];
+  }));
+  const tools = mockedTools(peReadobjOutput);
+  const fallbackLookups = [];
+  const validatedDirectories = [];
+
+  const receipt = await createArtifactInspectionReceipt({
+    artifactPath,
+    objectPath,
+    toolchainDir,
+    findTool: (name) => {
+      fallbackLookups.push(name);
+      return `PATH/${name}.exe`;
+    },
+    runTool: tools.runTool,
+    loadMaterialization: async (validatedDirectory) => {
+      validatedDirectories.push(validatedDirectory);
+      return {
+        archiveEntries: Object.entries(toolPaths).map(([name]) => ({
+          path: `bin/${name}.exe`,
+          type: "file",
+        })),
+      };
+    },
+  });
+
+  assert.deepEqual(validatedDirectories, [toolchainDir]);
+  assert.deepEqual(fallbackLookups, []);
+  assert.equal(receipt.tools.resolution, "validated-materialized-toolchain");
+  assert.equal(receipt.tools.toolchainDirectory, toolchainDir);
+  assert.equal(receipt.tools.llvmReadobj, toolPaths["llvm-readobj"]);
+  assert.equal(receipt.tools.llvmObjdump, toolPaths["llvm-objdump"]);
+  assert.equal(receipt.tools.llvmNm, toolPaths["llvm-nm"]);
+});
+
+test("explicit toolchain directory rejects a symlinked inspection tool", async (t) => {
+  const directory = withTempDirectory(t);
+  const artifactPath = path.join(directory, "sample.exe");
+  const toolchainDir = path.join(directory, "toolchain");
+  const binDirectory = path.join(toolchainDir, "bin");
+  fs.mkdirSync(binDirectory, { recursive: true });
+  fs.writeFileSync(artifactPath, makePeFixture());
+  const targetPath = path.join(binDirectory, "llvm-readobj-target.exe");
+  const linkPath = path.join(binDirectory, "llvm-readobj.exe");
+  const objdumpPath = path.join(binDirectory, "llvm-objdump.exe");
+  fs.writeFileSync(targetPath, "mock executable");
+  fs.writeFileSync(objdumpPath, "mock executable");
+  try {
+    fs.symlinkSync(targetPath, linkPath, "file");
+  } catch (error) {
+    if (["EPERM", "EACCES", "ENOSYS"].includes(error?.code)) {
+      t.skip("symbolic links are unavailable in this environment");
+      return;
+    }
+    throw error;
+  }
+
+  await assert.rejects(createArtifactInspectionReceipt({
+    artifactPath,
+    toolchainDir,
+    loadMaterialization: async () => ({
+      archiveEntries: [
+        { path: "bin/llvm-readobj.exe", type: "file" },
+        { path: "bin/llvm-objdump.exe", type: "file" },
+      ],
+    }),
+  }), /materialized tool is not a regular file: llvm-readobj\.exe/u);
+});
+
+test("explicit toolchain directory rejects ambiguous and non-regular tool basenames", async (t) => {
+  const directory = withTempDirectory(t);
+  const artifactPath = path.join(directory, "sample.exe");
+  const toolchainDir = path.join(directory, "toolchain");
+  const firstBin = path.join(toolchainDir, "one");
+  const secondBin = path.join(toolchainDir, "two");
+  fs.mkdirSync(firstBin, { recursive: true });
+  fs.mkdirSync(secondBin, { recursive: true });
+  fs.writeFileSync(artifactPath, makePeFixture());
+  for (const bin of [firstBin, secondBin]) {
+    fs.writeFileSync(path.join(bin, "llvm-readobj.exe"), "mock executable");
+    fs.writeFileSync(path.join(bin, "llvm-objdump.exe"), "mock executable");
+  }
+  await assert.rejects(createArtifactInspectionReceipt({
+    artifactPath,
+    toolchainDir,
+    loadMaterialization: async () => ({
+      archiveEntries: [
+        { path: "one/llvm-readobj.exe", type: "file" },
+        { path: "two/llvm-readobj.exe", type: "file" },
+        { path: "one/llvm-objdump.exe", type: "file" },
+      ],
+    }),
+  }), /tool basename is ambiguous for llvm-readobj\.exe/u);
+
+  const regular = path.join(firstBin, "llvm-readobj.exe");
+  fs.rmSync(regular);
+  fs.mkdirSync(regular);
+  await assert.rejects(createArtifactInspectionReceipt({
+    artifactPath,
+    toolchainDir,
+    loadMaterialization: async () => ({
+      archiveEntries: [
+        { path: "one/llvm-readobj.exe", type: "file" },
+        { path: "one/llvm-objdump.exe", type: "file" },
+      ],
+    }),
+  }), /materialized tool is not a regular file: llvm-readobj\.exe/u);
+});
+
+test("explicit toolchain directory does not fall back to PATH for a missing optional tool", async (t) => {
+  const directory = withTempDirectory(t);
+  const artifactPath = path.join(directory, "sample.exe");
+  const toolchainDir = path.join(directory, "toolchain");
+  const binDirectory = path.join(toolchainDir, "bin");
+  fs.mkdirSync(binDirectory, { recursive: true });
+  fs.writeFileSync(artifactPath, makePeFixture());
+  for (const name of ["llvm-readobj", "llvm-objdump"])
+    fs.writeFileSync(path.join(binDirectory, `${name}.exe`), "mock executable");
+  const tools = mockedTools(peReadobjOutput);
+  const fallbackLookups = [];
+  const objectPath = path.join(directory, "sample.obj");
+  fs.writeFileSync(objectPath, "mock object");
+
+  await assert.rejects(createArtifactInspectionReceipt({
+    artifactPath,
+    objectPath,
+    toolchainDir,
+    findTool: (name) => {
+      fallbackLookups.push(name);
+      return `PATH/${name}.exe`;
+    },
+    runTool: tools.runTool,
+    loadMaterialization: async () => ({
+      archiveEntries: [
+        { path: "bin/llvm-readobj.exe", type: "file" },
+        { path: "bin/llvm-objdump.exe", type: "file" },
+      ],
+    }),
+  }), /llvm-nm is required but was not found in the validated --toolchain-dir/u);
+  assert.deepEqual(fallbackLookups, []);
 });
 
 test("artifact and optional files must be regular, and post-opt input must be .ll", async (t) => {
