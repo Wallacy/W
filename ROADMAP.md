@@ -330,6 +330,29 @@ capability has shipped:
 | 14 | Package, registry, service and sandbox slices | Signed binary-first packages, source fallback, independent verification, one service provider and bounded sandbox execution work against the stable compiler/runtime boundary | Opens the ecosystem without freezing premature compiler internals |
 | 15 | UI, native graphics, scientific and proof-mode applications | Promote one real workload at a time through correctness, applicability, resource receipts and benchmark evidence; platform SDK/providers remain outside the language core | Broadens targets from proven primitives instead of speculative abstractions |
 
+The current execution wave has separate ownership and a single integration
+order:
+
+| Lane | Bounded package | May advance independently | Integration gate |
+| --- | --- | --- | --- |
+| CFG proof | Reusable function-graph reachability, dominance and natural-loop analysis, followed by typed-edge integration | Pure graph analysis and adversarial unit tests, without changing HIR emission | Verify the graph and typed edges before value availability is trusted; only then land source-backed nested-loop lowering |
+| Product values | Flat copyable tuple/value-struct source witness and independent C23/Rust correctness oracles | Syntax, frontend evidence and oracle fixtures; no HIR claim | Start the aggregate HIR writer only after the CFG verifier is integrated |
+| Native output | Hello-minimal emission/layout and exact dependency-closure measurements | No HIR or aggregate files; compare Windows and Linux linker lanes separately | Promote a change only with exact output, exit, imports, size and compile/runtime cost evidence |
+
+Each lane should produce one useful family-level result, not a new executable
+for every operator or width. The principal integrates in dependency order,
+reviews the combined diff, and runs only gates whose relevant inputs changed.
+An executor may finish with a documented blocker; that is not a reason to
+manufacture a passing product claim or keep it polling.
+Graph validity alone cannot attest that a same-typed jump to an ancestor loop
+matches the label in the original W source. The source-to-HIR gate must retain
+the frontend's lexical target proof; the standalone HIR graph gate proves
+reachability, dominance and reducible-loop structure, not typed value
+availability or source equivalence by itself.
+The graph helper has `compiler-lifecycle` benchmark disposition: measure its
+verification cost when integrated, without adding a separate executable
+performance row for an internal analysis.
+
 Ranks order the next integration proof, not a prohibition on parallel work. The
 fundamental `i8`–`u64` and `f32`/`f64` scalar path must feed ranks 2–3, but
 `i128`/`u128`, `f16`/`bf16`/`f128`, and configured low-precision storage need

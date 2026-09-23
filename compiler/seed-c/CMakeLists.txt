@@ -114,6 +114,7 @@ add_library(w_seed_source STATIC
   src/w_seed_accelerated_request0.c
   src/w_seed_accelerated_provider0.c
   src/w_seed_hir0.c
+  src/w_seed_hir0_cfg.c
   src/w_seed_product_closure0.c
   src/w_seed_process0.c
   src/w_seed_run0.c
@@ -727,6 +728,14 @@ add_executable(w_seed_hir0_tests
 )
 target_link_libraries(w_seed_hir0_tests PRIVATE w_seed_source)
 
+add_executable(w_seed_hir0_cfg_tests
+  tests/test_hir0_cfg.c
+)
+target_include_directories(w_seed_hir0_cfg_tests PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_link_libraries(w_seed_hir0_cfg_tests PRIVATE w_seed_source)
+
 add_executable(w_seed_parallel_panic_boundary1_helper
   tests/parallel_panic_boundary1_helper.c
   tests/parallel_panic_boundary1_witness.c
@@ -927,6 +936,7 @@ if(MSVC)
   target_compile_options(w_seed_cooperative0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_wrt0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hir0_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_hir0_cfg_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_parallel_panic_boundary1_helper PRIVATE /W4 /WX)
   target_compile_options(w_seed_parallel_panic_boundary1_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_task_lifecycle0_tests PRIVATE /W4 /WX)
@@ -1432,6 +1442,15 @@ else()
     -Wshadow
     -Werror
   )
+  target_compile_options(w_seed_hir0_cfg_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
   target_compile_options(w_seed_parallel_panic_boundary1_helper PRIVATE
     -Wall
     -Wextra
@@ -1606,6 +1625,7 @@ add_test(NAME w_seed_native0_unit COMMAND w_seed_native0_tests)
 add_test(NAME w_seed_cooperative0_unit COMMAND w_seed_cooperative0_tests)
 add_test(NAME w_seed_wrt0_unit COMMAND w_seed_wrt0_tests)
 add_test(NAME w_seed_hir0_unit COMMAND w_seed_hir0_tests)
+add_test(NAME w_seed_hir0_cfg_unit COMMAND w_seed_hir0_cfg_tests)
 add_test(NAME w_seed_parallel_panic_boundary1_unit
   COMMAND w_seed_parallel_panic_boundary1_tests
     $<TARGET_FILE:w_seed_parallel_panic_boundary1_helper>)
