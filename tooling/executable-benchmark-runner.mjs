@@ -35,8 +35,12 @@ import {
   PROCESS_ENTRY0_SUPPORT_ROLES,
   PROCESS_ENTRY0_TIMED_INPUT,
   PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID,
+  HELLO_PLATFORM_MINIMAL_PIE_RECIPE_CLASS,
+  HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID,
   HELLO_PLATFORM_MINIMAL_RECIPE_CLASS,
   HELLO_PLATFORM_MINIMAL_WORKLOAD_ID,
+  PUBLIC_W_BUILD_RELEASE_NO_PIE_RECIPE,
+  PUBLIC_W_BUILD_RELEASE_PIE_RECIPE,
   PUBLIC_C_RECIPE,
   ROOT,
   executableEquivalenceKey,
@@ -62,8 +66,12 @@ import {
   RUST_RELEASE_FLAGS,
   PLATFORM_MINIMAL_C_RECIPE,
   PLATFORM_MINIMAL_RUST_RECIPE,
+  PLATFORM_MINIMAL_PIE_C_RECIPE,
+  PLATFORM_MINIMAL_PIE_RUST_RECIPE,
   platformMinimalCFlags,
   platformMinimalRustFlags,
+  platformMinimalPieCFlags,
+  platformMinimalPieRustFlags,
   cReleaseFlags,
   clangReleaseFlags,
   W_LLC_FLAGS,
@@ -329,9 +337,13 @@ export function parseBenchmarkArguments(argv) {
   if (![EXECUTABLE_PLATFORM_TARGET_WINDOWS, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL].includes(result.platform)) {
     fail(`unsupported platform: ${result.platform}`);
   }
+  if (result.target === HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID &&
+      result.platform !== EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) {
+    fail("hello-platform-minimal-pie is supported only on linux-wsl-x64");
+  }
   if (result.platform === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL && result.language !== "w" &&
-      result.target !== HELLO_PLATFORM_MINIMAL_WORKLOAD_ID) {
-    fail("linux-wsl-x64 supports C and Rust only for hello-platform-minimal");
+      ![HELLO_PLATFORM_MINIMAL_WORKLOAD_ID, HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID].includes(result.target)) {
+    fail("linux-wsl-x64 supports C and Rust only for the platform-minimal Hello workloads");
   }
   if (result.compileSamples % 2 === 0 || result.runSamples % 2 === 0) fail("sample counts must be odd");
   return result;
@@ -343,7 +355,7 @@ export function benchmarkUsage() {
     "",
     "Options: --target <runnable-catalog-id> (default hello), --language w|c|rust (default w), --platform windows-x64|linux-wsl-x64 (default windows-x64), --warmup <n> (default 1), --compile-samples <odd n> (default 9), --run-samples <odd n> (default 101). --samples sets both counts.",
     "The output must be a new JSON file under benchmarks/results.",
-    "The default is Windows x86_64 exploratory executable evidence. --platform linux-wsl-x64 selects the catalog's Linux source and cross-builds its ELF on this Windows host; production run samples execute as a single native-helper batch from WSL-native /tmp under Linux CLOCK_MONOTONIC/wait4, excluding wsl.exe startup and DrvFS target access from each sample. Each timed sample still launches a fresh target process, so Run p50/p95 are product-invocation costs, not in-process body throughput. That lane is same-physical-hardware diagnostic-only and same-host-only. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate on Windows and the pinned Linux/WSL public build route on WSL2; process-argument workloads validate all declared argument cases before timing and pin the declared timed vector; process-handler-lifecycle uses the private GCC/MinGW handler composite and remains contextual/non-ranking. Public C requires Clang with final C23, the MSVC ABI, and the DLL runtime; Rust uses rustc edition 2024. The isolated hello-platform-minimal correctness comparison enables freestanding C23 and Rust 2024 no_std on Windows and cross-target WSL, without CRT/libc where supported; its hand-selected entry/write/exit paths are not idiomatic language baselines or a language ranking.",
+    "The default is Windows x86_64 exploratory executable evidence. --platform linux-wsl-x64 selects the catalog's Linux source and cross-builds its ELF on this Windows host; production run samples execute as a single native-helper batch from WSL-native /tmp under Linux CLOCK_MONOTONIC/wait4, excluding wsl.exe startup and DrvFS target access from each sample. Each timed sample still launches a fresh target process, so Run p50/p95 are product-invocation costs, not in-process body throughput. That lane is same-physical-hardware diagnostic-only and same-host-only. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate on Windows and the pinned Linux/WSL public build route on WSL2; process-argument workloads validate all declared argument cases before timing and pin the declared timed vector; process-handler-lifecycle uses the private GCC/MinGW handler composite and remains contextual/non-ranking. Public C requires Clang with final C23, the MSVC ABI, and the DLL runtime; Rust uses rustc edition 2024. The isolated hello-platform-minimal correctness comparison enables freestanding C23 and Rust 2024 no_std on Windows and cross-target WSL, without CRT/libc where supported; its hand-selected entry/write/exit paths are not idiomatic language baselines or a language ranking. On Linux/WSL, hello-platform-minimal is non-PIE ET_EXEC (W explicitly passes --pie off) and requires no PT_INTERP/DT_NEEDED plus an NX GNU_STACK. hello-platform-minimal-pie explicitly passes --pie on for W and requires ET_DYN, no PT_INTERP/DT_NEEDED, GNU_RELRO, and an NX GNU_STACK.",
     `Timeout guard: ${EXECUTABLE_TIMEOUT_STATUS}.`,
   ].join("\n");
 }
@@ -878,6 +890,43 @@ function isWslPlatform(platformTarget) {
   return platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL;
 }
 
+function isPlatformMinimalCRecipe(recipe) {
+  return recipe === PLATFORM_MINIMAL_C_RECIPE || recipe === PLATFORM_MINIMAL_PIE_C_RECIPE;
+}
+
+function isPlatformMinimalRustRecipe(recipe) {
+  return recipe === PLATFORM_MINIMAL_RUST_RECIPE || recipe === PLATFORM_MINIMAL_PIE_RUST_RECIPE;
+}
+
+function isPlatformMinimalPieWorkload(target) {
+  return target === HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID;
+}
+
+export function publicWBuildPieArguments(recipe, platformTarget) {
+  const linkMode = recipe === PUBLIC_W_BUILD_RELEASE_NO_PIE_RECIPE
+    ? "off"
+    : recipe === PUBLIC_W_BUILD_RELEASE_PIE_RECIPE ? "on" : undefined;
+  if (linkMode === undefined) return [];
+  if (platformTarget !== EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) {
+    fail(`${recipe} is supported only on linux-wsl-x64`);
+  }
+  return ["--pie", linkMode];
+}
+
+export function publicWRecipeHasTimedSupport(target, recipe, platformTarget) {
+  return recipe === PUBLIC_W_BUILD_RECIPE ||
+    (isWslPlatform(platformTarget) && target === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID &&
+      recipe === PUBLIC_W_BUILD_RELEASE_NO_PIE_RECIPE) ||
+    (isWslPlatform(platformTarget) && target === HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID &&
+      recipe === PUBLIC_W_BUILD_RELEASE_PIE_RECIPE);
+}
+
+function expectedElfLinkMode(target) {
+  if (target === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID) return "no-pie";
+  if (target === HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID) return "pie";
+  return undefined;
+}
+
 function wslPath(filePath) {
   if (typeof filePath !== "string" || filePath.length === 0) fail("WSL path must be a non-empty string");
   if (filePath.startsWith("/")) return filePath.replaceAll("\\", "/");
@@ -1154,7 +1203,8 @@ async function resolveCCompiler(executor, dependencies = {}, target = DEFAULT_TA
                                 platformTarget = EXECUTABLE_PLATFORM_TARGET_WINDOWS,
                                 source = undefined) {
   const privateComposite = target === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID;
-  const platformMinimal = source?.recipe === PLATFORM_MINIMAL_C_RECIPE;
+  const platformMinimal = isPlatformMinimalCRecipe(source?.recipe);
+  const platformMinimalPie = source?.recipe === PLATFORM_MINIMAL_PIE_C_RECIPE;
   const linuxCross = platformMinimal && platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL;
   const override = dependencies.testOnlyToolchains?.c;
   let candidates;
@@ -1213,7 +1263,9 @@ async function resolveCCompiler(executor, dependencies = {}, target = DEFAULT_TA
         environment = captureVisualStudioEnvironment(findVisualStudio().devCommand);
       }
     }
-    const recipeKind = platformMinimal ? "platform-minimal" : privateComposite && wholeProgram ? "whole-program" : "portable";
+    const recipeKind = platformMinimalPie ? "platform-minimal-pie"
+      : platformMinimal ? "platform-minimal"
+        : privateComposite && wholeProgram ? "whole-program" : "portable";
     const identity = `${identityToken(compilerName, "C compiler")}-${identityToken(version, "C compiler version")}-${identityToken(dialect.name, "C dialect")}-${identityToken(recipeKind, "C release recipe")}-${identityToken(expectedTarget, "C ABI")}`;
     console.error(`executable benchmark: C compiler=${identity}; standard=${dialectDisclosure(dialect)}; ABI=${expectedTarget}`);
     return {
@@ -1239,7 +1291,8 @@ async function resolveRustCompiler(executor, dependencies = {}, target = DEFAULT
   if (command === undefined) fail(`Rust ${target} requires rustc`);
   const info = normalizeCompilerCommandOverride(command, "Rust");
   const artifactTarget = source?.artifactTarget ?? RUST_TARGET;
-  const platformMinimal = source?.recipe === PLATFORM_MINIMAL_RUST_RECIPE;
+  const platformMinimal = isPlatformMinimalRustRecipe(source?.recipe);
+  const platformMinimalPie = source?.recipe === PLATFORM_MINIMAL_PIE_RUST_RECIPE;
   const targetProbe = await executeChild(executor, info.command, ["--print", "target-libdir", `--target=${artifactTarget}`], { cwd: ROOT, stdout: "pipe", stderr: "pipe", windowsHide: true }, `${target} Rust target probe`);
   requireSuccess(targetProbe, `${target} Rust target probe`);
   const targetLibdir = outputText(targetProbe.stdout).trim();
@@ -1268,7 +1321,7 @@ async function resolveRustCompiler(executor, dependencies = {}, target = DEFAULT
     linkerVersion = outputText(Buffer.concat([linkerProbe.stdout, linkerProbe.stderr])).trim().match(/^LLD\s+([^\s(]+)/u)?.[1];
     if (!linkerVersion) fail(`Rust ${target} LLD probe did not disclose its version`);
   }
-  const identity = `rustc-${identityToken(version.release, "Rust compiler version")}-edition-2024-${identityToken(artifactTarget, "Rust ABI")}${linkerVersion ? `-lld-${identityToken(linkerVersion, "LLD version")}` : ""}`;
+  const identity = `rustc-${identityToken(version.release, "Rust compiler version")}-edition-2024-${identityToken(artifactTarget, "Rust ABI")}${platformMinimalPie ? "-platform-minimal-pie" : ""}${linkerVersion ? `-lld-${identityToken(linkerVersion, "LLD version")}` : ""}`;
   console.error(`executable benchmark: Rust compiler=${identity}; edition=2024; ABI=${artifactTarget}${linkerVersion ? `; LLD=${linkerVersion}` : ""}`);
   return {
     language: "rust",
@@ -1620,6 +1673,7 @@ async function compileW(context, retain) {
       context.source.filePath,
       "--target",
       target,
+      ...publicWBuildPieArguments(context.source.source.recipe, context.platformTarget),
       "--output",
       artifact,
     ], sampleDirectory, "W public build");
@@ -1646,8 +1700,10 @@ async function compileC(context, retain) {
   const artifact = path.join(sampleDirectory, `${context.source.workload.id}-${context.language}${isWslPlatform(context.platformTarget) ? ".elf" : ".exe"}`);
   try {
     const start = process.hrtime.bigint();
-    const args = context.source.source.recipe === PLATFORM_MINIMAL_C_RECIPE
-      ? [...platformMinimalCFlags(context.platformTarget, context.languageToolchain.dialect.flag), context.source.filePath, "-o", artifact]
+    const args = context.source.source.recipe === PLATFORM_MINIMAL_PIE_C_RECIPE
+      ? [...platformMinimalPieCFlags(context.platformTarget, context.languageToolchain.dialect.flag), context.source.filePath, "-o", artifact]
+      : context.source.source.recipe === PLATFORM_MINIMAL_C_RECIPE
+        ? [...platformMinimalCFlags(context.platformTarget, context.languageToolchain.dialect.flag), context.source.filePath, "-o", artifact]
       : [
         ...dialectArgs(context.languageToolchain.dialect),
         ...(context.languageToolchain.family === "clang-msvc"
@@ -1679,8 +1735,10 @@ async function compileRust(context, retain) {
   const artifact = path.join(sampleDirectory, `${context.source.workload.id}-${context.language}${isWslPlatform(context.platformTarget) ? ".elf" : ".exe"}`);
   try {
     const start = process.hrtime.bigint();
-    const args = context.source.source.recipe === PLATFORM_MINIMAL_RUST_RECIPE
-      ? [context.source.filePath, ...platformMinimalRustFlags(context.platformTarget, context.languageToolchain.linker), "-o", artifact]
+    const args = context.source.source.recipe === PLATFORM_MINIMAL_PIE_RUST_RECIPE
+      ? [context.source.filePath, ...platformMinimalPieRustFlags(context.platformTarget, context.languageToolchain.linker), "-o", artifact]
+      : context.source.source.recipe === PLATFORM_MINIMAL_RUST_RECIPE
+        ? [context.source.filePath, ...platformMinimalRustFlags(context.platformTarget, context.languageToolchain.linker), "-o", artifact]
       : [
         context.source.filePath,
         "--edition=2024",
@@ -2059,6 +2117,9 @@ const ELF_PROGRAM_HEADER_SIZE = 56;
 const ELF_SECTION_HEADER_SIZE = 64;
 const ELF_PT_INTERP = 3;
 const ELF_PT_DYNAMIC = 2;
+const ELF_PT_GNU_STACK = 0x6474e551;
+const ELF_PT_GNU_RELRO = 0x6474e552;
+const ELF_PF_X = 0x1;
 const ELF_DT_NULL = 0n;
 const ELF_DT_NEEDED = 1n;
 const ELF_SHT_SYMTAB = 2;
@@ -2091,7 +2152,10 @@ function elfU64(bytes, offset, label, language) {
   return Number(value);
 }
 
-export function validateElfX64(bytes, language = "w") {
+export function validateElfX64(bytes, language = "w", { expectedLinkMode } = {}) {
+  if (expectedLinkMode !== undefined && !["pie", "no-pie"].includes(expectedLinkMode)) {
+    fail(`${language} artifact has unsupported expected ELF link mode ${String(expectedLinkMode)}`);
+  }
   if (!Buffer.isBuffer(bytes)) fail(`${language} artifact bytes must be a buffer`);
   elfRange(bytes, 0, ELF_HEADER_SIZE, "ELF header", language);
   if (bytes[0] !== 0x7f || bytes[1] !== 0x45 || bytes[2] !== 0x4c || bytes[3] !== 0x46) {
@@ -2117,14 +2181,23 @@ export function validateElfX64(bytes, language = "w") {
     elfRange(bytes, programOffset, programSize * programCount, "ELF program headers", language);
   }
   let knownEnd = Math.max(ELF_HEADER_SIZE, programOffset + programSize * programCount);
+  let hasGnuRelro = false;
+  let hasGnuStack = false;
+  let hasExecutableGnuStack = false;
   for (let index = 0; index < programCount; index += 1) {
     const header = programOffset + index * programSize;
     const kind = elfU32(bytes, header, `ELF program header ${index}`, language);
+    const flags = elfU32(bytes, header + 4, `ELF program header ${index} flags`, language);
     const fileOffset = elfU64(bytes, header + 8, `ELF program header ${index} file offset`, language);
     const fileSize = elfU64(bytes, header + 32, `ELF program header ${index} file size`, language);
     elfRange(bytes, fileOffset, fileSize, `ELF program header ${index} file range`, language);
     knownEnd = Math.max(knownEnd, fileOffset + fileSize);
     if (kind === ELF_PT_INTERP) fail(`${language} artifact contains an ELF PT_INTERP dynamic loader`);
+    if (kind === ELF_PT_GNU_RELRO) hasGnuRelro = true;
+    if (kind === ELF_PT_GNU_STACK) {
+      hasGnuStack = true;
+      if ((flags & ELF_PF_X) !== 0) hasExecutableGnuStack = true;
+    }
     if (kind !== ELF_PT_DYNAMIC) continue;
     let terminated = false;
     for (let offset = fileOffset; offset + 16 <= fileOffset + fileSize; offset += 16) {
@@ -2136,6 +2209,15 @@ export function validateElfX64(bytes, language = "w") {
       }
     }
     if (!terminated) fail(`${language} artifact has an unterminated ELF dynamic segment`);
+  }
+  if (expectedLinkMode === "pie" && type !== 3) fail(`${language} artifact is not a PIE ELF (ET_DYN)`);
+  if (expectedLinkMode === "no-pie" && type !== 2) fail(`${language} artifact is not a non-PIE ELF (ET_EXEC)`);
+  if (expectedLinkMode !== undefined) {
+    if (!hasGnuStack) fail(`${language} ELF artifact has no GNU_STACK program header to establish NX stack policy`);
+    if (hasExecutableGnuStack) fail(`${language} ELF artifact requests an executable GNU_STACK`);
+  }
+  if (expectedLinkMode === "pie") {
+    if (!hasGnuRelro) fail(`${language} PIE artifact has no GNU_RELRO program header`);
   }
   if (sectionCount > 0) {
     if (sectionSize < ELF_SECTION_HEADER_SIZE) fail(`${language} artifact has undersized ELF section headers`);
@@ -2211,7 +2293,9 @@ async function correctnessBuild(context) {
   try {
     const bytes = await readFile(compiled.artifact);
     const validatedArtifact = isWslPlatform(context.platformTarget)
-      ? validateElfX64(bytes, context.language)
+      ? validateElfX64(bytes, context.language, {
+        expectedLinkMode: expectedElfLinkMode(context.target),
+      })
       : validatePeX64(bytes, context.language);
     const artifactCleanliness = validatedArtifact.cleanliness;
     const artifactLayout = validatedArtifact.peLayout ?? validatedArtifact.elfLayout;
@@ -2398,11 +2482,13 @@ function recipeFor(context) {
     const target = isWslPlatform(context.platformTarget)
       ? EXECUTABLE_ARTIFACT_TARGET_LINUX
       : EXECUTABLE_ARTIFACT_TARGET_MSVC;
+    const pieArguments = publicWBuildPieArguments(context.source.source.recipe, context.platformTarget);
     return {
       command: "w.exe",
       subcommand: "build",
       target,
-      args: ["build", "<source>", "--target", target, "--output", "<artifact>"],
+      args: ["build", "<source>", "--target", target, ...pieArguments, "--output", "<artifact>"],
+      ...(pieArguments.length === 0 ? {} : { pie: pieArguments[1] }),
       flags: [...W_MLIR_OPT_FLAGS, "--mlir-to-llvmir", ...W_LLC_FLAGS, ...W_LLD_LINK_FLAGS],
       cmakeBuildType: "Release",
       profile: "release",
@@ -2410,10 +2496,13 @@ function recipeFor(context) {
     };
   }
   if (context.language === "c") {
-    const platformMinimal = context.source.source.recipe === PLATFORM_MINIMAL_C_RECIPE;
-    const flags = platformMinimal
-      ? platformMinimalCFlags(context.platformTarget, context.languageToolchain.dialect.flag)
-      : context.languageToolchain.family === "clang-msvc"
+    const platformMinimal = isPlatformMinimalCRecipe(context.source.source.recipe);
+    const platformMinimalPie = context.source.source.recipe === PLATFORM_MINIMAL_PIE_C_RECIPE;
+    const flags = platformMinimalPie
+      ? platformMinimalPieCFlags(context.platformTarget, context.languageToolchain.dialect.flag)
+      : context.source.source.recipe === PLATFORM_MINIMAL_C_RECIPE
+        ? platformMinimalCFlags(context.platformTarget, context.languageToolchain.dialect.flag)
+        : context.languageToolchain.family === "clang-msvc"
         ? clangReleaseFlags()
         : cReleaseFlags(context.languageToolchain);
     return {
@@ -2428,13 +2517,18 @@ function recipeFor(context) {
     };
   }
   if (context.language === "rust") {
-    const platformMinimal = context.source.source.recipe === PLATFORM_MINIMAL_RUST_RECIPE;
-    const flags = platformMinimal
-      ? platformMinimalRustFlags(context.platformTarget,
+    const platformMinimal = isPlatformMinimalRustRecipe(context.source.source.recipe);
+    const flags = context.source.source.recipe === PLATFORM_MINIMAL_PIE_RUST_RECIPE
+      ? platformMinimalPieRustFlags(context.platformTarget,
         context.languageToolchain.linker === undefined
           ? undefined
           : path.basename(context.languageToolchain.linker).replace(/\.exe$/iu, ""))
-      : ["--edition=2024", ...RUST_RELEASE_FLAGS, `--target=${RUST_TARGET}`];
+      : context.source.source.recipe === PLATFORM_MINIMAL_RUST_RECIPE
+        ? platformMinimalRustFlags(context.platformTarget,
+        context.languageToolchain.linker === undefined
+          ? undefined
+          : path.basename(context.languageToolchain.linker).replace(/\.exe$/iu, ""))
+        : ["--edition=2024", ...RUST_RELEASE_FLAGS, `--target=${RUST_TARGET}`];
     return {
       command: "rustc",
       target: context.languageToolchain.target,
@@ -2757,8 +2851,12 @@ async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
   if (![EXECUTABLE_PLATFORM_TARGET_WINDOWS, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL].includes(platformTarget)) {
     fail(`unsupported platform: ${platformTarget}`);
   }
-  if (isWslPlatform(platformTarget) && language !== "w" && target !== HELLO_PLATFORM_MINIMAL_WORKLOAD_ID) {
-    fail("linux-wsl-x64 supports C and Rust only for hello-platform-minimal");
+  if (isPlatformMinimalPieWorkload(target) && !isWslPlatform(platformTarget)) {
+    fail("hello-platform-minimal-pie is supported only on linux-wsl-x64");
+  }
+  if (isWslPlatform(platformTarget) && language !== "w" &&
+      ![HELLO_PLATFORM_MINIMAL_WORKLOAD_ID, HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID].includes(target)) {
+    fail("linux-wsl-x64 supports C and Rust only for the platform-minimal Hello workloads");
   }
   if (!Number.isSafeInteger(warmup) || warmup < 1 || warmup > EXECUTABLE_MAX_SAMPLES) fail(`warmup must be between 1 and ${EXECUTABLE_MAX_SAMPLES}`);
   if (!Number.isSafeInteger(compileSamples) || compileSamples < 9 || compileSamples > EXECUTABLE_MAX_SAMPLES || compileSamples % 2 === 0) fail(`compileSamples must be odd and between 9 and ${EXECUTABLE_MAX_SAMPLES}`);
@@ -2789,6 +2887,9 @@ async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
   if (target === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && source.source.recipeClass !== HELLO_PLATFORM_MINIMAL_RECIPE_CLASS) {
     fail("hello-platform-minimal source must select its isolated platform-minimal correctness recipe class");
   }
+  if (target === HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID && source.source.recipeClass !== HELLO_PLATFORM_MINIMAL_PIE_RECIPE_CLASS) {
+    fail("hello-platform-minimal-pie source must select its distinct Linux/WSL PIE recipe class");
+  }
   const processExecutionDescriptor = processTarget ? processExecution(source.workload) : undefined;
   const processSupportSources = processTarget ? await resolveProcessSupportSources(source.workload) : undefined;
   if (processTarget && source.source.recipeClass !== PROCESS_ENTRY0_RECIPE_CLASS) {
@@ -2797,7 +2898,8 @@ async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
   if (processTarget && language === "w" && source.source.recipe !== PROCESS_ENTRY0_RECIPE) {
     fail("process-handler-lifecycle W source must select the private handler recipe");
   }
-  if (language === "w" && !processTarget && source.source.recipe !== PUBLIC_W_BUILD_RECIPE) {
+  if (language === "w" && !processTarget &&
+      !publicWRecipeHasTimedSupport(target, source.source.recipe, platformTarget)) {
     fail(`${target} W cannot run: catalog recipe ${source.source.recipe} has no retained-artifact and separate compile-run benchmark support`);
   }
   const runnerDigest = dependencies.runnerDigest ?? await benchmarkRunnerDigest();

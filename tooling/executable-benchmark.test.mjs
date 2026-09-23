@@ -126,7 +126,7 @@ const VALID_ELF_LAYOUT = {
 test("catalog stores compact live best cells and no immutable history", () => {
   assert.deepEqual(validateExecutableCatalog(documents.catalog, documents), []);
   assert.deepEqual(validateExecutableBestMetrics(documents.catalog.bestMetrics, documents.catalog), []);
-  for (const workloadId of ["hello", "hello-platform-minimal"]) {
+  for (const workloadId of ["hello", "hello-platform-minimal", "hello-platform-minimal-pie"]) {
     assert.equal(documents.catalog.workloads.find((workload) => workload.id === workloadId).demoEvidence,
       "bounded-w-demo", `${workloadId} has successful public W suite evidence`);
   }
@@ -216,7 +216,7 @@ test("catalog stores compact live best cells and no immutable history", () => {
   assert.ok(documents.catalog.bestMetrics.entries.some((entry) => entry.language === "rust" && entry.eligibility === "promotable-after-equivalence"));
 });
 
-test("suite lane selection is deterministic, excludes diagnostic/private rows, and retains six contextual Hello lanes", () => {
+test("suite lane selection is deterministic, excludes private rows, and retains all contextual Hello link modes", () => {
   const lanes = selectExecutableSuiteLanes(documents.catalog);
   assert.ok(lanes.length > 0);
   assert.equal(new Set(lanes.map((lane) => `${lane.workloadId}/${lane.language}/${lane.platformTarget}`)).size, lanes.length);
@@ -228,10 +228,15 @@ test("suite lane selection is deterministic, excludes diagnostic/private rows, a
     { workloadId: "hello-platform-minimal", language: "c", platformTarget: "linux-wsl-x64" },
     { workloadId: "hello-platform-minimal", language: "rust", platformTarget: "linux-wsl-x64" },
   ]);
+  assert.deepEqual(lanes.filter((lane) => lane.workloadId === "hello-platform-minimal-pie"), [
+    { workloadId: "hello-platform-minimal-pie", language: "w", platformTarget: "linux-wsl-x64" },
+    { workloadId: "hello-platform-minimal-pie", language: "c", platformTarget: "linux-wsl-x64" },
+    { workloadId: "hello-platform-minimal-pie", language: "rust", platformTarget: "linux-wsl-x64" },
+  ]);
   assert.ok(lanes.every((lane) => lane.workloadId !== "process-handler-lifecycle" && lane.workloadId !== "composition"));
   assert.ok(lanes.filter((lane) => lane.platformTarget === "linux-wsl-x64")
-    .every((lane) => lane.workloadId === "hello-platform-minimal"));
-  assert.deepEqual(selectExecutableSuiteLanes(documents.catalog, { platforms: ["linux-wsl-x64"] }).map((lane) => lane.language), ["w", "c", "rust"]);
+    .every((lane) => ["hello-platform-minimal", "hello-platform-minimal-pie"].includes(lane.workloadId)));
+  assert.deepEqual(selectExecutableSuiteLanes(documents.catalog, { platforms: ["linux-wsl-x64"] }).map((lane) => lane.language), ["w", "c", "rust", "w", "c", "rust"]);
   assert.throws(() => selectExecutableSuiteLanes(documents.catalog, { platforms: ["linux-x64"] }), /supported runner platforms/u);
 });
 
@@ -426,18 +431,66 @@ test("platform-minimal Hello stays a separate correctness-only comparison across
   ]);
   assert.ok(workload.sources.every((source) => source.recipeClass === "hello-platform-minimal"));
   const contextualMetrics = documents.catalog.bestMetrics.entries.filter((entry) => entry.workloadId === workload.id);
-  assert.equal(contextualMetrics.length, 36, "all six contextual Hello lanes have complete metric sets");
+  assert.equal(contextualMetrics.length, 30, "the five currently measured lanes retain complete metric sets while W no-PIE awaits a fresh run");
+  assert.equal(contextualMetrics.some((entry) => entry.language === "w" && entry.platformTarget === "linux-wsl-x64"), false,
+    "old W PIE measurements are pruned instead of being relabeled as non-PIE");
   assert.ok(contextualMetrics.every((entry) => {
     const source = workload.sources.find((item) => item.language === entry.language && item.platformTarget === entry.platformTarget);
     return source && entry.eligibility === source.eligibility && entry.comparability === source.comparability &&
       entry.eligibility !== "promotable-after-equivalence";
   }), "any contextual measurements must retain their lane's non-ranking classification");
-  assert.ok(workload.sources.filter((source) => source.language === "w").every((source) =>
-    source.recipe === "public-w-build-release"));
+  assert.equal(workload.sources.find((source) => source.language === "w" && source.platformTarget === "windows-x64").recipe,
+    "public-w-build-release", "the Windows W route keeps its existing default link mode");
+  assert.equal(workload.sources.find((source) => source.language === "w" && source.platformTarget === "linux-wsl-x64").recipe,
+    "public-w-build-release-pie-off", "the Linux/WSL W route has its own non-PIE recipe identity");
   assert.ok(workload.sources.filter((source) => source.language === "c").every((source) =>
     source.recipe === "clang-c23-freestanding"));
   assert.ok(workload.sources.filter((source) => source.language === "rust").every((source) =>
     source.recipe === "rustc-edition-2024-no-std"));
+});
+
+test("platform-minimal PIE Hello is a distinct Linux/WSL W/C/Rust workload with no copied metrics", () => {
+  const workload = documents.catalog.workloads.find((item) => item.id === "hello-platform-minimal-pie");
+  assert.ok(workload);
+  assert.equal(workload.benchmarkStatus, "contextual-measurement-ready");
+  assert.equal(workload.demoEvidence, "bounded-w-demo");
+  assert.equal(workload.lane, "equivalent");
+  assert.match(workload.scope, /ET_DYN/u);
+  assert.match(workload.scope, /no PT_INTERP or DT_NEEDED/u);
+  assert.match(workload.scope, /GNU_RELRO/u);
+  assert.match(workload.scope, /NX stack/u);
+  assert.match(workload.scope, /not native-Linux support or a cross-language ranking/u);
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.oracle, {
+    kind: "exact-output", status: "source-backed", exitCode: 0,
+    stdout: "Hello, world!\n", stderr: "",
+  });
+  assert.deepEqual(workload.sources.map((source) => `${source.language}/${source.platformTarget}`).sort(), [
+    "c/linux-wsl-x64", "rust/linux-wsl-x64", "w/linux-wsl-x64",
+  ]);
+  assert.ok(workload.sources.every((source) => source.recipeClass === "hello-platform-minimal-pie"));
+  assert.equal(workload.sources.find((source) => source.language === "c").recipe, "clang-c23-freestanding-pie");
+  assert.equal(workload.sources.find((source) => source.language === "rust").recipe, "rustc-edition-2024-no-std-pie");
+  assert.equal(workload.sources.find((source) => source.language === "w").recipe, "public-w-build-release-pie-on");
+  assert.ok(workload.sources.every((source) =>
+    source.runtimeClosure.class === "freestanding" && source.eligibility === "same-physical-hardware-diagnostic-only"));
+  assert.equal(documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === workload.id), false,
+    "size-only observations from an isolated recipe study are not full benchmark rows");
+
+  const existing = documents.catalog.workloads.find((item) => item.id === "hello-platform-minimal");
+  assert.equal(existing.sources.find((source) => source.language === "c" && source.platformTarget === "linux-wsl-x64").recipe, "clang-c23-freestanding");
+  assert.equal(existing.sources.find((source) => source.language === "rust" && source.platformTarget === "linux-wsl-x64").recipe, "rustc-edition-2024-no-std");
+
+  const wrongNoPieRoute = clone(documents.catalog);
+  wrongNoPieRoute.workloads.find((item) => item.id === "hello-platform-minimal").sources
+    .find((source) => source.language === "w" && source.platformTarget === "linux-wsl-x64").recipe = "public-w-build-release";
+  assert.match(validateExecutableCatalog(wrongNoPieRoute, { ...documents, catalog: wrongNoPieRoute }).join("\n"),
+    /PIE off on Linux\/WSL/u);
+  const wrongPieRoute = clone(documents.catalog);
+  wrongPieRoute.workloads.find((item) => item.id === "hello-platform-minimal-pie").sources
+    .find((source) => source.language === "w").recipe = "public-w-build-release";
+  assert.match(validateExecutableCatalog(wrongPieRoute, { ...documents, catalog: wrongPieRoute }).join("\n"),
+    /explicit PIE on/u);
 });
 
 test("float rounding catalog keeps runtime selection correctness-only", () => {
@@ -2543,24 +2596,30 @@ test("source refresh evicts stale cells without relabeling history", () => {
   );
 });
 
-test("best-metric prune removes only source-stale cells and is idempotent", () => {
+test("best-metric prune removes only source- or recipe-stale cells and is idempotent", () => {
   const catalog = clone(documents.catalog);
-  const source = catalog.workloads.find((item) => item.id === "hello").sources
+  const staleSource = catalog.workloads.find((item) => item.id === "hello").sources
     .find((item) => item.language === "rust");
   const stale = clone(catalog.bestMetrics.entries.find(
     (entry) => entry.workloadId === "hello" && entry.language === "rust" && entry.metric === "artifact-size",
   ));
-  const preserved = clone(catalog.bestMetrics.entries.find(
-    (entry) => entry.workloadId === "hello" && entry.language === "c" && entry.metric === "artifact-size",
+  const staleRecipeSource = catalog.workloads.find((item) => item.id === "hello").sources
+    .find((item) => item.language === "c");
+  const staleRecipe = clone(catalog.bestMetrics.entries.find(
+    (entry) => entry.workloadId === "hello" && entry.language === "c" && entry.metric === "compile-latency",
   ));
-  assert.ok(stale);
+  const preserved = clone(catalog.bestMetrics.entries.find(
+    (entry) => entry.workloadId === "hello" && entry.language === "w" && entry.metric === "artifact-size",
+  ));
+  assert.ok(stale && staleRecipe);
   assert.ok(preserved);
-  source.digest = "sha256:" + "3".repeat(64);
-  catalog.bestMetrics.entries = [stale, preserved];
+  staleSource.digest = "sha256:" + "3".repeat(64);
+  staleRecipeSource.recipe = "different-recipe";
+  catalog.bestMetrics.entries = [stale, staleRecipe, preserved];
 
   const first = pruneExecutableBestMetrics(catalog);
-  assert.equal(first.removedCount, 1);
-  assert.deepEqual(first.removedMetrics, ["artifact-size"]);
+  assert.equal(first.removedCount, 2);
+  assert.deepEqual(first.removedMetrics, ["artifact-size", "compile-latency"]);
   assert.deepEqual(first.catalog.bestMetrics.entries, [preserved]);
   assert.equal(first.catalog.bestMetrics.status, "current");
   assert.deepEqual(validateExecutableBestMetrics(first.catalog.bestMetrics, first.catalog), []);

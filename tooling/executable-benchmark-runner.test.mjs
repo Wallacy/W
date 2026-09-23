@@ -15,6 +15,8 @@ import {
   linuxNativeReceiptSamples,
   nativeReceiptSamples,
   parseBenchmarkArguments,
+  publicWBuildPieArguments,
+  publicWRecipeHasTimedSupport,
   publishRecord,
   resolveResultPath,
   runBenchmark,
@@ -28,10 +30,14 @@ import {
   CLANG_RELEASE_FLAGS,
   NATIVE_RECIPE_PROFILE,
   PLATFORM_MINIMAL_C_RECIPE,
+  PLATFORM_MINIMAL_PIE_C_RECIPE,
+  PLATFORM_MINIMAL_PIE_RUST_RECIPE,
   PLATFORM_MINIMAL_RUST_RECIPE,
   RUST_RELEASE_FLAGS,
   cReleaseFlags,
   platformMinimalCFlags,
+  platformMinimalPieCFlags,
+  platformMinimalPieRustFlags,
   platformMinimalRustFlags,
   W_LLC_FLAGS,
   W_LLD_LINK_FLAGS,
@@ -40,6 +46,9 @@ import {
 import {
   exactOutputDigest,
   FLOAT_BIT_REPRESENTATION_WORKLOAD_ID,
+  EXECUTABLE_PLATFORM_TARGET_LINUX_WSL,
+  PUBLIC_W_BUILD_RELEASE_NO_PIE_RECIPE,
+  PUBLIC_W_BUILD_RELEASE_PIE_RECIPE,
 } from "./executable-benchmark-machine.mjs";
 
 test("benchmark arguments separate compile cost from high-resolution run sampling", () => {
@@ -58,7 +67,12 @@ test("benchmark arguments separate compile cost from high-resolution run samplin
   assert.deepEqual(parseBenchmarkArguments(["--target", "hello-platform-minimal", "--language", "c", "--platform", "linux-wsl-x64"]), {
     target: "hello-platform-minimal", language: "c", platform: "linux-wsl-x64", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
   });
-  assert.throws(() => parseBenchmarkArguments(["--target", "hello", "--language", "rust", "--platform", "linux-wsl-x64"]), /hello-platform-minimal/u);
+  assert.deepEqual(parseBenchmarkArguments(["--target", "hello-platform-minimal-pie", "--language", "rust", "--platform", "linux-wsl-x64"]), {
+    target: "hello-platform-minimal-pie", language: "rust", platform: "linux-wsl-x64", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
+  });
+  assert.throws(() => parseBenchmarkArguments(["--target", "hello-platform-minimal-pie", "--language", "c"]), /only on linux-wsl-x64/u);
+  assert.throws(() => parseBenchmarkArguments(["--target", "hello-platform-minimal-pie", "--language", "c", "--platform", "linux-wsl-x64", "--samples", "10"]), /odd/u);
+  assert.throws(() => parseBenchmarkArguments(["--target", "hello", "--language", "rust", "--platform", "linux-wsl-x64"]), /platform-minimal Hello workloads/u);
   assert.throws(() => parseBenchmarkArguments(["--language", "swift"]), /unsupported/);
   assert.throws(() => parseBenchmarkArguments(["--samples", "10"]), /odd/);
   assert.throws(() => parseBenchmarkArguments(["--run-samples", "100"]), /odd/);
@@ -81,6 +95,22 @@ test("benchmark arguments separate compile cost from high-resolution run samplin
   });
   assert.throws(() => parseBenchmarkArguments(["--target", "process-entry0", "--language", "c"]), /unsupported benchmark target/);
   assert.throws(() => parseBenchmarkArguments(["--target", "composition"]), /unsupported/);
+});
+
+test("public W build recipes pass explicit Linux/WSL PIE policy only for the two Hello modes", () => {
+  assert.deepEqual(publicWBuildPieArguments("public-w-build-release", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL), []);
+  assert.deepEqual(publicWBuildPieArguments("public-w-build-release", "windows-x64"), []);
+  assert.deepEqual(publicWBuildPieArguments(PUBLIC_W_BUILD_RELEASE_NO_PIE_RECIPE, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL), ["--pie", "off"]);
+  assert.deepEqual(publicWBuildPieArguments(PUBLIC_W_BUILD_RELEASE_PIE_RECIPE, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL), ["--pie", "on"]);
+  assert.throws(() => publicWBuildPieArguments(PUBLIC_W_BUILD_RELEASE_NO_PIE_RECIPE, "windows-x64"), /only on linux-wsl-x64/u);
+  assert.throws(() => publicWBuildPieArguments(PUBLIC_W_BUILD_RELEASE_PIE_RECIPE, "windows-x64"), /only on linux-wsl-x64/u);
+
+  assert.equal(publicWRecipeHasTimedSupport("hello", "public-w-build-release", "windows-x64"), true);
+  assert.equal(publicWRecipeHasTimedSupport("hello-platform-minimal", PUBLIC_W_BUILD_RELEASE_NO_PIE_RECIPE, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL), true);
+  assert.equal(publicWRecipeHasTimedSupport("hello-platform-minimal-pie", PUBLIC_W_BUILD_RELEASE_PIE_RECIPE, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL), true);
+  assert.equal(publicWRecipeHasTimedSupport("hello-platform-minimal", PUBLIC_W_BUILD_RELEASE_PIE_RECIPE, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL), false);
+  assert.equal(publicWRecipeHasTimedSupport("hello-platform-minimal-pie", PUBLIC_W_BUILD_RELEASE_NO_PIE_RECIPE, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL), false);
+  assert.equal(publicWRecipeHasTimedSupport("hello-platform-minimal", PUBLIC_W_BUILD_RELEASE_NO_PIE_RECIPE, "windows-x64"), false);
 });
 
 test("Clang MSVC release flags select the DLL runtime and COFF linker controls", () => {
@@ -176,6 +206,37 @@ test("platform-minimal Hello recipes keep OS-boundary comparison separate from p
   assert.ok(rustLinux.includes("link-arg=_start"));
   assert.throws(() => platformMinimalCFlags("linux-wsl-x64", "-std=c2x"), /final C23/u);
   assert.throws(() => platformMinimalRustFlags("linux-wsl-x64"), /requires an LLD linker/u);
+});
+
+test("platform-minimal PIE recipes use distinct freestanding Linux/WSL C23 and Rust no_std identities", () => {
+  assert.equal(PLATFORM_MINIMAL_PIE_C_RECIPE, "clang-c23-freestanding-pie");
+  assert.equal(PLATFORM_MINIMAL_PIE_RUST_RECIPE, "rustc-edition-2024-no-std-pie");
+
+  const cFlags = platformMinimalPieCFlags("linux-wsl-x64");
+  assert.deepEqual(cFlags, [
+    "--target=x86_64-unknown-linux-gnu", "-std=c23", "-O3", "-flto=full",
+    "-ffunction-sections", "-fdata-sections", "-ffreestanding", "-fno-builtin",
+    "-fno-stack-protector", "-fno-unwind-tables", "-fno-asynchronous-unwind-tables",
+    "-fno-ident", "-fPIC", "-fuse-ld=lld", "-nostdlib", "-Wl,-pie",
+    "-Wl,--no-dynamic-linker", "-Wl,--hash-style=gnu", "-Wl,-e,_start",
+    "-Wl,--gc-sections", "-Wl,-z,noexecstack", "-Wl,--lto-O3", "-Wl,-s",
+  ]);
+  assert.equal(cFlags.includes("-static"), false);
+
+  const rustFlags = platformMinimalPieRustFlags("linux-wsl-x64", "ld.lld");
+  for (const flag of [
+    "--edition=2024", "-C", "opt-level=3", "lto=fat", "codegen-units=1",
+    "panic=abort", "strip=symbols", "force-unwind-tables=no", "relocation-model=pic",
+    "linker-flavor=ld.lld", "linker=ld.lld", "default-linker-libraries=no",
+    "link-arg=-pie", "link-arg=--no-dynamic-linker", "link-arg=--hash-style=gnu",
+    "link-arg=_start", "link-arg=--gc-sections", "link-arg=noexecstack",
+    "link-arg=--lto-O3", "link-arg=-s", "link-arg=now",
+  ]) assert.ok(rustFlags.includes(flag), `Rust PIE recipe is missing ${flag}`);
+  assert.equal(rustFlags.some((flag) => flag === "link-arg=--no-pie"), false);
+  assert.throws(() => platformMinimalPieCFlags("windows-x64"), /unsupported/u);
+  assert.throws(() => platformMinimalPieCFlags("linux-wsl-x64", "-std=c2x"), /final C23/u);
+  assert.throws(() => platformMinimalPieRustFlags("linux-wsl-x64"), /requires an LLD linker/u);
+  assert.throws(() => platformMinimalPieRustFlags("windows-x64", "ld.lld"), /unsupported/u);
 });
 
 test("native receipts map Job CPU and root working set without relabeling commit as RSS", () => {
@@ -373,6 +434,8 @@ function fakePeX64({
 }
 
 function fakeElfX64({
+  fileType = 3,
+  programHeaders = [],
   sectionDefinitions = [
     { name: ".text", type: 1, sizeBytes: 17 },
     { name: ".rodata", type: 1, sizeBytes: 23 },
@@ -388,7 +451,13 @@ function fakeElfX64({
     Buffer.from(name, "ascii").copy(stringTable, nameOffset);
     nameOffset += Buffer.byteLength(name) + 1;
   }
-  let dataOffset = 64;
+  let dataOffset = 64 + programHeaders.length * 56;
+  const programs = programHeaders.map((program) => {
+    const payload = Buffer.from(program.payload ?? Buffer.alloc(0));
+    const record = { ...program, payload, fileOffset: dataOffset };
+    dataOffset += payload.length;
+    return record;
+  });
   const sections = sectionDefinitions.map((section) => {
     const fileOffset = dataOffset;
     if (section.type !== 8) dataOffset += section.sizeBytes;
@@ -403,9 +472,22 @@ function fakeElfX64({
   bytes[4] = 2;
   bytes[5] = 1;
   bytes[6] = 1;
-  bytes.writeUInt16LE(3, 16);
+  bytes.writeUInt16LE(fileType, 16);
   bytes.writeUInt16LE(0x3e, 18);
   bytes.writeUInt32LE(1, 20);
+  if (programs.length > 0) {
+    bytes.writeBigUInt64LE(64n, 32);
+    bytes.writeUInt16LE(56, 54);
+    bytes.writeUInt16LE(programs.length, 56);
+    for (const [index, program] of programs.entries()) {
+      const header = 64 + index * 56;
+      bytes.writeUInt32LE(program.type, header);
+      bytes.writeUInt32LE(program.flags ?? 0, header + 4);
+      bytes.writeBigUInt64LE(BigInt(program.fileOffset), header + 8);
+      bytes.writeBigUInt64LE(BigInt(program.payload.length), header + 32);
+      program.payload.copy(bytes, program.fileOffset);
+    }
+  }
   bytes.writeBigUInt64LE(BigInt(sectionTableOffset), 40);
   bytes.writeUInt16LE(64, 52);
   bytes.writeUInt16LE(64, 58);
@@ -770,6 +852,64 @@ test("bounded ELF verifier records Linux x86_64 layout and rejects loader and ov
   interpElf.writeUInt32LE(3, 64);
   assert.throws(() => validateElfX64(interpElf), /PT_INTERP/u);
   assert.throws(() => validateElfX64(Buffer.concat([minimalElf, Buffer.from("overlay", "ascii")])), /overlay/u);
+});
+
+test("PIE and non-PIE ELF verification fail closed on type, dependency closure, RELRO and NX", () => {
+  const hardenedHeaders = [
+    { type: 0x6474e552, flags: 4 }, // PT_GNU_RELRO, read-only
+    { type: 0x6474e551, flags: 6 }, // PT_GNU_STACK, read/write without execute
+  ];
+  const validPie = fakeElfX64({ programHeaders: hardenedHeaders });
+  assert.equal(validateElfX64(validPie, "c", { expectedLinkMode: "pie" }).elfLayout.type, "pie");
+
+  assert.throws(() => validateElfX64(fakeElfX64({
+    fileType: 2,
+    programHeaders: hardenedHeaders,
+  }), "rust", { expectedLinkMode: "pie" }), /not a PIE ELF \(ET_DYN\)/u);
+  assert.throws(() => validateElfX64(fakeElfX64({
+    programHeaders: [{ type: 0x6474e551, flags: 6 }],
+  }), "c", { expectedLinkMode: "pie" }), /no GNU_RELRO/u);
+  assert.throws(() => validateElfX64(fakeElfX64({
+    programHeaders: [{ type: 0x6474e552, flags: 4 }],
+  }), "rust", { expectedLinkMode: "pie" }), /no GNU_STACK/u);
+  assert.throws(() => validateElfX64(fakeElfX64({
+    programHeaders: [
+      { type: 0x6474e552, flags: 4 },
+      { type: 0x6474e551, flags: 7 },
+    ],
+  }), "c", { expectedLinkMode: "pie" }), /executable GNU_STACK/u);
+
+  const needed = Buffer.alloc(32);
+  needed.writeBigInt64LE(1n, 0); // DT_NEEDED
+  needed.writeBigUInt64LE(1n, 8);
+  needed.writeBigInt64LE(0n, 16); // DT_NULL
+  assert.throws(() => validateElfX64(fakeElfX64({
+    programHeaders: [
+      ...hardenedHeaders,
+      { type: 2, flags: 4, payload: needed },
+    ],
+  }), "rust", { expectedLinkMode: "pie" }), /DT_NEEDED/u);
+
+  const noPieHeaders = [{ type: 0x6474e551, flags: 6 }];
+  assert.equal(validateElfX64(fakeElfX64({
+    fileType: 2,
+    programHeaders: noPieHeaders,
+  }), "w", { expectedLinkMode: "no-pie" }).elfLayout.type, "executable");
+  assert.throws(() => validateElfX64(fakeElfX64({
+    programHeaders: noPieHeaders,
+  }), "w", { expectedLinkMode: "no-pie" }), /not a non-PIE ELF \(ET_EXEC\)/u);
+  assert.throws(() => validateElfX64(fakeElfX64({
+    fileType: 2,
+  }), "w", { expectedLinkMode: "no-pie" }), /no GNU_STACK/u);
+  assert.throws(() => validateElfX64(fakeElfX64({
+    fileType: 2,
+    programHeaders: [{ type: 0x6474e551, flags: 7 }],
+  }), "w", { expectedLinkMode: "no-pie" }), /executable GNU_STACK/u);
+  assert.throws(() => validateElfX64(fakeElfX64({
+    fileType: 2,
+    programHeaders: [...noPieHeaders, { type: 2, flags: 4, payload: needed }],
+  }), "w", { expectedLinkMode: "no-pie" }), /DT_NEEDED/u);
+  assert.throws(() => validateElfX64(validPie, "c", { expectedLinkMode: "default" }), /unsupported expected ELF link mode/u);
 });
 
 test("bounded ELF verifier retains named sh_size values and rejects malformed section metadata", () => {

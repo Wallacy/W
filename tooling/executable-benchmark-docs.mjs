@@ -6,6 +6,8 @@ import {
   EXECUTABLE_PLATFORM_TARGET_LINUX,
   EXECUTABLE_PLATFORM_TARGET_LINUX_WSL,
   EXECUTABLE_WORKLOAD_FAMILY_IDS,
+  HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID,
+  HELLO_PLATFORM_MINIMAL_WORKLOAD_ID,
   ROOT,
   executableCatalogFileDigest,
   executableSuiteReceiptErrors,
@@ -227,6 +229,11 @@ function measurementLaneLabel(entry) {
   if (entry.eligibility === "deferred-to-M3b") pieces.push("contextual");
   else if (entry.eligibility === "exploratory-private-composite") pieces.push("private");
   if (entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) pieces.push("diagnostic");
+  if (entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL && entry.workloadId === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID) {
+    pieces.push("non-PIE");
+  } else if (entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL && entry.workloadId === HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID) {
+    pieces.push("PIE");
+  }
   return pieces.join(" · ");
 }
 

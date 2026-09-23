@@ -4,6 +4,8 @@ import path from "node:path";
 import {
   PLATFORM_MINIMAL_C_RECIPE,
   PLATFORM_MINIMAL_RUST_RECIPE,
+  PLATFORM_MINIMAL_PIE_C_RECIPE,
+  PLATFORM_MINIMAL_PIE_RUST_RECIPE,
 } from "./executable-release-recipes.mjs";
 
 export const ROOT = path.resolve(import.meta.dir, "..");
@@ -27,6 +29,7 @@ export const EXECUTABLE_STRUCTURE_CLASSES = Object.freeze([
 export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "hello",
   "hello-platform-minimal",
+  "hello-platform-minimal-pie",
   "branch",
   "nested-branch",
   "bool-short-circuit",
@@ -84,7 +87,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "process-handler-lifecycle",
 ]);
 const WORKLOAD_FAMILY_ROWS = Object.freeze({
-  hello: Object.freeze(["hello", "hello-platform-minimal"]),
+  hello: Object.freeze(["hello", "hello-platform-minimal", "hello-platform-minimal-pie"]),
   "control-flow": Object.freeze([
     "branch", "nested-branch", "bool-short-circuit",
     "interpolation", "scalar-if", "nested-scalar-if", "terminal-returns",
@@ -149,18 +152,34 @@ export function executableWorkloadHasRunner(workload) {
   if (!workload || !EXECUTABLE_RUN_TARGETS.includes(workload.id) || !Array.isArray(workload.sources) || workload.sources.length === 0) return false;
   return workload.sources.some((source) => source?.language !== "w" ||
     source.recipe === "public-w-build-release" ||
+    (workload.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID &&
+      source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL &&
+      source.recipe === PUBLIC_W_BUILD_RELEASE_NO_PIE_RECIPE) ||
+    (workload.id === HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID &&
+      source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL &&
+      source.recipe === PUBLIC_W_BUILD_RELEASE_PIE_RECIPE) ||
     (workload.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.recipe === PROCESS_ENTRY0_RECIPE));
 }
 
 function suiteRecipeSupported(workload, source) {
-  if (source.language === "w") return source.recipe === "public-w-build-release";
+  if (source.language === "w") {
+    if (source.recipe === "public-w-build-release") return true;
+    return (workload.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID &&
+        source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL &&
+        source.recipe === PUBLIC_W_BUILD_RELEASE_NO_PIE_RECIPE) ||
+      (workload.id === HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID &&
+        source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL &&
+        source.recipe === PUBLIC_W_BUILD_RELEASE_PIE_RECIPE);
+  }
   if (source.language === "c") {
     return source.recipe === "clang-c23-msvc" ||
-      (workload.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && source.recipe === PLATFORM_MINIMAL_C_RECIPE);
+      (workload.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && source.recipe === PLATFORM_MINIMAL_C_RECIPE) ||
+      (workload.id === HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID && source.recipe === PLATFORM_MINIMAL_PIE_C_RECIPE);
   }
   if (source.language === "rust") {
     return source.recipe === "rustc-edition-2024" ||
-      (workload.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && source.recipe === PLATFORM_MINIMAL_RUST_RECIPE);
+      (workload.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && source.recipe === PLATFORM_MINIMAL_RUST_RECIPE) ||
+      (workload.id === HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID && source.recipe === PLATFORM_MINIMAL_PIE_RUST_RECIPE);
   }
   return false;
 }
@@ -176,7 +195,8 @@ export function selectExecutableSuiteLanes(catalog, { platforms = EXECUTABLE_SUI
     if (workload.status !== "source-oracle-ready" ||
         workload.sourceReadiness !== "source-and-oracle-ready" ||
         !executableWorkloadHasRunner(workload)) continue;
-    const contextual = workload.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID &&
+    const contextual = (workload.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID ||
+      workload.id === HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID) &&
       workload.benchmarkStatus === "contextual-measurement-ready";
     if (!contextual && !EXECUTABLE_SUITE_MEASUREMENT_STATUSES.has(workload.benchmarkStatus)) continue;
     if (workload.structureClass !== "public-end-to-end") continue;
@@ -368,6 +388,10 @@ export const PROCESS_ARGUMENTS_ORDERING_ORACLE_KIND = PROCESS_ENTRY_ORACLE_KIND;
 export const PROCESS_ARGUMENTS_ORDERING_RECIPE_CLASS = "process-arguments-ordering-release";
 export const HELLO_PLATFORM_MINIMAL_WORKLOAD_ID = "hello-platform-minimal";
 export const HELLO_PLATFORM_MINIMAL_RECIPE_CLASS = "hello-platform-minimal";
+export const HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID = "hello-platform-minimal-pie";
+export const HELLO_PLATFORM_MINIMAL_PIE_RECIPE_CLASS = "hello-platform-minimal-pie";
+export const PUBLIC_W_BUILD_RELEASE_NO_PIE_RECIPE = "public-w-build-release-pie-off";
+export const PUBLIC_W_BUILD_RELEASE_PIE_RECIPE = "public-w-build-release-pie-on";
 export const PROCESS_ARGUMENTS_ORDERING_TIMED_INPUT = Object.freeze(["alpha", "beta", "gamma"]);
 export const PROCESS_ARGUMENTS_ORDERING_CORRECTNESS_INPUTS = Object.freeze([
   Object.freeze([]),
@@ -704,9 +728,15 @@ const SOURCE_ELIGIBILITY = Object.freeze({
 });
 
 const SOURCE_RECIPES = Object.freeze({
-  w: Object.freeze(["public-w-build-release", "public-w-run", PROCESS_ENTRY0_RECIPE]),
-  c: Object.freeze([PUBLIC_C_RECIPE, PRIVATE_C_RECIPE, PLATFORM_MINIMAL_C_RECIPE]),
-  rust: Object.freeze(["rustc-edition-2024", PLATFORM_MINIMAL_RUST_RECIPE]),
+  w: Object.freeze([
+    "public-w-build-release",
+    PUBLIC_W_BUILD_RELEASE_NO_PIE_RECIPE,
+    PUBLIC_W_BUILD_RELEASE_PIE_RECIPE,
+    "public-w-run",
+    PROCESS_ENTRY0_RECIPE,
+  ]),
+  c: Object.freeze([PUBLIC_C_RECIPE, PRIVATE_C_RECIPE, PLATFORM_MINIMAL_C_RECIPE, PLATFORM_MINIMAL_PIE_C_RECIPE]),
+  rust: Object.freeze(["rustc-edition-2024", PLATFORM_MINIMAL_RUST_RECIPE, PLATFORM_MINIMAL_PIE_RUST_RECIPE]),
 });
 
 export function executableWorkloadFamily(workloadId) {
@@ -718,7 +748,8 @@ export function executableRuntimeClosure(workload, language, recipe) {
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) {
     // The private MinGW composite statically links its hosted C provider/runtime.
     runtimeClass = "hosted-crt";
-  } else if (language === "w" || recipe === PLATFORM_MINIMAL_C_RECIPE || recipe === PLATFORM_MINIMAL_RUST_RECIPE) {
+  } else if (language === "w" || recipe === PLATFORM_MINIMAL_C_RECIPE || recipe === PLATFORM_MINIMAL_RUST_RECIPE ||
+      recipe === PLATFORM_MINIMAL_PIE_C_RECIPE || recipe === PLATFORM_MINIMAL_PIE_RUST_RECIPE) {
     // Public W links without a target CRT; the isolated C/Rust recipes use
     // explicit no-CRT/no-libc entry points. Artifact imports are not receipted.
     runtimeClass = "freestanding";
@@ -1150,12 +1181,32 @@ function checkSource(source, location, workload, root, errors) {
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.language === "c" && source.recipe !== PRIVATE_C_RECIPE) push(errors, location + ".recipe must use the private GCC/MinGW process handler route.");
   if (workload?.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && source.language === "c" && source.recipe !== PLATFORM_MINIMAL_C_RECIPE) push(errors, location + ".recipe must use the platform-minimal Clang/C23 route.");
   if (workload?.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && source.language === "rust" && source.recipe !== PLATFORM_MINIMAL_RUST_RECIPE) push(errors, location + ".recipe must use the platform-minimal Rust 2024 no_std route.");
-  if (workload?.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && source.language === "w" && source.recipe !== "public-w-build-release") push(errors, location + ".recipe must use the public W Release route.");
-  if (workload?.id !== PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && workload?.id !== HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && source.language === "c" && source.recipe !== PUBLIC_C_RECIPE) push(errors, location + ".recipe must use the public Clang/MSVC process route.");
-  if (workload?.id !== HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && source.language === "rust" && source.recipe !== "rustc-edition-2024") push(errors, location + ".recipe must use the Rust 2024 standard-library route.");
+  if (workload?.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && source.language === "w") {
+    const expectedRecipe = source.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL
+      ? PUBLIC_W_BUILD_RELEASE_NO_PIE_RECIPE
+      : "public-w-build-release";
+    if (source.recipe !== expectedRecipe) push(errors, location + ".recipe must use the public W Release route with PIE off on Linux/WSL and the unchanged Windows default.");
+  }
+  if (workload?.id === HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID && source.language === "c" && source.recipe !== PLATFORM_MINIMAL_PIE_C_RECIPE) push(errors, location + ".recipe must use the Linux/WSL freestanding C23 PIE route.");
+  if (workload?.id === HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID && source.language === "rust" && source.recipe !== PLATFORM_MINIMAL_PIE_RUST_RECIPE) push(errors, location + ".recipe must use the Linux/WSL Rust 2024 no_std PIE route.");
+  if (workload?.id === HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID && source.language === "w" &&
+      (source.platformTarget !== EXECUTABLE_PLATFORM_TARGET_LINUX_WSL || source.recipe !== PUBLIC_W_BUILD_RELEASE_PIE_RECIPE)) {
+    push(errors, location + ".recipe must use the public W Release route with explicit PIE on for Linux/WSL.");
+  }
+  if (source.language === "w" &&
+      [PUBLIC_W_BUILD_RELEASE_NO_PIE_RECIPE, PUBLIC_W_BUILD_RELEASE_PIE_RECIPE].includes(source.recipe) &&
+      ![HELLO_PLATFORM_MINIMAL_WORKLOAD_ID, HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID].includes(workload?.id)) {
+    push(errors, location + ".recipe is reserved for a platform-minimal Hello link-mode workload.");
+  }
+  if (workload?.id !== PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID &&
+      ![HELLO_PLATFORM_MINIMAL_WORKLOAD_ID, HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID].includes(workload?.id) &&
+      source.language === "c" && source.recipe !== PUBLIC_C_RECIPE) push(errors, location + ".recipe must use the public Clang/MSVC process route.");
+  if (![HELLO_PLATFORM_MINIMAL_WORKLOAD_ID, HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID].includes(workload?.id) &&
+      source.language === "rust" && source.recipe !== "rustc-edition-2024") push(errors, location + ".recipe must use the Rust 2024 standard-library route.");
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.platformTarget !== EXECUTABLE_PLATFORM_TARGET_WINDOWS) push(errors, location + ".platformTarget must remain Windows x64 for the private composite process handler route.");
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.recipeClass !== PROCESS_ENTRY0_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the private process handler class.");
   if (workload?.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && source.recipeClass !== HELLO_PLATFORM_MINIMAL_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the platform-minimal Hello correctness comparison.");
+  if (workload?.id === HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID && source.recipeClass !== HELLO_PLATFORM_MINIMAL_PIE_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the platform-minimal Hello PIE workload.");
   if (workload?.id === PROCESS_ENTRY_WORKLOAD_ID && source.recipeClass !== PROCESS_ENTRY_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-entry release class.");
   if (workload?.id === PROCESS_ENUM_PAYLOAD_WORKLOAD_ID && source.recipeClass !== PROCESS_ENUM_PAYLOAD_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-enum-payload release class.");
   if (workload?.id === PROCESS_ARGUMENTS_COUNT_WORKLOAD_ID && source.recipeClass !== PROCESS_ARGUMENTS_COUNT_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-arguments-count release class.");
@@ -1383,11 +1434,15 @@ export function validateExecutableCatalog(catalog, documents = undefined, root =
     if (!["source-and-oracle-ready", "not-materialized"].includes(workload.sourceReadiness)) push(errors, location + ".sourceReadiness is invalid.");
     if (!["bounded-w-demo", "not-run"].includes(workload.demoEvidence)) push(errors, location + ".demoEvidence is invalid.");
     if (!EXECUTABLE_BENCHMARK_STATUSES.includes(workload.benchmarkStatus)) push(errors, location + ".benchmarkStatus is invalid.");
-    if (workload.benchmarkStatus === "contextual-measurement-ready" && workload.id !== HELLO_PLATFORM_MINIMAL_WORKLOAD_ID) {
-      push(errors, location + ".contextual-measurement-ready is reserved for the platform-minimal Hello correctness lane.");
+    if (workload.benchmarkStatus === "contextual-measurement-ready" &&
+        ![HELLO_PLATFORM_MINIMAL_WORKLOAD_ID, HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID].includes(workload.id)) {
+      push(errors, location + ".contextual-measurement-ready is reserved for the platform-minimal Hello lanes.");
     }
     if (workload.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && workload.benchmarkStatus !== "contextual-measurement-ready") {
       push(errors, location + ".benchmarkStatus must preserve platform-minimal Hello as contextual, non-ranking measurement evidence.");
+    }
+    if (workload.id === HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID && workload.benchmarkStatus !== "contextual-measurement-ready") {
+      push(errors, location + ".benchmarkStatus must preserve Linux/WSL PIE Hello as contextual, non-ranking measurement evidence.");
     }
     if (workload.status === "source-oracle-ready" && workload.sourceReadiness !== "source-and-oracle-ready") push(errors, location + ".sourceReadiness must identify a source-backed oracle.");
     if (workload.status !== "source-oracle-ready" && workload.sourceReadiness !== "not-materialized") push(errors, location + ".sourceReadiness must remain not-materialized.");
@@ -1428,6 +1483,15 @@ export function validateExecutableCatalog(catalog, documents = undefined, root =
     const blockedLanguages = Array.isArray(workload.blockedLanguages) ? workload.blockedLanguages : [];
     const partition = new Set([...sourceLanguages, ...blockedLanguages]);
     for (const language of EXECUTABLE_LANGUAGES) if (!partition.has(language)) push(errors, location + " must account for language " + language + " as a source or explicit blocker.");
+    if (workload.id === HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID) {
+      const pieLanes = sources.map((source) => `${source?.language ?? ""}/${source?.platformTarget ?? ""}`).sort(compareText);
+      if (JSON.stringify(pieLanes) !== JSON.stringify([
+        "c/linux-wsl-x64", "rust/linux-wsl-x64", "w/linux-wsl-x64",
+      ])) {
+        push(errors, location + ".sources must contain exactly the W, C23, and Rust PIE lanes on Linux/WSL x64.");
+      }
+      if (blockedLanguages.length !== 0) push(errors, location + ".blockedLanguages must remain empty when the Linux/WSL PIE workload is source-ready.");
+    }
     if (partialExploratoryReady && (sources.length === 0 || blockedLanguages.length === 0 || workload.blockers?.length === 0)) {
       push(errors, location + ".benchmarkStatus partial-exploratory-ready requires materialized sources plus explicit blocked languages and blockers.");
     }
@@ -2430,6 +2494,7 @@ export function pruneExecutableBestMetrics(catalog) {
     const workload = workloadFor(catalog, entry?.workloadId);
     const source = sourceFor(workload, entry?.language, entry?.platformTarget);
     if (source && (!workloadAllowsBestMetrics(workload) ||
+        entry?.recipe !== source.recipe ||
         entry?.provenance?.sourceDigest !== executableSourceDigest(source) ||
         JSON.stringify(entry?.runtimeClosure) !== JSON.stringify(source.runtimeClosure))) removedMetrics.push(entry.metric);
     else retained.push(entry);

@@ -194,7 +194,38 @@ non-ranking measurement; the catalog status does not make it an idiomatic
 comparison or a language ranking. Its source/oracle registration is not
 evidence that a run has occurred. Until execution cells are published, the
 generated projection marks it `not measured`; `demoEvidence: not-run` remains
-distinct from source/oracle registration.
+distinct from source/oracle registration. On Linux/WSL, this workload is the
+explicit non-PIE lane: W uses `w build --pie off`, and the existing C23/Rust
+freestanding recipes produce ET_EXEC. Its Windows W route keeps the default
+link mode unchanged.
+
+`hello-platform-minimal-pie` is a separate Linux/WSL x64 variant using W's
+public `w build` route, freestanding C23, and Rust 2024 `no_std`. The C and Rust
+recipes use LLD PIE linking with no CRT/libc or dynamic loader. Before runtime
+correctness, the runner checks the final ELF itself for `ET_DYN`, no
+`PT_INTERP`, no `DT_NEEDED`, a `GNU_RELRO` segment, and a `GNU_STACK` segment
+without execute permission; W explicitly builds with `w build --pie on`. The
+no-PIE workload requires `ET_EXEC`, no `PT_INTERP`/`DT_NEEDED`, and the same NX
+stack check, without requiring GNU_RELRO. Both modes must match exit `0`, exact
+`Hello, world!\n`, and empty stderr. The Rust PIE recipe adds `-z now` and
+therefore requests BIND_NOW; W and C do not, so this is contextual PIE evidence
+rather than a claim that their RELRO binding policies are identical.
+
+Run one language at a time with a fresh output path:
+
+```sh
+bun tooling/executable-benchmark-runner.mjs --target hello-platform-minimal --language w --platform linux-wsl-x64 --output benchmarks/results/hello-platform-minimal-w-nopie-wsl.local.json
+bun tooling/executable-benchmark-runner.mjs --target hello-platform-minimal --language c --platform linux-wsl-x64 --output benchmarks/results/hello-platform-minimal-c-nopie-wsl.local.json
+bun tooling/executable-benchmark-runner.mjs --target hello-platform-minimal --language rust --platform linux-wsl-x64 --output benchmarks/results/hello-platform-minimal-rust-nopie-wsl.local.json
+bun tooling/executable-benchmark-runner.mjs --target hello-platform-minimal-pie --language w --platform linux-wsl-x64 --output benchmarks/results/hello-platform-minimal-pie-w-wsl.local.json
+bun tooling/executable-benchmark-runner.mjs --target hello-platform-minimal-pie --language c --platform linux-wsl-x64 --output benchmarks/results/hello-platform-minimal-pie-c-wsl.local.json
+bun tooling/executable-benchmark-runner.mjs --target hello-platform-minimal-pie --language rust --platform linux-wsl-x64 --output benchmarks/results/hello-platform-minimal-pie-rust-wsl.local.json
+```
+
+Both policies remain distinct catalog workloads and result identities. The
+existing C/Rust rows retain their non-PIE recipes; the W no-PIE recipe is
+separate from W's explicit PIE recipe. WSL results remain same-host
+diagnostics, not native-Linux support or a cross-host ranking.
 
 The `uint-bitwise` witness is the representative family executable:
 it covers complement, binary bitwise operations, population counts, and
@@ -561,8 +592,9 @@ compile CPU/RSS is not a promoted cross-language metric. Runtime CPU uses the
 same native Job-tree protocol for W, C, and Rust. The catalog's current
 `release` cells therefore mean portable release. C stays
 in standards-only `c23` mode rather than `gnu23`; GNU extensions are not needed
-by these sources. PIE/hardening remains a separate artifact-policy axis, so the
-portable comparison does not add it to only one language.
+by these sources. PIE/hardening remains a separate artifact-policy axis; the
+dedicated `hello-platform-minimal-pie` workload records that lane separately
+instead of changing the existing C/Rust non-PIE recipes.
 Publication accepts one or more result paths and atomically replaces the live
 catalog plus its concise human projection. Passing all W/C/Rust results from a
 single clean HEAD avoids stale provenance between updates. A crash between the
@@ -576,7 +608,8 @@ The supported path runs the oracle, one discarded runtime warmup, nine
 fresh-process compile samples, 101 fresh-process runtime samples, artifact
 inspection, and cleanup. The reproducible full-catalog wrapper runs eligible
 Windows lanes serially, plus all six contextual `hello-platform-minimal`
-Windows/WSL W/C/Rust lanes. It keeps the runner's full default sample counts,
+Windows/WSL W/C/Rust lanes and the three Linux/WSL-only
+`hello-platform-minimal-pie` lanes. It keeps the runner's full default sample counts,
 validates every result, updates the catalog once, and publishes only a latest
 successful-suite receipt. A missing WSL/toolchain or failed lane aborts without
 publishing a success receipt. WSL remains host-specific diagnostic evidence and

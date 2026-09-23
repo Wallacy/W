@@ -59,6 +59,8 @@ export const RUST_RELEASE_FLAGS = Object.freeze([
 
 export const PLATFORM_MINIMAL_C_RECIPE = "clang-c23-freestanding";
 export const PLATFORM_MINIMAL_RUST_RECIPE = "rustc-edition-2024-no-std";
+export const PLATFORM_MINIMAL_PIE_C_RECIPE = "clang-c23-freestanding-pie";
+export const PLATFORM_MINIMAL_PIE_RUST_RECIPE = "rustc-edition-2024-no-std-pie";
 
 const PLATFORM_MINIMAL_C_WINDOWS_FLAGS = Object.freeze([
   "--target=x86_64-pc-windows-msvc",
@@ -148,6 +150,46 @@ function platformMinimalLinuxRustFlags(linker) {
   ];
 }
 
+const PLATFORM_MINIMAL_PIE_C_LINUX_FLAGS = Object.freeze([
+  "--target=x86_64-unknown-linux-gnu",
+  "-O3",
+  "-flto=full",
+  "-ffunction-sections",
+  "-fdata-sections",
+  "-ffreestanding",
+  "-fno-builtin",
+  "-fno-stack-protector",
+  "-fno-unwind-tables",
+  "-fno-asynchronous-unwind-tables",
+  "-fno-ident",
+  "-fPIC",
+  "-fuse-ld=lld",
+  "-nostdlib",
+  "-Wl,-pie",
+  "-Wl,--no-dynamic-linker",
+  "-Wl,--hash-style=gnu",
+  "-Wl,-e,_start",
+  "-Wl,--gc-sections",
+  "-Wl,-z,noexecstack",
+  "-Wl,--lto-O3",
+  "-Wl,-s",
+]);
+
+const PLATFORM_MINIMAL_PIE_RUST_LINK_FLAGS = Object.freeze([
+  "-pie",
+  "--no-dynamic-linker",
+  "--hash-style=gnu",
+  "-e",
+  "_start",
+  "--gc-sections",
+  "-z",
+  "noexecstack",
+  "--lto-O3",
+  "-s",
+  "-z",
+  "now",
+]);
+
 export function platformMinimalCFlags(platformTarget, dialectFlag = "-std=c23") {
   if (!["windows-x64", "linux-wsl-x64"].includes(platformTarget)) {
     throw new TypeError(`unsupported platform-minimal C target: ${platformTarget}`);
@@ -177,6 +219,39 @@ export function platformMinimalRustFlags(platformTarget, linker = undefined) {
   ];
 }
 
+export function platformMinimalPieCFlags(platformTarget, dialectFlag = "-std=c23") {
+  if (platformTarget !== "linux-wsl-x64") {
+    throw new TypeError(`unsupported platform-minimal PIE C target: ${platformTarget}`);
+  }
+  if (dialectFlag !== "-std=c23") {
+    throw new TypeError(`platform-minimal PIE C requires final C23 mode, got ${dialectFlag}`);
+  }
+  return [
+    PLATFORM_MINIMAL_PIE_C_LINUX_FLAGS[0],
+    dialectFlag,
+    ...PLATFORM_MINIMAL_PIE_C_LINUX_FLAGS.slice(1),
+  ];
+}
+
+export function platformMinimalPieRustFlags(platformTarget, linker = undefined) {
+  if (platformTarget !== "linux-wsl-x64") {
+    throw new TypeError(`unsupported platform-minimal PIE Rust target: ${platformTarget}`);
+  }
+  if (typeof linker !== "string" || linker.length === 0) {
+    throw new TypeError("platform-minimal Linux PIE Rust recipe requires an LLD linker");
+  }
+  return [
+    ...PLATFORM_MINIMAL_RUST_COMMON_FLAGS,
+    "-C", "force-unwind-tables=no",
+    "-C", "relocation-model=pic",
+    "--target=x86_64-unknown-linux-gnu",
+    "-C", "linker-flavor=ld.lld",
+    "-C", `linker=${linker}`,
+    "-C", "default-linker-libraries=no",
+    ...PLATFORM_MINIMAL_PIE_RUST_LINK_FLAGS.flatMap((flag) => ["-C", `link-arg=${flag}`]),
+  ];
+}
+
 export function platformMinimalRecipeExamples(linker = "<host-ld.lld>") {
   return [
     {
@@ -198,6 +273,21 @@ export function platformMinimalRecipeExamples(linker = "<host-ld.lld>") {
       language: "Rust 2024",
       platform: "Linux x64 / WSL2",
       command: `rustc <source> ${platformMinimalRustFlags("linux-wsl-x64", linker).join(" ")} -o <artifact>`,
+    },
+  ];
+}
+
+export function platformMinimalPieRecipeExamples(linker = "<host-ld.lld>") {
+  return [
+    {
+      language: "C23",
+      platform: "Linux x64 / WSL2",
+      command: `clang ${platformMinimalPieCFlags("linux-wsl-x64").join(" ")} <source> -o <artifact>`,
+    },
+    {
+      language: "Rust 2024",
+      platform: "Linux x64 / WSL2",
+      command: `rustc <source> ${platformMinimalPieRustFlags("linux-wsl-x64", linker).join(" ")} -o <artifact>`,
     },
   ];
 }

@@ -264,7 +264,7 @@
           "status": "source-oracle-ready",
           "profile": "release",
           "quality": "correctness-gate",
-          "recipe": "public-w-build-release",
+          "recipe": "public-w-build-release-pie-off",
           "recipeClass": "hello-platform-minimal",
           "platformTarget": "linux-wsl-x64",
           "artifactTarget": "x86_64-unknown-linux-gnu",
@@ -355,6 +355,88 @@
       "blockedLanguages": [],
       "blockers": [
         "Hand-selected OS entry, write, and exit paths are a platform-minimal correctness comparison; they are not an idiomatic C/Rust baseline or a language ranking."
+      ],
+      "family": "hello"
+    },
+    {
+      "id": "hello-platform-minimal-pie",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "contextual-measurement-ready",
+      "lane": "equivalent",
+      "scope": "Build Linux/WSL Hello executables as PIEs with W, freestanding C23, and Rust 2024 no_std; verify ET_DYN, no PT_INTERP or DT_NEEDED, GNU_RELRO, NX stack, and the exact Hello output. WSL is contextual same-host evidence, not native-Linux support or a cross-language ranking.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Hello, world!\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "benchmarks/executable/hello.w",
+          "digest": "sha256:b50c0ea8a88df56638ef579abe891f017344dcdd39bfef2222642e9374ea5f99",
+          "entry": "<entry.default>",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release-pie-on",
+          "recipeClass": "hello-platform-minimal-pie",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only",
+          "runtimeClosure": {
+            "class": "freestanding",
+            "status": "unverified"
+          }
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/hello_platform_minimal.c",
+          "digest": "sha256:d24b1689b05c5286289c445c282dbbefa6756ec1e4f8ec5960dd92e9fa617667",
+          "entry": "_start",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-freestanding-pie",
+          "recipeClass": "hello-platform-minimal-pie",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only",
+          "runtimeClosure": {
+            "class": "freestanding",
+            "status": "unverified"
+          }
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/hello_platform_minimal.rs",
+          "digest": "sha256:e34c8451b381b1923fd804f51f8d71fdc5207481afee775c700d6c4fb534dbab",
+          "entry": "_start",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024-no-std-pie",
+          "recipeClass": "hello-platform-minimal-pie",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only",
+          "runtimeClosure": {
+            "class": "freestanding",
+            "status": "unverified"
+          }
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": [
+        "Linux/WSL observations are same-physical-hardware diagnostics and cannot support native-Linux or cross-host ranking claims.",
+        "The C and Rust witnesses use hand-selected OS entry, write, and exit paths; they are not idiomatic language baselines."
       ],
       "family": "hello"
     },
@@ -14770,330 +14852,6 @@
           "runnerDigest": "sha256:880a69582517c892312367c3e9be9c3b41451ce122ec0f22682f442623180105",
           "catalogDigest": "sha256:52e3447104e4969a3f0be65c9fa9c8e7a140f5863beb8e093e3323c14e0cb1ab",
           "artifactCleanliness": "verified-clean"
-        }
-      },
-      {
-        "$schema": "./executable-benchmark.schema.json",
-        "schema": "w-executable-benchmark-best-metrics/2",
-        "kind": "executable-best-metric",
-        "id": "best-c8b62901503bc07034f8588cc1a449b2036ad7f49656db635d0c57fd1d7a41ac",
-        "status": "current",
-        "categoryId": "category-df89688d8e6abcfe85113d63d22b84bc0e668d936123bff7a44e52a868a27614",
-        "workloadId": "hello-platform-minimal",
-        "language": "w",
-        "equivalenceKey": "sha256:658c102b2be9ea7d23ab6f2d9f9d0cd95799c353b9bed9a000d8c201ea1a4c31",
-        "platformTarget": "linux-wsl-x64",
-        "artifactTarget": "x86_64-unknown-linux-gnu",
-        "abi": "x86_64-unknown-linux-gnu",
-        "profile": "release",
-        "host": "linux-linux-6.18.33.2-microsoft-standard-wsl2-f90b9bfc569ec2a0",
-        "recipeClass": "hello-platform-minimal",
-        "runtimeClosure": {
-          "class": "freestanding",
-          "status": "unverified"
-        },
-        "comparability": "same-physical-hardware-diagnostic-only",
-        "eligibility": "same-physical-hardware-diagnostic-only",
-        "metric": "artifact-size",
-        "unit": "bytes",
-        "statistic": "single-artifact",
-        "value": "1712",
-        "toolchain": "w-public-build-release-da2d916c16c87f36a43ed7d26abafae10592ab656e06e9feee4a19c530f05515-x86_64-unknown-linux-gnu",
-        "recipe": "public-w-build-release",
-        "provenance": {
-          "recordId": "hello-platform-minimal-w-linux-wsl-x64-6c2d26bcfd80",
-          "commit": "6c2d26bcfd806cf6a6219c7e6a415821607a775b",
-          "observedAt": "2026-09-23T03:23:20.969Z",
-          "sourceDigest": "sha256:b50c0ea8a88df56638ef579abe891f017344dcdd39bfef2222642e9374ea5f99",
-          "artifactDigest": "sha256:2b99db9e31759f97775dbf718002a10774a85307039eb23309b6f3adc224a2ef",
-          "recipeDigest": "sha256:358d8a21d136c63aadbab784d9e30560f2d6e419e8d396cc75afc7c055369915",
-          "toolchainDigest": "sha256:3cbf6984c93d44f606f21a600b78adf19dd8efa09a82dce567de9572205810bb",
-          "runnerDigest": "sha256:880a69582517c892312367c3e9be9c3b41451ce122ec0f22682f442623180105",
-          "catalogDigest": "sha256:8fa37d39bc99f2762c04f40b006d27de1882dd93f70a89cde9162230200f5f91",
-          "artifactCleanliness": "verified-clean",
-          "platformEvidence": {
-            "hostMode": "wsl2",
-            "comparisonPurpose": "same-physical-hardware-diagnostic-only",
-            "rankability": "same-host-only"
-          }
-        },
-        "elfLayout": {
-          "class": "ELF64",
-          "data": "little-endian",
-          "machine": "x86-64",
-          "type": "pie",
-          "sections": [
-            {
-              "name": ".dynsym",
-              "sizeBytes": "24"
-            },
-            {
-              "name": ".gnu.hash",
-              "sizeBytes": "28"
-            },
-            {
-              "name": ".dynstr",
-              "sizeBytes": "1"
-            },
-            {
-              "name": ".rodata",
-              "sizeBytes": "14"
-            },
-            {
-              "name": ".eh_frame",
-              "sizeBytes": "52"
-            },
-            {
-              "name": ".text",
-              "sizeBytes": "64"
-            },
-            {
-              "name": ".dynamic",
-              "sizeBytes": "128"
-            },
-            {
-              "name": ".relro_padding",
-              "sizeBytes": "3312"
-            },
-            {
-              "name": ".comment",
-              "sizeBytes": "129"
-            },
-            {
-              "name": ".shstrtab",
-              "sizeBytes": "94"
-            }
-          ]
-        }
-      },
-      {
-        "$schema": "./executable-benchmark.schema.json",
-        "schema": "w-executable-benchmark-best-metrics/2",
-        "kind": "executable-best-metric",
-        "id": "best-3983d32407020ad1c56563b12856649181dd039f0cfdf6d9c99a8d09f744b220",
-        "status": "current",
-        "categoryId": "category-df89688d8e6abcfe85113d63d22b84bc0e668d936123bff7a44e52a868a27614",
-        "workloadId": "hello-platform-minimal",
-        "language": "w",
-        "equivalenceKey": "sha256:658c102b2be9ea7d23ab6f2d9f9d0cd95799c353b9bed9a000d8c201ea1a4c31",
-        "platformTarget": "linux-wsl-x64",
-        "artifactTarget": "x86_64-unknown-linux-gnu",
-        "abi": "x86_64-unknown-linux-gnu",
-        "profile": "release",
-        "host": "linux-linux-6.18.33.2-microsoft-standard-wsl2-f90b9bfc569ec2a0",
-        "recipeClass": "hello-platform-minimal",
-        "runtimeClosure": {
-          "class": "freestanding",
-          "status": "unverified"
-        },
-        "comparability": "same-physical-hardware-diagnostic-only",
-        "eligibility": "same-physical-hardware-diagnostic-only",
-        "metric": "compile-latency",
-        "unit": "nanoseconds",
-        "statistic": "median",
-        "value": "226594200",
-        "toolchain": "w-public-build-release-da2d916c16c87f36a43ed7d26abafae10592ab656e06e9feee4a19c530f05515-x86_64-unknown-linux-gnu",
-        "recipe": "public-w-build-release",
-        "provenance": {
-          "recordId": "hello-platform-minimal-w-linux-wsl-x64-6c2d26bcfd80",
-          "commit": "6c2d26bcfd806cf6a6219c7e6a415821607a775b",
-          "observedAt": "2026-09-23T03:23:20.969Z",
-          "sourceDigest": "sha256:b50c0ea8a88df56638ef579abe891f017344dcdd39bfef2222642e9374ea5f99",
-          "artifactDigest": "sha256:2b99db9e31759f97775dbf718002a10774a85307039eb23309b6f3adc224a2ef",
-          "recipeDigest": "sha256:358d8a21d136c63aadbab784d9e30560f2d6e419e8d396cc75afc7c055369915",
-          "toolchainDigest": "sha256:3cbf6984c93d44f606f21a600b78adf19dd8efa09a82dce567de9572205810bb",
-          "runnerDigest": "sha256:880a69582517c892312367c3e9be9c3b41451ce122ec0f22682f442623180105",
-          "catalogDigest": "sha256:8fa37d39bc99f2762c04f40b006d27de1882dd93f70a89cde9162230200f5f91",
-          "artifactCleanliness": "verified-clean",
-          "platformEvidence": {
-            "hostMode": "wsl2",
-            "comparisonPurpose": "same-physical-hardware-diagnostic-only",
-            "rankability": "same-host-only"
-          }
-        }
-      },
-      {
-        "$schema": "./executable-benchmark.schema.json",
-        "schema": "w-executable-benchmark-best-metrics/2",
-        "kind": "executable-best-metric",
-        "id": "best-9129c34cd32fd912b951ef0b8a742ba39dc291293fd65a287b676fdb22d8a10a",
-        "status": "current",
-        "categoryId": "category-df89688d8e6abcfe85113d63d22b84bc0e668d936123bff7a44e52a868a27614",
-        "workloadId": "hello-platform-minimal",
-        "language": "w",
-        "equivalenceKey": "sha256:658c102b2be9ea7d23ab6f2d9f9d0cd95799c353b9bed9a000d8c201ea1a4c31",
-        "platformTarget": "linux-wsl-x64",
-        "artifactTarget": "x86_64-unknown-linux-gnu",
-        "abi": "x86_64-unknown-linux-gnu",
-        "profile": "release",
-        "host": "linux-linux-6.18.33.2-microsoft-standard-wsl2-f90b9bfc569ec2a0",
-        "recipeClass": "hello-platform-minimal",
-        "runtimeClosure": {
-          "class": "freestanding",
-          "status": "unverified"
-        },
-        "comparability": "same-physical-hardware-diagnostic-only",
-        "eligibility": "same-physical-hardware-diagnostic-only",
-        "metric": "cpu-time",
-        "unit": "microseconds",
-        "statistic": "arithmeticMean",
-        "value": "74",
-        "toolchain": "w-public-build-release-da2d916c16c87f36a43ed7d26abafae10592ab656e06e9feee4a19c530f05515-x86_64-unknown-linux-gnu",
-        "recipe": "public-w-build-release",
-        "provenance": {
-          "recordId": "hello-platform-minimal-w-linux-wsl-x64-6c2d26bcfd80",
-          "commit": "6c2d26bcfd806cf6a6219c7e6a415821607a775b",
-          "observedAt": "2026-09-23T03:23:20.969Z",
-          "sourceDigest": "sha256:b50c0ea8a88df56638ef579abe891f017344dcdd39bfef2222642e9374ea5f99",
-          "artifactDigest": "sha256:2b99db9e31759f97775dbf718002a10774a85307039eb23309b6f3adc224a2ef",
-          "recipeDigest": "sha256:358d8a21d136c63aadbab784d9e30560f2d6e419e8d396cc75afc7c055369915",
-          "toolchainDigest": "sha256:3cbf6984c93d44f606f21a600b78adf19dd8efa09a82dce567de9572205810bb",
-          "runnerDigest": "sha256:880a69582517c892312367c3e9be9c3b41451ce122ec0f22682f442623180105",
-          "catalogDigest": "sha256:8fa37d39bc99f2762c04f40b006d27de1882dd93f70a89cde9162230200f5f91",
-          "artifactCleanliness": "verified-clean",
-          "platformEvidence": {
-            "hostMode": "wsl2",
-            "comparisonPurpose": "same-physical-hardware-diagnostic-only",
-            "rankability": "same-host-only"
-          }
-        }
-      },
-      {
-        "$schema": "./executable-benchmark.schema.json",
-        "schema": "w-executable-benchmark-best-metrics/2",
-        "kind": "executable-best-metric",
-        "id": "best-85fc13f37788d994ccdd43daf0ed7d0d45a6cfe6943db4854220bf52ed3d1764",
-        "status": "current",
-        "categoryId": "category-df89688d8e6abcfe85113d63d22b84bc0e668d936123bff7a44e52a868a27614",
-        "workloadId": "hello-platform-minimal",
-        "language": "w",
-        "equivalenceKey": "sha256:658c102b2be9ea7d23ab6f2d9f9d0cd95799c353b9bed9a000d8c201ea1a4c31",
-        "platformTarget": "linux-wsl-x64",
-        "artifactTarget": "x86_64-unknown-linux-gnu",
-        "abi": "x86_64-unknown-linux-gnu",
-        "profile": "release",
-        "host": "linux-linux-6.18.33.2-microsoft-standard-wsl2-f90b9bfc569ec2a0",
-        "recipeClass": "hello-platform-minimal",
-        "runtimeClosure": {
-          "class": "freestanding",
-          "status": "unverified"
-        },
-        "comparability": "same-physical-hardware-diagnostic-only",
-        "eligibility": "same-physical-hardware-diagnostic-only",
-        "metric": "peak-working-set",
-        "unit": "bytes",
-        "statistic": "median",
-        "value": "671744",
-        "toolchain": "w-public-build-release-da2d916c16c87f36a43ed7d26abafae10592ab656e06e9feee4a19c530f05515-x86_64-unknown-linux-gnu",
-        "recipe": "public-w-build-release",
-        "provenance": {
-          "recordId": "hello-platform-minimal-w-linux-wsl-x64-6c2d26bcfd80",
-          "commit": "6c2d26bcfd806cf6a6219c7e6a415821607a775b",
-          "observedAt": "2026-09-23T03:23:20.969Z",
-          "sourceDigest": "sha256:b50c0ea8a88df56638ef579abe891f017344dcdd39bfef2222642e9374ea5f99",
-          "artifactDigest": "sha256:2b99db9e31759f97775dbf718002a10774a85307039eb23309b6f3adc224a2ef",
-          "recipeDigest": "sha256:358d8a21d136c63aadbab784d9e30560f2d6e419e8d396cc75afc7c055369915",
-          "toolchainDigest": "sha256:3cbf6984c93d44f606f21a600b78adf19dd8efa09a82dce567de9572205810bb",
-          "runnerDigest": "sha256:880a69582517c892312367c3e9be9c3b41451ce122ec0f22682f442623180105",
-          "catalogDigest": "sha256:8fa37d39bc99f2762c04f40b006d27de1882dd93f70a89cde9162230200f5f91",
-          "artifactCleanliness": "verified-clean",
-          "platformEvidence": {
-            "hostMode": "wsl2",
-            "comparisonPurpose": "same-physical-hardware-diagnostic-only",
-            "rankability": "same-host-only"
-          }
-        }
-      },
-      {
-        "$schema": "./executable-benchmark.schema.json",
-        "schema": "w-executable-benchmark-best-metrics/2",
-        "kind": "executable-best-metric",
-        "id": "best-6db7366e98c7d3b0a5c52c40c3b1a0527497390b2f8545557784c5f22c226db1",
-        "status": "current",
-        "categoryId": "category-df89688d8e6abcfe85113d63d22b84bc0e668d936123bff7a44e52a868a27614",
-        "workloadId": "hello-platform-minimal",
-        "language": "w",
-        "equivalenceKey": "sha256:658c102b2be9ea7d23ab6f2d9f9d0cd95799c353b9bed9a000d8c201ea1a4c31",
-        "platformTarget": "linux-wsl-x64",
-        "artifactTarget": "x86_64-unknown-linux-gnu",
-        "abi": "x86_64-unknown-linux-gnu",
-        "profile": "release",
-        "host": "linux-linux-6.18.33.2-microsoft-standard-wsl2-f90b9bfc569ec2a0",
-        "recipeClass": "hello-platform-minimal",
-        "runtimeClosure": {
-          "class": "freestanding",
-          "status": "unverified"
-        },
-        "comparability": "same-physical-hardware-diagnostic-only",
-        "eligibility": "same-physical-hardware-diagnostic-only",
-        "metric": "run-wall-p95",
-        "unit": "nanoseconds",
-        "statistic": "p95",
-        "value": "274143",
-        "toolchain": "w-public-build-release-da2d916c16c87f36a43ed7d26abafae10592ab656e06e9feee4a19c530f05515-x86_64-unknown-linux-gnu",
-        "recipe": "public-w-build-release",
-        "provenance": {
-          "recordId": "hello-platform-minimal-w-linux-wsl-x64-6c2d26bcfd80",
-          "commit": "6c2d26bcfd806cf6a6219c7e6a415821607a775b",
-          "observedAt": "2026-09-23T03:23:20.969Z",
-          "sourceDigest": "sha256:b50c0ea8a88df56638ef579abe891f017344dcdd39bfef2222642e9374ea5f99",
-          "artifactDigest": "sha256:2b99db9e31759f97775dbf718002a10774a85307039eb23309b6f3adc224a2ef",
-          "recipeDigest": "sha256:358d8a21d136c63aadbab784d9e30560f2d6e419e8d396cc75afc7c055369915",
-          "toolchainDigest": "sha256:3cbf6984c93d44f606f21a600b78adf19dd8efa09a82dce567de9572205810bb",
-          "runnerDigest": "sha256:880a69582517c892312367c3e9be9c3b41451ce122ec0f22682f442623180105",
-          "catalogDigest": "sha256:8fa37d39bc99f2762c04f40b006d27de1882dd93f70a89cde9162230200f5f91",
-          "artifactCleanliness": "verified-clean",
-          "platformEvidence": {
-            "hostMode": "wsl2",
-            "comparisonPurpose": "same-physical-hardware-diagnostic-only",
-            "rankability": "same-host-only"
-          }
-        }
-      },
-      {
-        "$schema": "./executable-benchmark.schema.json",
-        "schema": "w-executable-benchmark-best-metrics/2",
-        "kind": "executable-best-metric",
-        "id": "best-b36511783e60d65b5a3d0d0ffa2e76881d8c1ed07210e74bbb0117c92a1c7ac5",
-        "status": "current",
-        "categoryId": "category-df89688d8e6abcfe85113d63d22b84bc0e668d936123bff7a44e52a868a27614",
-        "workloadId": "hello-platform-minimal",
-        "language": "w",
-        "equivalenceKey": "sha256:658c102b2be9ea7d23ab6f2d9f9d0cd95799c353b9bed9a000d8c201ea1a4c31",
-        "platformTarget": "linux-wsl-x64",
-        "artifactTarget": "x86_64-unknown-linux-gnu",
-        "abi": "x86_64-unknown-linux-gnu",
-        "profile": "release",
-        "host": "linux-linux-6.18.33.2-microsoft-standard-wsl2-f90b9bfc569ec2a0",
-        "recipeClass": "hello-platform-minimal",
-        "runtimeClosure": {
-          "class": "freestanding",
-          "status": "unverified"
-        },
-        "comparability": "same-physical-hardware-diagnostic-only",
-        "eligibility": "same-physical-hardware-diagnostic-only",
-        "metric": "run-wall-time",
-        "unit": "nanoseconds",
-        "statistic": "median",
-        "value": "159182",
-        "toolchain": "w-public-build-release-da2d916c16c87f36a43ed7d26abafae10592ab656e06e9feee4a19c530f05515-x86_64-unknown-linux-gnu",
-        "recipe": "public-w-build-release",
-        "provenance": {
-          "recordId": "hello-platform-minimal-w-linux-wsl-x64-6c2d26bcfd80",
-          "commit": "6c2d26bcfd806cf6a6219c7e6a415821607a775b",
-          "observedAt": "2026-09-23T03:23:20.969Z",
-          "sourceDigest": "sha256:b50c0ea8a88df56638ef579abe891f017344dcdd39bfef2222642e9374ea5f99",
-          "artifactDigest": "sha256:2b99db9e31759f97775dbf718002a10774a85307039eb23309b6f3adc224a2ef",
-          "recipeDigest": "sha256:358d8a21d136c63aadbab784d9e30560f2d6e419e8d396cc75afc7c055369915",
-          "toolchainDigest": "sha256:3cbf6984c93d44f606f21a600b78adf19dd8efa09a82dce567de9572205810bb",
-          "runnerDigest": "sha256:880a69582517c892312367c3e9be9c3b41451ce122ec0f22682f442623180105",
-          "catalogDigest": "sha256:8fa37d39bc99f2762c04f40b006d27de1882dd93f70a89cde9162230200f5f91",
-          "artifactCleanliness": "verified-clean",
-          "platformEvidence": {
-            "hostMode": "wsl2",
-            "comparisonPurpose": "same-physical-hardware-diagnostic-only",
-            "rankability": "same-host-only"
-          }
         }
       },
       {

@@ -95,7 +95,7 @@ test("a failed WSL lane surfaces its status and output and does not update or pu
     assert.match(error.message, /exit 127/u);
     assert.match(error.message, /WSL distribution unavailable/u);
     assert.match(error.message, /no new success receipt/u);
-    assert.equal(error.remaining, 2);
+    assert.equal(error.remaining, 5);
     return true;
   });
   assert.equal(calls.length, 1, "failure is explicit and fail-fast; unattempted lanes are reported");
