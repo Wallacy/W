@@ -537,8 +537,12 @@ signed-`i64` carried-root sets, including descendant writes and empty sets.
 A two-loop source proves these planning facts and a forged wrong-loop target
 fails closed, but nested HIR emission remains unsupported. The pinned
 [`nested-labeled-while.w`](compiler/seed-c/fixtures/nested-labeled-while.w)
-has C23/Rust correctness references; its complete W entry/call graph still
-fails the bounded frontend and is not a native product.
+has C23/Rust correctness references. Its functions, three local calls, nested
+transfers, interpolation, and entry are already represented by the frontend.
+A bare frontend probe correctly leaves `print` unresolved because it supplies
+no host scope; the Native0 product route supplies the explicit
+`native-process@1`/`Console` prelude. Nested HIR emission, not frontend
+representation, is the remaining product blocker.
 Next, extend that plan into the count/layout/value/terminator emission contract
 and independently verify the emitted graph;
 prove typed edge/carrier mapping and failure atomicity on a source-backed

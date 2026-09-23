@@ -1781,10 +1781,13 @@ and independent carrier-provenance verification remain open. Nested loops
 still fail closed. The pinned
 [`nested-labeled-while.w`](fixtures/nested-labeled-while.w) source has C23 and
 Rust 2024 correctness references that print `0,1,3\n`; its current W parser
-accepts the source, but the complete entry/call graph remains frontend-
-unsupported and no W native result is claimed. A source-backed NativeSubset0/MLIR0
-test selects and emits the same-loop labeled CFG. No public executable
-labeled-loop witness is claimed. The plan-only change has
+and frontend represent the functions, three local calls, nested transfers,
+interpolation, and entry. A bare frontend probe has no host scope and therefore
+correctly reports `print` unresolved; Native0 supplies the explicit
+`native-process@1`/`Console` prelude. Nested HIR emission remains unsupported,
+so no W native result is claimed. A source-backed NativeSubset0/MLIR0 test
+selects and emits the same-loop labeled CFG. No public executable labeled-loop
+witness is claimed. The plan-only change has
 `compiler-lifecycle` benchmark disposition; it adds no executable performance
 row.
 NativeSubset0's broader bounded i64-carrier CFG screen is only a preparatory
