@@ -234,16 +234,27 @@ The primary product never carries old-ISA fallback code merely because that
 compatibility pack exists. Future ISA levels may become primary after measured
 coverage and target evidence; they need no syntax change.
 
-The current Linux Hello audit has one unproven, general candidate: the public
-route optimizes W code before emitting an object, but emits the reachable WRT0
-IR as a separate object. Investigate whole-product optimization across that
-boundary, not a Hello-specific direct-syscall rewrite. The PIE catalog records
-W `.text` at 64 B plus a 52 B `.eh_frame`, versus C23 `.text` at 41 B and Rust
-`.text` at 43 B without `.eh_frame`; these observations identify where to
-inspect, not a proven cause or a size target. Preserve required unwind and
-debug behavior per target/profile. Test the candidate against a non-Hello
-product with observable runtime helpers and compare all closure, correctness,
-compile-cost, runtime, memory, and artifact-size receipts before promotion.
+The public Linux `w build --audit-dir` route was used to compare separately
+optimized W and WRT0 objects against a generic whole-product candidate: link
+their LLVM bitcode, run `opt -O3`, and emit one object. Textual `.ll` linking is
+not compatible with the current WRT0 module-assembly formatting, but the
+bitcode route works. The audit covered Hello-minimal and the process-enum
+payload product, including exact output, object references, final ELF closure,
+section sizes, compile cost, and runtime samples. Under the same local WSL GNU
+ld 2.46 audit lane, both final ELFs kept their total size (13,008 B and
+13,080 B); Hello `.eh_frame` fell 4 B and enum `.text` fell 8 B. Combined object
+bytes fell 1,744→1,104 B for Hello and 3,904→3,104 B for enum. Seven backend
+samples had mixed compile medians (Hello 30→27 ms, enum 51→55 ms); 31
+fork/exec runtime samples were also mixed (Hello p50 111.1→106.0 µs, enum
+110.5→133.4 µs). These small, noisy changes do not establish a material,
+consistent product benefit, so no optimizer change is promoted. The products
+remained PIE and CRT-free with no interpreter or `DT_NEEDED`; this audit's GNU
+ld lane is distinct from the ranked pinned-LLD catalog lane. Keep the existing
+catalog observations as inspection context, not a proven cause or size target.
+Preserve required unwind and debug behavior per target/profile. Reopen this
+candidate only with evidence of a material general benefit and equivalent
+closure/correctness receipts; do not substitute a Hello-specific syscall
+rewrite.
 
 The count-only process-arguments candidate is implemented for the exact
 verified-reachability case where the selected entry observes only
@@ -259,14 +270,12 @@ This is `compiler-lifecycle` correctness evidence only, with no performance
 claim or new benchmark row. Windows backslash-before-quote behavior remains
 parity with the current adapter, not a claim of complete CRT decoding.
 
-`w build --audit-dir` now retains one pinned build's pre/post-opt IR, every
-emitted object and final product in an explicit bounded directory; normal
-builds and benchmarks retain their cleanup behavior. Use that surface to audit
-the W/WRT0 cross-object optimization candidate and extend the dependency
-receipt across every object before claiming whole-product closure. Keep this
-inspection lane separate from ranked benchmark samples and clean it at the
-next safe checkpoint; retained traces are evidence inputs, not repository
-history.
+`w build --audit-dir` retains one pinned build's pre/post-opt IR, every emitted
+object, and final product in an explicit bounded directory; normal builds and
+benchmarks retain their cleanup behavior. The W/WRT0 audit above verified this
+surface against both separate-object and combined-bitcode builds. Keep future
+inspection separate from ranked benchmark samples, remove raw traces at the
+next safe checkpoint, and retain only compact conclusions here.
 
 ### Evidence promotion and safety closure
 
