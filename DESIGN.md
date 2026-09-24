@@ -31666,9 +31666,9 @@ seguro.
 **Witness adversarial Última Luz/Restaurante (W-1518 design contract; implementation evidence missing):** o
 fixture parte do fluxo `compile-final-menu / menu-compiler` descrito no
 [`reference/last-light/README.md`](reference/last-light/README.md) e usa o
-manifest e o transform reais em
-[`packages/menu-compiler/build.w`](reference/last-light/packages/menu-compiler/build.w)
-e [`packages/menu-compiler/transform.w`](reference/last-light/packages/menu-compiler/transform.w).
+manifest raiz e o transform reais em
+[`build.w`](reference/last-light/build.w) e
+[`packages/menu-compiler/transform.w`](reference/last-light/packages/menu-compiler/transform.w).
 Ele percorre RDX0 para identity, download privado, checkpoint e search rebuild;
 PCB0 para release intent, assertion OIDC validada, capability W de publicação e
 dois builders autorizados; WEC0 para uma cápsula por target; TEV0 para doctests,

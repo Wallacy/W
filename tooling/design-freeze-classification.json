@@ -2406,7 +2406,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-069 (prelude, sha256:27354d66f82c2c6ca8cbf529b7214b70d35e29173a02dc886d8678e50f258bb6) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -2864,7 +2864,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-083 (registry, sha256:93cfd87c1d0a451f9b55afb35e2034272b4851666a73b3147fb97cee1eda644c) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -3128,7 +3128,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-091 (wRPC/wQL, sha256:48c9e0484e331cccafbb930288c9824e2f05e4ffd2724ad6c2301a34f968d510) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -3933,7 +3933,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-116 (evolução self-host, sha256:43bee6496fe092a8b81e61025c372a6722ac2e4912b183f653662ff57d9af6c7) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -5518,7 +5518,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-165 (interface exportada, sha256:c7ad7ddc0f38a9edc3fd467949e8184e6dcbda1e560dec485b2a6a34a5ecfbfb) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -5776,7 +5776,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-173 (verificação SemVer, sha256:664c0858df59d782261418445350156f2095ffacb0fc748e58e013c470606fb8) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -7365,7 +7365,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-221 (bundle Unicode, sha256:8e4897080d4a279b550430cac27139711b72146c2474508edf00960d3ca3a168) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -8584,7 +8584,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-258 (fix e policy, sha256:a8272fed1632f49088bd0f2919bb159412a0dac15679fa4a7e132658755c4072) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -9007,7 +9007,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-271 (cache const, sha256:01da15cc9401c7af4e00f9bc0e93ca9577c732d1886f339fe90c8ba35fdf7bd6) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -9073,7 +9073,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-273 (geração, sha256:37b34ddcc216257087845e498c5faa89005ff6af567f113974269513c83c3aba) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -9106,7 +9106,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-274 (feedback, sha256:0d49c4c0dc54d092e3059b34f32f84b493cd0b4ef47ed8a7bd05c28c65ce6c03) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -9828,7 +9828,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-296 (generic interface, sha256:c34eafd96ae6133dc8229c46b6ed3131ea10474a9ddbda302661e28a100a80c2) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -12127,7 +12127,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-366 (edição Unicode, sha256:b348a7620e2d9d6e6e0cb4b10c55315ec25bd2aafd5ab6b57da60ae1004adb22) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -12160,7 +12160,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-367 (PackagePath, sha256:c731f78447925ae8941b4869a58dad750d9110901f5ce9f83cbf40b9cf55453b) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -12523,7 +12523,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-378 (PGO, sha256:37b46ecc2295d2b73ab1dac89a53830e66ae09a80c970aba60a61d5aae1b944c) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -13637,7 +13637,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-412 (allocator profiles, sha256:76094a2da08e7633c706d3e7fe6afafe0fbf60cf9dbf21ddcf0302c7801cdce9) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -16612,7 +16612,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-500 (service no source, sha256:ec052256a36b3601e0413830487bbcea1f0fb7c8124ccd8eec5d68d31d069a02) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -16645,7 +16645,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-501 (product runtime graph, sha256:c8781ee467af05c2b6ee01215642da3b345ba64af5983f0c15d9cf726f84b607) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -16679,7 +16679,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-502 (deployment e launch, sha256:bdb754ea7f017f21bf372a38c8022ef9cbf8162f8d7aafdb9cb9838b27e59757) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -16963,7 +16963,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-510 (seleção de entry, sha256:7e3248c3076640538ad526f90b98abddf66578403b2d577a8529d30a3c91d0a2) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -17029,7 +17029,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-512 (identidade de target, sha256:9b0cee6dba3373af5531bfc174c4905be92b17fc0f58d56694ae34915b902fef) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -17128,7 +17128,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-515 (matriz de build, sha256:13a202e658a9826271829fbc46d0a3080d2a56a723b476963140825ef82c86c6) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -17359,7 +17359,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-522 (fechamento do runtime graph, sha256:19f35a403373198633acce928cf639f7b464008ba92a2c9626d0daae0cc90c80) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -17425,7 +17425,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-524 (packing, sha256:32e7338431b88e87be967fac5062218f18d78722da37e7a7c83b7670a45c8ba9) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -17491,7 +17491,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-526 (deployment lock, sha256:b0d77de17af6f025caf2603024ca6928a724ba0c487f30cd1189d62b588cfcbe) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -17557,7 +17557,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-528 (unit root, sha256:9d277dc93579c607423f8de72884b6d985d675c3953fd273a590cb8d238c1517) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -18180,7 +18180,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-547 (configuração de host, sha256:9b771704b1533befae26f27d797278962d8e4111ed7ae215fc49a55304ca94b1) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -18838,7 +18838,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-567 (declared local package, sha256:dc634f559d4d79f7f16a394f39c88d6a336da309c72a2de471078c76fbffc6da) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -19069,7 +19069,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-574 (action hermética, sha256:cae7f2031d3f142ce195658fd3e31bcea97b2bb6dd599a606ba832638ca5f0f0) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -19399,7 +19399,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-584 (interface entre targets, sha256:551a2a330d57130b12833fd3e5108dc0a0986d994f915aac792996038b81a3f3) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -19432,7 +19432,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-585 (role de target, sha256:9b8029b334fc1bbf744bb4a38bd4b0b5ac28c957c7375c5dce683a98e7087d08) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -19564,7 +19564,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-589 (target spec, sha256:1bfa41e9454d828d69bdcbb7bba877e1a249aa3ccb5522d6d1e570764f7555ad) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -19597,7 +19597,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-590 (execution platform, sha256:2e734fa06b540a6de19ddb09e0deea354fa55a30a21f733157027c5042baee62) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -19630,7 +19630,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-591 (requirement de toolchain, sha256:a61a34ff8abba86215338d8ea949b96ce295a23aff7cd054043fb7086c14b9a5) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -19663,7 +19663,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-592 (provider de toolchain, sha256:7600118a2d8c705fcc4abb6c82da797450cca76e7770b111526c599726ca19e7) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -19696,7 +19696,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-593 (resolução de provider, sha256:dcc48fdb739d654a653edf41f5dd8f4fdd0f9e00979001ff6f504f9e789b4d5f) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -19729,7 +19729,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-594 (toolchain plan, sha256:6bb6b86ad9e18054ba571d4f6de5b092b666a41559a0000f007c5b02773d5bdf) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -19762,7 +19762,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-595 (system SDK, sha256:e1e979cde3e5b7196a7a866fed932a911fdf2f294ca7c09453058638a972f394) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -19861,7 +19861,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-598 (artifact composto, sha256:bef7ce8042265ec407e8e13f5a2c538129713e9efb9655fb4f50c6f2db3061a9) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -19993,7 +19993,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-602 (provider inventory, sha256:8877eb7829197ed205e9ceeb22fdd8e35c4592fb23781972e5c5d7d16aadd176) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -20059,7 +20059,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-604 (platform availability, sha256:a93dcf23125b91ba9199d3f53d549e6aaa222f0863d1e0ebfe6add4a041dbafd) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -20092,7 +20092,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-605 (requirement transitiva, sha256:56aa527a826fc8316f8cc367d8a99b41f6d21a0a001bff852e8486c103b7ce12) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -20230,7 +20230,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-609 (cache de interface, sha256:212bc55617553076c5fad671f25d7bc197c23a31013d17df1b8a6b91aa8987a7) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -20426,7 +20426,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-615 (symbol W, sha256:c9fe46be50ea90feaa021f7f5277e404eb403bdde727dbb14d030fa7da362632) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -20521,7 +20521,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-618 (product de library, sha256:fba6f39d63332d3d5ddd6d057cfffc7d0229cfd3c2c8e414d36ea7dc36852cfd) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -20554,7 +20554,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-619 (W dynamic library, sha256:205b619c2a906bbc22328b351566e9b9e600d71b8aad03b0dc0038f4961db717) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -21266,7 +21266,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-641 (entrada de representação, sha256:34d193dbfcc53d685c6f4fd4927598f8fcfeaaa15d15a794781c9ea09e85a334) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -21904,7 +21904,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-660 (callback de host, sha256:4526fda422c94f305be2233854b271b59161549029238cd5b1392b542578fd8a) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -21937,7 +21937,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-661 (construção de service, sha256:5c96d500cd83d337949a5481e1d5a1fade76c82653103a3d0e53120310d3a59b) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -22300,7 +22300,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-672 (capability remota, sha256:7ae2bdb30c3ffd0e8b4e31eadfbb26fd80898225911de6f0d55a19f3700ea08c) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -22531,7 +22531,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-679 (seleção de profile wWire, sha256:3452b3ce742a4617bce442f7377908218ef1cce50a7ce28544ded36259e389d7) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -23154,7 +23154,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-698 (root grant wRPC, sha256:324404f1d43984f56419528c93a85ab6833a069eb5719e0699f5fe4ab4dc74d2) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -23253,7 +23253,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-701 (envelope de release, sha256:bea706ab2a1d9b65ea49495f0829ca0be4e8ae36b96215915edcb0f453e9ee99) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -23319,7 +23319,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-703 (metadata e mirrors, sha256:378fe69d29f2dcb9a8e199bf3e2aea7f5aa776a3850a94e53e0139798daf9c57) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -24159,7 +24159,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-728 (provenance e assinatura de platform, sha256:cedc95a2599504f01ba30e53a377fefb476de4c4a1549eaf9d97e674b5b04b47) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -24398,7 +24398,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-735 (catálogo da std, sha256:ee70d5fdbf37b81ac6a474c2c4f77be2c8e8f5fbfb214bcdea456b0bd2c1c2bf) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -26796,7 +26796,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-809 (diagnostic F0, sha256:8b9c33a343e3a335bda554b622b80a57b26b37050ecd738ec5eca15ef9851b19) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -27892,7 +27892,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-843 (operação não const-safe, sha256:8343b051935b374fa630075d5a839ddef841fce7ce1d2f51fcfd3949b22a0e0d) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -28618,7 +28618,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-865 (baseline estática R0S, sha256:c78704145e86d87b76a45ce77b048fa642d3eed73d4f6a9b47eec43ecdd68a55) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -28715,7 +28715,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-868 (schema de bundle R1, sha256:c04a2f06bc5d17eeaa54a9d5814f55f1141fb4096ec3c8d19545c0bbb29d3bc3) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -29309,7 +29309,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-886 (corpus R1 ampliado, sha256:0d4aa2d6065672b634b36d5b3bd8a6a324f1dacceca8c2f2ccde1c45af962856) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -29468,7 +29468,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-891 (catálogo std verificável, sha256:6a39405290b629c6d7f3d08accb78d68ef46c08653e293adfaa36186bf384ef5) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -29501,7 +29501,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-892 (context de host, sha256:749808d467d7752897d27363e5077e742774e4aa86c9fb2d71ee7a7e7fe149e2) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -29795,7 +29795,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-901 (HTTP SDK0, sha256:263e7ee0d868e32b727b0d53d51ab574799473d9c8922a3a6b80670d6250d34c) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -29964,7 +29964,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-906 (adapters direcionais de JSON, sha256:92c43b81bd8895235cc1e7051d029407753052790f71719abd18dcf0bb6146f4) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -30926,7 +30926,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-934 (fronteira do design freeze, sha256:44557d1c9128343615f8d5fa9b7dcacca5bc87484e2f27e65914bebc342cee5c) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -33238,7 +33238,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-1005 (fechamento do bundle TAB0, sha256:f8968705c1dad753cc3831a016d2aa1bea06bad5a1f4321f0008141c97f7c73d) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -34482,7 +34482,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-1045 (SDK0/TAB1 projections, sha256:1ef6f88dd71cbef537532e65a2f44d2ade6137419a58a9cdfe8bde06e0d3adad) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -34844,7 +34844,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-1055 (fetch pinned e offline, sha256:468de323ed7eb0607280ea71551cd12cb48ac3ce2eb28679de2a9432084ff33a) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -34877,7 +34877,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-1056 (integridade de artifact, sha256:a3b20dcacc8c562e46899c050be4912355a5a17e35259ba596dfa397e7d6e68e) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -35463,7 +35463,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-1074 (context explanation RU0, sha256:63967fd5507a1d4014ee815b4cd2e6e186c949a82b16edc05d7dd552236a9a6c) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -41113,7 +41113,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-1243 (adapters lock-fixed, sha256:a25b43e61fb6416032e995921dad41530ab76b7e9e884209df7e8d881007f2ee) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -44164,7 +44164,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-1333 (evidence ASC0, sha256:391f2d05bc35ed239dd8d2972c34e068e5029ce073b91dd3e8d6144b62da6d61) remains an implementation-evidence gap for packages-and-release. DESIGN.md §21 / 21. Packages, builds e releases has no compiler, runtime, or provider witness; PRC0 reuses this exact ASC0 gap and does not promote it.",
@@ -45317,7 +45317,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-1367 (action/result identity, sha256:e33933e5915418f25bdf1733f83b98f9f86f18ac2197af45b98233f608a063a1) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -45544,7 +45544,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-1374 (digests e source inputs SYN1, sha256:be0bd2e6bc78392d2a5211e2045e390a3b85ad7fd5dc6ade9d62319b71a1feaa) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -45674,7 +45674,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-1378 (target projection SYN1, sha256:628d97a6b5e980816391f03545502aa4acda32e18b6791e625f33d6ff7623971) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -45707,7 +45707,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-1379 (source-map diagnostics SYN1, sha256:a60edd4dfa4d2e0a48c6ec89407b1f243ce236fe3b8426027063588e238e22b8) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -46269,7 +46269,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-1396 (export/import bounded, sha256:a58a40231003c82d127a8474ca5c7f41ed306f4babceac0e4136939017a48b07) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -46431,7 +46431,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-1401 (stimulus source-derived, sha256:01a093587687982f41e361eb86a958a378287366621cc0621befffdc6976d8d4) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -46530,7 +46530,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-1404 (contrato humano HUM0, sha256:d97d415e07f8aae533e1c954220e1f208c17c45e217f0e8a6fadd7e3972a26e2) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -46563,7 +46563,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-1405 (contrato de modelo HUM0, sha256:b91ae6c314702f40252d3fddb98b3e8abc1ca8e57e880d218863de3cb5ea0d65) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -46596,7 +46596,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-1406 (guards anti-echo e anti-leak, sha256:9c3c28274ddc11521bdedc3bc8c0b69b95aa9687a9bd66a175cec7b91fc12f5c) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -46829,7 +46829,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-1413 (reexport explícito, sha256:639f7df7eb7303a0e006af3ef6af69d21f501117592e2f52224f52799a969686) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -46957,7 +46957,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-1417 (package identity split and build-root transaction, sha256:f4271c1b99af9bb564a0623a54735108f6b9d5af66fe354140c7ebaded1505ea) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -47023,7 +47023,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-1419 (três camadas de feature, sha256:2bba0b8c630e033e286aeb730566483e57ec391e8f7626f6c4ce0c740d789b72) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -47094,7 +47094,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-1421 (runtime feature tipada, sha256:30793d5f36eeffbb86b9656da69850675f4f5e6e65a30893a2eb50d8d5cd94b3) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
@@ -47387,7 +47387,7 @@
         "path": "DESIGN.md",
         "section": "21",
         "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:27550fbbd9fc3729fb9495e2ebb9d6262b6578418227533aeed234622513e6a9"
+        "sectionDigest": "sha256:6af19a8c278f15ed8e909c1f88085140216a7643e58fe7c78f594d94048ab8ce"
       },
       "evidence": [],
       "reason": "W-1430 (perfis físicos e defense-in-depth, sha256:2d97cbdd4c660e4981c110e85a48bcec0ac390948962c9d1e669ecb34c881c94) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",

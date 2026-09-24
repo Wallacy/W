@@ -196,14 +196,14 @@
     {
       "path": "tooling/studies/final-research-closure/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:6b46189664a1ff5ef3e45f947d101b4afb5f1061538c7cf3acee785cf135fad7",
+      "digest": "sha256:2c59dd378700a6dd88eb57aa681111960db144132082b6598d71a442185e0075",
       "status": "design-oracle-input",
       "id": "R1-final-research-closure"
     },
     {
       "path": "tooling/studies/final-research-closure/manifest.json",
       "kind": "manifest",
-      "digest": "sha256:d6d73ff6f63362f861bcf639dc9493537a6e9e4fdd778f2767add6874d2700cd",
+      "digest": "sha256:c54253eb8083cda7436c92570aba19a4141f2ba23ac169257211e8b31704f26b",
       "status": "design-oracle-input",
       "id": "FRC0"
     },
@@ -8476,7 +8476,7 @@
       "pointer": "sourceRefs.6.path",
       "path": "../../../DESIGN.md",
       "resolved": "DESIGN.md",
-      "declaredDigest": "sha256:98a3ab22a0516eb0eb7247885f6923129aa9c4f8699e28c2e49542334d73f398",
+      "declaredDigest": "sha256:334d6b9f7c33dde805961f857aa00feb220052beabaae2444a0d96489646acac",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8746,7 +8746,7 @@
       "pointer": "artifacts.30.path",
       "path": "DESIGN.md",
       "resolved": "DESIGN.md",
-      "declaredDigest": "sha256:98a3ab22a0516eb0eb7247885f6923129aa9c4f8699e28c2e49542334d73f398",
+      "declaredDigest": "sha256:334d6b9f7c33dde805961f857aa00feb220052beabaae2444a0d96489646acac",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8796,7 +8796,7 @@
       "pointer": "artifacts.7.path",
       "path": "tooling/studies/final-research-closure/bundle.json",
       "resolved": "tooling/studies/final-research-closure/bundle.json",
-      "declaredDigest": "sha256:6b46189664a1ff5ef3e45f947d101b4afb5f1061538c7cf3acee785cf135fad7",
+      "declaredDigest": "sha256:2c59dd378700a6dd88eb57aa681111960db144132082b6598d71a442185e0075",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },

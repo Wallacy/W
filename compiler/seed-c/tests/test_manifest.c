@@ -1173,8 +1173,6 @@ static int run_manifest_tests(void) {
   CHECK(result.error == W_SEED_MANIFEST_ERROR_WORK_LIMIT);
 
   CHECK(measure_file("reference/last-light/build.w") == EXIT_SUCCESS);
-  CHECK(measure_file("reference/last-light/packages/menu-compiler/build.w") ==
-        EXIT_SUCCESS);
   CHECK(measure_file("reference/syntax-atlas/build.w") == EXIT_SUCCESS);
 
   golden_observed golden_results[sizeof(golden_cases) / sizeof(*golden_cases)];

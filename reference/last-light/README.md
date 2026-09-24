@@ -227,7 +227,7 @@ alvo de execução independente.
 | `callables.w` | function pointer, opaque callable, erasure e callable modes |
 | `packages/menu-compiler/compiler.w` | compiler pequeno restrito ao profile `bootstrap.w0` |
 | `packages/menu-compiler/transform.w` | entry hermética de build e bindings tipados |
-| `packages/menu-compiler/build.w` | `.tool` product publicável do compiler |
+| `build.w` | packages publicáveis do restaurante e do menu compiler, mais o coordinator local |
 | `menus/final.menu` | input do build transform |
 | `execution.w` | task groups bounded, outcomes, ordering e cancelamento |
 | `context_local_oracle.w` | inheritance de task-local, drain, boundaries e TLS físico |

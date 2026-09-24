@@ -55,7 +55,7 @@
       "id": "FRC0-bundle",
       "role": "bundle",
       "path": "tooling/studies/final-research-closure/bundle.json",
-      "digest": "sha256:6b46189664a1ff5ef3e45f947d101b4afb5f1061538c7cf3acee785cf135fad7"
+      "digest": "sha256:2c59dd378700a6dd88eb57aa681111960db144132082b6598d71a442185e0075"
     },
     {
       "id": "FRC0-study",
@@ -193,7 +193,7 @@
       "id": "FRC0-design",
       "role": "design",
       "path": "DESIGN.md",
-      "digest": "sha256:98a3ab22a0516eb0eb7247885f6923129aa9c4f8699e28c2e49542334d73f398"
+      "digest": "sha256:334d6b9f7c33dde805961f857aa00feb220052beabaae2444a0d96489646acac"
     },
     {
       "id": "FRC0-index",
