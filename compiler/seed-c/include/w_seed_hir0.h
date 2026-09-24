@@ -15,12 +15,12 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-97"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-98"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
 #define W_SEED_HIR0_MAX_VALUE_BYTES (64u * 1024u)
-#define W_SEED_HIR0_MAX_RECEIPT_BYTES 328u
+#define W_SEED_HIR0_MAX_RECEIPT_BYTES 368u
 /* Cooperative0 is a deliberately closed physical-evidence lane.  Keep its
  * per-child yield budget in the HIR contract so frontend/HIR admission and
  * the host oracle cannot drift apart. */
@@ -86,6 +86,10 @@ typedef enum {
   /* Canonical core NumericConversionError identity used only by the exact
    * integer-conversion success/error terminator. */
   W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR = W_SEED_HIR0_TYPE_F32 + 1,
+  /* General source tuple identities are structural and append-only. */
+  W_SEED_HIR0_TYPE_TUPLE = W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR + 1,
+  /* A nominal local value struct is identified by module + declaration. */
+  W_SEED_HIR0_TYPE_VALUE_STRUCT = W_SEED_HIR0_TYPE_TUPLE + 1,
 } w_seed_hir0_type_kind;
 
 typedef enum {
@@ -240,6 +244,11 @@ typedef enum {
    * the bit carrier and floating scalar identities, respectively. */
   W_SEED_HIR0_VALUE_FLOAT_FROM_BITS = W_SEED_HIR0_VALUE_NUMERIC_WIDEN + 1,
   W_SEED_HIR0_VALUE_FLOAT_TO_BITS,
+  /* Virtual construction/projection operations for the bounded flat product
+   * family. These never imply an allocated object or a function call. */
+  W_SEED_HIR0_VALUE_TUPLE = W_SEED_HIR0_VALUE_FLOAT_TO_BITS + 1,
+  W_SEED_HIR0_VALUE_VALUE_STRUCT,
+  W_SEED_HIR0_VALUE_VALUE_STRUCT_FIELD,
 } w_seed_hir0_value_kind;
 
 typedef enum {
@@ -266,6 +275,10 @@ typedef enum {
   W_SEED_HIR0_VALUE_OWNER_NUMERIC_WIDEN,
   /* The source child consumed by one exact floating representation bridge. */
   W_SEED_HIR0_VALUE_OWNER_FLOAT_BITS_CONVERSION,
+  /* New product owners are appended to preserve existing owner ordinals. */
+  W_SEED_HIR0_VALUE_OWNER_TUPLE_CONSTRUCTION,
+  W_SEED_HIR0_VALUE_OWNER_VALUE_STRUCT_INITIALIZER,
+  W_SEED_HIR0_VALUE_OWNER_PRODUCT_PROJECTION,
 } w_seed_hir0_value_owner_kind;
 
 typedef enum {
@@ -535,15 +548,56 @@ typedef struct {
   uint32_t external_symbol_index;
   /* Present only for TYPE_ENUM and TYPE_ENUM_SUBSET and indexes the
    * caller-owned base enum record. */
-  uint32_t enum_index;
+  union {
+    uint32_t enum_index;
+    /* TYPE_VALUE_STRUCT uses the same identity-index slot; the kinds are
+     * disjoint and value-struct identity stays module+declaration. */
+    uint32_t value_struct_index;
+  };
   /* Present only for TYPE_ENUM_SUBSET and indexes the caller-owned normalized
    * member range. The range is in base enum declaration order. */
-  uint32_t first_subset_member;
-  uint32_t subset_member_count;
+  union {
+    struct {
+      uint32_t first_subset_member;
+      uint32_t subset_member_count;
+    };
+    struct {
+      uint32_t first_tuple_component;
+      uint32_t tuple_component_count;
+    };
+  };
   /* Independently rederived from the closed external identity contract. */
   w_seed_hir0_lifecycle_kind lifecycle;
   w_seed_hir0_release_contract_kind release_contract;
 } w_seed_hir0_type;
+
+/* General tuple components are dense, declaration-ordered, and owned by one
+ * structural tuple type. */
+typedef struct {
+  uint32_t owner_type;
+  uint32_t ordinal;
+  uint32_t type_index;
+} w_seed_hir0_tuple_component;
+
+/* Local value-struct identity is the exact (module_index, declaration_index)
+ * pair. Field records preserve declaration order. */
+typedef struct {
+  uint32_t module_index;
+  uint32_t declaration_index;
+  uint32_t type_index;
+  w_seed_hir0_text name;
+  uint32_t first_field;
+  uint32_t field_count;
+  w_seed_span source_span;
+} w_seed_hir0_value_struct;
+
+typedef struct {
+  uint32_t owner_struct;
+  uint32_t ordinal;
+  uint32_t type_index;
+  w_seed_hir0_text name;
+  w_seed_span source_span;
+} w_seed_hir0_value_struct_field;
 
 /* Local enum declarations, cases, and case parameters are copied into
  * HIR-owned records. The ranges are lexical and dense; tag is the stable case
@@ -835,11 +889,31 @@ typedef struct {
   uint32_t call_index;
   uint32_t left_value;
   uint32_t right_value;
-  uint32_t first_interpolation_segment;
-  uint32_t interpolation_segment_count;
-  uint32_t first_enum_payload;
-  uint32_t enum_payload_count;
-  uint32_t pattern_capture_index;
+  union {
+    struct {
+      uint32_t first_interpolation_segment;
+      uint32_t interpolation_segment_count;
+    };
+    struct {
+      uint32_t first_tuple_element;
+      uint32_t tuple_element_count;
+    };
+  };
+  union {
+    struct {
+      uint32_t first_enum_payload;
+      uint32_t enum_payload_count;
+    };
+    struct {
+      uint32_t first_value_struct_initializer;
+      uint32_t value_struct_initializer_count;
+    };
+  };
+  union {
+    uint32_t pattern_capture_index;
+    /* Present only for VALUE_TUPLE_ELEMENT and VALUE_VALUE_STRUCT_FIELD. */
+    uint32_t projection_ordinal;
+  };
   w_seed_hir0_binary_operator binary_operator;
   w_seed_hir0_unary_operator unary_operator;
   uint32_t block_argument_index;
@@ -865,6 +939,24 @@ typedef struct {
    * always type_index. */
   uint32_t source_type;
 } w_seed_hir0_value;
+
+/* Constructor children are explicit virtual-value ownership relations. */
+typedef struct {
+  uint32_t owner_value;
+  uint32_t ordinal;
+  uint32_t value_index;
+  uint32_t type_index;
+  w_seed_span source_span;
+} w_seed_hir0_tuple_element;
+
+typedef struct {
+  uint32_t owner_value;
+  uint32_t ordinal; /* source evaluation order */
+  uint32_t field_ordinal; /* canonical declaration order */
+  uint32_t value_index;
+  uint32_t type_index;
+  w_seed_span source_span;
+} w_seed_hir0_value_struct_initializer;
 
 typedef struct {
   w_seed_hir0_interpolation_segment_kind kind;
@@ -981,6 +1073,11 @@ typedef struct {
   size_t enum_subsets;
   size_t enum_subset_members;
   size_t cleanups;
+  size_t tuple_components;
+  size_t value_structs;
+  size_t value_struct_fields;
+  size_t tuple_elements;
+  size_t value_struct_initializers;
 } w_seed_hir0_counts;
 
 /* A program carries capacities so the verifier can reject a truncated or
@@ -1079,6 +1176,21 @@ typedef struct {
   const w_seed_hir0_cleanup *cleanups;
   size_t cleanup_count;
   size_t cleanup_capacity;
+  const w_seed_hir0_tuple_component *tuple_components;
+  size_t tuple_component_count;
+  size_t tuple_component_capacity;
+  const w_seed_hir0_value_struct *value_structs;
+  size_t value_struct_count;
+  size_t value_struct_capacity;
+  const w_seed_hir0_value_struct_field *value_struct_fields;
+  size_t value_struct_field_count;
+  size_t value_struct_field_capacity;
+  const w_seed_hir0_tuple_element *tuple_elements;
+  size_t tuple_element_count;
+  size_t tuple_element_capacity;
+  const w_seed_hir0_value_struct_initializer *value_struct_initializers;
+  size_t value_struct_initializer_count;
+  size_t value_struct_initializer_capacity;
 } w_seed_hir0_program;
 
 typedef struct {
@@ -1144,6 +1256,16 @@ typedef struct {
   size_t external_symbol_capacity;
   w_seed_hir0_cleanup *cleanups;
   size_t cleanup_capacity;
+  w_seed_hir0_tuple_component *tuple_components;
+  size_t tuple_component_capacity;
+  w_seed_hir0_value_struct *value_structs;
+  size_t value_struct_capacity;
+  w_seed_hir0_value_struct_field *value_struct_fields;
+  size_t value_struct_field_capacity;
+  w_seed_hir0_tuple_element *tuple_elements;
+  size_t tuple_element_capacity;
+  w_seed_hir0_value_struct_initializer *value_struct_initializers;
+  size_t value_struct_initializer_capacity;
 } w_seed_hir0_output;
 
 typedef struct {

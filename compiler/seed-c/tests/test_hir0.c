@@ -1203,6 +1203,10 @@ typedef struct {
       hir_enum_case_parameters[TEST_HIR_RECORDS];
   w_seed_hir0_enum_subset_member
       hir_enum_subset_members[TEST_HIR_RECORDS];
+  w_seed_hir0_tuple_component hir_tuple_components[TEST_HIR_RECORDS];
+  w_seed_hir0_value_struct hir_value_structs[TEST_HIR_RECORDS];
+  w_seed_hir0_value_struct_field
+      hir_value_struct_fields[TEST_HIR_RECORDS];
   w_seed_hir0_function hir_functions[TEST_HIR_RECORDS];
   w_seed_hir0_parameter hir_parameters[TEST_HIR_RECORDS];
   w_seed_hir0_block hir_blocks[TEST_HIR_RECORDS];
@@ -1216,6 +1220,9 @@ typedef struct {
   w_seed_hir0_host_parameter hir_host_parameters[TEST_HIR_RECORDS];
   w_seed_hir0_argument hir_arguments[TEST_HIR_RECORDS];
   w_seed_hir0_enum_payload hir_enum_payloads[TEST_HIR_RECORDS];
+  w_seed_hir0_tuple_element hir_tuple_elements[TEST_HIR_RECORDS];
+  w_seed_hir0_value_struct_initializer
+      hir_value_struct_initializers[TEST_HIR_RECORDS];
   w_seed_hir0_requirement hir_requirements[TEST_HIR_RECORDS];
   w_seed_hir0_value hir_values[TEST_HIR_RECORDS];
   w_seed_hir0_interpolation_segment
@@ -1669,6 +1676,12 @@ static void setup_hir_output(void) {
       .enum_case_parameter_capacity = TEST_HIR_RECORDS,
       .enum_subset_members = fixture.hir_enum_subset_members,
       .enum_subset_member_capacity = TEST_HIR_RECORDS,
+      .tuple_components = fixture.hir_tuple_components,
+      .tuple_component_capacity = TEST_HIR_RECORDS,
+      .value_structs = fixture.hir_value_structs,
+      .value_struct_capacity = TEST_HIR_RECORDS,
+      .value_struct_fields = fixture.hir_value_struct_fields,
+      .value_struct_field_capacity = TEST_HIR_RECORDS,
       .functions = fixture.hir_functions,
       .function_capacity = TEST_HIR_RECORDS,
       .parameters = fixture.hir_parameters,
@@ -1695,6 +1708,10 @@ static void setup_hir_output(void) {
       .argument_capacity = TEST_HIR_RECORDS,
       .enum_payloads = fixture.hir_enum_payloads,
       .enum_payload_capacity = TEST_HIR_RECORDS,
+      .tuple_elements = fixture.hir_tuple_elements,
+      .tuple_element_capacity = TEST_HIR_RECORDS,
+      .value_struct_initializers = fixture.hir_value_struct_initializers,
+      .value_struct_initializer_capacity = TEST_HIR_RECORDS,
       .requirements = fixture.hir_requirements,
       .requirement_capacity = TEST_HIR_RECORDS,
       .values = fixture.hir_values,
@@ -1729,6 +1746,13 @@ static void set_hir_output_exact_capacities(
   fixture.hir_output.enum_case_parameter_capacity =
       counts->enum_case_parameters;
   fixture.hir_output.enum_subset_member_capacity = counts->enum_subset_members;
+  fixture.hir_output.tuple_component_capacity = counts->tuple_components;
+  fixture.hir_output.value_struct_capacity = counts->value_structs;
+  fixture.hir_output.value_struct_field_capacity =
+      counts->value_struct_fields;
+  fixture.hir_output.tuple_element_capacity = counts->tuple_elements;
+  fixture.hir_output.value_struct_initializer_capacity =
+      counts->value_struct_initializers;
   fixture.hir_output.function_capacity = counts->functions;
   fixture.hir_output.parameter_capacity = counts->parameters;
   fixture.hir_output.block_capacity = counts->blocks;
@@ -2124,7 +2148,7 @@ static bool test_implicit_integer_widen_hir(void) {
 }
 
 static bool test_float_bits_hir(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-97") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-98") == 0);
   static const char SOURCE[] =
       "fn from32(bits: u32): f32 { let stored: f32 = f32.fromBits(bits) "
       "return stored }\n"
@@ -2359,7 +2383,7 @@ static bool test_float_bits_hir(void) {
 }
 
 static bool test_numeric_widen_hir(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-97") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-98") == 0);
   typedef struct {
     const char *source_name;
     bool source_is_float;
@@ -11157,6 +11181,295 @@ static bool test_local_binding_verify_mutations(void) {
   return true;
 }
 
+static bool lower_flat_product(const char *source) {
+  CHECK(fixture_parse(source));
+  configure_process_input_host();
+  CHECK(w_seed_frontend_run(&fixture.input, &fixture.output,
+                            &fixture.result) == W_SEED_FRONTEND_OK);
+  setup_hir_output();
+  w_seed_hir0_input input = hir_input();
+  w_seed_hir0_counts measured;
+  w_seed_hir0_result measure_result;
+  const w_seed_hir0_status measure_status =
+      w_seed_hir0_measure(&input, &measured, &measure_result);
+  CHECK(measure_status == W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &fixture.hir_result) ==
+        W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_program_from_output(&fixture.hir_output,
+                                        &fixture.hir_result,
+                                        &fixture.hir_program));
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_counts = measured;
+  return true;
+}
+
+static bool test_flat_product_value_hir(void) {
+  static const char TUPLE_SOURCE[] =
+      "type Pair = (i64, i64)\n"
+      "\n"
+      "fn makePair(left: i64, right: i64): Pair {\n"
+      "  let pair: Pair = (left, right)\n"
+      "  return pair\n"
+      "}\n"
+      "\n"
+      "fn combine(pair: Pair, scale: i64): i64 {\n"
+      "  let product = pair.0 * scale\n"
+      "  return product + pair.1\n"
+      "}\n"
+      "\n"
+      "entry {\n"
+      "  let original = makePair(left: 7, right: 5)\n"
+      "  let result = combine(pair: original, scale: 3)\n"
+      "  print(\"${original.0},${original.1},${result}\")\n"
+      "}\n";
+  static const char STRUCT_SOURCE[] =
+      "struct Pair { let left: i64 let right: i64 }\n"
+      "\n"
+      "fn makePair(left: i64, right: i64): Pair {\n"
+      "  let pair: Pair = Pair(right: right, left: left)\n"
+      "  return pair\n"
+      "}\n"
+      "\n"
+      "fn combine(pair: Pair, scale: i64): i64 {\n"
+      "  let product = pair.left * scale\n"
+      "  return product + pair.right\n"
+      "}\n"
+      "\n"
+      "entry {\n"
+      "  let original = makePair(left: 7, right: 5)\n"
+      "  let result = combine(pair: original, scale: 3)\n"
+      "  print(\"${original.left},${original.right},${result}\")\n"
+      "}\n";
+
+  CHECK(lower_flat_product(TUPLE_SOURCE));
+  CHECK(fixture.hir_program.tuple_component_count == 2u &&
+        fixture.hir_program.tuple_element_count >= 2u &&
+        fixture.hir_program.value_struct_count == 0u &&
+        fixture.hir_program.value_struct_initializer_count == 0u);
+  uint32_t tuple_type = W_SEED_HIR0_NONE;
+  uint32_t tuple_value = W_SEED_HIR0_NONE;
+  uint32_t tuple_projection = W_SEED_HIR0_NONE;
+  size_t tuple_constructors = 0u;
+  size_t tuple_projections = 0u;
+  for (size_t index = 0u; index < fixture.hir_program.type_count; index += 1u)
+    if (fixture.hir_types[index].kind == W_SEED_HIR0_TYPE_TUPLE)
+      tuple_type = (uint32_t)index;
+  for (size_t index = 0u; index < fixture.hir_program.value_count; index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_values[index];
+    if (value->kind == W_SEED_HIR0_VALUE_TUPLE) {
+      tuple_value = (uint32_t)index;
+      tuple_constructors += 1u;
+      CHECK(value->type_index == tuple_type &&
+            value->tuple_element_count == 2u);
+    } else if (value->kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT &&
+               value->projection_ordinal != W_SEED_HIR0_NONE) {
+      tuple_projection = (uint32_t)index;
+      tuple_projections += 1u;
+      CHECK(value->projection_ordinal < 2u && value->float_bits == 0u &&
+            fixture.hir_values[value->left_value].type_index == tuple_type);
+    }
+  }
+  CHECK(tuple_type != W_SEED_HIR0_NONE &&
+        tuple_value != W_SEED_HIR0_NONE &&
+        tuple_projection != W_SEED_HIR0_NONE);
+  CHECK(tuple_constructors == 1u);
+  CHECK(tuple_projections >= 4u);
+  CHECK(fixture.hir_program.call_count == 3u);
+  CHECK(fixture.hir_program.tuple_components[0].type_index ==
+            W_SEED_HIR0_TYPE_I64 &&
+        fixture.hir_program.tuple_components[1].type_index ==
+            W_SEED_HIR0_TYPE_I64);
+
+  const uint32_t tuple_element_start =
+      fixture.hir_values[tuple_value].first_tuple_element;
+  fixture.hir_tuple_components[0].ordinal = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_tuple_components[0].ordinal = 0u;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  fixture.hir_tuple_components[0].type_index = W_SEED_HIR0_TYPE_BOOL;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_tuple_components[0].type_index = W_SEED_HIR0_TYPE_I64;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  fixture.hir_values[tuple_projection].projection_ordinal = 2u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[tuple_projection].projection_ordinal = 0u;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  fixture.hir_values[tuple_value].first_tuple_element += 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[tuple_value].first_tuple_element = tuple_element_start;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  fixture.hir_tuple_elements[tuple_element_start].owner_value = W_SEED_HIR0_NONE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_tuple_elements[tuple_element_start].owner_value = tuple_value;
+  fixture.hir_tuple_elements[tuple_element_start + 1u].value_index =
+      fixture.hir_tuple_elements[tuple_element_start].value_index;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  uint32_t frontend_tuple_type = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u; index < fixture.result.written.types; index += 1u)
+    if (fixture.output.types[index].kind == W_SEED_FRONTEND_TYPE_TUPLE)
+      frontend_tuple_type = (uint32_t)index;
+  CHECK(frontend_tuple_type != W_SEED_FRONTEND_NONE &&
+        fixture.result.written.tuple_components >= 2u);
+  const w_seed_frontend_tuple_component saved_frontend_component =
+      fixture.tuple_components[0];
+  fixture.tuple_components[0].owner_type = frontend_tuple_type;
+  fixture.tuple_components[0].type_index = frontend_tuple_type;
+  w_seed_hir0_input cyclic_input = hir_input();
+  w_seed_hir0_counts cyclic_counts;
+  w_seed_hir0_result cyclic_result;
+  CHECK(w_seed_hir0_measure(&cyclic_input, &cyclic_counts, &cyclic_result) !=
+        W_SEED_HIR0_OK);
+  fixture.tuple_components[0] = saved_frontend_component;
+
+  CHECK(lower_flat_product(STRUCT_SOURCE));
+  CHECK(fixture.hir_program.value_struct_count == 1u &&
+        fixture.hir_program.value_struct_field_count == 2u &&
+        fixture.hir_program.tuple_component_count == 0u &&
+        fixture.hir_program.value_struct_initializer_count >= 2u);
+  const w_seed_hir0_value_struct *decl = &fixture.hir_value_structs[0];
+  CHECK(decl->module_index == 0u && decl->declaration_index == 0u &&
+        decl->field_count == 2u && decl->type_index <
+            fixture.hir_program.type_count &&
+        fixture.hir_types[decl->type_index].kind ==
+            W_SEED_HIR0_TYPE_VALUE_STRUCT &&
+        fixture.hir_types[decl->type_index].value_struct_index == 0u &&
+        hir_text_is(&fixture.hir_program, fixture.hir_value_struct_fields[0].name,
+                    "left") &&
+        hir_text_is(&fixture.hir_program, fixture.hir_value_struct_fields[1].name,
+                    "right"));
+  uint32_t struct_value = W_SEED_HIR0_NONE;
+  uint32_t struct_projection = W_SEED_HIR0_NONE;
+  size_t struct_constructors = 0u;
+  size_t struct_projections = 0u;
+  for (size_t index = 0u; index < fixture.hir_program.value_count; index += 1u) {
+    const w_seed_hir0_value *value = &fixture.hir_values[index];
+    if (value->kind == W_SEED_HIR0_VALUE_VALUE_STRUCT) {
+      struct_value = (uint32_t)index;
+      struct_constructors += 1u;
+      CHECK(value->type_index == decl->type_index &&
+            value->value_struct_initializer_count == 2u);
+      const w_seed_hir0_value_struct_initializer *first =
+          &fixture.hir_value_struct_initializers[
+              value->first_value_struct_initializer];
+      const w_seed_hir0_value_struct_initializer *second =
+          &fixture.hir_value_struct_initializers[
+              value->first_value_struct_initializer + 1u];
+      CHECK(first->ordinal == 0u && first->field_ordinal == 1u &&
+            second->ordinal == 1u && second->field_ordinal == 0u);
+    } else if (value->kind == W_SEED_HIR0_VALUE_VALUE_STRUCT_FIELD) {
+      struct_projection = (uint32_t)index;
+      struct_projections += 1u;
+      CHECK(value->projection_ordinal < 2u && value->float_bits == 0u &&
+            fixture.hir_values[value->left_value].type_index ==
+                decl->type_index);
+    }
+  }
+  CHECK(struct_value != W_SEED_HIR0_NONE &&
+        struct_projection != W_SEED_HIR0_NONE && struct_constructors == 1u &&
+        struct_projections >= 4u && fixture.hir_program.call_count == 3u);
+
+  const uint32_t struct_type_index = decl->type_index;
+  const uint32_t initializer_start =
+      fixture.hir_values[struct_value].first_value_struct_initializer;
+
+  fixture.hir_types[struct_type_index].value_struct_index = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_types[struct_type_index].value_struct_index = 0u;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  fixture.hir_value_struct_fields[0].ordinal = 1u;
+  fixture.hir_value_struct_fields[1].ordinal = 0u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_value_struct_fields[0].ordinal = 0u;
+  fixture.hir_value_struct_fields[1].ordinal = 1u;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  fixture.hir_value_struct_initializers[initializer_start].field_ordinal = 0u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_value_struct_initializers[initializer_start].field_ordinal = 1u;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  fixture.hir_values[struct_value].value_struct_initializer_count = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[struct_value].value_struct_initializer_count = 2u;
+  fixture.hir_values[struct_value].first_value_struct_initializer += 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[struct_value].first_value_struct_initializer =
+      initializer_start;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  fixture.hir_values[struct_projection].projection_ordinal = 2u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[struct_projection].projection_ordinal = 0u;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  w_seed_hir0_result saved_result = fixture.hir_result;
+  fixture.hir_result.required.value_struct_initializers += 1u;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_result = saved_result;
+  fixture.hir_result.semantic_digest[0] ^= 1u;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_result = saved_result;
+  fixture.hir_receipt[0] ^= 1u;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_result = saved_result;
+  write_receipt_unchecked(fixture.hir_receipt, &fixture.hir_counts,
+                          fixture.hir_result.semantic_digest,
+                          fixture.hir_result.provenance_digest);
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  const w_seed_hir0_counts counts = fixture.hir_counts;
+  fill_hir_output(0x6bu);
+  setup_hir_output();
+  fixture.hir_output.value_struct_initializer_capacity =
+      counts.value_struct_initializers - 1u;
+  w_seed_hir0_result capacity_result;
+  w_seed_hir0_input input = hir_input();
+  (void)memset(&capacity_result, 0xa5, sizeof(capacity_result));
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output,
+                       &capacity_result) == W_SEED_HIR0_CAPACITY &&
+        hir_output_is_byte(0x6bu));
+
+  setup_hir_output();
+  w_seed_hir0_output alias = fixture.hir_output;
+  alias.value_struct_initializers =
+      (w_seed_hir0_value_struct_initializer *)fixture.hir_values;
+  alias.value_struct_initializer_capacity = TEST_HIR_RECORDS;
+  w_seed_hir0_result alias_result;
+  (void)memset(&alias_result, 0x4du, sizeof(alias_result));
+  const w_seed_hir0_result alias_before = alias_result;
+  CHECK(w_seed_hir0_run(&input, &alias, &alias_result) ==
+            W_SEED_HIR0_INVALID &&
+        memcmp(&alias_result, &alias_before, sizeof(alias_result)) == 0);
+  return true;
+}
+
 static bool test_local_enum_hir(void) {
   static const char SOURCE[] =
       "enum Stage { cold ready done }\n"
@@ -11728,7 +12041,7 @@ static bool test_integer_exactly_hir(void) {
       true, false, true, false, true, false, true, false, true, false};
   static const uint16_t INTEGER_WIDTHS[] = {
       8u, 8u, 16u, 16u, 32u, 32u, 64u, 64u, 64u, 64u};
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-97") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-98") == 0);
   for (size_t source = 0u;
        source < sizeof(INTEGER_TYPES) / sizeof(INTEGER_TYPES[0]);
        source += 1u) {
@@ -11898,7 +12211,7 @@ static bool test_float_to_integer_rounding_hir(void) {
   static const char *const MODE_SPELLINGS[] = {
       "nearestEven", "nearestAwayFromZero", "towardZero",
       "towardPositive", "towardNegative"};
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-97") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-98") == 0);
   for (size_t source_index = 0u;
        source_index < sizeof(SOURCE_TYPES) / sizeof(SOURCE_TYPES[0]);
        source_index += 1u) {
@@ -13752,6 +14065,12 @@ static void fill_hir_output(uint8_t value) {
                sizeof(fixture.hir_enum_case_parameters));
   (void)memset(fixture.hir_enum_subset_members, value,
                sizeof(fixture.hir_enum_subset_members));
+  (void)memset(fixture.hir_tuple_components, value,
+               sizeof(fixture.hir_tuple_components));
+  (void)memset(fixture.hir_value_structs, value,
+               sizeof(fixture.hir_value_structs));
+  (void)memset(fixture.hir_value_struct_fields, value,
+               sizeof(fixture.hir_value_struct_fields));
   (void)memset(fixture.hir_functions, value, sizeof(fixture.hir_functions));
   (void)memset(fixture.hir_parameters, value, sizeof(fixture.hir_parameters));
   (void)memset(fixture.hir_blocks, value, sizeof(fixture.hir_blocks));
@@ -13772,6 +14091,10 @@ static void fill_hir_output(uint8_t value) {
   (void)memset(fixture.hir_arguments, value, sizeof(fixture.hir_arguments));
   (void)memset(fixture.hir_enum_payloads, value,
                sizeof(fixture.hir_enum_payloads));
+  (void)memset(fixture.hir_tuple_elements, value,
+               sizeof(fixture.hir_tuple_elements));
+  (void)memset(fixture.hir_value_struct_initializers, value,
+               sizeof(fixture.hir_value_struct_initializers));
   (void)memset(fixture.hir_requirements, value,
                sizeof(fixture.hir_requirements));
   (void)memset(fixture.hir_values, value, sizeof(fixture.hir_values));
@@ -13805,6 +14128,9 @@ static bool hir_output_is_byte(uint8_t value) {
       (const uint8_t *)fixture.hir_enum_cases,
       (const uint8_t *)fixture.hir_enum_case_parameters,
       (const uint8_t *)fixture.hir_enum_subset_members,
+      (const uint8_t *)fixture.hir_tuple_components,
+      (const uint8_t *)fixture.hir_value_structs,
+      (const uint8_t *)fixture.hir_value_struct_fields,
       (const uint8_t *)fixture.hir_functions,
       (const uint8_t *)fixture.hir_parameters,
       (const uint8_t *)fixture.hir_blocks,
@@ -13818,6 +14144,8 @@ static bool hir_output_is_byte(uint8_t value) {
       (const uint8_t *)fixture.hir_host_parameters,
       (const uint8_t *)fixture.hir_arguments,
       (const uint8_t *)fixture.hir_enum_payloads,
+      (const uint8_t *)fixture.hir_tuple_elements,
+      (const uint8_t *)fixture.hir_value_struct_initializers,
       (const uint8_t *)fixture.hir_requirements,
       (const uint8_t *)fixture.hir_values,
       (const uint8_t *)fixture.hir_interpolation_segments,
@@ -13835,6 +14163,9 @@ static bool hir_output_is_byte(uint8_t value) {
       sizeof(fixture.hir_enum_cases),
       sizeof(fixture.hir_enum_case_parameters),
       sizeof(fixture.hir_enum_subset_members),
+      sizeof(fixture.hir_tuple_components),
+      sizeof(fixture.hir_value_structs),
+      sizeof(fixture.hir_value_struct_fields),
       sizeof(fixture.hir_functions),
       sizeof(fixture.hir_parameters), sizeof(fixture.hir_blocks),
       sizeof(fixture.hir_block_arguments),
@@ -13845,6 +14176,8 @@ static bool hir_output_is_byte(uint8_t value) {
       sizeof(fixture.hir_calls),
       sizeof(fixture.hir_host_parameters), sizeof(fixture.hir_arguments),
       sizeof(fixture.hir_enum_payloads),
+      sizeof(fixture.hir_tuple_elements),
+      sizeof(fixture.hir_value_struct_initializers),
       sizeof(fixture.hir_requirements), sizeof(fixture.hir_values),
       sizeof(fixture.hir_interpolation_segments),
       sizeof(fixture.hir_terminators), sizeof(fixture.hir_entries),
@@ -18591,7 +18924,7 @@ static bool test_explicit_integer_saturating_hir(void) {
 }
 
 static bool test_checked_integer_arithmetic_hir_matrix(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-97") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-98") == 0);
   typedef struct {
     const char *name;
     const char *suffix;
@@ -21565,6 +21898,7 @@ int main(int argc, char **argv) {
   if (!test_enum_switch_hir()) return 1;
   if (!test_enum_subset_hir()) return 1;
   if (!test_enum_payload_captures()) return 1;
+  if (!test_flat_product_value_hir()) return 1;
   if (!test_enum_switch_local_calls()) return 1;
   if (!test_enum_switch_cfg_composition_barrier()) return 1;
   if (!test_capacity_and_alias_barriers()) return 1;

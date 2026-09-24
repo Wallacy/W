@@ -6062,6 +6062,33 @@ static bool frontend_type_equal(const frontend_context *context,
   return frontend_type_equal_inner(context, left, right, 0u);
 }
 
+static bool frontend_flat_i64_tuple_type_equal(
+    const frontend_context *context, frontend_simple_type left,
+    frontend_simple_type right) {
+  if (left.kind != W_SEED_FRONTEND_TYPE_TUPLE ||
+      right.kind != W_SEED_FRONTEND_TYPE_TUPLE ||
+      tuple_component_count(context, left) != 2u ||
+      tuple_component_count(context, right) != 2u)
+    return false;
+  for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+    frontend_simple_type left_component = simple_type_unknown();
+    frontend_simple_type right_component = simple_type_unknown();
+    w_seed_frontend_text left_label = {NULL, 0u};
+    w_seed_frontend_text right_label = {NULL, 0u};
+    if (!tuple_component_type_at(context, left, ordinal, &left_component,
+                                 NULL, &left_label) ||
+        !tuple_component_type_at(context, right, ordinal, &right_component,
+                                 NULL, &right_label) ||
+        left_label.length != 0u || right_label.length != 0u ||
+        left_component.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+        right_component.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+        !left_component.is_signed || !right_component.is_signed ||
+        left_component.bit_width != 64u || right_component.bit_width != 64u)
+      return false;
+  }
+  return frontend_type_equal(context, left, right);
+}
+
 static bool frontend_widening_allowed(const frontend_context *context,
                                       frontend_simple_type actual,
                                       frontend_simple_type expected) {
@@ -22577,9 +22604,25 @@ static bool resolve_frontend_links(frontend_context *context) {
           }
           const w_seed_frontend_statement *binding =
               &context->output->statements[binding_index];
-          if (binding->effective_type == W_SEED_FRONTEND_NONE ||
-              (size_t)binding->effective_type >= context->count.types ||
-              expression->inferred_type != binding->effective_type) {
+          bool same_type = expression->inferred_type ==
+                           binding->effective_type;
+          if (!same_type && expression->inferred_type != W_SEED_FRONTEND_NONE &&
+              (size_t)expression->inferred_type < context->count.types &&
+              binding->effective_type != W_SEED_FRONTEND_NONE &&
+              (size_t)binding->effective_type < context->count.types) {
+            const frontend_simple_type expression_type =
+                simple_type_from_type_index(
+                    context, expression->inferred_type, simple_type_unknown());
+            const frontend_simple_type binding_type =
+                simple_type_from_type_index(
+                    context, binding->effective_type, simple_type_unknown());
+            /* A normalized tuple type can have distinct source-backed type
+             * records while denoting the same structural product. Keep all
+             * other local-binding resolution exact, including nominal types. */
+            same_type = frontend_flat_i64_tuple_type_equal(
+                context, expression_type, binding_type);
+          }
+          if (!same_type) {
             expression->supported = false;
           }
         } else if (expression->supported &&

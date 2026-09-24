@@ -1119,7 +1119,7 @@ nome público, positional usa label vazio e qualquer outra policy permanece fora
 deste subset.
 
 W-1519 introduced the binding records in HIR0 schema `w-seed-hir0-2`.
-Current schema `w-seed-hir0-9` generalizes that contract. The caller-owned
+Current schema `w-seed-hir0-98` generalizes that contract. The caller-owned
 `w_seed_hir0_binding` record contains `owner_instruction`, `owner_block`,
 `ordinal`, `type_index`, `name`, `initializer_value`, `source_span`, and
 `is_mutable=false`. `BINDING` carries its binding index. `CALL` carries none.
@@ -1134,7 +1134,7 @@ fail-closed. Lowering copies binding names and the initializer graph. It never
 performs downstream textual lookup.
 
 W-1524 introduced the postorder value graph in schema `w-seed-hir0-3`. Current
-schema `w-seed-hir0-9` gives binding initializers explicit roots in that graph,
+schema `w-seed-hir0-98` gives binding initializers explicit roots in that graph,
 adds indexed parameter reads, and carries scalar terminator and call results.
 The canonical base type table contains Unit, String, signed `i64`, and Bool.
 When a source uses `UInt` or `u64`, HIR0 appends one canonical unsigned `u64`
@@ -1174,6 +1174,44 @@ truncamento, alias, overlap, owner, range, type, ordinal, identity,
 requirement, terminator, entry ou digest inconsistente falha sem alterar os
 buffers do caller. HLO0 chama o verifier na entrada e não acessa source,
 frontend, CST ou host scope.
+
+### Flat product values: verified HIR only
+
+HIR0 schema `w-seed-hir0-98` adds caller-owned component, field, construction,
+initializer, and projection relations for exactly two flat value shapes already
+backed by the seed frontend. [`flat-aggregate-pair.w`](fixtures/flat-aggregate-pair.w)
+uses an unlabeled structural `(i64, i64)` tuple. Its type identity is structural;
+component records retain the two `i64` types, and tuple construction owns two
+child values in source order. Tuple projection has an explicit ordinal rather
+than borrowing `float_bits`.
+
+[`flat-value-struct-pair.w`](fixtures/flat-value-struct-pair.w) uses one local,
+immutable nominal value struct with two `i64` fields. Its identity is the
+module/declaration pair. Field declarations retain canonical order, while each
+initializer separately records source evaluation ordinal and declaration field
+ordinal, allowing labeled initializers in a different order. Struct and tuple
+constructors are virtual values: they are neither calls nor materialized
+objects. The existing `(u64, Bool)` tuple remains isolated in its earlier
+kind-discriminated representation because it is a different source type shape;
+there are not two canonical encodings for the same shape.
+
+Both fixtures pass source → frontend → HIR0 measure/run → `program_from_output`
+→ independent HIR verification. The verifier checks dense, gap-free ranges,
+exact owners and ordinals, child-before-parent ordering, unique child ownership,
+types and nominal identity through parameters, calls, bindings and return,
+complete unique field initialization, valid projections, and receipt/digest
+consistency. Resealed mutations cover malformed ranges and owners, orphaned or
+multiply-owned children, wrong types/identity/ordinals, swapped same-typed
+declaration ordinals, duplicate or missing fields, projection errors, output
+capacity, aliases, result counts, and digests. Measure and run remain
+transactional and caller-owned.
+
+This is HIR-only support, not an executable product. The added product kinds
+remain rejected by ProductClosure0; this slice makes no HLO0, MLIR, Native0,
+layout, ABI/FFI, runtime, or performance claim. Payload enums, arrays, mutable
+aggregates, nested or arbitrary aggregate shapes, and target layout/ABI work
+remain blockers. The benchmark disposition is compiler-lifecycle; the C23 and
+Rust witnesses are correctness oracles only.
 
 ## HLO0 verified-HIR-backed de print-literal
 

@@ -1236,6 +1236,9 @@ static bool product_value_kind_supported(w_seed_hir0_value_kind kind) {
     case W_SEED_HIR0_VALUE_UNARY_U64:
     case W_SEED_HIR0_VALUE_UNARY_FLOAT:
     case W_SEED_HIR0_VALUE_TUPLE_ELEMENT:
+    case W_SEED_HIR0_VALUE_TUPLE:
+    case W_SEED_HIR0_VALUE_VALUE_STRUCT:
+    case W_SEED_HIR0_VALUE_VALUE_STRUCT_FIELD:
     case W_SEED_HIR0_VALUE_NUMERIC_WIDEN:
     case W_SEED_HIR0_VALUE_FLOAT_FROM_BITS:
     case W_SEED_HIR0_VALUE_FLOAT_TO_BITS:

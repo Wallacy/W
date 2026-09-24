@@ -494,7 +494,7 @@ order:
 | Lane | Bounded package | May advance independently | Integration gate |
 | --- | --- | --- | --- |
 | CFG proof | Bounded two-loop HIR emission, reachability, dominance, typed carriers and adversarial lineage checks | Native selection and MLIR may consume only this verified graph, without another source-shape recognizer | Execute the pinned nested-loop witness through public CRT-free Windows and Linux/WSL products |
-| Product values | Flat copyable tuple/value-struct frontend witnesses and independent C23/Rust correctness oracles | General HIR records may be added without choosing physical layout or ABI | Verify both witnesses in HIR before native aggregate selection begins |
+| Product values | HIR-only flat two-`i64` tuple and one local immutable two-`i64` value-struct witnesses, plus independent C23/Rust correctness oracles | Source→frontend→measured/emitted HIR→output bridge→independent verifier; no native or performance claim | Extend a later native consumer from verified HIR only after layout/ABI policy and exact native witnesses are selected |
 | Native output | Exact output storage, Hello-minimal layout and dependency-closure receipts | Product-value work uses an isolated checkout while current products are measured | Refresh every affected live public-product receipt before treating the catalog as current |
 
 Each lane should produce one useful family-level result, not a new executable
@@ -641,14 +641,29 @@ written; source equivalence remains owned by the pre-emission lexical plan,
 while the independent HIR verifier owns graph and carrier validity. The next
 promotion must preserve both proofs.
 
-The next disjoint family can be prepared beside the rank-3 CFG proof work:
-flat copyable tuple and value-struct construction, projection, local argument,
-and return semantics. Pin a source witness and independent C23/Rust correctness
-oracles, then assign frontend and native research separate ownership. Its HIR
-writer may start after this bounded nested-loop HIR package is committed. This
-bounded product-value slice would not close payload enums, fixed arrays,
-general aggregate layout, or the C ABI boundary; those need later exact
-witnesses. A parser-accepted aggregate form is not yet an executable product.
+The next bounded product-value slice now reaches verified HIR0, not native
+output. `flat-aggregate-pair.w` covers an unlabeled structural `(i64, i64)`:
+HIR records both component types, a virtual tuple constructor with explicit
+element ownership, projections with their own ordinals, immutable locals,
+local arguments and return. Tuple identity is structural. The existing
+`(u64, Bool)` tuple remains in its isolated legacy representation because it
+is a different typed shape; the same source shape is not represented twice.
+`flat-value-struct-pair.w` covers one local nominal value struct with two
+`i64` fields: HIR identity is the module/declaration pair, field declarations
+retain canonical order, and initializers preserve both source evaluation order
+and declaration-field ordinal. Its constructor is a virtual value, never a
+call or materialized object. Both fixtures pass source→frontend→HIR0
+measure/run→program bridge→independent verification, with resealed mutations
+for ownership, ranges, types, identities, ordinals, projections, completeness,
+capacity, aliasing, result, and digests. The benchmark disposition is
+compiler-lifecycle; there is no native execution or performance result.
+
+This HIR-only slice does not implement layout, ABI/FFI, payload enums, arrays,
+mutable aggregates, nested/arbitrary aggregates, or a native consumer. The
+ProductClosure0 selection path explicitly fails closed for the new value
+kinds. The C23/Rust files remain correctness oracles only; no parser acceptance,
+HIR verification, or oracle establishes a W native product until the later
+native and target-specific witnesses exist.
 The [flat-pair witness](compiler/seed-c/fixtures/flat-aggregate-pair.w) pins a
 positional two-`i64` tuple, construction, projection, labelled calls, return,
 and body entry. The bounded frontend records its unlabeled tuple types,
