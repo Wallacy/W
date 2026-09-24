@@ -63,10 +63,14 @@ static const char MLIR0_WINDOWS_PREFIX[] =
     "  llvm.mlir.global private constant @w_seed_mlir0_payload(\"";
 static const char MLIR0_WINDOWS_GLOBAL_MIDDLE[] =
     "\") : !llvm.array<";
+#define MLIR0_OUTPUT_BUFFER_CAPACITY_TOKEN "{output_buffer_capacity}"
 #define MLIR0_WINDOWS_BUFFER_GLOBAL_TEXT                                      \
-  "  llvm.mlir.global internal @w_seed_mlir0_buffer() : !llvm.array<4097 x i8> {\n" \
-  "    %buffer_zero = llvm.mlir.zero : !llvm.array<4097 x i8>\n"            \
-  "    llvm.return %buffer_zero : !llvm.array<4097 x i8>\n"                 \
+  "  llvm.mlir.global internal @w_seed_mlir0_buffer() : !llvm.array<"       \
+      MLIR0_OUTPUT_BUFFER_CAPACITY_TOKEN " x i8> {\n"                    \
+  "    %buffer_zero = llvm.mlir.zero : !llvm.array<"                       \
+      MLIR0_OUTPUT_BUFFER_CAPACITY_TOKEN " x i8>\n"                      \
+  "    llvm.return %buffer_zero : !llvm.array<"                            \
+      MLIR0_OUTPUT_BUFFER_CAPACITY_TOKEN " x i8>\n"                      \
   "  }\n"
 #define MLIR0_WINDOWS_EXIT_PROCESS_DECL                                    \
   "  llvm.func @ExitProcess(%code: i32) attributes "                    \
@@ -75,7 +79,6 @@ static const char MLIR0_WINDOWS_BUFFER_GLOBAL[] =
     MLIR0_WINDOWS_BUFFER_GLOBAL_TEXT;
 static const char MLIR0_WINDOWS_GLOBAL_SUFFIX[] =
     " x i8>\n"
-    MLIR0_WINDOWS_BUFFER_GLOBAL_TEXT
     "  llvm.func @GetStdHandle(%n: i32) -> !llvm.ptr\n"
     "  llvm.func @WriteFile(%handle: !llvm.ptr, %buffer: !llvm.ptr, %count: i32, %written: !llvm.ptr, %overlapped: !llvm.ptr) -> i32\n"
     MLIR0_WINDOWS_EXIT_PROCESS_DECL
@@ -1022,6 +1025,45 @@ static bool append_size(uint8_t *buffer, size_t capacity, size_t *offset,
     digits[length - index - 1u] = swap;
   }
   return append_bytes(buffer, capacity, offset, digits, length);
+}
+
+static bool output_buffer_capacity(size_t maximum_stdout_bytes,
+                                   size_t *buffer_bytes) {
+  if (buffer_bytes == NULL ||
+      maximum_stdout_bytes > MLIR0_MAX_STDOUT_BYTES ||
+      maximum_stdout_bytes == SIZE_MAX)
+    return false;
+  const size_t candidate = maximum_stdout_bytes + 1u;
+  if (candidate == 0u) return false;
+  *buffer_bytes = candidate;
+  return true;
+}
+
+/* Expand only the private output-buffer capacity token. Keep generated MLIR
+ * all-or-nothing in the caller-owned artifact and reject a malformed template
+ * rather than accidentally restoring an unproved fixed reserve. */
+static bool append_output_capacity_template(uint8_t *buffer,
+                                            size_t capacity, size_t *offset,
+                                            const char *template_text,
+                                            size_t buffer_bytes) {
+  static const char token[] = MLIR0_OUTPUT_BUFFER_CAPACITY_TOKEN;
+  if (buffer == NULL || offset == NULL || template_text == NULL ||
+      buffer_bytes == 0u || buffer_bytes > MLIR0_MAX_STDOUT_BYTES + 1u)
+    return false;
+  const size_t token_bytes = sizeof(token) - 1u;
+  const char *cursor = template_text;
+  bool replaced = false;
+  for (;;) {
+    const char *match = strstr(cursor, token);
+    if (match == NULL) break;
+    const size_t prefix_bytes = (size_t)(match - cursor);
+    if (!append_bytes(buffer, capacity, offset, cursor, prefix_bytes) ||
+        !append_size(buffer, capacity, offset, buffer_bytes))
+      return false;
+    cursor = match + token_bytes;
+    replaced = true;
+  }
+  return replaced && append_literal(buffer, capacity, offset, cursor);
 }
 
 static bool append_i64(uint8_t *buffer, size_t capacity, size_t *offset,
@@ -5562,6 +5604,9 @@ static bool build_dynamic_artifact(
       digest == NULL ||
       sequence->maximum_stdout_bytes > MLIR0_MAX_STDOUT_BYTES)
     return false;
+  size_t buffer_bytes = 0u;
+  if (!output_buffer_capacity(sequence->maximum_stdout_bytes, &buffer_bytes))
+    return false;
   mlir0_dynamic_plan plan;
   if (!build_dynamic_plan(program, sequence, &plan)) return false;
 
@@ -5585,8 +5630,9 @@ static bool build_dynamic_artifact(
       !append_size(artifact, capacity, &offset, plan.text_bytes) ||
       !append_literal(artifact, capacity, &offset, " x i8>\n") ||
       (windows &&
-       !append_literal(artifact, capacity, &offset,
-                       MLIR0_WINDOWS_BUFFER_GLOBAL)) ||
+       !append_output_capacity_template(
+           artifact, capacity, &offset, MLIR0_WINDOWS_BUFFER_GLOBAL,
+           buffer_bytes)) ||
       !append_literal(artifact, capacity, &offset,
                       (!plan.has_i64 &&
                        reachable_values_have_u64(program,
@@ -5646,14 +5692,18 @@ static bool build_dynamic_artifact(
   if (!append_literal(artifact, capacity, &offset,
                       "  llvm.func @main() -> i32 {\n") ||
       (windows
-           ? !append_literal(
+           ? !append_output_capacity_template(
                  artifact, capacity, &offset,
                  "    %buffer_base = llvm.mlir.addressof @w_seed_mlir0_buffer : !llvm.ptr\n"
-                 "    %buffer = llvm.getelementptr %buffer_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<4097 x i8>\n")
-           : !append_literal(
+                 "    %buffer = llvm.getelementptr %buffer_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<"
+                 MLIR0_OUTPUT_BUFFER_CAPACITY_TOKEN " x i8>\n",
+                 buffer_bytes)
+           : !append_output_capacity_template(
                  artifact, capacity, &offset,
-                 "    %capacity = llvm.mlir.constant(4097 : i64) : i64\n"
-                 "    %buffer = llvm.alloca %capacity x i8 : (i64) -> !llvm.ptr\n")) ||
+                 "    %capacity = llvm.mlir.constant("
+                 MLIR0_OUTPUT_BUFFER_CAPACITY_TOKEN " : i64) : i64\n"
+                 "    %buffer = llvm.alloca %capacity x i8 : (i64) -> !llvm.ptr\n",
+                 buffer_bytes)) ||
       !append_literal(artifact, capacity, &offset,
                       "    %text_base = llvm.mlir.addressof @w_seed_mlir0_text : !llvm.ptr\n") ||
       !append_value_operations(program, &plan, artifact, capacity, &offset))
@@ -5661,6 +5711,15 @@ static bool build_dynamic_artifact(
   if (!append_literal(artifact, capacity, &offset,
                       "    %cursor0 = llvm.mlir.constant(0 : i64) : i64\n") ||
       !append_dynamic_actions(program, &plan, artifact, capacity, &offset))
+    return false;
+  if (!append_literal(
+          artifact, capacity, &offset,
+          "    %output_terminator_zero = llvm.mlir.constant(0 : i8) : i8\n"
+          "    %output_terminator_address = llvm.getelementptr %buffer[%cursor") ||
+      !append_size(artifact, capacity, &offset, plan.action_count) ||
+      !append_literal(artifact, capacity, &offset,
+                     "] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+                     "    llvm.store %output_terminator_zero, %output_terminator_address : i8, !llvm.ptr\n"))
     return false;
   if (windows) {
     if (!append_literal(artifact, capacity, &offset,
@@ -9938,6 +9997,10 @@ static bool build_program_artifact(
   if (!build_program_plan(program, hir_result, &plan, false, true) ||
       plan.has_reachable_panic != selection->has_reachable_panic)
     return false;
+  size_t buffer_bytes = 0u;
+  if (!output_buffer_capacity(selection->maximum_stdout_bytes,
+                              &buffer_bytes))
+    return false;
   /* The CRT-free Windows object needs `_fltused` for emitted floating types;
    * omit the global when the reachable program has no floating ABI surface. */
   const bool has_float_abi_type =
@@ -9969,8 +10032,9 @@ static bool build_program_artifact(
       !append_size(artifact, capacity, &offset, plan.text_bytes) ||
       !append_literal(artifact, capacity, &offset, " x i8>\n") ||
       (windows &&
-       !append_literal(artifact, capacity, &offset,
-                       MLIR0_WINDOWS_BUFFER_GLOBAL)) ||
+       !append_output_capacity_template(
+           artifact, capacity, &offset, MLIR0_WINDOWS_BUFFER_GLOBAL,
+           buffer_bytes)) ||
       (windows && has_float_abi_type &&
        !append_literal(artifact, capacity, &offset,
                        "  llvm.mlir.global @_fltused(0 : i32) : i32\n")) ||
@@ -10045,14 +10109,18 @@ static bool build_program_artifact(
           artifact, capacity, &offset,
           "  llvm.func @main() -> i32 {\n") ||
       (windows
-           ? !append_literal(
+           ? !append_output_capacity_template(
                  artifact, capacity, &offset,
                  "    %buffer_base = llvm.mlir.addressof @w_seed_mlir0_buffer : !llvm.ptr\n"
-                 "    %buffer = llvm.getelementptr %buffer_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<4097 x i8>\n")
-           : !append_literal(
+                 "    %buffer = llvm.getelementptr %buffer_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<"
+                 MLIR0_OUTPUT_BUFFER_CAPACITY_TOKEN " x i8>\n",
+                 buffer_bytes)
+           : !append_output_capacity_template(
                  artifact, capacity, &offset,
-                 "    %capacity = llvm.mlir.constant(4097 : i64) : i64\n"
-                 "    %buffer = llvm.alloca %capacity x i8 : (i64) -> !llvm.ptr\n")) ||
+                 "    %capacity = llvm.mlir.constant("
+                 MLIR0_OUTPUT_BUFFER_CAPACITY_TOKEN " : i64) : i64\n"
+                 "    %buffer = llvm.alloca %capacity x i8 : (i64) -> !llvm.ptr\n",
+                 buffer_bytes)) ||
       !append_literal(
           artifact, capacity, &offset,
           "    %cursor_count = llvm.mlir.constant(1 : i64) : i64\n"
@@ -10065,7 +10133,10 @@ static bool build_program_artifact(
       !append_literal(
           artifact, capacity, &offset,
           "(%buffer, %cursor_address) : (!llvm.ptr, !llvm.ptr) -> ()\n"
-          "    %length = llvm.load %cursor_address : !llvm.ptr -> i64\n") ||
+          "    %length = llvm.load %cursor_address : !llvm.ptr -> i64\n"
+          "    %output_terminator_zero = llvm.mlir.constant(0 : i8) : i8\n"
+          "    %output_terminator_address = llvm.getelementptr %buffer[%length] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+          "    llvm.store %output_terminator_zero, %output_terminator_address : i8, !llvm.ptr\n") ||
       (windows
            ? !append_literal(
                  artifact, capacity, &offset,
@@ -10592,7 +10663,8 @@ static const char MLIR0_PROCESS_EXECUTABLE_COUNT_ONLY_WINDOWS_ROOT[] =
     "    llvm.cond_br %process_root_initialized, ^process_evaluate, ^process_early_fault\n"
     "  ^process_evaluate:\n"
     "    %process_buffer_base = llvm.mlir.addressof @w_seed_mlir0_buffer : !llvm.ptr\n"
-    "    %process_buffer = llvm.getelementptr %process_buffer_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<4097 x i8>\n"
+    "    %process_buffer = llvm.getelementptr %process_buffer_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<"
+    MLIR0_OUTPUT_BUFFER_CAPACITY_TOKEN " x i8>\n"
     "    llvm.store %process_zero, %process_cursor_address : i64, !llvm.ptr\n"
     "    llvm.store %process_zero, %process_fault_address : i64, !llvm.ptr\n";
 
@@ -10605,7 +10677,8 @@ static const char MLIR0_PROCESS_EXECUTABLE_COUNT_ONLY_LINUX_ROOT[] =
     "    %process_vector_words = llvm.mlir.constant(3 : i64) : i64\n"
     "    %process_root_words = llvm.mlir.constant(8 : i64) : i64\n"
     "    %process_owner_words = llvm.mlir.constant(5 : i64) : i64\n"
-    "    %process_buffer_capacity = llvm.mlir.constant(4097 : i64) : i64\n"
+    "    %process_buffer_capacity = llvm.mlir.constant("
+    MLIR0_OUTPUT_BUFFER_CAPACITY_TOKEN " : i64) : i64\n"
     "    %process_cursor_count = llvm.mlir.constant(1 : i64) : i64\n"
     "    %process_vector = llvm.alloca %process_vector_words x i64 : (i64) -> !llvm.ptr\n"
     "    %process_root = llvm.alloca %process_root_words x i64 : (i64) -> !llvm.ptr\n"
@@ -10720,6 +10793,10 @@ static bool build_process_executable_artifact(
       !plan.reachable_functions[selection->function_index] ||
       plan.has_reachable_panic != selection->has_reachable_panic)
     return false;
+  size_t buffer_bytes = 0u;
+  if (!output_buffer_capacity(selection->maximum_stdout_bytes,
+                              &buffer_bytes))
+    return false;
   const bool count_only_arguments =
       process_plan_observes_only_arguments_count(program, selection, &plan);
   mlir0_process_emit_context process = {
@@ -10807,8 +10884,9 @@ static bool build_process_executable_artifact(
              !append_literal(artifact, capacity, &offset, " x i8>\n"))
     return false;
   if ((windows &&
-       !append_literal(artifact, capacity, &offset,
-                       MLIR0_WINDOWS_BUFFER_GLOBAL)) ||
+       !append_output_capacity_template(
+           artifact, capacity, &offset, MLIR0_WINDOWS_BUFFER_GLOBAL,
+           buffer_bytes)) ||
       (windows && process.has_float_to_integer_rounding &&
        !append_literal(artifact, capacity, &offset,
                        "  llvm.mlir.global @_fltused(0 : i32) : i32\n")) ||
@@ -10907,13 +10985,14 @@ static bool build_process_executable_artifact(
             capacity, &offset))
       return false;
   if (count_only_arguments) {
-    if (!append_literal(
+    if (!append_output_capacity_template(
             artifact, capacity, &offset,
             windows ? MLIR0_PROCESS_EXECUTABLE_COUNT_ONLY_WINDOWS_ROOT
-                    : MLIR0_PROCESS_EXECUTABLE_COUNT_ONLY_LINUX_ROOT))
+                    : MLIR0_PROCESS_EXECUTABLE_COUNT_ONLY_LINUX_ROOT,
+            buffer_bytes))
       return false;
   } else if (windows) {
-    if (!append_literal(
+    if (!append_output_capacity_template(
             artifact, capacity, &offset,
             "  llvm.func @mainCRTStartup() {\n"
             "    %process_zero = llvm.mlir.constant(0 : i64) : i64\n"
@@ -10962,12 +11041,14 @@ static bool build_process_executable_artifact(
             "    llvm.cond_br %process_root_initialized, ^process_evaluate, ^process_early_fault\n"
             "  ^process_evaluate:\n"
             "    %process_buffer_base = llvm.mlir.addressof @w_seed_mlir0_buffer : !llvm.ptr\n"
-            "    %process_buffer = llvm.getelementptr %process_buffer_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<4097 x i8>\n"
+            "    %process_buffer = llvm.getelementptr %process_buffer_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<"
+            MLIR0_OUTPUT_BUFFER_CAPACITY_TOKEN " x i8>\n"
             "    llvm.store %process_zero, %process_cursor_address : i64, !llvm.ptr\n"
-            "    llvm.store %process_zero, %process_fault_address : i64, !llvm.ptr\n"))
+            "    llvm.store %process_zero, %process_fault_address : i64, !llvm.ptr\n",
+            buffer_bytes))
       return false;
   } else {
-    if (!append_literal(
+    if (!append_output_capacity_template(
             artifact, capacity, &offset,
             "  llvm.func @main() -> i32 {\n"
             "    %process_zero = llvm.mlir.constant(0 : i64) : i64\n"
@@ -10977,7 +11058,8 @@ static bool build_process_executable_artifact(
             "    %process_vector_words = llvm.mlir.constant(3 : i64) : i64\n"
             "    %process_root_words = llvm.mlir.constant(8 : i64) : i64\n"
             "    %process_owner_words = llvm.mlir.constant(5 : i64) : i64\n"
-            "    %process_buffer_capacity = llvm.mlir.constant(4097 : i64) : i64\n"
+    "    %process_buffer_capacity = llvm.mlir.constant("
+    MLIR0_OUTPUT_BUFFER_CAPACITY_TOKEN " : i64) : i64\n"
             "    %process_items_base = llvm.mlir.addressof @w_seed_process_items : !llvm.ptr\n"
             "    %process_items = llvm.getelementptr %process_items_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<768 x i64>\n"
             "    %process_vector = llvm.alloca %process_vector_words x i64 : (i64) -> !llvm.ptr\n"
@@ -11018,7 +11100,8 @@ static bool build_process_executable_artifact(
             "    llvm.cond_br %process_root_initialized, ^process_evaluate, ^process_early_fault\n"
             "  ^process_evaluate:\n"
             "    llvm.store %process_zero, %process_cursor_address : i64, !llvm.ptr\n"
-            "    llvm.store %process_zero, %process_fault_address : i64, !llvm.ptr\n"))
+            "    llvm.store %process_zero, %process_fault_address : i64, !llvm.ptr\n",
+            buffer_bytes))
       return false;
   }
   if (!append_literal(
@@ -11092,6 +11175,9 @@ static bool build_process_executable_artifact(
             "    llvm.br ^process_exit(%process_abnormal_status : i32)\n"
             "  ^process_exact_success(%process_exact_success_status: i32):\n"
             "    %process_length = llvm.load %process_cursor_address : !llvm.ptr -> i64\n"
+            "    %process_output_terminator_zero = llvm.mlir.constant(0 : i8) : i8\n"
+            "    %process_output_terminator_address = llvm.getelementptr %process_buffer[%process_length] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+            "    llvm.store %process_output_terminator_zero, %process_output_terminator_address : i8, !llvm.ptr\n"
             "    %process_has_output = llvm.icmp \"ne\" %process_length, %process_zero : i64\n"
             "    llvm.cond_br %process_has_output, ^process_exact_flush(%process_exact_success_status : i32), ^process_exit(%process_exact_success_status : i32)\n"
             "  ^process_exact_flush(%process_exact_flush_status: i32):\n"))
@@ -11174,6 +11260,9 @@ static bool build_process_executable_artifact(
   } else if (!append_literal(
                  artifact, capacity, &offset,
                  "    %process_length = llvm.load %process_cursor_address : !llvm.ptr -> i64\n"
+                 "    %process_output_terminator_zero = llvm.mlir.constant(0 : i8) : i8\n"
+                 "    %process_output_terminator_address = llvm.getelementptr %process_buffer[%process_length] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+                 "    llvm.store %process_output_terminator_zero, %process_output_terminator_address : i8, !llvm.ptr\n"
                  "    %process_has_output = llvm.icmp \"ne\" %process_length, %process_zero : i64\n"
                  "    llvm.cond_br %process_has_output, ^process_flush, ^process_release_context(%process_status : i32)\n"
                  "  ^process_flush:\n"))
@@ -13161,6 +13250,10 @@ static bool build_cooperative_executable_artifact(
   mlir0_program_plan plan;
   if (!build_cooperative_output_plan(program, hir_result, selection, &plan))
     return false;
+  const size_t maximum_stdout_bytes = plan.text_bytes + 20u;
+  size_t buffer_bytes = 0u;
+  if (!output_buffer_capacity(maximum_stdout_bytes, &buffer_bytes))
+    return false;
   const bool windows = target_is_windows(target);
   size_t offset = 0u;
   int64_t result_value = 0;
@@ -13180,8 +13273,9 @@ static bool build_cooperative_executable_artifact(
       !append_size(artifact, capacity, &offset, plan.text_bytes) ||
       !append_literal(artifact, capacity, &offset, " x i8>\n") ||
       (windows &&
-       !append_literal(artifact, capacity, &offset,
-                       MLIR0_WINDOWS_BUFFER_GLOBAL)) ||
+       !append_output_capacity_template(
+           artifact, capacity, &offset, MLIR0_WINDOWS_BUFFER_GLOBAL,
+           buffer_bytes)) ||
       !append_literal(artifact, capacity, &offset, MLIR0_RUNTIME_HELPERS) ||
       (windows
            ? !append_literal(artifact, capacity, &offset,
@@ -13194,19 +13288,30 @@ static bool build_cooperative_executable_artifact(
       !append_literal(artifact, capacity, &offset,
                       "  llvm.func @main() -> i32 {\n") ||
       (windows
-           ? !append_literal(
+           ? !append_output_capacity_template(
                  artifact, capacity, &offset,
                  "    %buffer_base = llvm.mlir.addressof @w_seed_mlir0_buffer : !llvm.ptr\n"
-                 "    %buffer = llvm.getelementptr %buffer_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<4097 x i8>\n")
-           : !append_literal(
+                 "    %buffer = llvm.getelementptr %buffer_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<"
+                 MLIR0_OUTPUT_BUFFER_CAPACITY_TOKEN " x i8>\n",
+                 buffer_bytes)
+           : !append_output_capacity_template(
                  artifact, capacity, &offset,
-                 "    %capacity = llvm.mlir.constant(4097 : i64) : i64\n"
-                 "    %buffer = llvm.alloca %capacity x i8 : (i64) -> !llvm.ptr\n")) ||
+                 "    %capacity = llvm.mlir.constant("
+                 MLIR0_OUTPUT_BUFFER_CAPACITY_TOKEN " : i64) : i64\n"
+                 "    %buffer = llvm.alloca %capacity x i8 : (i64) -> !llvm.ptr\n",
+                 buffer_bytes)) ||
       !append_literal(
           artifact, capacity, &offset,
           "    %cooperative_text_base = llvm.mlir.addressof @w_seed_cooperative_text : !llvm.ptr\n"
           "    %cooperative_result = func.call @w_seed_cooperative_core() : () -> i64\n") ||
       !append_cooperative_output_actions(&plan, artifact, capacity, &offset) ||
+      !append_literal(artifact, capacity, &offset,
+                      "    %cooperative_output_terminator_zero = llvm.mlir.constant(0 : i8) : i8\n"
+                      "    %cooperative_output_terminator_address = llvm.getelementptr %buffer[%cooperative_cursor") ||
+      !append_size(artifact, capacity, &offset, plan.action_count) ||
+      !append_literal(artifact, capacity, &offset,
+                      "] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+                      "    llvm.store %cooperative_output_terminator_zero, %cooperative_output_terminator_address : i8, !llvm.ptr\n") ||
       (windows
            ? !append_literal(artifact, capacity, &offset,
                              "    %written = llvm.call @w_seed_write(%buffer, %cooperative_cursor")

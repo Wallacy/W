@@ -1412,7 +1412,18 @@ static bool test_process_arguments_count_comparison_mlir(void) {
             &input, &WINDOWS_TARGET,
             &(w_seed_mlir0_output){output, sizeof(output)}, &result) ==
         W_SEED_MLIR0_OK);
+  w_seed_native_subset0_process process_selection;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &fixture.hir_program, &fixture.hir_result,
+            &process_selection) == W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(process_selection.maximum_stdout_bytes == 36u);
   CHECK(result.written.mlir_bytes == counts.mlir_bytes &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "@w_seed_mlir0_buffer() : !llvm.array<37 x i8>") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "!llvm.array<37 x i8>") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.getelementptr %process_buffer[%process_length]") &&
         contains_bytes(output, result.written.mlir_bytes,
                        "llvm.func internal @w_seed_process_count_arguments(%command_line: !llvm.ptr) -> i64") &&
         contains_bytes(output, result.written.mlir_bytes,
@@ -2887,9 +2898,9 @@ static bool test_windows_target_runtime_surface(void) {
       "llvm.func @ExitProcess(%code: i32) attributes "
       "{passthrough = [\"noreturn\"]}\n"));
   CHECK(contains_bytes(first, counts.mlir_bytes, "@mainCRTStartup"));
-  CHECK(contains_bytes(first, counts.mlir_bytes, "@w_seed_mlir0_buffer"));
+  CHECK(!contains_bytes(first, counts.mlir_bytes, "@w_seed_mlir0_buffer"));
   CHECK(!contains_bytes(first, counts.mlir_bytes, "@_fltused"));
-  CHECK(contains_bytes(first, counts.mlir_bytes, "llvm.mlir.zero"));
+  CHECK(!contains_bytes(first, counts.mlir_bytes, "llvm.mlir.zero"));
   CHECK(contains_bytes(first, counts.mlir_bytes,
                        "llvm.load %written : !llvm.ptr -> i32"));
   CHECK(contains_bytes(first, counts.mlir_bytes, "%write_complete"));
@@ -2923,9 +2934,19 @@ static bool test_windows_target_runtime_surface(void) {
             &dynamic_input, &WINDOWS_TARGET,
             &(w_seed_mlir0_output){second, sizeof(second)}, &dynamic_result) ==
         W_SEED_MLIR0_OK);
+  w_seed_native_subset0_program dynamic_selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &fixture.hir_program, &fixture.hir_result, &dynamic_selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(dynamic_selection.maximum_stdout_bytes == 5u);
   CHECK(contains_bytes(second, dynamic_counts.mlir_bytes,
-                       "@w_seed_mlir0_buffer"));
-  CHECK(contains_bytes(second, dynamic_counts.mlir_bytes, "llvm.mlir.zero"));
+                       "@w_seed_mlir0_buffer() : !llvm.array<6 x i8>"));
+  CHECK(contains_bytes(second, dynamic_counts.mlir_bytes,
+                       "llvm.getelementptr %buffer_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<6 x i8>"));
+  CHECK(contains_bytes(second, dynamic_counts.mlir_bytes,
+                       "llvm.getelementptr %buffer[%cursor2]"));
+  CHECK(contains_bytes(second, dynamic_counts.mlir_bytes,
+                       "llvm.store %output_terminator_zero, %output_terminator_address"));
   CHECK(contains_bytes(second, dynamic_counts.mlir_bytes, "@w_seed_write"));
   CHECK(contains_bytes(second, dynamic_counts.mlir_bytes, "@mainCRTStartup"));
   CHECK(contains_bytes(second, dynamic_counts.mlir_bytes, "%write_complete"));
@@ -5494,6 +5515,25 @@ static bool test_scalar_if_value_diamond(void) {
         find_bytes(artifact + flag,
                    main - flag, "llvm.select", 0u) ==
             SIZE_MAX);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.maximum_stdout_bytes == 34u);
+  const w_seed_mlir0_input windows_input = mlir_input();
+  w_seed_mlir0_counts windows_counts;
+  w_seed_mlir0_result windows_result;
+  CHECK(w_seed_mlir0_measure(&windows_input, &WINDOWS_TARGET,
+                             &windows_counts, &windows_result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &windows_input, &WINDOWS_TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)},
+            &windows_result) == W_SEED_MLIR0_OK);
+  CHECK(contains_bytes(artifact, windows_result.written.mlir_bytes,
+                       "@w_seed_mlir0_buffer() : !llvm.array<35 x i8>") &&
+        contains_bytes(artifact, windows_result.written.mlir_bytes,
+                       "llvm.store %output_terminator_zero, %output_terminator_address"));
   return true;
 }
 
@@ -5610,6 +5650,22 @@ static bool test_nested_scalar_if_value_diamond(void) {
   CHECK(selection.has_cfg && selection.has_local_calls &&
         selection.has_interpolation && selection.has_bool &&
         selection.maximum_stdout_bytes == 63u);
+  const w_seed_mlir0_input windows_input = mlir_input();
+  w_seed_mlir0_counts windows_counts;
+  w_seed_mlir0_result windows_result;
+  CHECK(w_seed_mlir0_measure(&windows_input, &WINDOWS_TARGET,
+                             &windows_counts, &windows_result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &windows_input, &WINDOWS_TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)},
+            &windows_result) == W_SEED_MLIR0_OK);
+  CHECK(contains_bytes(artifact, windows_result.written.mlir_bytes,
+                       "@w_seed_mlir0_buffer() : !llvm.array<64 x i8>") &&
+        contains_bytes(artifact, windows_result.written.mlir_bytes,
+                       "llvm.getelementptr %buffer[%length]") &&
+        contains_bytes(artifact, windows_result.written.mlir_bytes,
+                       "llvm.store %output_terminator_zero, %output_terminator_address"));
   return true;
 }
 
@@ -5654,6 +5710,22 @@ static bool test_if_diamond_cfg(void) {
             &fixture.hir_program, &fixture.hir_result, &selection) ==
         W_SEED_NATIVE_SUBSET0_OK);
   CHECK(selection.has_cfg && selection.maximum_stdout_bytes == 58u);
+  const w_seed_mlir0_input windows_input = mlir_input();
+  w_seed_mlir0_counts windows_counts;
+  w_seed_mlir0_result windows_result;
+  CHECK(w_seed_mlir0_measure(&windows_input, &WINDOWS_TARGET,
+                             &windows_counts, &windows_result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &windows_input, &WINDOWS_TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)},
+            &windows_result) == W_SEED_MLIR0_OK);
+  CHECK(contains_bytes(artifact, windows_result.written.mlir_bytes,
+                       "@w_seed_mlir0_buffer() : !llvm.array<59 x i8>") &&
+        contains_bytes(artifact, windows_result.written.mlir_bytes,
+                       "llvm.getelementptr %buffer[%length]") &&
+        contains_bytes(artifact, windows_result.written.mlir_bytes,
+                       "llvm.store %output_terminator_zero, %output_terminator_address"));
 
   const w_seed_hir0_terminator saved_branch = fixture.hir_terminators[0];
   fixture.hir_terminators[0].target_block = 4u;
