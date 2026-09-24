@@ -487,9 +487,9 @@ order:
 
 | Lane | Bounded package | May advance independently | Integration gate |
 | --- | --- | --- | --- |
-| CFG proof | Reusable function-graph reachability, dominance and natural-loop analysis, followed by typed-edge integration | Pure graph analysis and adversarial unit tests, without changing HIR emission | Verify the graph and typed edges before value availability is trusted; only then land source-backed nested-loop lowering |
-| Product values | Flat copyable tuple/value-struct source witness and independent C23/Rust correctness oracles | Syntax, frontend evidence and oracle fixtures; no HIR claim | Start the aggregate HIR writer only after the CFG verifier is integrated |
-| Native output | Hello-minimal emission/layout and exact dependency-closure measurements | No HIR or aggregate files; compare Windows and Linux linker lanes separately | Promote a change only with exact output, exit, imports, size and compile/runtime cost evidence |
+| CFG proof | Bounded two-loop HIR emission, reachability, dominance, typed carriers and adversarial lineage checks | Native selection and MLIR may consume only this verified graph, without another source-shape recognizer | Execute the pinned nested-loop witness through public CRT-free Windows and Linux/WSL products |
+| Product values | Flat copyable tuple/value-struct frontend witnesses and independent C23/Rust correctness oracles | General HIR records may be added without choosing physical layout or ABI | Verify both witnesses in HIR before native aggregate selection begins |
+| Native output | Exact output storage, Hello-minimal layout and dependency-closure receipts | Product-value work uses an isolated checkout while current products are measured | Refresh every affected live public-product receipt before treating the catalog as current |
 
 Each lane should produce one useful family-level result, not a new executable
 for every operator or width. The principal integrates in dependency order,
@@ -906,9 +906,10 @@ public GPU build/run, qualified/imported-invocation HIR, and a supported GPU ABI
 the accelerated application line therefore stays open until those public and
 physical boundaries have evidence. The explicit
 `Launch<Module>` route
-remains the later dynamic path, not the common static syntax. Only then does the
-queue returns to the lower-level language surface before generalizing task
-storage, cancellation, and scheduling.
+remains the later dynamic path, not the common static syntax. Lower-ranked
+scalar, CFG, aggregate, ownership and error work remains the integration
+priority. Existing bounded task-storage and cancellation/lifecycle evidence is
+preparatory; it does not close general rank-9 tasks or the rank-10 scheduler.
 
 W-1630 now closes one bounded private ACCPROV0 launch/join/result boundary
 above verified ACCREQ0. The target/provider-neutral core binds all caller-owned
