@@ -11303,6 +11303,19 @@ static bool test_flat_product_value_hir(void) {
   reseal_hir_fixture();
   CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
 
+  const uint32_t tuple_receiver =
+      fixture.hir_values[tuple_projection].left_value;
+  fixture.hir_values[tuple_projection].left_value =
+      (uint32_t)fixture.hir_program.value_count;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[tuple_projection].left_value = tuple_projection;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[tuple_projection].left_value = tuple_receiver;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
   fixture.hir_values[tuple_value].first_tuple_element += 1u;
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
@@ -11426,6 +11439,19 @@ static bool test_flat_product_value_hir(void) {
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   fixture.hir_values[struct_projection].projection_ordinal = 0u;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  const uint32_t struct_receiver =
+      fixture.hir_values[struct_projection].left_value;
+  fixture.hir_values[struct_projection].left_value =
+      (uint32_t)fixture.hir_program.value_count;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[struct_projection].left_value = struct_projection;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[struct_projection].left_value = struct_receiver;
   reseal_hir_fixture();
   CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
 

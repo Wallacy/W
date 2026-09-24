@@ -22692,6 +22692,8 @@ static bool verify_value_tree_with_cfg_impl(
         value->parameter_index != W_SEED_HIR0_NONE ||
         value->call_index != W_SEED_HIR0_NONE ||
         value->left_value == W_SEED_HIR0_NONE ||
+        (size_t)value->left_value >= program->value_count ||
+        value->left_value >= root_index ||
         value->right_value != W_SEED_HIR0_NONE ||
         value->first_interpolation_segment != W_SEED_HIR0_NONE ||
         value->interpolation_segment_count != 0u ||
@@ -22729,6 +22731,8 @@ static bool verify_value_tree_with_cfg_impl(
         value->parameter_index != W_SEED_HIR0_NONE ||
         value->call_index != W_SEED_HIR0_NONE ||
         value->left_value == W_SEED_HIR0_NONE ||
+        (size_t)value->left_value >= program->value_count ||
+        value->left_value >= root_index ||
         value->right_value != W_SEED_HIR0_NONE ||
         value->first_interpolation_segment != W_SEED_HIR0_NONE ||
         value->interpolation_segment_count != 0u ||
@@ -22782,6 +22786,8 @@ static bool verify_value_tree_with_cfg_impl(
 
   if (value->kind == W_SEED_HIR0_VALUE_VALUE_STRUCT_FIELD) {
     if (value->left_value == W_SEED_HIR0_NONE ||
+        (size_t)value->left_value >= program->value_count ||
+        value->left_value >= root_index ||
         value->unsigned_integer_value != 0u)
       return false;
     const w_seed_hir0_value *receiver =
