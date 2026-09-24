@@ -13250,6 +13250,9 @@ static bool build_cooperative_executable_artifact(
   mlir0_program_plan plan;
   if (!build_cooperative_output_plan(program, hir_result, selection, &plan))
     return false;
+  if (plan.text_bytes > MLIR0_MAX_STDOUT_BYTES ||
+      20u > MLIR0_MAX_STDOUT_BYTES - plan.text_bytes)
+    return false;
   const size_t maximum_stdout_bytes = plan.text_bytes + 20u;
   size_t buffer_bytes = 0u;
   if (!output_buffer_capacity(maximum_stdout_bytes, &buffer_bytes))
