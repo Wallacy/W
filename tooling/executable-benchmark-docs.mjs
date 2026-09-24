@@ -26,6 +26,18 @@ function compareText(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
+function stableIdentity(value) {
+  if (Array.isArray(value)) return value.map(stableIdentity);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.keys(value).sort(compareText).map((key) => [key, stableIdentity(value[key])]));
+  }
+  return value ?? null;
+}
+
+function identityJson(value) {
+  return JSON.stringify(stableIdentity(value));
+}
+
 export function projectionPath(repositoryPath) {
   const normalized = slash(repositoryPath);
   return normalized.startsWith("benchmarks/") ? `./${normalized.slice("benchmarks/".length)}` : `../${normalized}`;
@@ -137,9 +149,14 @@ function bestSort(left, right) {
     compareText(String(left?.language ?? ""), String(right?.language ?? "")) ||
     compareText(String(left?.platformTarget ?? ""), String(right?.platformTarget ?? "")) ||
     compareText(String(left?.artifactTarget ?? ""), String(right?.artifactTarget ?? "")) ||
+    compareText(String(left?.profile ?? ""), String(right?.profile ?? "")) ||
     compareText(String(left?.toolchain ?? ""), String(right?.toolchain ?? "")) ||
+    compareText(String(left?.provenance?.toolchainDigest ?? ""), String(right?.provenance?.toolchainDigest ?? "")) ||
     compareText(String(left?.host ?? ""), String(right?.host ?? "")) ||
     compareText(String(left?.recipe ?? ""), String(right?.recipe ?? "")) ||
+    compareText(String(left?.recipeClass ?? ""), String(right?.recipeClass ?? "")) ||
+    compareText(String(left?.provenance?.recipeDigest ?? ""), String(right?.provenance?.recipeDigest ?? "")) ||
+    compareText(identityJson(left?.runtimeClosure), identityJson(right?.runtimeClosure)) ||
     compareText(String(left?.metric ?? ""), String(right?.metric ?? "")) ||
     compareText(String(left?.id ?? ""), String(right?.id ?? ""));
 }
@@ -161,29 +178,50 @@ function bestProjectionEntry(left, right) {
 function categoryRows(entries) {
   const groups = new Map();
   for (const entry of entries) {
-    // Collapse recipe/toolchain categories only after the platform, artifact,
-    // runtime-closure, and comparison identities match. The machine catalog
-    // remains category-partitioned; each displayed metric is selected below.
+    // A projection row may select per-metric bests only within one complete
+    // build identity. Recipe/toolchain digests also bind hardening flags and
+    // exact tool versions when their readable names stay unchanged.
     const hostPartition = entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL
       ? `\u0000${entry.host ?? ""}`
       : "";
-    const key = [
+    const partition = [
       entry.workloadId,
       entry.language,
+      entry.equivalenceKey,
       entry.platformTarget,
       entry.artifactTarget,
       entry.abi,
-      entry.runtimeClosure?.class ?? "",
-      entry.runtimeClosure?.status ?? "unverified",
+      entry.profile,
+      identityJson(entry.runtimeClosure),
       entry.comparability,
       entry.eligibility,
     ].join("\u0000") + hostPartition;
-    const group = groups.get(key) ?? { entry, metrics: new Map() };
+    const buildIdentity = identityJson([
+      entry.toolchain,
+      entry.provenance?.toolchainDigest,
+      entry.recipe,
+      entry.recipeClass,
+      entry.provenance?.recipeDigest,
+    ]);
+    const key = `${partition}\u0000${buildIdentity}`;
+    const group = groups.get(key) ?? { entry, metrics: new Map(), partition };
     group.entry = bestSort(group.entry, entry) <= 0 ? group.entry : entry;
     group.metrics.set(entry.metric, bestProjectionEntry(group.metrics.get(entry.metric), entry));
     groups.set(key, group);
   }
-  return [...groups.values()].sort((left, right) => bestSort(left.entry, right.entry));
+  const rows = [...groups.values()];
+  const partitionCounts = new Map();
+  for (const group of rows) partitionCounts.set(group.partition, (partitionCounts.get(group.partition) ?? 0) + 1);
+  for (const group of rows) {
+    if ((partitionCounts.get(group.partition) ?? 0) > 1) {
+      const toolchainDigest = group.entry.provenance?.toolchainDigest?.replace(/^sha256:/u, "").slice(0, 8);
+      const recipeDigest = group.entry.provenance?.recipeDigest?.replace(/^sha256:/u, "").slice(0, 8);
+      const recipe = group.entry.recipe ?? group.entry.recipeClass ?? "unknown-recipe";
+      const identity = [toolchainDigest, recipeDigest].filter(Boolean).join("/");
+      group.buildIdentityLabel = identity ? `build ${recipe} ${identity}` : `build ${recipe}`;
+    }
+  }
+  return rows.sort((left, right) => bestSort(left.entry, right.entry));
 }
 
 function metricCell(group, metric) {
@@ -218,13 +256,15 @@ function targetLabel(entry) {
 
 function runtimeLabel(entry) {
   const runtimeClass = entry.runtimeClosure?.class;
-  return runtimeClass === "freestanding" ? "no CRT"
-    : runtimeClass === "hosted-crt" ? "CRT"
-      : runtimeClass === "instrumentation" ? "instrumented"
-        : "Unknown";
+  if (runtimeClass === "freestanding") {
+    return entry.runtimeClosure?.status === "unverified" ? "no CRT (recipe-derived)" : "no CRT";
+  }
+  if (runtimeClass === "hosted-crt") return "CRT";
+  if (runtimeClass === "instrumentation") return "instrumented";
+  return "Unknown";
 }
 
-function measurementLaneLabel(entry) {
+function measurementLaneLabel(entry, buildIdentityLabel) {
   const pieces = [targetLabel(entry), runtimeLabel(entry)];
   if (entry.eligibility === "deferred-to-M3b") pieces.push("contextual");
   else if (entry.eligibility === "exploratory-private-composite") pieces.push("private");
@@ -234,6 +274,7 @@ function measurementLaneLabel(entry) {
   } else if (entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL && entry.workloadId === HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID) {
     pieces.push("PIE");
   }
+  if (buildIdentityLabel) pieces.push(buildIdentityLabel);
   return pieces.join(" · ");
 }
 
@@ -242,7 +283,7 @@ function measurementRow(group, workload) {
   const source = workload?.sources.find((item) => item.language === entry.language && item.platformTarget === entry.platformTarget);
   const label = `${entry.workloadId} (${entry.language === "w" ? "W" : entry.language === "c" ? "C" : "Rust"})`;
   const example = source ? jsonPathLink(projectionPath(source.path), label) : label;
-  const lane = measurementLaneLabel(entry);
+  const lane = measurementLaneLabel(entry, group.buildIdentityLabel);
   return `| ${example} | ${lane} | ${entry.language === "w" ? "W" : entry.language === "c" ? "C" : "Rust"} | ${artifactCell(group)} | ${metricCell(group, "compile-latency")} | ${metricCell(group, "run-wall-time")} | ${metricCell(group, "run-wall-p95")} | ${metricCell(group, "cpu-time")} | ${metricCell(group, "peak-working-set")} |`;
 }
 
@@ -335,7 +376,7 @@ export function renderExecutableProjection({ catalog, root = ROOT, suiteReceipt 
     "",
     "## Reading the measurements",
     "",
-    "Runtime labels describe recipe intent; emitted dependency closure remains unverified. No row is a language ranking: cross-language equivalence is not established. Executable size excludes imported libraries. Toolchain identity and recipe remain lane-specific; the report does not imply one suite-wide compiler version.",
+    "A `no CRT (recipe-derived)` label reflects the recipe only; emitted imports and exact dependency closure are not receipted. Verified closure keeps the unqualified `no CRT` label. When multiple build identities exist in one lane, a short toolchain/recipe-digest marker keeps their metric rows distinct. No row is a language ranking: cross-language equivalence is not established. Executable size excludes imported libraries. Toolchain identity and recipe remain lane-specific; the report does not imply one suite-wide compiler version.",
     "Run p50/p95 measure complete fresh-process invocations. Compare only like workload, language, platform, and runtime lane. WSL rows are same-host diagnostics, not native-Linux support or cross-host rankings; Windows and WSL values are never pooled.",
     `Machine catalog: ${jsonPathLink(projectionPath("benchmarks/executable-catalog.json"), "executable-catalog.json")}. Commands, sampling policy, and recipe details: [benchmark README](./README.md#manual-reproduction).`,
   );

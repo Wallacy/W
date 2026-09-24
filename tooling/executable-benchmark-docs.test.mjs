@@ -39,20 +39,22 @@ test("generated projection is current, compact, and sourced only from the live c
   }
   assert.match(rendered, /\| Example \| System \/ lane \| Language \| Binary \| Compile p50 \| Execution p50 \| Execution p95 \| CPU mean \| Peak memory \|/u);
   assert.match(rendered, /\| \[hello \(C\)\].*Windows · CRT \| C \|/u);
-  assert.match(rendered, /\| \[hello \(W\)\].*Windows · no CRT \| W \|/u);
+  assert.match(rendered, /\| \[hello \(W\)\].*Windows · no CRT \(recipe-derived\) \| W \|/u);
   for (const language of ["w", "c", "rust"]) {
     const displayLanguage = language === "w" ? "W" : language === "rust" ? "Rust" : "C";
-    const row = new RegExp(`^\\| \\[hello-platform-minimal-pie \\(${displayLanguage}\\)\\].*WSL · no CRT · diagnostic · PIE \\| ${displayLanguage} \\| [0-9]`, "mu");
+    const row = new RegExp(`^\\| \\[hello-platform-minimal-pie \\(${displayLanguage}\\)\\].*WSL · no CRT \\(recipe-derived\\) · diagnostic · PIE \\| ${displayLanguage} \\| [0-9]`, "mu");
     assert.match(rendered, row, `the current PIE ${language} measurements must be projected`);
   }
-  assert.match(rendered, /^\| \[hello-platform-minimal \(W\)\].*WSL · no CRT · diagnostic · non-PIE \| W \|/mu,
+  assert.match(rendered, /^\| \[hello-platform-minimal \(W\)\].*WSL · no CRT \(recipe-derived\) · diagnostic · non-PIE \| W \|/mu,
     "the new W measurement is clearly labeled as non-PIE");
-  assert.match(rendered, /^\| \[hello-platform-minimal \(C\)\].*WSL · no CRT · diagnostic · non-PIE \| C \|/mu,
+  assert.match(rendered, /^\| \[hello-platform-minimal \(C\)\].*WSL · no CRT \(recipe-derived\) · diagnostic · non-PIE \| C \|/mu,
     "existing freestanding C measurements are clearly labeled as non-PIE");
   assert.equal(documents.catalog.bestMetrics.entries.filter((entry) => entry.workloadId === "hello-platform-minimal-pie").length, 18,
     "all three measured PIE lanes publish complete current benchmark cells");
   assert.match(rendered, /Toolchain identity and recipe remain lane-specific/u);
   assert.match(rendered, /does not imply one suite-wide compiler version/u);
+  assert.match(rendered, /short toolchain\/recipe-digest marker keeps their metric rows distinct/u);
+  assert.match(rendered, /emitted imports and exact dependency closure are not receipted/u);
   const partialWOnly = documents.catalog.workloads.filter((workload) =>
     workload.benchmarkStatus === "partial-exploratory-ready" &&
     new Set(workload.sources.map((source) => source.language)).size === 1 &&
@@ -129,7 +131,7 @@ test("projection publishes only a current matching suite receipt and summarizes 
   }
 });
 
-test("projection collapses categories per platform without pooling platform lanes", () => {
+test("projection collapses same-build categories per platform without pooling platform lanes", () => {
   const compact = structuredClone(documents.catalog);
   const runtime = compact.bestMetrics.entries.find((entry) =>
     entry.workloadId === "hello" && entry.language === "rust" && entry.platformTarget === "windows-x64" && entry.metric === "run-wall-time");
@@ -137,7 +139,6 @@ test("projection collapses categories per platform without pooling platform lane
   const lowerWindows = structuredClone(runtime);
   lowerWindows.id = "synthetic-lower-windows-runtime";
   lowerWindows.categoryId = "category-" + "a".repeat(64);
-  lowerWindows.toolchain = "rustc-alternate-windows";
   lowerWindows.value = "1";
   compact.bestMetrics.entries.push(lowerWindows);
 
@@ -183,6 +184,56 @@ test("projection collapses categories per platform without pooling platform lane
   assert.match(wslRows[1], /\| 4 ns \|/u, "a second WSL host must not be pooled into the first");
 });
 
+test("projection keeps toolchain and recipe lanes intact instead of mixing their per-metric bests", () => {
+  const catalog = structuredClone(documents.catalog);
+  const baseEntries = catalog.bestMetrics.entries.filter((entry) =>
+    entry.workloadId === "hello" && entry.language === "w" &&
+    entry.platformTarget === "linux-wsl-x64" && ["artifact-size", "run-wall-time"].includes(entry.metric));
+  const baseArtifact = baseEntries.find((entry) => entry.metric === "artifact-size");
+  const baseRuntime = baseEntries.find((entry) => entry.metric === "run-wall-time");
+  assert.ok(baseArtifact);
+  assert.ok(baseRuntime);
+  assert.equal(baseArtifact.value, "1712");
+  assert.equal(baseRuntime.value, "182931");
+
+  // Synthetic lane A has the smaller runtime but a larger artifact.
+  baseArtifact.value = "2096";
+  delete baseArtifact.elfLayout;
+
+  // Synthetic lane B carries the smaller artifact but slower execution, with
+  // distinct compiler/recipe digests representing a different hardening build.
+  const alternate = [baseArtifact, baseRuntime].map((entry) => {
+    const cloned = structuredClone(entry);
+    cloned.id = `synthetic-alternate-${entry.metric}`;
+    cloned.categoryId = `category-${"a".repeat(64)}`;
+    cloned.toolchain = "w-public-build-release-alternate";
+    cloned.recipe = "public-w-build-release-hardened";
+    cloned.recipeClass = "hello-release-hardened";
+    cloned.provenance = {
+      ...cloned.provenance,
+      toolchainDigest: `sha256:${"b".repeat(64)}`,
+      recipeDigest: `sha256:${"c".repeat(64)}`,
+    };
+    if (cloned.metric === "artifact-size") cloned.value = "1712";
+    if (cloned.metric === "run-wall-time") cloned.value = "240000";
+    return cloned;
+  });
+  catalog.bestMetrics.entries.push(...alternate);
+
+  const rows = renderExecutableProjection({ catalog }).split(/\r?\n/u)
+    .filter((line) => line.includes("hello (W)") && line.includes("WSL · no CRT (recipe-derived) · diagnostic"));
+  assert.equal(rows.length, 2, "distinct build identities must produce separate WSL rows");
+  const largerArtifact = rows.find((line) => line.includes("2096 B"));
+  const smallerArtifact = rows.find((line) => line.includes("1712 B"));
+  assert.ok(largerArtifact);
+  assert.ok(smallerArtifact);
+  assert.match(largerArtifact, /\| 182\.931 µs \|/u, "the faster runtime stays with its own 2,096-byte artifact");
+  assert.match(smallerArtifact, /\| 240 µs \|/u, "the slower runtime stays with its own 1,712-byte artifact");
+  assert.match(largerArtifact, /build public-w-build-release/u);
+  assert.match(smallerArtifact, /build public-w-build-release-hardened/u);
+  assert.doesNotMatch(smallerArtifact, /182\.931 µs/u, "the human row must not form a hybrid best-of-builds result");
+});
+
 test("projection never collapses runtime or comparability lanes within a platform", () => {
   const catalog = structuredClone(documents.catalog);
   const base = catalog.bestMetrics.entries.find((entry) =>
@@ -194,18 +245,24 @@ test("projection never collapses runtime or comparability lanes within a platfor
   freestanding.categoryId = "category-" + "e".repeat(64);
   freestanding.runtimeClosure = { class: "freestanding", status: "unverified" };
   freestanding.value = "2";
+  const verifiedFreestanding = structuredClone(freestanding);
+  verifiedFreestanding.id = "synthetic-verified-freestanding-runtime";
+  verifiedFreestanding.categoryId = "category-" + "d".repeat(64);
+  verifiedFreestanding.runtimeClosure = { class: "freestanding", status: "verified" };
+  verifiedFreestanding.value = "4";
   const contextual = structuredClone(base);
   contextual.id = "synthetic-contextual-eligibility";
   contextual.categoryId = "category-" + "f".repeat(64);
   contextual.comparability = "contextual-non-ranking-private-composite";
   contextual.eligibility = "exploratory-private-composite";
   contextual.value = "3";
-  catalog.bestMetrics.entries.push(freestanding, contextual);
+  catalog.bestMetrics.entries.push(freestanding, verifiedFreestanding, contextual);
 
   const rows = renderExecutableProjection({ catalog }).split(/\r?\n/u)
     .filter((line) => line.includes("hello (Rust)") && line.includes("Windows"));
-  assert.equal(rows.length, 3, "distinct runtime and comparability lanes remain separate rows");
+  assert.equal(rows.length, 4, "distinct runtime and comparability lanes remain separate rows");
   assert.ok(rows.some((line) => line.includes("Windows · CRT")));
-  assert.ok(rows.some((line) => line.includes("Windows · no CRT")));
+  assert.ok(rows.some((line) => line.includes("Windows · no CRT (recipe-derived)")));
+  assert.ok(rows.some((line) => line.includes("Windows · no CRT |")), "verified freestanding closure retains its unqualified label");
   assert.ok(rows.some((line) => line.includes("Windows · CRT · private")));
 });
