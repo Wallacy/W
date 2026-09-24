@@ -5,6 +5,64 @@
 [`DESIGN.md`](../DESIGN.md) define a policy plana por módulo e a semântica. Estes arquivos
 testam se os contratos podem ser escritos em W.
 
+## Implementation roadmap
+
+This is an implementation order, not a claim of availability. The `std/` sources
+are drafts: there is no standard-library build, and their named providers remain
+missing. The layers below describe work categories, not available features.
+
+Keep these layers distinct:
+
+| Layer | Owns | Boundary |
+|---|---|---|
+| Compiler prerequisites and intrinsics | Language features such as fixed arrays and read-only `view`; compiler-owned operations required by a module | Implement and test language semantics directly; do not disguise them as host providers. |
+| Pure W modules | Algorithms and value-level behavior expressible in W over supported primitives | No implicit OS, SDK, or foreign-runtime dependency. |
+| WRT primitives | Minimal, reachability-closed runtime support required by generated code or reachable modules | Select only required primitives and verify their dependency closure for each native product. |
+| Platform/provider adapters | Target- and ABI-specific implementations of host capabilities | Bind explicitly to a target/profile; missing or incompatible offers fail closed. |
+| Safe foreign bridges | Deliberate interoperation with C or another foreign ABI | Require validated layout, ownership, and failure boundaries; not a general raw-FFI escape hatch. |
+| Registry packages | Third-party package discovery, pinning, and resolution | A distribution concern, separate from bundled `std`; defer until the compiler product path needs it. |
+
+Prerequisites are compiler support for fixed arrays and `view` with verified
+ownership/borrowing semantics, module compilation, and only the bounded storage
+support required by `Bytes`. Keep any unsupported prerequisite a gap; it does
+not make a dependent draft executable.
+
+Ranked first packages after those prerequisites:
+
+1. **Bytes and fixed-array/view foundations.** Complete the compiler prerequisites,
+   then implement the smallest useful `Bytes` value module over them. Add only
+   storage/runtime support that its selected contract actually requires.
+2. **`std.hash.xxhash`.** Add the constrained direction below as a pure-W module;
+   keep SIMD code-generation choices beneath one identical result contract.
+3. **Minimum `std.process` and `std.io`.** Implement only the process-entry and
+   byte-I/O path needed by a native product, with explicit WRT and target
+   providers. The existing contracts are drafts, not executable providers.
+
+### `std.hash.xxhash` direction
+
+- Default to XXH3_64 for a fast non-cryptographic digest; offer XXH3_128 for a
+  wider result. Keep XXH64 only for compatibility. Defer XXH32 until a concrete
+  consumer demonstrates need.
+- Cover one-shot and streaming use. Seed zero uses the standard secret so results
+  are reproducible. Defer custom secrets.
+- Establish a scalar, bounds-safe little-endian baseline. SIMD variants must
+  produce identical results and must not change the public contract.
+- Require known vectors, differential tests, fuzzing, boundary lengths,
+  streaming chunk-partition tests, and one representative family benchmark
+  before promotion. Benchmark scalar and SIMD variants as implementations of
+  the same family, not as separate package surfaces.
+- Preserve upstream BSD-2-Clause provenance and notices for any upstream-derived
+  material; do not vendor upstream implementation code.
+- xxHash is never the owner of package/artifact integrity, public identity,
+  signatures, MACs, or process-local hash-flood hardening. Keep SHA-256 or a
+  tagged cryptographic digest for integrity, and signed attestations for
+  authenticity, as separate roles.
+
+This ordering does not authorize broad API invention. Promote each module only
+when its design contract, executable implementation, focused positive and
+negative evidence, target/provider status, and benchmark disposition are all
+recorded.
+
 ## Módulos e contratos
 
 Cada diretório abaixo é um módulo concreto. Ele declara target facts, required
