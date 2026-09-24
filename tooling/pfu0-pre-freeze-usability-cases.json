@@ -46,7 +46,7 @@
     ],
     "hostOnly": true
   },
-  "stopCondition": "Stop on stale source digest, expected/result echo, ID-derived outcome, missing family or variant, any residual Research in the full W-001–W-1453 ledger, empty build.w, incompatible owner, duplicate build record, candidate promotion, general stream fn promotion, client-stream or bidi invention, implicit transport, hidden oldValue copy, observer bypass ambiguity, or conflated ServiceFailure admission/open and terminal Failure. Require an independent case, fresh digest, and reviewed promotion decision.",
+  "stopCondition": "Stop on stale source digest, expected/result echo, ID-derived outcome, missing family or variant, any residual Research in the full W-001–W-1453 ledger, missing package roots, multiple packages without a coordinator, duplicate or escaping roots, duplicate coordinators, coordinator weakening of package requirements, candidate promotion, general stream fn promotion, client-stream or bidi invention, implicit transport, hidden oldValue copy, observer bypass ambiguity, or conflated ServiceFailure admission/open and terminal Failure. Require an independent case, fresh digest, and reviewed promotion decision.",
   "cases": [
     {
       "id": "PFU0-W-1451-current",
@@ -57,9 +57,9 @@
       ],
       "source": {
         "path": "reference/last-light/build.w",
-        "symbol": "package {",
-        "digest": "sha256:3f2c504a2d139ac24a44dd58892436f7d1ff608b5f3edf11913c445006548c75",
-        "claim": "Current package root is a data-only manifest."
+        "symbol": "root: \"packages/menu-compiler\"",
+        "digest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
+        "claim": "Current package-centric build root declares exact package roots and a local coordinator."
       },
       "observations": {
         "samples": [
@@ -68,92 +68,104 @@
               "build.w"
             ],
             "packageRecords": 1,
-            "workspaceRecords": 0,
-            "owner": "package",
-            "ownerContext": "standalone",
+            "buildRecords": 0,
+            "packageRoots": [
+              "."
+            ],
+            "packageIdentitiesUnique": true,
+            "packageOrderInvariant": true,
+            "packageAuthoredPolicyIncluded": true,
+            "coordinatorWeakensPackage": false,
+            "exactSelector": true,
+            "packageProductDefaultExact": true,
+            "coordinatorOwnsLocalResolution": true,
+            "coordinatorOwnsLocalDeployments": true,
+            "patchPublicationRejected": true,
+            "unambiguousSelection": true,
+            "unambiguousResolution": true,
+            "unambiguousDeployment": true,
             "resolutionOwner": "package",
             "deploymentOwner": "package",
-            "memberTargets": [],
-            "memberBuildPackages": [],
             "dataOnly": true,
             "inlinePackage": false,
-            "nestedWorkspace": false,
+            "nestedBuildRoot": false,
             "glob": false,
             "environmentalScan": false,
+            "pathEscape": false,
             "executableSource": false,
-            "duplicateOwner": false
+            "duplicatePackageIdentity": false,
+            "duplicatePackageRoot": false,
+            "duplicateCoordinator": false
           },
           {
             "rootFiles": [
               "build.w"
             ],
-            "packageRecords": 0,
-            "workspaceRecords": 1,
-            "owner": "workspace",
-            "ownerContext": "workspace",
-            "resolutionOwner": "workspace",
-            "deploymentOwner": "workspace",
-            "memberTargets": [
-              "pkg-a"
-            ],
-            "memberBuildPackages": [
-              "pkg-a"
-            ],
-            "dataOnly": true,
-            "inlinePackage": false,
-            "nestedWorkspace": false,
-            "glob": false,
-            "environmentalScan": false,
-            "executableSource": false,
-            "duplicateOwner": false
-          },
-          {
-            "rootFiles": [
-              "build.w"
-            ],
-            "packageRecords": 1,
-            "workspaceRecords": 1,
-            "owner": "workspace",
-            "ownerContext": "workspace",
-            "resolutionOwner": "workspace",
-            "deploymentOwner": "workspace",
-            "memberTargets": [
-              "pkg-a"
-            ],
-            "memberBuildPackages": [
-              "pkg-a"
-            ],
-            "dataOnly": true,
-            "inlinePackage": false,
-            "nestedWorkspace": false,
-            "glob": false,
-            "environmentalScan": false,
-            "executableSource": false,
-            "duplicateOwner": false
-          },
-          {
-            "rootFiles": [
-              "build.w"
-            ],
-            "packageRecords": 1,
-            "workspaceRecords": 0,
-            "owner": "workspace",
-            "ownerContext": "workspace-member",
-            "resolutionOwner": "workspace",
-            "deploymentOwner": "workspace",
-            "memberTargets": [
+            "packageRecords": 2,
+            "buildRecords": 1,
+            "packageRoots": [
+              ".",
               "packages/menu-compiler"
             ],
-            "memberBuildPackages": [
-              "packages/menu-compiler"
-            ],
+            "packageIdentitiesUnique": true,
+            "packageOrderInvariant": true,
+            "packageAuthoredPolicyIncluded": true,
+            "coordinatorWeakensPackage": false,
+            "exactSelector": true,
+            "packageProductDefaultExact": true,
+            "coordinatorOwnsLocalResolution": true,
+            "coordinatorOwnsLocalDeployments": true,
+            "patchPublicationRejected": true,
+            "unambiguousSelection": true,
+            "unambiguousResolution": true,
+            "unambiguousDeployment": true,
+            "resolutionOwner": "build",
+            "deploymentOwner": "build",
             "dataOnly": true,
             "inlinePackage": false,
-            "nestedWorkspace": false,
+            "nestedBuildRoot": false,
             "glob": false,
             "environmentalScan": false,
+            "pathEscape": false,
             "executableSource": false,
-            "duplicateOwner": false
+            "duplicatePackageIdentity": false,
+            "duplicatePackageRoot": false,
+            "duplicateCoordinator": false
+          },
+          {
+            "rootFiles": [
+              "build.w"
+            ],
+            "packageRecords": 2,
+            "buildRecords": 1,
+            "packageRoots": [
+              "packages/menu-compiler",
+              "."
+            ],
+            "packageIdentitiesUnique": true,
+            "packageOrderInvariant": true,
+            "packageAuthoredPolicyIncluded": true,
+            "coordinatorWeakensPackage": false,
+            "exactSelector": true,
+            "packageProductDefaultExact": true,
+            "coordinatorOwnsLocalResolution": true,
+            "coordinatorOwnsLocalDeployments": true,
+            "patchPublicationRejected": true,
+            "unambiguousSelection": true,
+            "unambiguousResolution": true,
+            "unambiguousDeployment": true,
+            "resolutionOwner": "build",
+            "deploymentOwner": "build",
+            "dataOnly": true,
+            "inlinePackage": false,
+            "nestedBuildRoot": false,
+            "glob": false,
+            "environmentalScan": false,
+            "pathEscape": false,
+            "executableSource": false,
+            "duplicatePackageIdentity": false,
+            "duplicatePackageRoot": false,
+            "duplicateCoordinator": false
           }
         ]
       }
@@ -167,9 +179,9 @@
       ],
       "source": {
         "path": "reference/last-light/build.w",
-        "symbol": "workspace {",
-        "digest": "sha256:3f2c504a2d139ac24a44dd58892436f7d1ff608b5f3edf11913c445006548c75",
-        "claim": "Current workspace member ownership is a candidate's control."
+        "symbol": "schema: \"w.build/1\"",
+        "digest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
+        "claim": "Current package-centric build root declares exact package roots and a local coordinator."
       },
       "observations": {
         "samples": [
@@ -177,93 +189,70 @@
             "rootFiles": [
               "build.w"
             ],
+            "packageRecords": 2,
+            "buildRecords": 1,
+            "packageRoots": [
+              ".",
+              "packages/menu-compiler"
+            ],
+            "packageIdentitiesUnique": true,
+            "packageOrderInvariant": true,
+            "packageAuthoredPolicyIncluded": true,
+            "coordinatorWeakensPackage": false,
+            "exactSelector": true,
+            "packageProductDefaultExact": true,
+            "coordinatorOwnsLocalResolution": true,
+            "coordinatorOwnsLocalDeployments": true,
+            "patchPublicationRejected": true,
+            "unambiguousSelection": true,
+            "unambiguousResolution": true,
+            "unambiguousDeployment": true,
+            "resolutionOwner": "build",
+            "deploymentOwner": "build",
+            "dataOnly": true,
+            "inlinePackage": false,
+            "nestedBuildRoot": false,
+            "glob": false,
+            "environmentalScan": false,
+            "pathEscape": false,
+            "executableSource": false,
+            "duplicatePackageIdentity": false,
+            "duplicatePackageRoot": false,
+            "duplicateCoordinator": false
+          },
+          {
+            "rootFiles": [
+              "build.w"
+            ],
             "packageRecords": 1,
-            "workspaceRecords": 0,
-            "owner": "package",
-            "ownerContext": "standalone",
+            "buildRecords": 0,
+            "packageRoots": [
+              "."
+            ],
+            "packageIdentitiesUnique": true,
+            "packageOrderInvariant": true,
+            "packageAuthoredPolicyIncluded": true,
+            "coordinatorWeakensPackage": false,
+            "exactSelector": true,
+            "packageProductDefaultExact": true,
+            "coordinatorOwnsLocalResolution": true,
+            "coordinatorOwnsLocalDeployments": true,
+            "patchPublicationRejected": true,
+            "unambiguousSelection": true,
+            "unambiguousResolution": true,
+            "unambiguousDeployment": true,
             "resolutionOwner": "package",
             "deploymentOwner": "package",
-            "memberTargets": [],
-            "memberBuildPackages": [],
             "dataOnly": true,
             "inlinePackage": false,
-            "nestedWorkspace": false,
+            "nestedBuildRoot": false,
             "glob": false,
             "environmentalScan": false,
+            "pathEscape": false,
             "executableSource": false,
-            "duplicateOwner": false
-          },
-          {
-            "rootFiles": [
-              "build.w"
-            ],
-            "packageRecords": 0,
-            "workspaceRecords": 1,
-            "owner": "workspace",
-            "ownerContext": "workspace",
-            "resolutionOwner": "workspace",
-            "deploymentOwner": "workspace",
-            "memberTargets": [
-              "pkg-a"
-            ],
-            "memberBuildPackages": [
-              "pkg-a"
-            ],
-            "dataOnly": true,
-            "inlinePackage": false,
-            "nestedWorkspace": false,
-            "glob": false,
-            "environmentalScan": false,
-            "executableSource": false,
-            "duplicateOwner": false
-          },
-          {
-            "rootFiles": [
-              "build.w"
-            ],
-            "packageRecords": 1,
-            "workspaceRecords": 1,
-            "owner": "workspace",
-            "ownerContext": "workspace",
-            "resolutionOwner": "workspace",
-            "deploymentOwner": "workspace",
-            "memberTargets": [
-              "pkg-a"
-            ],
-            "memberBuildPackages": [
-              "pkg-a"
-            ],
-            "dataOnly": true,
-            "inlinePackage": false,
-            "nestedWorkspace": false,
-            "glob": false,
-            "environmentalScan": false,
-            "executableSource": false,
-            "duplicateOwner": false
-          },
-          {
-            "rootFiles": [
-              "build.w"
-            ],
-            "packageRecords": 1,
-            "workspaceRecords": 0,
-            "owner": "workspace",
-            "ownerContext": "workspace-member",
-            "resolutionOwner": "workspace",
-            "deploymentOwner": "workspace",
-            "memberTargets": [
-              "packages/menu-compiler"
-            ],
-            "memberBuildPackages": [
-              "packages/menu-compiler"
-            ],
-            "dataOnly": true,
-            "inlinePackage": false,
-            "nestedWorkspace": false,
-            "glob": false,
-            "environmentalScan": false,
-            "executableSource": false,
-            "duplicateOwner": false
+            "duplicatePackageIdentity": false,
+            "duplicatePackageRoot": false,
+            "duplicateCoordinator": false
           }
         ]
       }
@@ -277,9 +266,9 @@
       ],
       "source": {
         "path": "reference/last-light/build.w",
-        "symbol": "workspace {",
-        "digest": "sha256:3f2c504a2d139ac24a44dd58892436f7d1ff608b5f3edf11913c445006548c75",
-        "claim": "Workspace root is the source-backed ownership boundary."
+        "symbol": "schema: \"w.build/1\"",
+        "digest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
+        "claim": "Current package-centric roots reject ambiguous or escaping local build shapes."
       },
       "observations": {
         "samples": [
@@ -287,74 +276,205 @@
             "rootFiles": [
               "build.w"
             ],
-            "packageRecords": 1,
-            "workspaceRecords": 1,
-            "owner": "workspace",
-            "ownerContext": "workspace",
-            "resolutionOwner": "workspace",
-            "deploymentOwner": "workspace",
-            "memberTargets": [
-              "pkg-a"
-            ],
-            "memberBuildPackages": [],
-            "dataOnly": true,
-            "inlinePackage": true,
-            "nestedWorkspace": false,
-            "glob": false,
-            "environmentalScan": false,
-            "executableSource": false,
-            "duplicateOwner": false
-          },
-          {
-            "rootFiles": [
-              "build.w"
-            ],
             "packageRecords": 0,
-            "workspaceRecords": 1,
-            "owner": "workspace",
-            "ownerContext": "workspace",
-            "resolutionOwner": "workspace",
-            "deploymentOwner": "workspace",
-            "memberTargets": [
-              "nested"
-            ],
-            "memberBuildPackages": [
-              "nested"
-            ],
-            "memberBuildWorkspaces": [
-              "nested"
-            ],
+            "buildRecords": 1,
+            "packageRoots": [],
+            "packageIdentitiesUnique": true,
+            "packageOrderInvariant": true,
+            "packageAuthoredPolicyIncluded": true,
+            "coordinatorWeakensPackage": false,
+            "exactSelector": true,
+            "packageProductDefaultExact": true,
+            "coordinatorOwnsLocalResolution": true,
+            "coordinatorOwnsLocalDeployments": true,
+            "patchPublicationRejected": true,
+            "unambiguousSelection": true,
+            "unambiguousResolution": true,
+            "unambiguousDeployment": true,
+            "resolutionOwner": "build",
+            "deploymentOwner": "build",
             "dataOnly": true,
             "inlinePackage": false,
-            "nestedWorkspace": true,
+            "nestedBuildRoot": false,
             "glob": false,
             "environmentalScan": false,
+            "pathEscape": false,
             "executableSource": false,
-            "duplicateOwner": false
+            "duplicatePackageIdentity": false,
+            "duplicatePackageRoot": false,
+            "duplicateCoordinator": false,
+            "missingPackage": true
+          },
+          {
+            "rootFiles": [
+              "build.w"
+            ],
+            "packageRecords": 2,
+            "buildRecords": 0,
+            "packageRoots": [
+              ".",
+              "packages/menu-compiler"
+            ],
+            "packageIdentitiesUnique": true,
+            "packageOrderInvariant": true,
+            "packageAuthoredPolicyIncluded": true,
+            "coordinatorWeakensPackage": false,
+            "exactSelector": true,
+            "packageProductDefaultExact": true,
+            "coordinatorOwnsLocalResolution": true,
+            "coordinatorOwnsLocalDeployments": true,
+            "patchPublicationRejected": true,
+            "unambiguousSelection": true,
+            "unambiguousResolution": true,
+            "unambiguousDeployment": true,
+            "resolutionOwner": "package",
+            "deploymentOwner": "package",
+            "dataOnly": true,
+            "inlinePackage": false,
+            "nestedBuildRoot": false,
+            "glob": false,
+            "environmentalScan": false,
+            "pathEscape": false,
+            "executableSource": false,
+            "duplicatePackageIdentity": false,
+            "duplicatePackageRoot": false,
+            "duplicateCoordinator": false
           },
           {
             "rootFiles": [
               "build.w"
             ],
             "packageRecords": 1,
-            "workspaceRecords": 1,
-            "owner": "both",
-            "ownerContext": "workspace",
-            "resolutionOwner": "both",
-            "deploymentOwner": "both",
-            "memberTargets": [
-              "pkg-a"
+            "buildRecords": 2,
+            "packageRoots": [
+              "."
             ],
-            "memberBuildPackages": [
-              "pkg-a"
-            ],
+            "packageIdentitiesUnique": true,
+            "packageOrderInvariant": true,
+            "packageAuthoredPolicyIncluded": true,
+            "coordinatorWeakensPackage": false,
+            "exactSelector": true,
+            "packageProductDefaultExact": true,
+            "coordinatorOwnsLocalResolution": true,
+            "coordinatorOwnsLocalDeployments": true,
+            "patchPublicationRejected": true,
+            "unambiguousSelection": true,
+            "unambiguousResolution": true,
+            "unambiguousDeployment": true,
+            "resolutionOwner": "package",
+            "deploymentOwner": "package",
             "dataOnly": true,
             "inlinePackage": false,
-            "nestedWorkspace": false,
-            "glob": true,
-            "environmentalScan": true,
-            "executableSource": true,
-            "duplicateOwner": true
+            "nestedBuildRoot": false,
+            "glob": false,
+            "environmentalScan": false,
+            "pathEscape": false,
+            "executableSource": false,
+            "duplicatePackageIdentity": false,
+            "duplicatePackageRoot": false,
+            "duplicateCoordinator": true
+          },
+          {
+            "rootFiles": [
+              "build.w"
+            ],
+            "packageRecords": 1,
+            "buildRecords": 0,
+            "packageRoots": [
+              "../outside"
+            ],
+            "packageIdentitiesUnique": true,
+            "packageOrderInvariant": true,
+            "packageAuthoredPolicyIncluded": true,
+            "coordinatorWeakensPackage": false,
+            "exactSelector": true,
+            "packageProductDefaultExact": true,
+            "coordinatorOwnsLocalResolution": true,
+            "coordinatorOwnsLocalDeployments": true,
+            "patchPublicationRejected": true,
+            "unambiguousSelection": true,
+            "unambiguousResolution": true,
+            "unambiguousDeployment": true,
+            "resolutionOwner": "package",
+            "deploymentOwner": "package",
+            "dataOnly": true,
+            "inlinePackage": false,
+            "nestedBuildRoot": false,
+            "glob": false,
+            "environmentalScan": false,
+            "pathEscape": true,
+            "executableSource": false,
+            "duplicatePackageIdentity": false,
+            "duplicatePackageRoot": false,
+            "duplicateCoordinator": false
+          },
+          {
+            "rootFiles": [
+              "build.w"
+            ],
+            "packageRecords": 1,
+            "buildRecords": 0,
+            "packageRoots": [
+              "."
+            ],
+            "packageIdentitiesUnique": true,
+            "packageOrderInvariant": true,
+            "packageAuthoredPolicyIncluded": true,
+            "coordinatorWeakensPackage": false,
+            "exactSelector": true,
+            "packageProductDefaultExact": true,
+            "coordinatorOwnsLocalResolution": true,
+            "coordinatorOwnsLocalDeployments": true,
+            "patchPublicationRejected": true,
+            "unambiguousSelection": true,
+            "unambiguousResolution": true,
+            "unambiguousDeployment": true,
+            "resolutionOwner": "package",
+            "deploymentOwner": "package",
+            "dataOnly": true,
+            "inlinePackage": false,
+            "nestedBuildRoot": true,
+            "glob": false,
+            "environmentalScan": false,
+            "pathEscape": false,
+            "executableSource": false,
+            "duplicatePackageIdentity": false,
+            "duplicatePackageRoot": false,
+            "duplicateCoordinator": false
+          },
+          {
+            "rootFiles": [
+              "build.w"
+            ],
+            "packageRecords": 1,
+            "buildRecords": 0,
+            "packageRoots": [
+              "."
+            ],
+            "packageIdentitiesUnique": true,
+            "packageOrderInvariant": true,
+            "packageAuthoredPolicyIncluded": true,
+            "coordinatorWeakensPackage": true,
+            "exactSelector": true,
+            "packageProductDefaultExact": true,
+            "coordinatorOwnsLocalResolution": true,
+            "coordinatorOwnsLocalDeployments": true,
+            "patchPublicationRejected": true,
+            "unambiguousSelection": true,
+            "unambiguousResolution": true,
+            "unambiguousDeployment": true,
+            "resolutionOwner": "package",
+            "deploymentOwner": "package",
+            "dataOnly": true,
+            "inlinePackage": false,
+            "nestedBuildRoot": false,
+            "glob": false,
+            "environmentalScan": false,
+            "pathEscape": false,
+            "executableSource": false,
+            "duplicatePackageIdentity": false,
+            "duplicatePackageRoot": false,
+            "duplicateCoordinator": false
           }
         ]
       }

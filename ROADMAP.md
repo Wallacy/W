@@ -288,21 +288,26 @@ surface against both separate-object and combined-bitcode builds. Keep future
 inspection separate from ranked benchmark samples, remove raw traces at the
 next safe checkpoint, and retain only compact conclusions here.
 
-### Bounded package-centric build-root follow-up (W-1451 owner replacement)
+### Package-centric build root (W-1451 owner replacement)
 
-After the active compiler slice reaches a safe boundary, replace W-1451's
-workspace ownership of resolution and deployments with a package-centric
-build-root model. Keep `build.w` as the sole human-authored configuration, but
-make each package's root the authority for its package identity, target/recipe
-selection, dependency resolution, and deployment identity; a workspace serves
-only as an aggregate of package roots. First produce one compact source-backed
-model and fixture matrix for standalone packages, a package at the workspace
-root, package members, and duplicate or missing owners. The acceptance oracle
-must show each package is resolved once and that member order cannot change its
-recipe or output identity. Stop at that model plus focused host-oracle gate.
-Selecting concrete root syntax, changing the current W-1451 contract, or
-implementing resolver/compiler/CLI behavior is out of scope for this follow-up
-until its acceptance evidence is reviewed.
+W-1451 now selects a finite package-centric manifest and host-oracle bundle.
+`build.w` contains one or more direct package records and at most one local-only
+`build { schema: "w.build/1" }` coordinator. Every package declares an exact
+local root excluded from public package identity and remains independently
+publishable. Package-authored requirements, profiles, and recipes stay inside
+the package record. The coordinator owns exact local selection, resolution
+contexts, patches, deployments, target/recipe/profile policy, and lock context;
+it cannot weaken package requirements. A single package may omit the
+coordinator only when selection, resolution, and deployment are unambiguous;
+multiple packages require it. Record order does not alter package recipe or
+output identity, and `w build all` is explicit only.
+
+The host oracle covers accepted and rejected root shapes, identity exclusion,
+package-order invariance, exact roots, local build-plan separation, feature
+contexts, publication patch rejection, Last Light fixtures, atlas examples,
+and generated classification. This bundle does not implement the compiler's
+manifest reader, package resolver, CLI selection, lock persistence, or
+publication receipts; these remain explicit bottom-up implementation gaps.
 
 ### Evidence promotion and safety closure
 

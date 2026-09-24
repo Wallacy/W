@@ -10,10 +10,10 @@ const GRAMMAR = path.join(ROOT, "tooling", "tree-sitter-w", "grammar.js");
 const MANIFEST = path.join(ATLAS, "atlas-manifest.json");
 const SYNTAX_COVERAGE = path.join(ATLAS, "SYNTAX-COVERAGE.md");
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
-const RULE_SET_DIGEST = "sha256:1a7636f27a289a2b13c36c352f3296bea0c39d0734fd6cd5d26f88da5aba1362";
+const RULE_SET_DIGEST = "sha256:9bca6bbd094c92a7df905d9904256a0e1c7e3d4e87567aaba257245e8a6f8397";
 const SCHEMA = "w-syntax-atlas-1";
 
-const ROOT_KINDS = new Set(["module", "package", "workspace"]);
+const ROOT_KINDS = new Set(["module", "package", "build"]);
 const STATUSES = new Set(["current", "research", "rejected"]);
 const COMPANION_STATUSES = new Set(["reserved", "research", "rejected"]);
 const EVIDENCE = new Set(["tree-sitter-parse-only", "tree-sitter-parse-only-provider-missing", "tree-sitter-parse-only-compiler-runtime-missing"]);
@@ -22,7 +22,7 @@ const EVIDENCE = new Set(["tree-sitter-parse-only", "tree-sitter-parse-only-prov
 // construction text, witness, status, and evidence remain data in the
 // manifest; this list only prevents an accidental omission.
 const REQUIRED_VARIANT_IDS = [
-  "root-module", "root-package", "root-workspace",
+  "root-module", "root-package", "root-build",
   "import-ordinary", "import-module-binding", "import-named", "import-wildcard", "import-kernel-named", "import-kernel-qualified", "import-domain", "import-service",
   "reexport-named", "reexport-wildcard", "export-list",
   "module-kernel-contract",
@@ -110,7 +110,7 @@ const ALIASED_CST_RULES = new Map([
 ]);
 
 const MANIFEST_RULES = new Set([
-  "build_manifest", "package_manifest", "workspace_manifest", "manifest_record",
+  "build_manifest", "package_manifest", "build_coordinator", "manifest_record",
   "manifest_field", "manifest_value", "manifest_list", "manifest_constructor", "manifest_argument",
 ]);
 
@@ -132,7 +132,7 @@ const DIRECT_RULES = new Set([
   "index_expression", "closure_expression", "capture_expression", "pipeline_expression", "lock_expression",
   "unsafe_expression", "if_expression", "array_literal", "map_literal", "repeat_array_literal", "tuple_expression", "unit_literal",
   "stream_expression", "yield_statement", "borrow_clause",
-  "package_manifest", "workspace_manifest",
+  "package_manifest", "build_coordinator",
 ]);
 
 const MARKER_RULE_OVERRIDES = new Map([
@@ -194,7 +194,7 @@ const MARKER_RULE_OVERRIDES = new Map([
 function markerForRule(name) {
   if (MARKER_RULE_OVERRIDES.has(name)) return MARKER_RULE_OVERRIDES.get(name);
   if (name === "package_manifest") return "package-root";
-  if (name === "workspace_manifest") return "workspace-root";
+  if (name === "build_coordinator") return "build-root";
   if (name === "build_manifest") return "package-root";
   if (["manifest_record", "manifest_field", "manifest_value", "manifest_list", "manifest_constructor", "manifest_argument"].includes(name)) return "package-root";
   if (ROOT_RULES.has(name)) return "source-roots-imports";
@@ -353,7 +353,7 @@ function rootDisposition(files, blocks) {
   const required = new Map([
     ["language.w", new Set(["module"])],
     ["execution.w", new Set(["module"])],
-    ["build.w", new Set(["package", "workspace"])],
+    ["build.w", new Set(["package", "build"])],
   ]);
   for (const [file, expected] of required) {
     const entry = byFile.get(file);

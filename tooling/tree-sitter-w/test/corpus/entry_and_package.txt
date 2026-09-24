@@ -164,28 +164,12 @@ Data-only package manifest
 
 package {
   schema: "w.package/1"
+  root: "."
   name: "last-light/restaurant"
-  products: [
-    {
-      name: "last-light-native"
-      kind: .executable
-      capabilities: [.stdio, .network]
-    },
-  ]
-  targetSets: [
-    {
-      name: "desktop"
-      targets: ["x86_64-unknown-linux-gnu"]
-    },
-  ]
-  dependencies: [
-    {
-      source: .registry("w")
-    },
-  ]
+  products: [{ name: "last-light-native", kind: .executable }]
   build: {
-    network: .deny
-    heap: 64MiB
+    profiles: [{ name: "release", optimize: .speed }]
+    recipes: [{ name: "release", profile: "release" }]
   }
 }
 
@@ -195,6 +179,10 @@ package {
   (build_manifest
     (package_manifest
       (manifest_record
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal)))
         (manifest_field
           (identifier)
           (manifest_value
@@ -217,17 +205,134 @@ package {
                     (identifier)
                     (manifest_value
                       (contextual_member_expression
-                        (identifier))))
-                  (manifest_field
-                    (identifier)
+                        (identifier)))))))))
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (manifest_record
+              (manifest_field
+                (identifier)
+                (manifest_value
+                  (manifest_list
                     (manifest_value
-                      (manifest_list
-                        (manifest_value
-                          (contextual_member_expression
-                            (identifier)))
-                        (manifest_value
-                          (contextual_member_expression
-                            (identifier)))))))))))
+                      (manifest_record
+                        (manifest_field
+                          (identifier)
+                          (manifest_value
+                            (string_literal)))
+                        (manifest_field
+                          (identifier)
+                          (manifest_value
+                            (contextual_member_expression
+                              (identifier)))))))))
+              (manifest_field
+                (identifier)
+                (manifest_value
+                  (manifest_list
+                    (manifest_value
+                      (manifest_record
+                        (manifest_field
+                          (identifier)
+                          (manifest_value
+                            (string_literal)))
+                        (manifest_field
+                          (identifier)
+                          (manifest_value
+                            (string_literal)))))))))))))))
+
+==================
+Multi-package build root with coordinator
+==================
+
+package {
+  schema: "w.package/1"
+  root: "."
+  name: "example/app"
+  build: { profiles: ["release"], recipes: ["release"] }
+}
+
+build {
+  schema: "w.build/1"
+  default: { package: "example/app", product: "app" }
+  resolution: { schema: "w.resolution/1", contexts: [], packages: [] }
+  deployments: [{ schema: "w.deployment/1", name: "local", artifacts: [] }]
+}
+
+package {
+  schema: "w.package/1"
+  root: "tools/compiler"
+  name: "example/compiler"
+  build: { requirements: { network: .deny } }
+}
+
+---
+
+(source_file
+  (build_manifest
+    (package_manifest
+      (manifest_record
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal)))
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal)))
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal)))
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (manifest_record
+              (manifest_field
+                (identifier)
+                (manifest_value
+                  (manifest_list
+                    (manifest_value
+                      (string_literal)))))
+              (manifest_field
+                (identifier)
+                (manifest_value
+                  (manifest_list
+                    (manifest_value
+                      (string_literal))))))))))
+    (build_coordinator
+      (manifest_record
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal)))
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (manifest_record
+              (manifest_field
+                (identifier)
+                (manifest_value
+                  (string_literal)))
+              (manifest_field
+                (identifier)
+                (manifest_value
+                  (string_literal))))))
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (manifest_record
+              (manifest_field
+                (identifier)
+                (manifest_value
+                  (string_literal)))
+              (manifest_field
+                (identifier)
+                (manifest_value
+                  (manifest_list)))
+              (manifest_field
+                (identifier)
+                (manifest_value
+                  (manifest_list))))))
         (manifest_field
           (identifier)
           (manifest_value
@@ -241,54 +346,12 @@ package {
                   (manifest_field
                     (identifier)
                     (manifest_value
-                      (manifest_list
-                        (manifest_value
-                          (string_literal))))))))))
-        (manifest_field
-          (identifier)
-          (manifest_value
-            (manifest_list
-              (manifest_value
-                (manifest_record
+                      (string_literal)))
                   (manifest_field
                     (identifier)
                     (manifest_value
-                      (manifest_constructor
-                        (contextual_member_expression
-                          (identifier))
-                        (manifest_argument
-                          (manifest_value
-                            (string_literal)))))))))))
-        (manifest_field
-          (identifier)
-          (manifest_value
-            (manifest_record
-              (manifest_field
-                (identifier)
-                (manifest_value
-                  (contextual_member_expression
-                    (identifier))))
-              (manifest_field
-                (identifier)
-                (manifest_value
-                  (size_literal))))))))))
-
-==================
-Data-only workspace manifest
-==================
-
-workspace {
-  schema: "w.workspace/1"
-  members: [".", "packages/menu-compiler"]
-  defaultMembers: ["."]
-  patches: []
-}
-
----
-
-(source_file
-  (build_manifest
-    (workspace_manifest
+                      (manifest_list))))))))))
+    (package_manifest
       (manifest_record
         (manifest_field
           (identifier)
@@ -297,42 +360,49 @@ workspace {
         (manifest_field
           (identifier)
           (manifest_value
-            (manifest_list
-              (manifest_value
-                (string_literal))
-              (manifest_value
-                (string_literal)))))
+            (string_literal)))
         (manifest_field
           (identifier)
           (manifest_value
-            (manifest_list
-              (manifest_value
-                (string_literal)))))
+            (string_literal)))
         (manifest_field
           (identifier)
           (manifest_value
-            (manifest_list)))))))
+            (manifest_record
+              (manifest_field
+                (identifier)
+                (manifest_value
+                  (manifest_record
+                    (manifest_field
+                      (identifier)
+                      (manifest_value
+                        (contextual_member_expression
+                          (identifier))))))))))))))
 
 ==================
-Combined package and workspace manifest
+Coordinator may precede direct package records
 ==================
 
-package {
-  schema: "w.package/1"
-  name: "example/pkg"
-}
-
-workspace {
-  schema: "w.workspace/1"
-  members: []
-}
+build { schema: "w.build/1" }
+package { schema: "w.package/1" root: "." name: "example/app" }
+package { schema: "w.package/1" root: "tools/compiler" name: "example/compiler" }
 
 ---
 
 (source_file
   (build_manifest
+    (build_coordinator
+      (manifest_record
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal)))))
     (package_manifest
       (manifest_record
+        (manifest_field
+          (identifier)
+          (manifest_value
+            (string_literal)))
         (manifest_field
           (identifier)
           (manifest_value
@@ -341,45 +411,6 @@ workspace {
           (identifier)
           (manifest_value
             (string_literal)))))
-    (workspace_manifest
-      (manifest_record
-        (manifest_field
-          (identifier)
-          (manifest_value
-            (string_literal)))
-        (manifest_field
-          (identifier)
-          (manifest_value
-            (manifest_list)))))))
-
-==================
-Reversed combined workspace and package manifest
-==================
-
-workspace {
-  schema: "w.workspace/1"
-  members: []
-}
-
-package {
-  schema: "w.package/1"
-  name: "example/pkg"
-}
-
----
-
-(source_file
-  (build_manifest
-    (workspace_manifest
-      (manifest_record
-        (manifest_field
-          (identifier)
-          (manifest_value
-            (string_literal)))
-        (manifest_field
-          (identifier)
-          (manifest_value
-            (manifest_list)))))
     (package_manifest
       (manifest_record
         (manifest_field
@@ -389,63 +420,7 @@ package {
         (manifest_field
           (identifier)
           (manifest_value
-            (string_literal)))))))
-
-==================
-Duplicate package roots are rejected
-==================
-
-package {
-  schema: "w.package/1"
-}
-
-package {
-  schema: "w.package/1"
-}
-
----
-
-(source_file
-  (ERROR
-    (package_manifest
-      (manifest_record
-        (manifest_field
-          (identifier)
-          (manifest_value
-            (string_literal))))))
-  (build_manifest
-    (package_manifest
-      (manifest_record
-        (manifest_field
-          (identifier)
-          (manifest_value
-            (string_literal)))))))
-
-==================
-Duplicate workspace roots are rejected
-==================
-
-workspace {
-  schema: "w.workspace/1"
-}
-
-workspace {
-  schema: "w.workspace/1"
-}
-
----
-
-(source_file
-  (ERROR
-    (workspace_manifest
-      (manifest_record
-        (manifest_field
-          (identifier)
-          (manifest_value
-            (string_literal))))))
-  (build_manifest
-    (workspace_manifest
-      (manifest_record
+            (string_literal)))
         (manifest_field
           (identifier)
           (manifest_value

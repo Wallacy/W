@@ -103,8 +103,10 @@ lifecycle diferente             -> outro product e, normalmente, outro artifact
 
 ## 3. Products
 
-O record `workspace` vigente e o record `package` principal estão no único
-[`build.w`](build.w); o workspace é o owner de resolution e deployments.
+The single [`build.w`](build.w) declares the restaurant and menu-compiler
+packages at exact local roots, followed by one local-only `build` coordinator.
+Each package keeps an independent public identity; the coordinator owns local
+resolution, patches, deployments, and build selection.
 
 | Product | Kind | Host | Finalidade |
 |---|---|---|---|
@@ -230,9 +232,8 @@ Build profile e execution profile respondem a perguntas diferentes:
 
 Cada unit criada pelo packing recebe seu próprio envelope. O packing
 `single-process` cria um runtime compartilhado. O packing `split-services`
-produz um runtime por unit. O record `workspace` em `build.w` (deployment
-"distributed") reduz cada unit
-separadamente.
+produz um runtime por unit. The `distributed` deployment in the local `build`
+coordinator reduces each unit separately.
 
 O deployment não cria domain nem muda fallback. Ele reduz somente números
 dentro do envelope. `execution.thermal` e `.compute` usam o mesmo pool `cpu`.
@@ -564,7 +565,7 @@ triple não escolhe um SDK.
 
 The `benchmark` recipe composes the `release` base profile and records
 `cpuPolicy: .explicit`, CPU `x86-64-v3`, and features `+avx2,+fma` in
-[`build.w`](build.w). The workspace's benchmark artifact selects
+[`build.w`](build.w). The local build coordinator's benchmark artifact selects
 `profile: "release", recipe: "benchmark"`. It does not query the runner CPU;
 another CPU or feature list is a different recipe identity. This manifest
 selection is the contract; no compiler CLI spelling is selected here.
@@ -613,13 +614,13 @@ example, not implemented compiler or CLI behavior.
 
 ```text
 w resolve
-w build last-light-native \
+w build last-light/restaurant:last-light-native \
   --target x86_64-unknown-linux-gnu \
   --packing single-process \
   --profile release \
   --locked
 
-w build last-light-tui \
+w build last-light/restaurant:last-light-tui \
   --target x86_64-pc-windows-msvc \
   --packing single-process \
   --profile release \
@@ -640,7 +641,7 @@ w toolchain explain last-light-native \
   --target x86_64-unknown-linux-gnu \
   --execution-platform linux-x64
 
-w build last-light-native \
+w build last-light/restaurant:last-light-native \
   --target x86_64-unknown-linux-gnu \
   --profile release \
   --toolchains build/linux-x64.wplan \
@@ -663,25 +664,25 @@ w toolchain resolve \
   --providers build/release-providers.winventory \
   --output build/desktop.wplan
 
-w build --matrix desktop \
-  --product last-light-native \
+w build last-light/restaurant:last-light-native --matrix desktop \
   --packing single-process \
   --profile release \
   --toolchains build/desktop.wplan \
   --locked
 ```
 
-O index da matriz aponta para um payload por target. Ele não afirma que bytes de
-architectures diferentes possuem o mesmo hash. Cada phase seleciona uma das
-execution platforms ordenadas no workspace. O inventory informa quais provider
-records estão disponíveis nos pools. A plan grava somente as escolhas.
+The matrix index points to one payload per target; it does not claim that
+different architectures have the same bytes. Each phase selects one of the
+execution platforms ordered by the local build coordinator. The inventory
+reports provider records available in the pools, and the plan records only
+those selected choices.
 
 ### 5.4 Execução
 
 ```text
-w run last-light-native --deployment local -- --cli
-w run last-light-native --deployment local -- --tui
-w run last-light-native --deployment local -- --serve
+w run last-light/restaurant:last-light-native --deployment local -- --cli
+w run last-light/restaurant:last-light-native --deployment local -- --tui
+w run last-light/restaurant:last-light-native --deployment local -- --serve
 ```
 
 ### 5.5 Explicação
@@ -700,13 +701,13 @@ w explain performance restaurant.horizon::forecast
 w explain memory restaurant.allocation::countStagedMenuInParallel
 w explain layout restaurant.memory::BellTarget
 w explain resources restaurant.audio::renderFinalSong
-w audit effects last-light-native
+w audit effects last-light/restaurant:last-light-native
 ```
 
 ### 5.6 Benchmark
 
 ```text
-w build last-light-benchmark \
+w build last-light/restaurant:last-light-benchmark \
   --target x86_64-unknown-linux-gnu \
   --packing entry-only \
   --profile release \
@@ -731,12 +732,12 @@ recipe CLI option.
 ### 5.7 Interface e ABI
 
 ```text
-w build last-light-horizon-w \
+w build last-light/restaurant:last-light-horizon-w \
   --target x86_64-unknown-linux-gnu \
   --profile release \
   --locked
 
-w build last-light-horizon-c \
+w build last-light/restaurant:last-light-horizon-c \
   --target x86_64-pc-windows-msvc \
   --profile release \
   --locked
@@ -777,106 +778,103 @@ O oracle de ABI cobre estes casos:
 
 ## 6. Packages e releases
 
-### 6.1 Workspace e resolução
+### 6.1 Package roots and local build coordination
 
-[`build.w`](build.w) contém dois members:
+[`build.w`](build.w) contains two direct, independently publishable package
+records with exact roots (`.` and `packages/menu-compiler`) and one local-only
+`build { schema: "w.build/1" }` coordinator. The root path is a local lookup
+fact, not part of either public package identity. The menu compiler satisfies
+the restaurant's `.build` dependency when package identity and version match;
+the packages are never published as one product.
 
-```text
-.                       -> last-light/restaurant
-packages/menu-compiler  -> last-light/menu-compiler
-```
+The coordinator owns local resolution contexts, patches, deployments, lock
+context, target/recipe/profile selection, toolchain policy, and an optional
+exact default package/product selector. Package-authored build requirements,
+profiles, and recipes remain in each package and cannot be weakened by the
+coordinator. Local patch facts are never publishable.
 
-O segundo member satisfaz uma `.build` dependency do primeiro. Identity e
-version precisam conferir com a dependency publicada. Os dois manifests
-declaram a registry authority `w`. O workspace não altera os imports W e não
-vira uma release conjunta.
-
-O workspace também limita a resolução de toolchain:
+The coordinator also limits toolchain resolution:
 
 ```w
-toolchainPolicy: {
-  catalogs: [.distribution]
-  systemImports: .explicit
-  providerOrder: [.distribution, .system]
-  foreignLanguages: [.c]
-  executionPlatforms: [
-    {
-      name: "linux-x64"
-      target: "x86_64-unknown-linux-gnu"
-      sandbox: "w.build-sandbox/1"
-    },
-    {
-      name: "windows-x64"
-      target: "x86_64-pc-windows-msvc"
-      sandbox: "w.build-sandbox/1"
-    },
-    {
-      name: "macos-arm64"
-      target: "aarch64-apple-darwin"
-      sandbox: "w.build-sandbox/1"
-    },
-  ]
+build {
+  schema: "w.build/1"
+  toolchainPolicy: {
+    catalogs: [.distribution]
+    systemImports: .explicit
+    providerOrder: [.distribution, .system]
+    foreignLanguages: [.c]
+    executionPlatforms: [
+      {
+        name: "linux-x64"
+        target: "x86_64-unknown-linux-gnu"
+        sandbox: "w.build-sandbox/1"
+      },
+      {
+        name: "windows-x64"
+        target: "x86_64-pc-windows-msvc"
+        sandbox: "w.build-sandbox/1"
+      },
+      {
+        name: "macos-arm64"
+        target: "aarch64-apple-darwin"
+        sandbox: "w.build-sandbox/1"
+      },
+    ]
+  }
 }
 ```
 
-`.distribution` usa o catalog snapshot que acompanha o executable W.
-`.explicit` permite somente providers de sistema importados antes da análise.
-`providerOrder` e `executionPlatforms` dão uma ordem explícita.
-`foreignLanguages` autoriza somente o adapter C usado pelo produto. Essa policy
-não escolhe um executable, endpoint ou runner por path.
+`.distribution` uses the catalog snapshot shipped with W. `.explicit` permits
+only system providers authorized before analysis. `providerOrder` and
+`executionPlatforms` give explicit order. `foreignLanguages` authorizes only
+the C adapter used by the product. This policy does not choose an executable,
+endpoint, or runner by path.
 
 ```text
-w context
-w workspace check
+w context --build ./build.w
 w resolve
 w add w/telemetry@^1.0 --as telemetry --use product --dry-run
-w tree last-light-native
+w tree last-light/restaurant:last-light-native
 w diff-lock
 w fetch --locked
-w build last-light-native --locked
+w build last-light/restaurant:last-light-native --locked
+w build all
 w package check --matrix last-light/restaurant
 w publish check --matrix last-light/restaurant
 ```
 
-`w add` altera o manifest e o lock na mesma transação. O `--dry-run` acima
-mostra a authority, o alias, o usage, as versions candidatas e os novos edges.
-Ele não executa o package. `w remove` aplica a mesma regra e falha quando um
-product, feature, action ou target variant ainda referencia o alias.
+Package selectors are exact. `w build all` includes every declared package
+only when requested explicitly; otherwise a command selects one named package
+and, optionally, one named product. There is no scan, glob, ancestor lookup,
+nested build root, path escape, configuration cycle, or ambient working-
+directory discovery. One package may omit the coordinator only when package,
+product, resolution, and deployment selection are unambiguous; multiple
+packages require it.
 
-`resolution` do record `workspace` em `build.w` fixa:
+`w add` changes package intent and its local lock context in one transaction.
+The dry run shows authority, alias, usage, candidate versions, and new edges;
+it does not execute a package. `w remove` applies the same rule and fails while
+a product, feature, action, or target variant still references the alias.
 
-- digest do workspace manifest e dos package manifests;
-- roots e dependency usages;
-- target roles e identities dos resolution contexts;
-- versões e origins;
-- external source tree digests;
-- member paths, manifests e source-inventory digests;
-- active source-set digest de cada context;
-- features;
-- case e digest de cada target variant;
-- build-tool packages;
-- expansão de `moduleSets`;
-- metadata snapshots e razões da resolução.
+The coordinator's `resolution` fixes package digests, roots and dependency
+usages, exact package/product/target/use contexts, versions and origins,
+external source-tree digests, active source-set digests, features, target
+variants, build-tool packages, module-set expansion, metadata snapshots, and
+resolution reasons. Lock contexts remain separate per package, product,
+target, and use; feature union never crosses a context.
 
-A recipe por product, target spec, profile e toolchain-plan row fixa:
+Each product/target/profile/toolchain-plan recipe fixes local source-tree
+digests, lock context, entry, host, runtime graph and packing, selected target
+and profile, compiler/runtime/adapters/sysroot/SDK/linker/packager, build-tool
+execution platform and artifact, action inputs/outputs/budgets, generated
+product inputs, and allowed environment. Package record order does not change
+package recipe or output identity. Package digests exclude exact local roots
+and build-local coordinator facts; the resolved build-plan digest binds those
+facts separately. Receipts bind package digest, resolved build-plan digest,
+recipe, target/runtime closure, and outputs as separate axes.
 
-- content tree digest de cada source local;
-- lock digest;
-- entry, host, runtime graph e packing;
-- target spec, profile e toolchain-plan row;
-- compiler, runtime, adapters, sysroot, SDK, linker e packager selecionados;
-- execution platform da action;
-- target e artifact de cada build tool;
-- action recipes, input digests, output schemas e budgets;
-- generated output digests usados como product inputs;
-- environment permitido e valores usados.
-
-O artifact record liga o recipe digest aos payloads, resources, sidecars e
-provenance. Um action result liga a action recipe aos generated output digests.
-Nenhum result digest entra na recipe que o produz.
-
-`w publish check` resolve o package sem substituição por workspace. Assim, uma
-release local ausente não fica escondida por um member.
+`w publish check` resolves each package without local patches. A local root is
+not a publication fallback, and a patched package cannot be published.
 
 ### 6.2 Toolchains do produto
 
@@ -1096,7 +1094,7 @@ cross-build em Windows para Linux não tenta executar um tool Linux.
 ```text
 w explain dependency last-light/menu-compiler
 w explain action compile-final-menu
-w build last-light-native \
+w build last-light/restaurant:last-light-native \
   --target x86_64-unknown-linux-gnu \
   --locked
 ```
@@ -1124,7 +1122,7 @@ w toolchain resolve \
   --execution-platform linux-x64 \
   --profile release \
   --output build/release-linux-x64.wplan
-w build last-light-native \
+w build last-light/restaurant:last-light-native \
   --target x86_64-unknown-linux-gnu \
   --profile release \
   --toolchains build/release-linux-x64.wplan \
@@ -1139,8 +1137,8 @@ O maintainer autoriza a release. Um builder produz provenance. Um segundo
 builder pode publicar evidência de reprodução. Um auditor publica análise
 separada.
 
-O source snapshot usa a allowlist dos records em `build.w`. Ele não consulta
-`.gitignore`. Cada member inclui seu próprio `LICENSE`, e `package check`
+O source snapshot uses the allowlist in the package records in `build.w`; it
+does not consult `.gitignore`. Each package root includes its own `LICENSE`, and `package check`
 reconstrói usando somente o snapshot.
 
 Nenhum selo combina essas propriedades em uma afirmação vaga de “seguro”.
@@ -1282,7 +1280,7 @@ O produto de referência se torna parte da suíte de:
 
 Os arquivos atuais exigem contratos ainda não implementados:
 
-1. schemas semânticos de package, workspace e deployment;
+1. semantic schemas for packages, the local build coordinator, and deployments;
 2. resolver, lock contexts e standalone publish check;
 3. expansão determinística de `moduleSets`;
 4. selector de target, prova de disjointness e interface matrix;

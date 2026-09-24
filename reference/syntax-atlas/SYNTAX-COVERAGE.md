@@ -21,7 +21,7 @@
 | effects | `restricted-expressions` |
 | operators | `operators` |
 | streams | `stream-and-channel` |
-| manifest | `package-root`, `workspace-root` |
+| manifest | `package-root`, `build-root` |
 
 | Variant | Syntax | Atlas block |
 | --- | --- | --- |
@@ -31,7 +31,7 @@
 | `entry-named-handler` | `entry Atlas(runAtlas)` | `entry-declaration` |
 | `root-module` | `module atlas_language` | `source-roots-imports` |
 | `root-package` | `package {` | `package-root` |
-| `root-workspace` | `workspace {` | `workspace-root` |
+| `root-build` | `build {` | `build-root` |
 | `import-ordinary` | `import std.text` | `source-roots-imports` |
 | `import-module-binding` | `import text from std` | `source-roots-imports` |
 | `import-named` | `import { normalize as normalizeText } from std.text` | `source-roots-imports` |
@@ -1043,6 +1043,7 @@ entry(runModuleRun)
 ```w
 package {
   schema: "w.package/1"
+  root: "."
   authority: .registry("w")
   name: "atlas/syntax"
   edition: "2026"
@@ -1053,48 +1054,43 @@ package {
   }]
   build: {
     profiles: [
-      {
-        name: "debug"
-        optimize: .none
-        checks: .full
-      },
-      {
-        name: "release"
-        optimize: .speed
-        checks: .safe
-      },
+      { name: "debug", optimize: .none, checks: .full },
+      { name: "release", optimize: .speed, checks: .safe },
     ]
     recipes: [
-      {
-        name: "benchmark"
-        baseProfile: "release"
-        kind: .benchmark
-        cpuPolicy: .portable
-      },
+      { name: "benchmark", baseProfile: "release", kind: .benchmark, cpuPolicy: .portable },
     ]
   }
   dependencies: [
-    {
-      alias: "city"
-      package: "fiction/city"
-      source: .registry("w")
-    }
+    { alias: "city", package: "fiction/city", source: .registry("w") },
   ]
+}
+
+package {
+  schema: "w.package/1"
+  root: "tools/indexer"
+  authority: .registry("w")
+  name: "atlas/indexer"
+  edition: "2026"
+  products: [{ name: "atlas-indexer", kind: .tool, module: "indexer" }]
+  build: {
+    network: .deny
+    profiles: [{ name: "release", optimize: .speed, checks: .safe }]
+  }
 }
 ```
 
 </details>
 
 <details>
-<summary>Workspace manifest root · manifest · workspace-root</summary>
+<summary>Local build coordinator · manifest · build-root</summary>
 
 **current** · **tree-sitter-parse-only-provider-missing**
 
 ```w
-workspace {
-  schema: "w.workspace/1"
-  members: ["."]
-  defaultMembers: ["."]
+build {
+  schema: "w.build/1"
+  default: { package: "atlas/syntax", product: "atlas-syntax" }
   patches: []
   resolution: {
     schema: "w.resolution/1"

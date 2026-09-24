@@ -24,8 +24,10 @@ O produto não prova que a linguagem está implementada. Ele pressiona a forma
 integrada de [DESIGN.md](../../DESIGN.md). O
 [plano de build](BUILD.md) aplica products, target specs, toolchain plans, host
 profiles e artifacts.
-O record `workspace` data-only e o record `package` principal estão no único
-[`build.w`](build.w); o workspace é owner de resolution e deployments.
+The single [`build.w`](build.w) contains direct independently publishable
+package records and one local-only `build` coordinator. Package roots are exact
+local paths and are excluded from public package identity; the coordinator
+owns local resolution, patches, deployments, selection, and lock context.
 
 For the planned reuse boundary and surface-specific witnesses, see
 [Shared modules and surface witnesses](BUILD.md#35-shared-modules-and-surface-witnesses)
@@ -279,12 +281,12 @@ alvo de execução independente.
 | `platform/posix/native.w` | implementação selecionada para Linux e Darwin |
 | `platform/windows/native.w` | implementação selecionada para Windows |
 | `worker_app.w` | component HTTP com lifecycle do host |
-| record `package` em `build.w` | products, host bindings, service bindings, runtime graphs, targets e profiles |
-| record `workspace` em `build.w` | members, defaults, patches, resolution e toolchain policy locais |
+| direct `package` records in `build.w` | products, host bindings, service bindings, runtime graphs, targets, profiles and authored recipes |
+| local `build` coordinator in `build.w` | exact roots, defaults, patches, resolution, deployments, lock contexts and toolchain policy |
 | `BUILD.md` | matriz de toolchains, artifacts, comandos e gates |
-| deployment `local` no record `workspace` | plano local com uma unit e adapters de desenvolvimento |
-| deployment `distributed` no record `workspace` | plano heterogêneo com services, devices e WASI |
-| deployment `benchmark` no record `workspace` | PostgreSQL, cache local, admission e limites do benchmark |
+| deployment `local` in the `build` coordinator | local plan with one unit and development adapters |
+| deployment `distributed` in the `build` coordinator | heterogeneous plan with services, devices and WASI |
+| deployment `benchmark` in the `build` coordinator | PostgreSQL, local cache, admission and benchmark limits |
 | `orbit.w` | swarm de satélites, telemetria e propagação tipada |
 | `horizon.w` | sensores do buraco negro, event time e tensor fusion |
 | `horizon_tool.w` | oracle RU0 de módulo normal, dependency chart, entry explícito, requirement admission e menu do horizonte |
@@ -371,8 +373,8 @@ Aceite:
 
 ### 3.1.1 Module run RU0
 
-Famílias: módulo executável, entry explícito, imports, package/workspace,
-resolution e deployments nomeados.
+Famílias: módulo executável, entry explícito, imports, package roots, local
+build coordination, resolution e named deployments.
 
 Aceite:
 
@@ -385,13 +387,17 @@ Aceite:
   `native-process` inclui as duas formas vigentes: `fn(): ()` e handlers que
   declaram `std.process` `Arguments`, `Context` e `ExitCode` com os effects
   e return types do profile;
-- package selecionado em contexto standalone é owner de sua resolution; package
-  member omite resolution/deployments e a membership declarada seleciona o
-  record `workspace` owner em `build.w`. Ancestor scan sozinho e duplicate
-  owner falham;
+- every package is declared directly with an exact local root; the root does
+  not enter public package identity, and packages remain independently
+  publishable;
+- the local `build` coordinator owns resolution/deployments and the exact
+  package/product default; two or more packages require that coordinator;
+- `w build <package>[:<product>]` is exact; `w build all` is explicit only;
+  ancestor/cwd scans, globs, nested build roots, path escapes, and config cycles
+  fail;
 - fora de projeto, somente std e imports locais explícitos são aceitos.
-  Dependency externa não resolvida orienta criar ou adotar package/workspace;
-- `w add/remove/resolve/update` operam no package/workspace. `w run` não faz
+  Dependency externa não resolvida orienta criar ou selecionar um build root;
+- `w add/remove/resolve/update` operam na resolução local selecionada. `w run` não faz
   solve, update, install ou fetch oculto;
 - `resolution` usa schema `w.resolution/1`, deployments usam records
   `w.deployment/1` nomeados e `--deployment local` seleciona por nome;
@@ -405,8 +411,8 @@ Aceite:
 Adversariais:
 
 - entry ausente, duplicado, incompatível ou seleção nomeada desconhecida;
-- dependency externa em contexto efêmero, owner workspace duplicado, membership
-  divergente ou resolution ausente/stale;
+- dependency externa em contexto efêmero, duplicate package root, ambiguous
+  package/product selection ou resolution ausente/stale;
 - import implícito, scan recursivo/cwd/`PATH`/environment, URL, stdin ou
   shebang;
 - solve/update/fetch oculto, deployment selecionado por path, resolution ou
@@ -2695,9 +2701,11 @@ Aceite:
 - `build.w` lista paths exatos e usa um lock compartilhado;
 - `build.w` permite catalog da distribuição e somente system imports
   explícitos;
-- o member `last-light/menu-compiler` satisfaz a `.build` dependency local;
-- a authority, o name e a version do member conferem com a dependency;
-- `w publish check` resolve a mesma dependency sem o workspace;
+- direct package `last-light/menu-compiler` satisfies the local `.build`
+  dependency;
+- its authority, scoped name, and version match the dependency requirement;
+- `w publish check` resolves the dependency without local patches or
+  coordinator state;
 - build, product, test e benchmark mantêm graphs e target roles distintos;
 - o lock fixa packages, a toolchain plan fixa providers, a recipe fixa inputs e
   o artifact record liga outputs;
@@ -3318,7 +3326,7 @@ A integração avança em sete gates cumulativos:
    `AppResponse`;
 3. **Turno do Horizonte Violeta:** o grafo real de services, FFI, compensação e
    observabilidade passa fault injection;
-4. **Products:** package/workspace resolution, toolchain plan e build geram artifacts
+4. **Products:** package/build-root resolution, toolchain plan e build geram artifacts
    reproduzíveis por target;
 5. **ABI:** `WInterface`, `WAbiKey`, symbols, header C e runtime requirements
    passam o laboratório do horizonte;

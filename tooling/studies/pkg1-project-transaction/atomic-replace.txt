@@ -1,1 +1,1 @@
-resolution ownerDigest deploymentDigest atomic replace
+packageSetDigest resolutionDigest deploymentDigest buildPlanDigest atomic replace

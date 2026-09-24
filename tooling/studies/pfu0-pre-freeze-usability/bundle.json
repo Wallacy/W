@@ -9,20 +9,20 @@
   "sourceBase": {
     "path": "current.w",
     "symbol": "pfu0Study",
-    "digest": "sha256:5d28aeb918925b3edd875d1403e4663e3f285e1e505a3231a35dc7c9b717095b"
+    "digest": "sha256:bb9f5b677e77d11a45f14ba6413bd5e67e8905316438b13d78ac87553e68573b"
   },
   "sourceRefs": [
     {
       "path": "../../../reference/last-light/build.w",
-      "symbol": "package {",
-      "digest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
-      "claim": "Current package root control."
+      "symbol": "root: \"packages/menu-compiler\"",
+      "digest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
+      "claim": "Current exact local package root, excluded from public identity."
     },
     {
       "path": "../../../reference/last-light/build.w",
-      "symbol": "workspace {",
-      "digest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
-      "claim": "Current workspace owner control."
+      "symbol": "schema: \"w.build/1\"",
+      "digest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
+      "claim": "Current local-only build coordinator."
     },
     {
       "path": "../../../reference/last-light/streams.w",
@@ -43,7 +43,7 @@
       "role": "selected",
       "language": "w",
       "path": "current.w",
-      "digest": "sha256:5d28aeb918925b3edd875d1403e4663e3f285e1e505a3231a35dc7c9b717095b",
+      "digest": "sha256:bb9f5b677e77d11a45f14ba6413bd5e67e8905316438b13d78ac87553e68573b",
       "changedConstructs": [
         "single build.w root with explicit records",
         "explicit stream, channel, and mailbox",
@@ -59,7 +59,7 @@
       "role": "alternative",
       "language": "w-reserved",
       "path": "candidate.txt",
-      "digest": "sha256:0b393108ab8212795af99afa3334fc2ab166063a5d6af65f5ece6be815c53b14",
+      "digest": "sha256:a2416e89674db9b9cd8c419ef9bbf9b48a4c3b3afdbb45eb56c67cd6a82b5e23",
       "changedConstructs": [
         "single build.w data-only manifest",
         "rejected stream fn comparison",

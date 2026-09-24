@@ -1,31 +1,32 @@
-# PFU0 — fechamento de usabilidade pré-freeze
+# PFU0 — pre-freeze usability closure
 
-PFU0 fornece a evidência de encerramento para três decisões. Ele não afirma
-compilação, execução ou implementação. O oracle host deriva outcomes de facts e source refs.
-O fechamento é limitado a W-1451–W-1453. As gates Research posteriores não
-pertencem ao escopo de PFU0 e mantêm o design freeze global aberto.
+PFU0 provides closure evidence for three decisions. It does not claim W
+compilation, execution, or implementation. The host oracle derives outcomes
+from facts and source references. Its scope is W-1451–W-1453; later Research
+gates remain outside PFU0 and keep the global design freeze open.
 
 As três famílias são:
 
-- W-1451: manifest de projeto unificado.
-- W-1452: streaming de saída de service.
-- W-1453: lifecycle de property.
+- W-1451: package-centric `build.w` roots.
+- W-1452: service output streams.
+- W-1453: property lifecycle.
 
 Cada família possui uma variante current, uma candidate e uma adversarial.
 `candidate.txt` é texto reservado. Ele não é source W e não entra na grammar.
 
-Current controls preserve the single `build.w` root, explicit `Stream`,
-explicit `Channel` and mailbox boundaries, and `get`/`get ref`/`get mut ref`/`set`.
-The build manifest candidate is accepted as the current control. The stream-fn and
-implicit-observer candidates are rejected. Adversarial routes reject inline
-packages, empty or owner-incompatible `build.w`, nested workspaces, implicit
-transport, client or bidi streaming, the general `stream fn` route, conflated
-`ServiceFailure` admission/open and terminal `Failure`, hidden `oldValue`
-copies, and observer bypass ambiguity. `build.w` has one or two records,
-at least one, in order-independent form. A standalone package record owns
-`resolution`/`deployments`; a package-only member omits those fields and the
-declared workspace owns them. A workspace record is the owner when present in
-the same file. Membership is declared, never found by ancestor scan.
+Current controls preserve the direct package records, exact local roots, and
+optional local-only `build { schema: "w.build/1" }` coordinator, plus explicit
+`Stream`, `Channel`, mailbox, and property-accessor boundaries. The
+package-centric manifest candidate is accepted as the current control. The
+stream-fn and implicit-observer candidates are rejected. Adversarial routes
+reject missing packages, multiple packages without a coordinator, duplicate
+coordinators or roots, path escapes, globs, nested build roots, coordinator
+weakening of package requirements, implicit transport, client or bidi
+streaming, conflated `ServiceFailure` admission/open and terminal `Failure`,
+hidden `oldValue` copies, and observer bypass ambiguity. Package record order
+does not affect package recipe identity. `w build <package>[:<product>]` is
+exact selection; `w build all` is explicit only. There is no workspace record
+or workspace identity, and root discovery never scans cwd or ancestors.
 The service comparison records `stream fn updates(...): Item throws Failure`
 as rejected for general use because captures, lifecycle, and error ownership
 remain ambiguous. Service APIs keep explicit `some Stream<Item,Failure>`;

@@ -7,7 +7,18 @@ Reserved:
   not a W parser source file and does not provide a syntax witness.
 - capture(...) is replaced by the contextual <[...]> capture prefix.
 - named type arguments and binding modifiers are not grammar forms.
-- URL, stdin, shebang, and ambient package discovery are reserved.
+- URL, stdin, shebang, ambient cwd package discovery, ancestor scans, and
+  recursive package discovery are not selected build-root forms. A `root`
+  names one exact local path and may not be a glob, escaping path, or nested
+  `build.w` file. A nested `build.w` is never discovered beneath a declared
+  package root.
+- `build { ... }` is local orchestration only. `package { ... }` records remain
+  independently publishable; local root/resolution/deployment facts do not
+  enter public package identity.
+- The coordinator has no `include`, `extends`, or nested-root field. It cannot
+  load another build configuration or form a configuration cycle.
+- `w build <package>[:<product>]` is exact selection. `w build all` is an
+  explicit aggregate request, never an implicit multi-package default.
 - W compiler `--profile benchmark` and `--recipe ...` CLI spellings are not
   selected. Persist build configuration in `build.w`; benchmark is a recipe over
   `debug` or `release`, not a third base profile.

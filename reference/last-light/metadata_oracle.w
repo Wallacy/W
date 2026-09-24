@@ -3,7 +3,7 @@
 enum MetadataDomain {
   packageManifest
   packageLock
-  workspace
+  localBuildCoordinator
   buildRecipe
   toolchainPlan
   releaseEnvelope
@@ -22,7 +22,7 @@ const fn expectedEncoding(for domain: MetadataDomain): MetadataEncoding {
   return switch domain {
     case .packageManifest: .deterministicCbor
     case .packageLock: .deterministicCbor
-    case .workspace: .deterministicCbor
+    case .localBuildCoordinator: .deterministicCbor
     case .buildRecipe: .deterministicCbor
     case .toolchainPlan: .deterministicCbor
     case .releaseEnvelope: .deterministicCbor
@@ -64,6 +64,7 @@ const fn expectedRecipeFieldDisposition(
 
 test "records, interfaces, and payloads keep separate encodings" for expectedEncoding {
   expect expectedEncoding(for: .packageManifest) == .deterministicCbor
+  expect expectedEncoding(for: .localBuildCoordinator) == .deterministicCbor
   expect expectedEncoding(for: .buildRecipe) == .deterministicCbor
   expect expectedEncoding(for: .releaseEnvelope) == .deterministicCbor
   expect expectedEncoding(for: .semanticInterface) == .wMeta1Candidate

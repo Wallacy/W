@@ -40,10 +40,14 @@ conhecido do parser.
 uma árvore right-associative, mas DESIGN rejeita assignment encadeada. O atlas
 e seu checker registram esses fatos sem convertê-los em claims semânticos.
 
-[`build.w`](build.w) é o único documento de manifesto do atlas e contém records
-diretos `package` e `workspace`. O package demonstra identidade e dependencies; o
-workspace é o owner de `resolution` e deployments quando os dois estão
-presentes. Os records não duplicam ownership e o arquivo é pequeno por design.
+[`build.w`](build.w) is the atlas's single manifest document. It contains two
+direct `package` records and one local-only `build { schema: "w.build/1" }`
+coordinator. Each package has an exact local `root`; package-authored
+requirements, profiles, and recipes remain inside the independently
+publishable package. The coordinator owns local resolution and deployments,
+plus the exact default selector. There is no workspace record or workspace
+identity. Multiple-package builds require an explicit package selector, and
+`w build all` is only used when requested.
 
 [`atlas-manifest.json`](atlas-manifest.json) inventaria cada bloco marcado,
 cada família e cada regra pública nomeada da grammar. Ele registra design status,

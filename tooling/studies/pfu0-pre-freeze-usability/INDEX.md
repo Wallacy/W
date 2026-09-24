@@ -9,15 +9,16 @@
 | `adversarial.w` | Witness W fino para rotas rejeitadas |
 | `oracle.test.mjs` | Testes determinísticos das três famílias |
 
-O payload semântico fica em `tooling/pfu0-pre-freeze-usability-cases.json`.
-O resultado não usa `expected` ou resultado fornecido pelo caller: o corpus e a
-machine rejeitam esses campos e `validateCorpus`/`evaluateCase` derivam todos
-os outcomes. `bundle.json.inputs[].expected` é somente rubric metadata R1,
-fica oculto por `blinding.hide` e nunca é mostrado ao participante. O contrato
-de manifesto exige um ou dois records em `build.w`, pelo menos um e ordem
-independente. Package standalone é owner de `resolution`/`deployments`; package
-member omite esses fields e o workspace declarado é owner. O workspace é owner
-quando presente no mesmo arquivo. A comparação de service
-registra `stream fn updates(...): Item throws Failure` como rejeitada. APIs
-mantêm `some Stream<Item,Failure>` explícito, abertura `try await` e consumo
-`for try await`, com `ServiceFailure` separado de `Failure`.
+The semantic payload lives in `tooling/pfu0-pre-freeze-usability-cases.json`.
+The result does not use `expected` or a result supplied by the caller: the corpus
+and machine reject those fields, and `validateCorpus`/`evaluateCase` derive all
+outcomes. `bundle.json.inputs[].expected` is only R1 rubric metadata, hidden by
+`blinding.hide` and never shown to participants. The manifest requires one or
+more direct package records with exact roots and at most one local coordinator;
+multiple packages require it, and record order does not affect package-set
+identity. Package-authored requirements, profiles, and recipes stay in package
+identity; the coordinator owns local selection, resolution, deployment, patch,
+and lock facts. The service comparison registers `stream fn updates(...): Item
+throws Failure` as rejected. APIs maintain explicit `some Stream<Item,Failure>`,
+opening `try await` and consumption `for try await`, with `ServiceFailure`
+separate from `Failure`.

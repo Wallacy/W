@@ -16,21 +16,21 @@
       "id": "SYN1",
       "role": "evidence-input",
       "path": "../syn1-typed-generation/study.json",
-      "digest": "sha256:081a37c98a8aa2c110c1de465e452be21d1d8c1477af127ee46d5fa3e241631d",
+      "digest": "sha256:6e196069f8ad97c88c7c0830f0996b9cc0a3dd475ce2bc867e208bac721e8a8d",
       "claim": "typed generation, content-addressed module sets, normal-unit reopen, target/source-map evidence"
     },
     {
       "id": "DYN1",
       "role": "evidence-input",
       "path": "../dyn1-versioned-behavior/study.json",
-      "digest": "sha256:4ed6ee240b9d28508280ee039a525e3bcc5110e7067692d9a76e62e97ec97169",
+      "digest": "sha256:a2e536e8715e4a5c141583ca73fa5f80d8f291fa27ca207fc633421c962ce091",
       "claim": "versioned behavior, receipts, cleanup, and rejected dynamic mechanisms"
     },
     {
       "id": "HRD0",
       "role": "evidence-input",
       "path": "../hrd0-hot-reload-dev/study.json",
-      "digest": "sha256:7d94a669a10593312dcebf0510a4ba1623832fc69dde86b9d9178e74cefe9269",
+      "digest": "sha256:b1125939cb4b92d0de7cd3e6442162da829e67a87b347dc563ed7c62003b3e28",
       "claim": "development-only runner, local/split cleanup, and mutation boundary"
     }
   ],
@@ -61,7 +61,7 @@
     },
     "bundle": {
       "path": "bundle.json",
-      "digest": "sha256:11c12fe9a5ed21367677057218d5c61717a9a365160ac0ad7e50e73785d21e4e"
+      "digest": "sha256:19ae4912b76d110373eca3c48577623f3492a43f0b4ec09d7f174b810af32960"
     }
   },
   "sourceRefs": [
@@ -98,7 +98,7 @@
     {
       "path": "reference/last-light/build.w",
       "symbol": "name: \"compile-final-menu\"",
-      "digest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "digest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "role": "package-identity"
     }
   ],

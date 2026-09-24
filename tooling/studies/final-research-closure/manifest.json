@@ -55,7 +55,7 @@
       "id": "FRC0-bundle",
       "role": "bundle",
       "path": "tooling/studies/final-research-closure/bundle.json",
-      "digest": "sha256:80886bbadffef540e4803a241c32ec8d90f18718cd8aad722e1d5bec5923809d"
+      "digest": "sha256:6b46189664a1ff5ef3e45f947d101b4afb5f1061538c7cf3acee785cf135fad7"
     },
     {
       "id": "FRC0-study",
@@ -181,25 +181,25 @@
       "id": "FRC0-classification",
       "role": "classification",
       "path": "tooling/design-freeze-classification.json",
-      "digest": "sha256:bf0f113aa321853506be6c9e00f34817f123b76f4c1ddb42918285ca1c2b4ca2"
+      "digest": "sha256:c85937e3fdb026e1dd0d8572b0426ff70e8d254b4333e0fe25be2b3e55b73b5b"
     },
     {
       "id": "FRC0-ledger",
       "role": "ledger",
       "path": "RATIONALE.md",
-      "digest": "sha256:a968da36b76cdf97be87f90b560599b3d820c82c2ebfa4541302978dbd4a17d6"
+      "digest": "sha256:da1a2aa7d4a3d05a1622483303ee30875f51a14b2c591dcab93c48a4bc6ae715"
     },
     {
       "id": "FRC0-design",
       "role": "design",
       "path": "DESIGN.md",
-      "digest": "sha256:2c82bee14e37bb989619dd361167f8aef4c524623f1222d003cef5e13c2305fb"
+      "digest": "sha256:98a3ab22a0516eb0eb7247885f6923129aa9c4f8699e28c2e49542334d73f398"
     },
     {
       "id": "FRC0-index",
       "role": "index",
       "path": "DESIGN-INDEX.md",
-      "digest": "sha256:b1587a7a2fc56a66b9a8bec78d8f4c1aacee139d8307a42b0d77a307a4260adf"
+      "digest": "sha256:ff526b4ca6e2eae874a1c91c24ac0b5d4578f6c146ee8f58bc6c9f26e4bb54dc"
     }
   ],
   "evidence": {

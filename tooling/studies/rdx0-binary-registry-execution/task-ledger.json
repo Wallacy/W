@@ -65,7 +65,7 @@
     { "path": "tooling/studies/sec0-security-model/README.md", "anchor": "Invariantes", "claim": "security evidence boundary and profile limits" },
     { "path": "tooling/studies/sea0-simulated-effects-approval/README.md", "anchor": "Test-infrastructure crosspoint", "claim": "bounded test lanes and independent oracle boundary" },
     { "path": "reference/last-light/README.md", "anchor": "compile-final-menu / menu-compiler", "claim": "official Last Light menu compiler integration flow" },
-    { "path": "reference/last-light/packages/menu-compiler/build.w", "anchor": "package {", "claim": "real closed-package manifest fixture" },
+    { "path": "reference/last-light/build.w", "anchor": "name: \"last-light/menu-compiler\"", "claim": "direct package record with exact root and authored build policy" },
     { "path": "reference/last-light/packages/menu-compiler/transform.w", "anchor": "entry(transform)", "claim": "real hermetic menu transform fixture" },
     { "path": "reference/last-light/release_oracle.w", "anchor": "test \"closed source keeps a separate reproduction claim\"", "claim": "release, reproduction, revocation and yank oracle fixture" },
     { "path": "reference/last-light/capability_security_oracle.w", "anchor": "test \"revocation closes admission without rollback\"", "claim": "capability revocation boundary fixture" },
@@ -390,7 +390,7 @@
       "kind": "adversarial-design-fixture",
       "sourceRefs": [
         { "path": "reference/last-light/README.md", "anchor": "compile-final-menu / menu-compiler", "claim": "Last Light menu compiler and integrated restaurant flow" },
-        { "path": "reference/last-light/packages/menu-compiler/build.w", "anchor": "package {", "claim": "closed-package manifest and public product fixture" },
+        { "path": "reference/last-light/build.w", "anchor": "name: \"last-light/menu-compiler\"", "claim": "direct package record with exact root and authored build policy" },
         { "path": "reference/last-light/packages/menu-compiler/transform.w", "anchor": "entry(transform)", "claim": "hermetic transform entry and typed input/output" },
         { "path": "reference/last-light/release_oracle.w", "anchor": "test \"closed source keeps a separate reproduction claim\"", "claim": "closed release, reproduction, yank and revocation fixture" },
         { "path": "reference/last-light/capability_security_oracle.w", "anchor": "test \"revocation closes admission without rollback\"", "claim": "capability revocation without rollback fixture" },

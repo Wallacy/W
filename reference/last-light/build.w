@@ -1,8 +1,9 @@
-// Unified data-only build manifest: direct package and workspace records.
+// Unified data-only build manifest: direct package records and one local build coordinator.
 // DESIGN.md sections 3.5.3 and 21.1 define its document grammar and schemas.
 
 package {
   schema: "w.package/1"
+  root: "."
   authority: .registry("w")
   name: "last-light/restaurant"
   version: "0.1.0"
@@ -1014,20 +1015,90 @@ package {
   }
 }
 
-// Data-only workspace for the Last Light reference product.
+// Independently publishable build tool, rooted at an exact local path.
+package {
+  schema: "w.package/1"
+  root: "packages/menu-compiler"
+  authority: .registry("w")
+  name: "last-light/menu-compiler"
+  version: "0.1.0"
+  edition: "2026"
+  namespace: "last_light.menu"
+  license: {
+    expression: "MIT"
+    files: ["LICENSE"]
+  }
+  publish: {
+    source: .required
+    files: [
+      .modules,
+      .path("README.md"),
+      .path("LICENSE"),
+    ]
+  }
 
-workspace {
-  schema: "w.workspace/1"
-  members: [
-    ".",
-    "packages/menu-compiler",
+  moduleSets: [
+    {
+      name: "menu-compiler-modules"
+      activation: .always
+      namespace: "last_light.menu"
+      root: "."
+      include: ["*.w"]
+      exclude: ["build.w"]
+      layout: .fileStem
+    },
   ]
-  defaultMembers: ["."]
+
+  products: [
+    {
+      name: "menu-compiler"
+      kind: .tool
+      module: "last_light.menu.transform"
+      host: "w.host/build-transform@1"
+      capabilities: []
+    },
+  ]
+
+  dependencies: []
+
+  build: {
+    network: .deny
+    environment: []
+    profiles: [
+      {
+        name: "release"
+        optimize: .speed
+        checks: .safe
+        debug: .sidecar
+        cpuPolicy: .portable
+        memory: {
+          generalAllocator: .system
+          representation: .portable
+          dynamicAllocation: .allow
+          automaticStorage: .infer
+        }
+      },
+    ]
+    constEval: {
+      steps: 1_000_000
+      heap: 64MiB
+      callDepth: 256
+      result: 8MiB
+    }
+  }
+}
+
+build {
+  schema: "w.build/1"
+  default: {
+    package: "last-light/restaurant"
+    product: "last-light-native"
+  }
   patches: []
   resolution: {
     schema: "w.resolution/1"
     resolver: "w.resolver/1"
-    ownerDigest: "sha256:891b79dc85b8bdc4f320a5a066dae1bae2692e23234313c5d9d608332e229827"
+    packageSetDigest: "sha256:dbd242084240e67ffb709cfa6e2ccfebeeff5c42fa4a3d914f575b209faf7d9c"
     authorities: [
       {
         kind: .registry
@@ -1044,6 +1115,8 @@ workspace {
     contexts: [
       {
         name: "last-light-native"
+        package: "last-light/restaurant"
+        product: "last-light-native"
         root: .product("last-light-native")
         use: .product
         targetRole: .target
@@ -1060,6 +1133,8 @@ workspace {
       },
       {
         name: "menu-compiler"
+        package: "last-light/menu-compiler"
+        product: "menu-compiler"
         root: .tool("menu-compiler")
         use: .build
         targetRole: .execution
@@ -1078,7 +1153,7 @@ workspace {
         authority: { object: "sha256:1031dc23028d28379d8d168895ce528b833d3015fcfe87f9797119a9f7fff538", length: 463 }
         name: "last-light/restaurant"
         version: "0.1.0"
-        source: .member(path: ".")
+        source: .path(".")
         dependencies: [
           { alias: "chart", id: "sha256:3b51417f058a4a66d6166525d9fd588c97e79649db57d599fb7e559be24f8a44", use: .product }
           { alias: "menuCompiler", id: "sha256:3e896724d6f6f896039de431e424309492cd2b2b30b47c0cf33e1f0f1b064de0", use: .build }
@@ -1097,7 +1172,7 @@ workspace {
         authority: { object: "sha256:1031dc23028d28379d8d168895ce528b833d3015fcfe87f9797119a9f7fff538", length: 463 }
         name: "last-light/menu-compiler"
         version: "0.1.0"
-        source: .member(path: "packages/menu-compiler")
+        source: .path("packages/menu-compiler")
         dependencies: []
       },
     ]

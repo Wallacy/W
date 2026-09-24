@@ -1,7 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
-  deriveOwnerDigest,
+  deriveBuildPlanDigest,
+  derivePackageDigest,
+  derivePackageSetDigest,
+  derivePublicationPackageDigest,
   parseManifestDocument,
   parseBuildManifest,
 } from "./w-manifest-data.mjs";
@@ -47,39 +50,35 @@ function expectBuildError(label, source, expectedCode) {
   }
 }
 
-expectBuildOrder("package-only parser shape", 'package { schema: "w.package/1" }', ["package"]);
-expectBuildOrder("workspace-only parser shape", 'workspace { schema: "w.workspace/1" }', ["workspace"]);
+expectBuildOrder("single-package root", 'package { schema: "w.package/1" root: "." }', ["package"]);
 expectBuildOrder(
-  "package/workspace parser order",
-  'package { schema: "w.package/1" } workspace { schema: "w.workspace/1" }',
-  ["package", "workspace"],
+  "package records followed by coordinator",
+  'package { schema: "w.package/1" root: "." } package { schema: "w.package/1" root: "tools/x" } build { schema: "w.build/1" }',
+  ["package", "package", "build"],
 );
 expectBuildOrder(
-  "workspace/package parser order",
-  'workspace { schema: "w.workspace/1" } package { schema: "w.package/1" }',
-  ["workspace", "package"],
+  "coordinator may precede packages",
+  'build { schema: "w.build/1" } package { schema: "w.package/1" root: "." } package { schema: "w.package/1" root: "tools/x" }',
+  ["build", "package", "package"],
 );
 expectBuildError("empty build parser shape", "", "manifestRootMissing");
-expectBuildError(
-  "duplicate package parser shape",
-  'package { schema: "w.package/1" } package { schema: "w.package/1" }',
-  "manifestDuplicateRoot",
-);
-expectBuildError(
-  "duplicate workspace parser shape",
-  'workspace { schema: "w.workspace/1" } workspace { schema: "w.workspace/1" }',
-  "manifestDuplicateRoot",
-);
-expectBuildError(
-  "third root parser shape",
-  'package { schema: "w.package/1" } workspace { schema: "w.workspace/1" } deployment { schema: "w.deployment/1" }',
-  "manifestRootInvalid",
-);
-// Empty source is valid module syntax in Tree-sitter; the build.w filename/root
-// checker applies the data-only contract and rejects an empty physical build.
+expectBuildError("workspace root rejected", 'workspace { schema: "w.workspace/1" }', "manifestRootInvalid");
+expectBuildError("direct root kind cannot be overridden by a field", 'package { schema: "w.package/1" root: "." kind: "build" }', "manifestRootKindFieldInvalid");
+expectBuildError("multiple packages need coordinator", 'package { schema: "w.package/1" root: "." } package { schema: "w.package/1" root: "tools/x" }', "manifestBuildCoordinatorRequired");
+expectBuildError("duplicate coordinator", 'package { schema: "w.package/1" root: "." } build { schema: "w.build/1" } build { schema: "w.build/1" }', "manifestDuplicateRoot");
+expectBuildError("build-only document has no package", 'build { schema: "w.build/1" }', "manifestRootMissing");
+expectBuildError("coordinator cannot include another build file", 'package { schema: "w.package/1" root: "." } build { schema: "w.build/1" include: .path("build.w") }', "manifestBuildFieldUnknown");
+expectBuildError("package root cannot name a nested build file", 'package { schema: "w.package/1" root: "packages/tool/build.w" }', "manifestPackageRootInvalid");
+expectBuildError("duplicate exact package root", 'package { schema: "w.package/1" root: "." } package { schema: "w.package/1" root: "." } build { schema: "w.build/1" }', "manifestDuplicatePackageRoot");
+for (const root of ["../escape", "a/../escape", "*", "packages/*", "/absolute", "C:/absolute", "", "a//b"]) {
+  expectBuildError(`unsafe root ${JSON.stringify(root)}`, `package { schema: "w.package/1" root: "${root}" }`, "manifestPackageRootInvalid");
+}
+
+// The data-only build.w filename/root checker rejects extra roots; the one-record
+// parser remains useful for decoding a package record inside focused fixtures.
 let legacyDocumentError;
 try {
-  parseManifestDocument('package { schema: "w.package/1" } workspace { schema: "w.workspace/1" }');
+  parseManifestDocument('package { schema: "w.package/1" root: "." } build { schema: "w.build/1" }');
 } catch (error) {
   legacyDocumentError = error;
 }
@@ -93,25 +92,31 @@ for (const obsolete of ["package.w", "workspace.w"]) {
 }
 const horizon = text(path.join(LAST_LIGHT, "horizon_tool.w"));
 const buildDocument = parseBuildManifest(buildText);
-const packageDocument = buildDocument.package;
-const workspaceDocument = buildDocument.workspace;
+const coordinator = buildDocument.build;
+const packages = buildDocument.packages;
 
-if (buildDocument.kind !== "build_manifest" || buildDocument.records.length !== 2 ||
-    packageDocument?.kind !== "package" || workspaceDocument?.kind !== "workspace") fail("build manifest parser returned the wrong root shape");
-if (Object.hasOwn(packageDocument, "resolution") || Object.hasOwn(packageDocument, "deployments")) {
-  fail("combined build.w package must omit resolution and deployments; workspace is the sole owner");
+if (buildDocument.kind !== "build_manifest" || packages.length !== 2 || coordinator?.kind !== "build") {
+  fail("Last Light build manifest must have two direct package records and one build coordinator");
 }
-
+if (packages.map((record) => record.name).sort().join(",") !== "last-light/menu-compiler,last-light/restaurant") {
+  fail("Last Light direct package set is incomplete");
+}
+if (Object.hasOwn(packages[0], "resolution") || Object.hasOwn(packages[0], "deployments")) {
+  fail("local resolution and deployment facts must live only in the build coordinator");
+}
+if (fs.existsSync(path.join(LAST_LIGHT, "packages", "menu-compiler", "build.w"))) fail("nested build root remains");
 if (fs.existsSync(path.join(LAST_LIGHT, "package.lock"))) fail("obsolete package.lock remains");
 if (fs.existsSync(path.join(LAST_LIGHT, "deployments"))) fail("obsolete deployments directory remains");
 if (buildText.includes('.path("deployments/')) fail("package publication still includes deployment paths");
 if (!buildText.includes('alias: "chart"') || !buildText.includes('package: "fiction/chart"')) fail("build.w does not declare chart dependency");
 if (!horizon.includes("module horizon_tool") || !horizon.includes("entry(runHorizon)")) fail("horizon_tool.w is not an explicit-entry module");
 if (/^script\s*\{/mu.test(horizon) || /^let\s+\w+/mu.test(horizon)) fail("horizon_tool.w still uses a header or top-level execution");
-
-if (!buildText.includes('schema: "w.resolution/1"')) fail("workspace resolution schema is missing");
-if (!buildText.includes('schema: "w.deployment/1"')) fail("workspace deployment schema is missing");
-const deploymentNames = [...buildText.matchAll(/^      name: "(local|distributed|benchmark)"$/gmu)].map((match) => match[1]);
+if (coordinator.default?.package !== "last-light/restaurant" || coordinator.default?.product !== "last-light-native") {
+  fail("build coordinator must carry the exact package/product default selector");
+}
+if (coordinator.resolution?.schema !== "w.resolution/1") fail("local resolution schema is missing");
+if (!Array.isArray(coordinator.deployments) || coordinator.deployments.length !== 3) fail("local deployment plans are missing");
+const deploymentNames = coordinator.deployments.map(({ name }) => name);
 if (JSON.stringify(deploymentNames) !== JSON.stringify(["local", "distributed", "benchmark"])) fail(`deployment names are not closed: ${deploymentNames.join(", ")}`);
 const rootEdges = [...buildText.matchAll(/alias: "([^"]+)"\s*,?\s*id: "(sha256:[0-9a-f]{64})"/gu)].map((match) => `${match[1]}=${match[2]}`);
 const nodeIds = {
@@ -126,36 +131,62 @@ for (const id of Object.values(nodeIds)) if (!buildText.includes(`id: "${id}"`) 
 for (const digestValue of buildText.match(/sha256:[0-9a-f]{64}/gu) ?? []) if (!DIGEST.test(digestValue)) fail(`malformed digest ${digestValue}`);
 for (const name of ["last-light/restaurant", "fiction/chart", "last-light/menu-compiler"]) if (!buildText.includes(`name: "${name}"`)) fail(`missing resolution package ${name}`);
 
-const memberBuildPackages = new Map();
-for (const member of workspaceDocument.members ?? []) {
-  if (typeof member !== "string" || member.startsWith("/") || member.includes("..")) fail(`invalid workspace member ${member}`);
-  const memberBuild = path.join(LAST_LIGHT, member, "build.w");
-  const memberDocument = parseBuildManifest(text(memberBuild));
-  if (!memberDocument.package || (member !== "." && memberDocument.workspace)) fail(`workspace member lacks package build without nested workspace: ${member}`);
-  if (member !== "." && (Object.hasOwn(memberDocument.package, "resolution") || Object.hasOwn(memberDocument.package, "deployments"))) {
-    fail(`workspace member package must omit resolution and deployments: ${member}`);
-  }
-  memberBuildPackages.set(member, memberDocument.package.name);
+for (const packageRecord of packages) {
+  const absoluteRoot = path.resolve(LAST_LIGHT, packageRecord.root);
+  if (!absoluteRoot.startsWith(`${LAST_LIGHT}${path.sep}`) && absoluteRoot !== LAST_LIGHT) fail(`package root escapes Last Light: ${packageRecord.root}`);
+  if (!fs.statSync(absoluteRoot).isDirectory()) fail(`package root is not a directory: ${packageRecord.root}`);
+  if (!Object.hasOwn(packageRecord, "build")) fail(`package-authored build requirements/profiles/recipes missing for ${packageRecord.name}`);
 }
-if (memberBuildPackages.size !== (workspaceDocument.members ?? []).length) fail("workspace members contain duplicate paths");
 
-const declaredOwnerDigest = workspaceDocument.resolution?.ownerDigest;
-if (!DIGEST.test(declaredOwnerDigest ?? "")) fail("ownerDigest is missing or malformed");
-const expected = deriveOwnerDigest(workspaceDocument);
-if (declaredOwnerDigest !== expected) fail(`ownerDigest is stale: expected ${expected}, found ${declaredOwnerDigest}`);
+const expectedPackageSetDigest = derivePackageSetDigest(packages);
+const declaredPackageSetDigest = coordinator.resolution.packageSetDigest;
+if (!DIGEST.test(declaredPackageSetDigest ?? "")) fail("packageSetDigest is missing or malformed");
+if (declaredPackageSetDigest !== expectedPackageSetDigest) fail(`packageSetDigest is stale: expected ${expectedPackageSetDigest}, found ${declaredPackageSetDigest}`);
+const packageDigestByName = Object.fromEntries(packages.map((record) => [record.name, derivePackageDigest(record)]));
+const relocatedPackage = { ...packages[0], root: "relocated/exact-root" };
+if (derivePackageDigest(relocatedPackage) !== derivePackageDigest(packages[0])) fail("local root path entered public package identity");
+if (derivePackageSetDigest([...packages].reverse()) !== expectedPackageSetDigest) fail("package record order changed package-set identity");
+const menuCompilerStart = buildText.indexOf('name: "last-light/menu-compiler"');
+const authoredBuildMutation = menuCompilerStart < 0 ? buildText :
+  buildText.slice(0, menuCompilerStart) + buildText.slice(menuCompilerStart).replace("network: .deny", "network: .allow");
+if (authoredBuildMutation === buildText) fail("package-authored build requirement mutation did not apply");
+const authoredPackages = parseBuildManifest(authoredBuildMutation).packages;
+if (derivePackageDigest(authoredPackages.find(({ name }) => name === "last-light/menu-compiler")) === packageDigestByName["last-light/menu-compiler"]) {
+  fail("package-authored build requirements were excluded from public package identity");
+}
+
+const localPatchCoordinator = { ...coordinator, patches: [{ package: "last-light/restaurant", replace: "local-source" }] };
+if (derivePackageSetDigest(packages) !== expectedPackageSetDigest) fail("local patches changed public package-set identity");
+let publicationPatchError;
+try {
+  derivePublicationPackageDigest(packages.find(({ name }) => name === "last-light/restaurant"), localPatchCoordinator);
+} catch (error) {
+  publicationPatchError = error;
+}
+if (publicationPatchError?.code !== "manifestLocalPatchUnpublishable") fail("publication accepted a package with a local patch");
+
+const originalPlanDigest = deriveBuildPlanDigest(buildDocument);
+const reorderedBuildDocument = { ...buildDocument, packages: [...packages].reverse() };
+if (deriveBuildPlanDigest(reorderedBuildDocument) !== originalPlanDigest) fail("package record order changed build-plan identity");
+const relocatedBuildDocument = structuredClone(buildDocument);
+relocatedBuildDocument.packages[0].root = "relocated/exact-root";
+if (derivePackageSetDigest(relocatedBuildDocument.packages) !== expectedPackageSetDigest) fail("local root changed public package-set identity");
+if (deriveBuildPlanDigest(relocatedBuildDocument) === originalPlanDigest) fail("local root binding did not change build-plan identity");
+const authoredBuildDocument = parseBuildManifest(authoredBuildMutation);
+if (deriveBuildPlanDigest(authoredBuildDocument) === originalPlanDigest) fail("package-authored build requirements did not change build-plan identity");
+const selectedProductMutation = buildText.replace('product: "last-light-native"', 'product: "other-product"');
+if (derivePackageSetDigest(parseBuildManifest(selectedProductMutation).packages) !== expectedPackageSetDigest) fail("local default selection changed package identity");
+if (deriveBuildPlanDigest(parseBuildManifest(selectedProductMutation)) === originalPlanDigest) fail("local selector change did not change build-plan identity");
 const resolutionMutation = buildText.replace('resolver: "w.resolver/1"', 'resolver: "w.resolver/2"');
-if (deriveOwnerDigest(parseBuildManifest(resolutionMutation).workspace) !== expected) fail("resolution-only edits changed owner identity");
-const deploymentMutation = buildText.replace('name: "local"', 'name: "local-mutated"');
-if (deriveOwnerDigest(parseBuildManifest(deploymentMutation).workspace) !== expected) fail("deployment-only edits changed owner identity");
-const dependencyMutation = buildText.replace('"packages/menu-compiler"', '"packages/menu-compiler-mutated"');
-if (deriveOwnerDigest(parseBuildManifest(dependencyMutation).workspace) === expected) fail("member/dependency edits did not change owner identity");
-const commentMutation = buildText.replace("// Data-only workspace for the Last Light reference product.\n", "// moved comment\n\n");
-if (deriveOwnerDigest(parseBuildManifest(commentMutation).workspace) !== expected) fail("comments changed owner identity");
+if (derivePackageSetDigest(parseBuildManifest(resolutionMutation).packages) !== expectedPackageSetDigest) fail("local resolver change changed public package identity");
+if (deriveBuildPlanDigest(parseBuildManifest(resolutionMutation)) === originalPlanDigest) fail("local resolver change did not change build-plan identity");
+const commentMutation = buildText.replace("// Unified data-only build manifest: direct package records and one local build coordinator.\n", "// relocated comment\n");
+if (derivePackageSetDigest(parseBuildManifest(commentMutation).packages) !== expectedPackageSetDigest) fail("comments changed package identity");
 const nestedOrderMutation = buildText.replace(
   'name: "linux-x64"\n        target: "x86_64-unknown-linux-gnu"\n        sandbox: "w.build-sandbox/1"',
   'sandbox: "w.build-sandbox/1"\n        name: "linux-x64"\n        target: "x86_64-unknown-linux-gnu"',
 );
 if (nestedOrderMutation === buildText) fail("nested order mutation did not apply");
-if (deriveOwnerDigest(parseBuildManifest(nestedOrderMutation).workspace) !== expected) fail("nested field order changed owner identity");
+if (deriveBuildPlanDigest(parseBuildManifest(nestedOrderMutation)) !== originalPlanDigest) fail("named field order changed build-plan identity");
 
-console.log(`root-unification: ok (${expected})`);
+console.log(`root-unification: ok (${expectedPackageSetDigest}; ${originalPlanDigest})`);

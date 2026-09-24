@@ -24,8 +24,8 @@
     "studyDirectories": 76,
     "metadataFiles": 99,
     "fixtureFiles": 345,
-    "references": 915,
-    "digestReferences": 772,
+    "references": 917,
+    "digestReferences": 774,
     "pathOnlyReferences": 143,
     "dependencyEdges": 54,
     "entrypoints": 56,
@@ -56,14 +56,14 @@
     {
       "path": "tooling/studies/asic0-evidence-gap-closure/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:68ce25821a12ccf12e64bd30c0e510d86a4bd636d67346c1a48b88ab28316d3a",
+      "digest": "sha256:86411a256fdc42f534eaa217220576ad027ab87e4de3b119acaf9d366645e29b",
       "status": "design-oracle-input",
       "id": "R1-asic0-evidence-gap-closure"
     },
     {
       "path": "tooling/studies/asic0-evidence-gap-closure/manifest.json",
       "kind": "manifest",
-      "digest": "sha256:ae2e488b48c1a076a83c3c3b0e7022f6640e724fdb2b11f9b5a57c2b56d023ed",
+      "digest": "sha256:71c25ff0b701db51af601a45e96a7100e5604b53d2b59d9f74943291cbeddb53",
       "status": "design-oracle-input",
       "id": "ASIC0"
     },
@@ -98,14 +98,14 @@
     {
       "path": "tooling/studies/avf0-availability-feature/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:0116ca233af74ff9a31b3e680aa434734466f9fbab7852ae36bb82575f5059b1",
+      "digest": "sha256:6147386cafd0efb44b81e9834d17142cbeecbe49a65c401811e6202d4a756f32",
       "status": "design-oracle-input",
       "id": "R1-avf0-availability-feature"
     },
     {
       "path": "tooling/studies/avf0-availability-feature/study.json",
       "kind": "study",
-      "digest": "sha256:89b8653e621059a0abc563f73baf7347f2bdf4e9570da82eb978afa71ec578b1",
+      "digest": "sha256:b853260b5de40ebec18970b9cb8077a21dfc22cfbaba83439af0f27243a50498",
       "status": "design-oracle-input",
       "id": "AVF0"
     },
@@ -182,28 +182,28 @@
     {
       "path": "tooling/studies/dyn1-versioned-behavior/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:be042136a769c27ad004ba8890f73479b07efb191dc18caafb67074da8d70eb3",
+      "digest": "sha256:b0f359a3ec9f371b2a779f36018b91f8c89807381bed44da1dcc166d5247f8c1",
       "status": "design-oracle-input",
       "id": "R1-dyn1-versioned-behavior"
     },
     {
       "path": "tooling/studies/dyn1-versioned-behavior/study.json",
       "kind": "study",
-      "digest": "sha256:4ed6ee240b9d28508280ee039a525e3bcc5110e7067692d9a76e62e97ec97169",
+      "digest": "sha256:a2e536e8715e4a5c141583ca73fa5f80d8f291fa27ca207fc633421c962ce091",
       "status": "design-oracle-input",
       "id": "DYN1"
     },
     {
       "path": "tooling/studies/final-research-closure/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:80886bbadffef540e4803a241c32ec8d90f18718cd8aad722e1d5bec5923809d",
+      "digest": "sha256:6b46189664a1ff5ef3e45f947d101b4afb5f1061538c7cf3acee785cf135fad7",
       "status": "design-oracle-input",
       "id": "R1-final-research-closure"
     },
     {
       "path": "tooling/studies/final-research-closure/manifest.json",
       "kind": "manifest",
-      "digest": "sha256:73b968a193c05751c6a557c7ed5e8e07f72f40efcf4ca7e36826841bfba26e9a",
+      "digest": "sha256:d6d73ff6f63362f861bcf639dc9493537a6e9e4fdd778f2767add6874d2700cd",
       "status": "design-oracle-input",
       "id": "FRC0"
     },
@@ -245,14 +245,14 @@
     {
       "path": "tooling/studies/hrd0-hot-reload-dev/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:d27e38edb9938dca8be2ed7e3ccfdd241dc0a5818778e044ae115a0610f9877c",
+      "digest": "sha256:4a5b04de003c06c0f9e482ae10e3b2e1309df2eab41416b42d5d4f005483a836",
       "status": "design-oracle-input",
       "id": "R1-hrd0-hot-reload-dev"
     },
     {
       "path": "tooling/studies/hrd0-hot-reload-dev/study.json",
       "kind": "study",
-      "digest": "sha256:7d94a669a10593312dcebf0510a4ba1623832fc69dde86b9d9178e74cefe9269",
+      "digest": "sha256:b1125939cb4b92d0de7cd3e6442162da829e67a87b347dc563ed7c62003b3e28",
       "status": "design-oracle-input",
       "id": "HRD0"
     },
@@ -294,28 +294,28 @@
     {
       "path": "tooling/studies/pfu0-pre-freeze-usability/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:94b0f525ebd74247f069a36f7b4d230233f669590d04d3f2f8e8babc553864ed",
+      "digest": "sha256:1ac80c636557b62ba1b20c3f73c8ae9b6be0f889906cabea419a0410254370bb",
       "status": "design-oracle-input",
       "id": "R1-pfu0-pre-freeze-usability"
     },
     {
       "path": "tooling/studies/pfu0-pre-freeze-usability/study.json",
       "kind": "study",
-      "digest": "sha256:89857e4f0ed03a1ff228e9c2e348908cbaa5041ed9d0ede95f941fce9a77e436",
+      "digest": "sha256:077d4ec38ddda8324a154843291bb51806cc49f1bfb3d23621fd1cc134491a2f",
       "status": "design-oracle-input",
       "id": "PFU0"
     },
     {
       "path": "tooling/studies/pkg1-project-transaction/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:2f076f6a606c3f00ea7d9853a96348d28637299b88f638c8eae704cdc5d607d4",
+      "digest": "sha256:50b9107df5233359fa54f0e09adead1c9d4087d738485fee87d3a68e4f6aadbb",
       "status": "design-oracle-input",
       "id": "R1-pkg1-project-transaction"
     },
     {
       "path": "tooling/studies/pkg1-project-transaction/study.json",
       "kind": "study",
-      "digest": "sha256:87231883c4c491af232b613d9d447d03507e3b012cf84a181c53f0825be9e88f",
+      "digest": "sha256:5fe275248ad89b7eb897387a91d2dcff5dfd64e30771c1c669bfeb2b5a3f4364",
       "status": "design-oracle-input",
       "id": "PKG1"
     },
@@ -476,7 +476,7 @@
     {
       "path": "tooling/studies/r1-manifest-surface/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:18c545ce0581ed282f2d3887be426b2b8d09b922926bb1f4c18834492e049efc",
+      "digest": "sha256:c236a9e2600e2c075754f5c52eef2b4da10482fcc4574ff1c91fb69fefbb1d85",
       "status": "design-oracle-input",
       "id": "R1-manifest-surface"
     },
@@ -560,7 +560,7 @@
     {
       "path": "tooling/studies/r1-static-contract-syntax/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:2368fba7414722b97587c1d1e4a9faee9e68ab8724a0abe6ee7e7c9c0a148e31",
+      "digest": "sha256:e8841edb36b49b6f677bf4b60040d639e04b7f736c03fb311e495ab7a92c54f9",
       "status": "design-oracle-input",
       "id": "R1-static-contract-syntax"
     },
@@ -623,7 +623,7 @@
     {
       "path": "tooling/studies/r1c0-closure/manifest.json",
       "kind": "manifest",
-      "digest": "sha256:22cde8e3d74bbd8b6c303979127c7df494465d468621eaf77bb5d82a37b86f4f",
+      "digest": "sha256:f494370a6e581f4a3969e9cf4bbf1cedc903ae04574d972c0b1f3de8ef578159",
       "status": "design-oracle-input",
       "id": "R1C0"
     },
@@ -644,7 +644,7 @@
     {
       "path": "tooling/studies/rdx0-binary-registry-execution/task-ledger.json",
       "kind": "ledger",
-      "digest": "sha256:69371d339db224ff7b63edf9d87199cf1d0a9c4ee5721a681bfe7b31fe6969af",
+      "digest": "sha256:25c277d6efb1b31bb1faca3b9e2a7dcca52b8af2c8283d3d4f47f55d5999f41e",
       "status": "complete-design-study",
       "id": "RDX0"
     },
@@ -679,21 +679,21 @@
     {
       "path": "tooling/studies/syn1-typed-generation/study.json",
       "kind": "study",
-      "digest": "sha256:081a37c98a8aa2c110c1de465e452be21d1d8c1477af127ee46d5fa3e241631d",
+      "digest": "sha256:6e196069f8ad97c88c7c0830f0996b9cc0a3dd475ce2bc867e208bac721e8a8d",
       "status": "design-oracle-input-syn1",
       "id": "SYN1"
     },
     {
       "path": "tooling/studies/syn2-dyn2-closure/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:11c12fe9a5ed21367677057218d5c61717a9a365160ac0ad7e50e73785d21e4e",
+      "digest": "sha256:19ae4912b76d110373eca3c48577623f3492a43f0b4ec09d7f174b810af32960",
       "status": "design-oracle-input",
       "id": "R1-syn2-dyn2-closure"
     },
     {
       "path": "tooling/studies/syn2-dyn2-closure/study.json",
       "kind": "study",
-      "digest": "sha256:156d08ad7ff71f11717c311a22aa8fc288584abac5a90fe550f2801e42342b92",
+      "digest": "sha256:514b3cb6c5efa4d215849252e10a280220a28db3953471f0d003314552b2209a",
       "status": "design-oracle-input",
       "id": "SYN2-DYN2"
     },
@@ -1219,7 +1219,7 @@
     {
       "path": "tooling/check-pfu0-pre-freeze-usability.mjs",
       "kind": "script-target",
-      "digest": "sha256:f6296a79d074bd2e99388bee8398f8feefc0163d04b4624e27ada26874cb9e36"
+      "digest": "sha256:ab587b97e53543f8578376408a66662cf2c8040ab9aa015182b81d4d23fe68fc"
     },
     {
       "path": "tooling/check-pkg1-project-transaction.mjs",
@@ -1304,7 +1304,7 @@
     {
       "path": "tooling/pkg1-project-transaction-reference.test.mjs",
       "kind": "script-target",
-      "digest": "sha256:741db2c34abfced8ebcbcdb76392b3f8a11206f042e3b55eff002145aa62ca49"
+      "digest": "sha256:7b24e6db768068f8f41b0d0fc7c47470160b5666916afa9c22c82f4d1e596e16"
     },
     {
       "path": "tooling/refresh-hum0-evidence.mjs",
@@ -1454,7 +1454,7 @@
     {
       "path": "tooling/studies/pfu0-pre-freeze-usability/current.w",
       "kind": "script-target",
-      "digest": "sha256:5d28aeb918925b3edd875d1403e4663e3f285e1e505a3231a35dc7c9b717095b"
+      "digest": "sha256:bb9f5b677e77d11a45f14ba6413bd5e67e8905316438b13d78ac87553e68573b"
     },
     {
       "path": "tooling/studies/pfu0-pre-freeze-usability/oracle.test.mjs",
@@ -1464,7 +1464,7 @@
     {
       "path": "tooling/studies/pkg1-project-transaction/oracle.test.mjs",
       "kind": "script-target",
-      "digest": "sha256:1ae2fe2745ba3bf63cd33cecf9a64adc8dbd7d8142e25a8b03eff58a8a86b5c4"
+      "digest": "sha256:5053c384b57cac732c78abf8cf17a25c87e7d5890604de7f3609d062d6914f96"
     },
     {
       "path": "tooling/studies/prc0-provider-runtime-closure/current.w",
@@ -3133,7 +3133,7 @@
     {
       "directory": "tooling/studies/pkg1-project-transaction",
       "id": "PKG1",
-      "title": "Project identity split and atomic root transactions",
+      "title": "Package identity split and atomic build-root transactions",
       "status": "design-oracle-input",
       "ids": [
         "PKG1",
@@ -3170,7 +3170,9 @@
         442,
         443,
         444,
-        445
+        445,
+        446,
+        447
       ],
       "entrypoints": [
         22,
@@ -3216,8 +3218,6 @@
         133
       ],
       "references": [
-        446,
-        447,
         448,
         449,
         450,
@@ -3266,7 +3266,9 @@
         493,
         494,
         495,
-        496
+        496,
+        497,
+        498
       ],
       "entrypoints": [
         23,
@@ -3311,9 +3313,9 @@
         138
       ],
       "references": [
-        497,
-        498,
-        499
+        499,
+        500,
+        501
       ],
       "entrypoints": [
         24,
@@ -3354,10 +3356,10 @@
         141
       ],
       "references": [
-        500,
-        501,
         502,
-        503
+        503,
+        504,
+        505
       ],
       "entrypoints": [
         29,
@@ -3400,11 +3402,11 @@
         145
       ],
       "references": [
-        504,
-        505,
         506,
         507,
-        508
+        508,
+        509,
+        510
       ],
       "entrypoints": [
         29,
@@ -3447,11 +3449,11 @@
         149
       ],
       "references": [
-        509,
-        510,
         511,
         512,
-        513
+        513,
+        514,
+        515
       ],
       "entrypoints": [
         29,
@@ -3493,10 +3495,10 @@
         152
       ],
       "references": [
-        514,
-        515,
         516,
-        517
+        517,
+        518,
+        519
       ],
       "entrypoints": [
         29,
@@ -3539,11 +3541,11 @@
         156
       ],
       "references": [
-        518,
-        519,
         520,
         521,
-        522
+        522,
+        523,
+        524
       ],
       "entrypoints": [
         5,
@@ -3586,10 +3588,10 @@
         159
       ],
       "references": [
-        523,
-        524,
         525,
-        526
+        526,
+        527,
+        528
       ],
       "entrypoints": [
         29,
@@ -3632,11 +3634,11 @@
         163
       ],
       "references": [
-        527,
-        528,
         529,
         530,
-        531
+        531,
+        532,
+        533
       ],
       "entrypoints": [
         29,
@@ -3681,15 +3683,15 @@
         169
       ],
       "references": [
-        532,
-        533,
         534,
         535,
         536,
         537,
         538,
         539,
-        540
+        540,
+        541,
+        542
       ],
       "entrypoints": [
         29,
@@ -3733,12 +3735,12 @@
         174
       ],
       "references": [
-        541,
-        542,
         543,
         544,
         545,
-        546
+        546,
+        547,
+        548
       ],
       "entrypoints": [
         29,
@@ -3780,10 +3782,10 @@
         177
       ],
       "references": [
-        547,
-        548,
         549,
-        550
+        550,
+        551,
+        552
       ],
       "entrypoints": [
         29,
@@ -3825,10 +3827,10 @@
         180
       ],
       "references": [
-        551,
-        552,
         553,
-        554
+        554,
+        555,
+        556
       ],
       "entrypoints": [
         29,
@@ -3870,10 +3872,10 @@
         183
       ],
       "references": [
-        555,
-        556,
         557,
-        558
+        558,
+        559,
+        560
       ],
       "entrypoints": [
         29,
@@ -3916,12 +3918,12 @@
         187
       ],
       "references": [
-        559,
-        560,
         561,
         562,
         563,
-        564
+        564,
+        565,
+        566
       ],
       "entrypoints": [
         29,
@@ -3964,11 +3966,11 @@
         191
       ],
       "references": [
-        565,
-        566,
         567,
         568,
-        569
+        569,
+        570,
+        571
       ],
       "entrypoints": [
         29,
@@ -4011,11 +4013,11 @@
         195
       ],
       "references": [
-        570,
-        571,
         572,
         573,
-        574
+        574,
+        575,
+        576
       ],
       "entrypoints": [
         29,
@@ -4057,10 +4059,10 @@
         198
       ],
       "references": [
-        575,
-        576,
         577,
-        578
+        578,
+        579,
+        580
       ],
       "entrypoints": [
         29,
@@ -4103,11 +4105,11 @@
         202
       ],
       "references": [
-        579,
-        580,
         581,
         582,
-        583
+        583,
+        584,
+        585
       ],
       "entrypoints": [
         29,
@@ -4149,10 +4151,10 @@
         205
       ],
       "references": [
-        584,
-        585,
         586,
-        587
+        587,
+        588,
+        589
       ],
       "entrypoints": [
         29,
@@ -4194,10 +4196,10 @@
         208
       ],
       "references": [
-        588,
-        589,
         590,
-        591
+        591,
+        592,
+        593
       ],
       "entrypoints": [
         29,
@@ -4240,11 +4242,11 @@
         212
       ],
       "references": [
-        592,
-        593,
         594,
         595,
-        596
+        596,
+        597,
+        598
       ],
       "entrypoints": [
         29,
@@ -4286,10 +4288,10 @@
         215
       ],
       "references": [
-        597,
-        598,
         599,
-        600
+        600,
+        601,
+        602
       ],
       "entrypoints": [
         29,
@@ -4331,10 +4333,10 @@
         218
       ],
       "references": [
-        601,
-        602,
         603,
-        604
+        604,
+        605,
+        606
       ],
       "entrypoints": [
         29,
@@ -4376,10 +4378,10 @@
         221
       ],
       "references": [
-        605,
-        606,
         607,
-        608
+        608,
+        609,
+        610
       ],
       "entrypoints": [
         29,
@@ -4421,10 +4423,10 @@
         224
       ],
       "references": [
-        609,
-        610,
         611,
-        612
+        612,
+        613,
+        614
       ],
       "entrypoints": [
         29,
@@ -4467,11 +4469,11 @@
         228
       ],
       "references": [
-        613,
-        614,
         615,
         616,
-        617
+        617,
+        618,
+        619
       ],
       "entrypoints": [
         29,
@@ -4514,11 +4516,11 @@
         232
       ],
       "references": [
-        618,
-        619,
         620,
         621,
-        622
+        622,
+        623,
+        624
       ],
       "entrypoints": [
         29,
@@ -4560,10 +4562,10 @@
         235
       ],
       "references": [
-        623,
-        624,
         625,
-        626
+        626,
+        627,
+        628
       ],
       "entrypoints": [
         29,
@@ -4605,10 +4607,10 @@
         238
       ],
       "references": [
-        627,
-        628,
         629,
-        630
+        630,
+        631,
+        632
       ],
       "entrypoints": [
         29,
@@ -4650,10 +4652,10 @@
         241
       ],
       "references": [
-        631,
-        632,
         633,
-        634
+        634,
+        635,
+        636
       ],
       "entrypoints": [
         29,
@@ -4696,11 +4698,11 @@
         245
       ],
       "references": [
-        635,
-        636,
         637,
         638,
-        639
+        639,
+        640,
+        641
       ],
       "entrypoints": [
         29,
@@ -4743,12 +4745,12 @@
         249
       ],
       "references": [
-        640,
-        641,
         642,
         643,
         644,
-        645
+        645,
+        646,
+        647
       ],
       "entrypoints": [
         29,
@@ -4790,10 +4792,10 @@
         252
       ],
       "references": [
-        646,
-        647,
         648,
-        649
+        649,
+        650,
+        651
       ],
       "entrypoints": [
         29,
@@ -4836,11 +4838,11 @@
         256
       ],
       "references": [
-        650,
-        651,
         652,
         653,
-        654
+        654,
+        655,
+        656
       ],
       "entrypoints": [
         29,
@@ -4883,11 +4885,11 @@
         260
       ],
       "references": [
-        655,
-        656,
         657,
         658,
-        659
+        659,
+        660,
+        661
       ],
       "entrypoints": [
         29,
@@ -4929,10 +4931,10 @@
         263
       ],
       "references": [
-        660,
-        661,
         662,
-        663
+        663,
+        664,
+        665
       ],
       "entrypoints": [
         29,
@@ -4974,10 +4976,10 @@
         266
       ],
       "references": [
-        664,
-        665,
         666,
-        667
+        667,
+        668,
+        669
       ],
       "entrypoints": [
         29,
@@ -5019,10 +5021,10 @@
         269
       ],
       "references": [
-        668,
-        669,
         670,
-        671
+        671,
+        672,
+        673
       ],
       "entrypoints": [
         29,
@@ -5066,12 +5068,12 @@
         274
       ],
       "references": [
-        672,
-        673,
         674,
         675,
         676,
-        677
+        677,
+        678,
+        679
       ],
       "entrypoints": [
         29,
@@ -5118,8 +5120,6 @@
         277
       ],
       "references": [
-        678,
-        679,
         680,
         681,
         682,
@@ -5214,7 +5214,9 @@
         771,
         772,
         773,
-        774
+        774,
+        775,
+        776
       ],
       "entrypoints": [
         25,
@@ -5312,8 +5314,6 @@
         283
       ],
       "references": [
-        775,
-        776,
         777,
         778,
         779,
@@ -5336,7 +5336,9 @@
         796,
         797,
         798,
-        799
+        799,
+        800,
+        801
       ],
       "entrypoints": [
         26,
@@ -5380,9 +5382,9 @@
         288
       ],
       "references": [
-        800,
-        801,
-        802
+        802,
+        803,
+        804
       ],
       "entrypoints": [
         27,
@@ -5431,8 +5433,6 @@
         295
       ],
       "references": [
-        803,
-        804,
         805,
         806,
         807,
@@ -5462,7 +5462,9 @@
         831,
         832,
         833,
-        834
+        834,
+        835,
+        836
       ],
       "entrypoints": [
         28,
@@ -5508,9 +5510,9 @@
         300
       ],
       "references": [
-        835,
-        836,
-        837
+        837,
+        838,
+        839
       ],
       "entrypoints": [
         29,
@@ -5578,8 +5580,6 @@
         328
       ],
       "references": [
-        838,
-        839,
         840,
         841,
         842,
@@ -5607,7 +5607,9 @@
         864,
         865,
         866,
-        867
+        867,
+        868,
+        869
       ],
       "entrypoints": [
         29,
@@ -5661,8 +5663,6 @@
         336
       ],
       "references": [
-        868,
-        869,
         870,
         871,
         872,
@@ -5695,7 +5695,9 @@
         899,
         900,
         901,
-        902
+        902,
+        903,
+        904
       ],
       "entrypoints": [
         29,
@@ -5746,9 +5748,9 @@
         341
       ],
       "references": [
-        903,
-        904,
-        905
+        905,
+        906,
+        907
       ],
       "entrypoints": [
         29,
@@ -5785,15 +5787,15 @@
       ],
       "fixtures": [],
       "references": [
-        906,
-        907,
         908,
         909,
         910,
         911,
         912,
         913,
-        914
+        914,
+        915,
+        916
       ],
       "entrypoints": [
         29,
@@ -6134,7 +6136,7 @@
       "pointer": "sourceRefs.1.path",
       "path": "../../../reference/last-light/build.w",
       "resolved": "reference/last-light/build.w",
-      "declaredDigest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "status": "resolved",
       "source": "tooling/studies/asic0-evidence-gap-closure/bundle.json"
     },
@@ -6254,7 +6256,7 @@
       "pointer": "artifacts.16.path",
       "path": "tooling/studies/avf0-availability-feature/study.json",
       "resolved": "tooling/studies/avf0-availability-feature/study.json",
-      "declaredDigest": "sha256:89b8653e621059a0abc563f73baf7347f2bdf4e9570da82eb978afa71ec578b1",
+      "declaredDigest": "sha256:b853260b5de40ebec18970b9cb8077a21dfc22cfbaba83439af0f27243a50498",
       "status": "resolved",
       "source": "tooling/studies/asic0-evidence-gap-closure/manifest.json"
     },
@@ -6364,7 +6366,7 @@
       "pointer": "artifacts.5.path",
       "path": "tooling/studies/asic0-evidence-gap-closure/bundle.json",
       "resolved": "tooling/studies/asic0-evidence-gap-closure/bundle.json",
-      "declaredDigest": "sha256:68ce25821a12ccf12e64bd30c0e510d86a4bd636d67346c1a48b88ab28316d3a",
+      "declaredDigest": "sha256:86411a256fdc42f534eaa217220576ad027ab87e4de3b119acaf9d366645e29b",
       "status": "resolved",
       "source": "tooling/studies/asic0-evidence-gap-closure/manifest.json"
     },
@@ -6924,7 +6926,7 @@
       "pointer": "sourceRefs.0.path",
       "path": "../../../reference/last-light/build.w",
       "resolved": "reference/last-light/build.w",
-      "declaredDigest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "status": "resolved",
       "source": "tooling/studies/avf0-availability-feature/bundle.json"
     },
@@ -7054,7 +7056,7 @@
       "pointer": "sourceRefs.0.path",
       "path": "reference/last-light/build.w",
       "resolved": "reference/last-light/build.w",
-      "declaredDigest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "status": "resolved",
       "source": "tooling/studies/avf0-availability-feature/study.json"
     },
@@ -8034,7 +8036,7 @@
       "pointer": "sourceRefs.3.path",
       "path": "../../../reference/last-light/build.w",
       "resolved": "reference/last-light/build.w",
-      "declaredDigest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "status": "resolved",
       "source": "tooling/studies/dyn1-versioned-behavior/bundle.json"
     },
@@ -8294,7 +8296,7 @@
       "pointer": "sourceRefs.5.path",
       "path": "reference/last-light/build.w",
       "resolved": "reference/last-light/build.w",
-      "declaredDigest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "status": "resolved",
       "source": "tooling/studies/dyn1-versioned-behavior/study.json"
     },
@@ -8454,7 +8456,7 @@
       "pointer": "sourceRefs.4.path",
       "path": "../../../tooling/design-freeze-classification.json",
       "resolved": "tooling/design-freeze-classification.json",
-      "declaredDigest": "sha256:bf0f113aa321853506be6c9e00f34817f123b76f4c1ddb42918285ca1c2b4ca2",
+      "declaredDigest": "sha256:c85937e3fdb026e1dd0d8572b0426ff70e8d254b4333e0fe25be2b3e55b73b5b",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8464,7 +8466,7 @@
       "pointer": "sourceRefs.5.path",
       "path": "../../../RATIONALE.md",
       "resolved": "RATIONALE.md",
-      "declaredDigest": "sha256:a968da36b76cdf97be87f90b560599b3d820c82c2ebfa4541302978dbd4a17d6",
+      "declaredDigest": "sha256:da1a2aa7d4a3d05a1622483303ee30875f51a14b2c591dcab93c48a4bc6ae715",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8474,7 +8476,7 @@
       "pointer": "sourceRefs.6.path",
       "path": "../../../DESIGN.md",
       "resolved": "DESIGN.md",
-      "declaredDigest": "sha256:2c82bee14e37bb989619dd361167f8aef4c524623f1222d003cef5e13c2305fb",
+      "declaredDigest": "sha256:98a3ab22a0516eb0eb7247885f6923129aa9c4f8699e28c2e49542334d73f398",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8714,7 +8716,7 @@
       "pointer": "artifacts.28.path",
       "path": "tooling/design-freeze-classification.json",
       "resolved": "tooling/design-freeze-classification.json",
-      "declaredDigest": "sha256:bf0f113aa321853506be6c9e00f34817f123b76f4c1ddb42918285ca1c2b4ca2",
+      "declaredDigest": "sha256:c85937e3fdb026e1dd0d8572b0426ff70e8d254b4333e0fe25be2b3e55b73b5b",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8724,7 +8726,7 @@
       "pointer": "artifacts.29.path",
       "path": "RATIONALE.md",
       "resolved": "RATIONALE.md",
-      "declaredDigest": "sha256:a968da36b76cdf97be87f90b560599b3d820c82c2ebfa4541302978dbd4a17d6",
+      "declaredDigest": "sha256:da1a2aa7d4a3d05a1622483303ee30875f51a14b2c591dcab93c48a4bc6ae715",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8744,7 +8746,7 @@
       "pointer": "artifacts.30.path",
       "path": "DESIGN.md",
       "resolved": "DESIGN.md",
-      "declaredDigest": "sha256:2c82bee14e37bb989619dd361167f8aef4c524623f1222d003cef5e13c2305fb",
+      "declaredDigest": "sha256:98a3ab22a0516eb0eb7247885f6923129aa9c4f8699e28c2e49542334d73f398",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8754,7 +8756,7 @@
       "pointer": "artifacts.31.path",
       "path": "DESIGN-INDEX.md",
       "resolved": "DESIGN-INDEX.md",
-      "declaredDigest": "sha256:b1587a7a2fc56a66b9a8bec78d8f4c1aacee139d8307a42b0d77a307a4260adf",
+      "declaredDigest": "sha256:ff526b4ca6e2eae874a1c91c24ac0b5d4578f6c146ee8f58bc6c9f26e4bb54dc",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8794,7 +8796,7 @@
       "pointer": "artifacts.7.path",
       "path": "tooling/studies/final-research-closure/bundle.json",
       "resolved": "tooling/studies/final-research-closure/bundle.json",
-      "declaredDigest": "sha256:80886bbadffef540e4803a241c32ec8d90f18718cd8aad722e1d5bec5923809d",
+      "declaredDigest": "sha256:6b46189664a1ff5ef3e45f947d101b4afb5f1061538c7cf3acee785cf135fad7",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -9504,7 +9506,7 @@
       "pointer": "sourceRefs.5.path",
       "path": "../../../reference/last-light/build.w",
       "resolved": "reference/last-light/build.w",
-      "declaredDigest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "status": "resolved",
       "source": "tooling/studies/hrd0-hot-reload-dev/bundle.json"
     },
@@ -9564,7 +9566,7 @@
       "pointer": "crossStudies.0.path",
       "path": "../dyn1-versioned-behavior/study.json",
       "resolved": "tooling/studies/dyn1-versioned-behavior/study.json",
-      "declaredDigest": "sha256:4ed6ee240b9d28508280ee039a525e3bcc5110e7067692d9a76e62e97ec97169",
+      "declaredDigest": "sha256:a2e536e8715e4a5c141583ca73fa5f80d8f291fa27ca207fc633421c962ce091",
       "status": "resolved",
       "source": "tooling/studies/hrd0-hot-reload-dev/study.json"
     },
@@ -9574,7 +9576,7 @@
       "pointer": "crossStudies.1.path",
       "path": "../syn1-typed-generation/study.json",
       "resolved": "tooling/studies/syn1-typed-generation/study.json",
-      "declaredDigest": "sha256:081a37c98a8aa2c110c1de465e452be21d1d8c1477af127ee46d5fa3e241631d",
+      "declaredDigest": "sha256:6e196069f8ad97c88c7c0830f0996b9cc0a3dd475ce2bc867e208bac721e8a8d",
       "status": "resolved",
       "source": "tooling/studies/hrd0-hot-reload-dev/study.json"
     },
@@ -9674,7 +9676,7 @@
       "pointer": "sourceRefs.6.path",
       "path": "reference/last-light/build.w",
       "resolved": "reference/last-light/build.w",
-      "declaredDigest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "status": "resolved",
       "source": "tooling/studies/hrd0-hot-reload-dev/study.json"
     },
@@ -10034,7 +10036,7 @@
       "pointer": "sourceBase.path",
       "path": "current.w",
       "resolved": "tooling/studies/pfu0-pre-freeze-usability/current.w",
-      "declaredDigest": "sha256:5d28aeb918925b3edd875d1403e4663e3f285e1e505a3231a35dc7c9b717095b",
+      "declaredDigest": "sha256:bb9f5b677e77d11a45f14ba6413bd5e67e8905316438b13d78ac87553e68573b",
       "status": "resolved",
       "source": "tooling/studies/pfu0-pre-freeze-usability/bundle.json"
     },
@@ -10044,7 +10046,7 @@
       "pointer": "sourceRefs.0.path",
       "path": "../../../reference/last-light/build.w",
       "resolved": "reference/last-light/build.w",
-      "declaredDigest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "status": "resolved",
       "source": "tooling/studies/pfu0-pre-freeze-usability/bundle.json"
     },
@@ -10054,7 +10056,7 @@
       "pointer": "sourceRefs.1.path",
       "path": "../../../reference/last-light/build.w",
       "resolved": "reference/last-light/build.w",
-      "declaredDigest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "status": "resolved",
       "source": "tooling/studies/pfu0-pre-freeze-usability/bundle.json"
     },
@@ -10084,7 +10086,7 @@
       "pointer": "variants.0.path",
       "path": "current.w",
       "resolved": "tooling/studies/pfu0-pre-freeze-usability/current.w",
-      "declaredDigest": "sha256:5d28aeb918925b3edd875d1403e4663e3f285e1e505a3231a35dc7c9b717095b",
+      "declaredDigest": "sha256:bb9f5b677e77d11a45f14ba6413bd5e67e8905316438b13d78ac87553e68573b",
       "status": "resolved",
       "source": "tooling/studies/pfu0-pre-freeze-usability/bundle.json"
     },
@@ -10094,7 +10096,7 @@
       "pointer": "variants.1.path",
       "path": "candidate.txt",
       "resolved": "tooling/studies/pfu0-pre-freeze-usability/candidate.txt",
-      "declaredDigest": "sha256:0b393108ab8212795af99afa3334fc2ab166063a5d6af65f5ece6be815c53b14",
+      "declaredDigest": "sha256:a2416e89674db9b9cd8c419ef9bbf9b48a4c3b3afdbb45eb56c67cd6a82b5e23",
       "status": "resolved",
       "source": "tooling/studies/pfu0-pre-freeze-usability/bundle.json"
     },
@@ -10114,7 +10116,7 @@
       "pointer": "corpus.path",
       "path": "../../pfu0-pre-freeze-usability-cases.json",
       "resolved": "tooling/pfu0-pre-freeze-usability-cases.json",
-      "declaredDigest": "sha256:7cdb11342392961599af4600ab17f983f4b55f5845c4c5d41a151085d9710959",
+      "declaredDigest": "sha256:2d496f80a04ac5654897a6feb7dbbd06443ee67f03b8c29593d90e16d715a528",
       "status": "resolved",
       "source": "tooling/studies/pfu0-pre-freeze-usability/study.json"
     },
@@ -10124,7 +10126,7 @@
       "pointer": "machine.path",
       "path": "../../pfu0-pre-freeze-usability-machine.mjs",
       "resolved": "tooling/pfu0-pre-freeze-usability-machine.mjs",
-      "declaredDigest": "sha256:9359a7566b056d308056c75e96e83a3d65c6e8d1026498e110345d6cbfe1ddbe",
+      "declaredDigest": "sha256:dc52677f6347f1b3a96d8fdbf403eaa4f6945ea989b6079d59b0348d5a561f6c",
       "status": "resolved",
       "source": "tooling/studies/pfu0-pre-freeze-usability/study.json"
     },
@@ -10134,7 +10136,7 @@
       "pointer": "sourceRefs.0.path",
       "path": "../../../reference/last-light/build.w",
       "resolved": "reference/last-light/build.w",
-      "declaredDigest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "status": "resolved",
       "source": "tooling/studies/pfu0-pre-freeze-usability/study.json"
     },
@@ -10144,7 +10146,7 @@
       "pointer": "sourceRefs.1.path",
       "path": "../../../reference/last-light/build.w",
       "resolved": "reference/last-light/build.w",
-      "declaredDigest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "status": "resolved",
       "source": "tooling/studies/pfu0-pre-freeze-usability/study.json"
     },
@@ -10194,7 +10196,7 @@
       "pointer": "oracle.path",
       "path": "oracle.test.mjs",
       "resolved": "tooling/studies/pkg1-project-transaction/oracle.test.mjs",
-      "declaredDigest": "sha256:1ae2fe2745ba3bf63cd33cecf9a64adc8dbd7d8142e25a8b03eff58a8a86b5c4",
+      "declaredDigest": "sha256:5053c384b57cac732c78abf8cf17a25c87e7d5890604de7f3609d062d6914f96",
       "status": "resolved",
       "source": "tooling/studies/pkg1-project-transaction/bundle.json"
     },
@@ -10204,7 +10206,7 @@
       "pointer": "sourceBase.path",
       "path": "../../../reference/last-light/build.w",
       "resolved": "reference/last-light/build.w",
-      "declaredDigest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "status": "resolved",
       "source": "tooling/studies/pkg1-project-transaction/bundle.json"
     },
@@ -10214,7 +10216,7 @@
       "pointer": "sourceRefs.0.path",
       "path": "../../../reference/last-light/build.w",
       "resolved": "reference/last-light/build.w",
-      "declaredDigest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "status": "resolved",
       "source": "tooling/studies/pkg1-project-transaction/bundle.json"
     },
@@ -10222,9 +10224,29 @@
       "study": 23,
       "metadata": 38,
       "pointer": "sourceRefs.1.path",
+      "path": "../../../reference/last-light/build.w",
+      "resolved": "reference/last-light/build.w",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
+      "status": "resolved",
+      "source": "tooling/studies/pkg1-project-transaction/bundle.json"
+    },
+    {
+      "study": 23,
+      "metadata": 38,
+      "pointer": "sourceRefs.2.path",
+      "path": "../../../reference/last-light/build.w",
+      "resolved": "reference/last-light/build.w",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
+      "status": "resolved",
+      "source": "tooling/studies/pkg1-project-transaction/bundle.json"
+    },
+    {
+      "study": 23,
+      "metadata": 38,
+      "pointer": "sourceRefs.3.path",
       "path": "../../../reference/last-light/BUILD.md",
       "resolved": "reference/last-light/BUILD.md",
-      "declaredDigest": "sha256:c23db7139c9efedf2c2a365a3625d603490830f8ce6b42644e9bb63fb5c0ac04",
+      "declaredDigest": "sha256:c29f8255fa48aaa99000acd5ea92a9572d99dc3fd77a8b41e29c27bf1357a3c0",
       "status": "resolved",
       "source": "tooling/studies/pkg1-project-transaction/bundle.json"
     },
@@ -10244,7 +10266,7 @@
       "pointer": "variants.1.path",
       "path": "atomic-replace.txt",
       "resolved": "tooling/studies/pkg1-project-transaction/atomic-replace.txt",
-      "declaredDigest": "sha256:925fab7462e176c94be157e5b7cf3176eb52b6cd48c64d08ac9d7eb8df068228",
+      "declaredDigest": "sha256:ba769ad0490cdc3f2881baaad642872a232997a029ea8858fd8fe227ede918cf",
       "status": "resolved",
       "source": "tooling/studies/pkg1-project-transaction/bundle.json"
     },
@@ -10254,7 +10276,7 @@
       "pointer": "artifactRefs.0.path",
       "path": "../../pkg1-project-transaction-cases.json",
       "resolved": "tooling/pkg1-project-transaction-cases.json",
-      "declaredDigest": "sha256:af25b954322a53b8a5da67891fbd886a6a081cfbfa0c6645282b4b441c8836cd",
+      "declaredDigest": "sha256:35e568c074ac5f732582e0bbc42eb9c65ebf69708281aa806f5600565ae4ce83",
       "status": "resolved",
       "source": "tooling/studies/pkg1-project-transaction/study.json"
     },
@@ -10264,7 +10286,7 @@
       "pointer": "artifactRefs.1.path",
       "path": "../../pkg1-project-transaction-machine.mjs",
       "resolved": "tooling/pkg1-project-transaction-machine.mjs",
-      "declaredDigest": "sha256:1e414e61d38ccc5eb7b3d995fbdbbbadb4041c336475e1f0663d984b50f02707",
+      "declaredDigest": "sha256:2ff2beab2f9c2d152358d53b4dcebd3cef9375117a73761dfe12d4f040bafd15",
       "status": "resolved",
       "source": "tooling/studies/pkg1-project-transaction/study.json"
     },
@@ -10294,7 +10316,7 @@
       "pointer": "artifactRefs.4.path",
       "path": "../../pkg1-project-transaction-reference.test.mjs",
       "resolved": "tooling/pkg1-project-transaction-reference.test.mjs",
-      "declaredDigest": "sha256:741db2c34abfced8ebcbcdb76392b3f8a11206f042e3b55eff002145aa62ca49",
+      "declaredDigest": "sha256:7b24e6db768068f8f41b0d0fc7c47470160b5666916afa9c22c82f4d1e596e16",
       "status": "resolved",
       "source": "tooling/studies/pkg1-project-transaction/study.json"
     },
@@ -10304,7 +10326,7 @@
       "pointer": "artifactRefs.5.path",
       "path": "../../pkg1-project-transaction-results.snapshot.jsonl",
       "resolved": "tooling/pkg1-project-transaction-results.snapshot.jsonl",
-      "declaredDigest": "sha256:48087ec0a0cc4df6f9145be1bbd008da844037d5a58402f743c56f66e0f59650",
+      "declaredDigest": "sha256:159b87a7d7a2ec0f92b22f8d59c2d03ca4b969824214a8ef9ac24fe0c50dc64e",
       "status": "resolved",
       "source": "tooling/studies/pkg1-project-transaction/study.json"
     },
@@ -10314,7 +10336,7 @@
       "pointer": "artifactRefs.6.path",
       "path": "bundle.json",
       "resolved": "tooling/studies/pkg1-project-transaction/bundle.json",
-      "declaredDigest": "sha256:2f076f6a606c3f00ea7d9853a96348d28637299b88f638c8eae704cdc5d607d4",
+      "declaredDigest": "sha256:50b9107df5233359fa54f0e09adead1c9d4087d738485fee87d3a68e4f6aadbb",
       "status": "resolved",
       "source": "tooling/studies/pkg1-project-transaction/study.json"
     },
@@ -10324,7 +10346,7 @@
       "pointer": "artifactRefs.7.path",
       "path": "oracle.test.mjs",
       "resolved": "tooling/studies/pkg1-project-transaction/oracle.test.mjs",
-      "declaredDigest": "sha256:1ae2fe2745ba3bf63cd33cecf9a64adc8dbd7d8142e25a8b03eff58a8a86b5c4",
+      "declaredDigest": "sha256:5053c384b57cac732c78abf8cf17a25c87e7d5890604de7f3609d062d6914f96",
       "status": "resolved",
       "source": "tooling/studies/pkg1-project-transaction/study.json"
     },
@@ -10334,7 +10356,7 @@
       "pointer": "corpus.path",
       "path": "../../pkg1-project-transaction-cases.json",
       "resolved": "tooling/pkg1-project-transaction-cases.json",
-      "declaredDigest": "sha256:af25b954322a53b8a5da67891fbd886a6a081cfbfa0c6645282b4b441c8836cd",
+      "declaredDigest": "sha256:35e568c074ac5f732582e0bbc42eb9c65ebf69708281aa806f5600565ae4ce83",
       "status": "resolved",
       "source": "tooling/studies/pkg1-project-transaction/study.json"
     },
@@ -10344,7 +10366,7 @@
       "pointer": "oracle.path",
       "path": "../../pkg1-project-transaction-machine.mjs",
       "resolved": "tooling/pkg1-project-transaction-machine.mjs",
-      "declaredDigest": "sha256:1e414e61d38ccc5eb7b3d995fbdbbbadb4041c336475e1f0663d984b50f02707",
+      "declaredDigest": "sha256:2ff2beab2f9c2d152358d53b4dcebd3cef9375117a73761dfe12d4f040bafd15",
       "status": "resolved",
       "source": "tooling/studies/pkg1-project-transaction/study.json"
     },
@@ -10354,7 +10376,7 @@
       "pointer": "sourceRefs.0.path",
       "path": "../../../reference/last-light/build.w",
       "resolved": "reference/last-light/build.w",
-      "declaredDigest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "status": "resolved",
       "source": "tooling/studies/pkg1-project-transaction/study.json"
     },
@@ -10364,7 +10386,7 @@
       "pointer": "sourceRefs.1.path",
       "path": "../../../reference/last-light/build.w",
       "resolved": "reference/last-light/build.w",
-      "declaredDigest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "status": "resolved",
       "source": "tooling/studies/pkg1-project-transaction/study.json"
     },
@@ -10372,9 +10394,9 @@
       "study": 23,
       "metadata": 39,
       "pointer": "sourceRefs.2.path",
-      "path": "../../../reference/last-light/BUILD.md",
-      "resolved": "reference/last-light/BUILD.md",
-      "declaredDigest": "sha256:c23db7139c9efedf2c2a365a3625d603490830f8ce6b42644e9bb63fb5c0ac04",
+      "path": "../../../reference/last-light/build.w",
+      "resolved": "reference/last-light/build.w",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "status": "resolved",
       "source": "tooling/studies/pkg1-project-transaction/study.json"
     },
@@ -10382,9 +10404,9 @@
       "study": 23,
       "metadata": 39,
       "pointer": "sourceRefs.3.path",
-      "path": "../../../reference/last-light/build.w",
-      "resolved": "reference/last-light/build.w",
-      "declaredDigest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "path": "../../../reference/last-light/BUILD.md",
+      "resolved": "reference/last-light/BUILD.md",
+      "declaredDigest": "sha256:c29f8255fa48aaa99000acd5ea92a9572d99dc3fd77a8b41e29c27bf1357a3c0",
       "status": "resolved",
       "source": "tooling/studies/pkg1-project-transaction/study.json"
     },
@@ -11824,7 +11846,7 @@
       "pointer": "sourceBase.path",
       "path": "../../../reference/last-light/build.w",
       "resolved": "reference/last-light/build.w",
-      "declaredDigest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "status": "resolved",
       "source": "tooling/studies/r1-manifest-surface/bundle.json"
     },
@@ -12354,7 +12376,7 @@
       "pointer": "sourceRefs.0.path",
       "path": "../../../reference/last-light/build.w",
       "resolved": "reference/last-light/build.w",
-      "declaredDigest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "status": "resolved",
       "source": "tooling/studies/r1-static-contract-syntax/bundle.json"
     },
@@ -12904,7 +12926,7 @@
       "pointer": "bundles.20.path",
       "path": "tooling/studies/dyn1-versioned-behavior/bundle.json",
       "resolved": "tooling/studies/dyn1-versioned-behavior/bundle.json",
-      "declaredDigest": "sha256:be042136a769c27ad004ba8890f73479b07efb191dc18caafb67074da8d70eb3",
+      "declaredDigest": "sha256:b0f359a3ec9f371b2a779f36018b91f8c89807381bed44da1dcc166d5247f8c1",
       "status": "resolved",
       "source": "tooling/studies/r1c0-closure/manifest.json"
     },
@@ -12964,7 +12986,7 @@
       "pointer": "bundles.26.path",
       "path": "tooling/studies/hrd0-hot-reload-dev/bundle.json",
       "resolved": "tooling/studies/hrd0-hot-reload-dev/bundle.json",
-      "declaredDigest": "sha256:d27e38edb9938dca8be2ed7e3ccfdd241dc0a5818778e044ae115a0610f9877c",
+      "declaredDigest": "sha256:4a5b04de003c06c0f9e482ae10e3b2e1309df2eab41416b42d5d4f005483a836",
       "status": "resolved",
       "source": "tooling/studies/r1c0-closure/manifest.json"
     },
@@ -12984,7 +13006,7 @@
       "pointer": "bundles.28.path",
       "path": "tooling/studies/r1-manifest-surface/bundle.json",
       "resolved": "tooling/studies/r1-manifest-surface/bundle.json",
-      "declaredDigest": "sha256:18c545ce0581ed282f2d3887be426b2b8d09b922926bb1f4c18834492e049efc",
+      "declaredDigest": "sha256:c236a9e2600e2c075754f5c52eef2b4da10482fcc4574ff1c91fb69fefbb1d85",
       "status": "resolved",
       "source": "tooling/studies/r1c0-closure/manifest.json"
     },
@@ -13024,7 +13046,7 @@
       "pointer": "bundles.31.path",
       "path": "tooling/studies/pkg1-project-transaction/bundle.json",
       "resolved": "tooling/studies/pkg1-project-transaction/bundle.json",
-      "declaredDigest": "sha256:2f076f6a606c3f00ea7d9853a96348d28637299b88f638c8eae704cdc5d607d4",
+      "declaredDigest": "sha256:50b9107df5233359fa54f0e09adead1c9d4087d738485fee87d3a68e4f6aadbb",
       "status": "resolved",
       "source": "tooling/studies/r1c0-closure/manifest.json"
     },
@@ -13144,7 +13166,7 @@
       "pointer": "bundles.42.path",
       "path": "tooling/studies/r1-static-contract-syntax/bundle.json",
       "resolved": "tooling/studies/r1-static-contract-syntax/bundle.json",
-      "declaredDigest": "sha256:2368fba7414722b97587c1d1e4a9faee9e68ab8724a0abe6ee7e7c9c0a148e31",
+      "declaredDigest": "sha256:e8841edb36b49b6f677bf4b60040d639e04b7f736c03fb311e495ab7a92c54f9",
       "status": "resolved",
       "source": "tooling/studies/r1c0-closure/manifest.json"
     },
@@ -13164,7 +13186,7 @@
       "pointer": "bundles.44.path",
       "path": "tooling/studies/syn2-dyn2-closure/bundle.json",
       "resolved": "tooling/studies/syn2-dyn2-closure/bundle.json",
-      "declaredDigest": "sha256:11c12fe9a5ed21367677057218d5c61717a9a365160ac0ad7e50e73785d21e4e",
+      "declaredDigest": "sha256:19ae4912b76d110373eca3c48577623f3492a43f0b4ec09d7f174b810af32960",
       "status": "resolved",
       "source": "tooling/studies/r1c0-closure/manifest.json"
     },
@@ -13224,7 +13246,7 @@
       "pointer": "bundles.5.path",
       "path": "tooling/studies/avf0-availability-feature/bundle.json",
       "resolved": "tooling/studies/avf0-availability-feature/bundle.json",
-      "declaredDigest": "sha256:0116ca233af74ff9a31b3e680aa434734466f9fbab7852ae36bb82575f5059b1",
+      "declaredDigest": "sha256:6147386cafd0efb44b81e9834d17142cbeecbe49a65c401811e6202d4a756f32",
       "status": "resolved",
       "source": "tooling/studies/r1c0-closure/manifest.json"
     },
@@ -13722,8 +13744,8 @@
       "study": 65,
       "metadata": 86,
       "pointer": "sourceRefs.12.path",
-      "path": "reference/last-light/packages/menu-compiler/build.w",
-      "resolved": "reference/last-light/packages/menu-compiler/build.w",
+      "path": "reference/last-light/build.w",
+      "resolved": "reference/last-light/build.w",
       "declaredDigest": null,
       "status": "resolved",
       "source": "tooling/studies/rdx0-binary-registry-execution/task-ledger.json"
@@ -13872,8 +13894,8 @@
       "study": 65,
       "metadata": 86,
       "pointer": "witnesses.0.sourceRefs.1.path",
-      "path": "reference/last-light/packages/menu-compiler/build.w",
-      "resolved": "reference/last-light/packages/menu-compiler/build.w",
+      "path": "reference/last-light/build.w",
+      "resolved": "reference/last-light/build.w",
       "declaredDigest": null,
       "status": "resolved",
       "source": "tooling/studies/rdx0-binary-registry-execution/task-ledger.json"
@@ -14514,7 +14536,7 @@
       "pointer": "sourceRefs.5.path",
       "path": "reference/last-light/build.w",
       "resolved": "reference/last-light/build.w",
-      "declaredDigest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "status": "resolved",
       "source": "tooling/studies/syn1-typed-generation/study.json"
     },
@@ -14684,7 +14706,7 @@
       "pointer": "sourceRefs.5.path",
       "path": "../../../reference/last-light/build.w",
       "resolved": "reference/last-light/build.w",
-      "declaredDigest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "status": "resolved",
       "source": "tooling/studies/syn2-dyn2-closure/bundle.json"
     },
@@ -14744,7 +14766,7 @@
       "pointer": "artifacts.bundle.path",
       "path": "bundle.json",
       "resolved": "tooling/studies/syn2-dyn2-closure/bundle.json",
-      "declaredDigest": "sha256:11c12fe9a5ed21367677057218d5c61717a9a365160ac0ad7e50e73785d21e4e",
+      "declaredDigest": "sha256:19ae4912b76d110373eca3c48577623f3492a43f0b4ec09d7f174b810af32960",
       "status": "resolved",
       "source": "tooling/studies/syn2-dyn2-closure/study.json"
     },
@@ -14814,7 +14836,7 @@
       "pointer": "buildsOn.0.path",
       "path": "../syn1-typed-generation/study.json",
       "resolved": "tooling/studies/syn1-typed-generation/study.json",
-      "declaredDigest": "sha256:081a37c98a8aa2c110c1de465e452be21d1d8c1477af127ee46d5fa3e241631d",
+      "declaredDigest": "sha256:6e196069f8ad97c88c7c0830f0996b9cc0a3dd475ce2bc867e208bac721e8a8d",
       "status": "resolved",
       "source": "tooling/studies/syn2-dyn2-closure/study.json"
     },
@@ -14824,7 +14846,7 @@
       "pointer": "buildsOn.1.path",
       "path": "../dyn1-versioned-behavior/study.json",
       "resolved": "tooling/studies/dyn1-versioned-behavior/study.json",
-      "declaredDigest": "sha256:4ed6ee240b9d28508280ee039a525e3bcc5110e7067692d9a76e62e97ec97169",
+      "declaredDigest": "sha256:a2e536e8715e4a5c141583ca73fa5f80d8f291fa27ca207fc633421c962ce091",
       "status": "resolved",
       "source": "tooling/studies/syn2-dyn2-closure/study.json"
     },
@@ -14834,7 +14856,7 @@
       "pointer": "buildsOn.2.path",
       "path": "../hrd0-hot-reload-dev/study.json",
       "resolved": "tooling/studies/hrd0-hot-reload-dev/study.json",
-      "declaredDigest": "sha256:7d94a669a10593312dcebf0510a4ba1623832fc69dde86b9d9178e74cefe9269",
+      "declaredDigest": "sha256:b1125939cb4b92d0de7cd3e6442162da829e67a87b347dc563ed7c62003b3e28",
       "status": "resolved",
       "source": "tooling/studies/syn2-dyn2-closure/study.json"
     },
@@ -14954,7 +14976,7 @@
       "pointer": "sourceRefs.5.path",
       "path": "reference/last-light/build.w",
       "resolved": "reference/last-light/build.w",
-      "declaredDigest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "declaredDigest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "status": "resolved",
       "source": "tooling/studies/syn2-dyn2-closure/study.json"
     },
@@ -21091,378 +21113,378 @@
       {
         "from": 64,
         "to": 3,
-        "reference": 718,
+        "reference": 720,
         "pointer": "bundles.4.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 4,
-        "reference": 729,
+        "reference": 731,
         "pointer": "bundles.5.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 5,
-        "reference": 732,
+        "reference": 734,
         "pointer": "bundles.7.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 6,
-        "reference": 733,
+        "reference": 735,
         "pointer": "bundles.8.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 8,
-        "reference": 692,
+        "reference": 694,
         "pointer": "bundles.16.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 9,
-        "reference": 693,
+        "reference": 695,
         "pointer": "bundles.17.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 11,
-        "reference": 697,
+        "reference": 699,
         "pointer": "bundles.20.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 14,
-        "reference": 701,
+        "reference": 703,
         "pointer": "bundles.24.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 15,
-        "reference": 702,
+        "reference": 704,
         "pointer": "bundles.25.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 16,
-        "reference": 703,
+        "reference": 705,
         "pointer": "bundles.26.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 23,
-        "reference": 709,
+        "reference": 711,
         "pointer": "bundles.31.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 26,
-        "reference": 684,
+        "reference": 686,
         "pointer": "bundles.0.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 27,
-        "reference": 685,
+        "reference": 687,
         "pointer": "bundles.1.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 28,
-        "reference": 696,
+        "reference": 698,
         "pointer": "bundles.2.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 29,
-        "reference": 707,
+        "reference": 709,
         "pointer": "bundles.3.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 30,
-        "reference": 731,
+        "reference": 733,
         "pointer": "bundles.6.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 31,
-        "reference": 734,
+        "reference": 736,
         "pointer": "bundles.9.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 32,
-        "reference": 686,
+        "reference": 688,
         "pointer": "bundles.10.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 33,
-        "reference": 687,
+        "reference": 689,
         "pointer": "bundles.11.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 34,
-        "reference": 688,
+        "reference": 690,
         "pointer": "bundles.12.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 35,
-        "reference": 689,
+        "reference": 691,
         "pointer": "bundles.13.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 36,
-        "reference": 690,
+        "reference": 692,
         "pointer": "bundles.14.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 37,
-        "reference": 691,
+        "reference": 693,
         "pointer": "bundles.15.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 38,
-        "reference": 694,
+        "reference": 696,
         "pointer": "bundles.18.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 39,
-        "reference": 695,
+        "reference": 697,
         "pointer": "bundles.19.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 40,
-        "reference": 698,
+        "reference": 700,
         "pointer": "bundles.21.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 41,
-        "reference": 699,
+        "reference": 701,
         "pointer": "bundles.22.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 42,
-        "reference": 700,
+        "reference": 702,
         "pointer": "bundles.23.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 43,
-        "reference": 704,
+        "reference": 706,
         "pointer": "bundles.27.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 44,
-        "reference": 705,
+        "reference": 707,
         "pointer": "bundles.28.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 45,
-        "reference": 706,
+        "reference": 708,
         "pointer": "bundles.29.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 46,
-        "reference": 708,
+        "reference": 710,
         "pointer": "bundles.30.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 47,
-        "reference": 710,
+        "reference": 712,
         "pointer": "bundles.32.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 48,
-        "reference": 711,
+        "reference": 713,
         "pointer": "bundles.33.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 49,
-        "reference": 712,
+        "reference": 714,
         "pointer": "bundles.34.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 50,
-        "reference": 713,
+        "reference": 715,
         "pointer": "bundles.35.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 51,
-        "reference": 715,
+        "reference": 717,
         "pointer": "bundles.37.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 52,
-        "reference": 716,
+        "reference": 718,
         "pointer": "bundles.38.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 53,
-        "reference": 717,
+        "reference": 719,
         "pointer": "bundles.39.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 54,
-        "reference": 719,
+        "reference": 721,
         "pointer": "bundles.40.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 55,
-        "reference": 720,
+        "reference": 722,
         "pointer": "bundles.41.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 56,
-        "reference": 721,
+        "reference": 723,
         "pointer": "bundles.42.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 57,
-        "reference": 722,
+        "reference": 724,
         "pointer": "bundles.43.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 58,
-        "reference": 724,
+        "reference": 726,
         "pointer": "bundles.45.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 59,
-        "reference": 725,
+        "reference": 727,
         "pointer": "bundles.46.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 60,
-        "reference": 726,
+        "reference": 728,
         "pointer": "bundles.47.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 61,
-        "reference": 727,
+        "reference": 729,
         "pointer": "bundles.48.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 62,
-        "reference": 728,
+        "reference": 730,
         "pointer": "bundles.49.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 63,
-        "reference": 730,
+        "reference": 732,
         "pointer": "bundles.50.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 67,
-        "reference": 714,
+        "reference": 716,
         "pointer": "bundles.36.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 70,
-        "reference": 723,
+        "reference": 725,
         "pointer": "bundles.44.path",
         "status": "resolved"
       },
       {
         "from": 70,
         "to": 11,
-        "reference": 889,
+        "reference": 891,
         "pointer": "buildsOn.1.path",
         "status": "resolved"
       },
       {
         "from": 70,
         "to": 16,
-        "reference": 890,
+        "reference": 892,
         "pointer": "buildsOn.2.path",
         "status": "resolved"
       },
       {
         "from": 70,
         "to": 69,
-        "reference": 888,
+        "reference": 890,
         "pointer": "buildsOn.0.path",
         "status": "resolved"
       }

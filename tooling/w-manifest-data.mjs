@@ -4,7 +4,8 @@ const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*/u;
 const QUANTITY = /^[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?(?:[eE][+-]?[0-9](?:_?[0-9])*)?<[^>\r\n]+>/u;
 const SIZE = /^[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?(?:[eE][+-]?[0-9](?:_?[0-9])*)?(?:B|KiB|MiB|GiB)/u;
 const NUMBER = /^(?:0[xX][0-9a-fA-F](?:_?[0-9a-fA-F])*(?:_[A-Za-z][A-Za-z0-9]*)?|0[bB][01](?:_?[01])*(?:_[A-Za-z][A-Za-z0-9]*)?|0[oO][0-7](?:_?[0-7])*(?:_[A-Za-z][A-Za-z0-9]*)?|[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?(?:[eE][+-]?[0-9](?:_?[0-9])*)?(?:_[A-Za-z][A-Za-z0-9]*)?)/u;
-const OWNER_EXCLUDED = new Set(["resolution", "deployments"]);
+const PACKAGE_IDENTITY_EXCLUDED = new Set(["root"]);
+const BUILD_COORDINATOR_FIELDS = new Set(["schema", "default", "patches", "resolution", "deployments", "toolchainPolicy"]);
 
 export class ManifestDataError extends Error {
   constructor(code, position) {
@@ -174,26 +175,49 @@ class Parser {
 
   parseRootRecord() {
     const root = this.take("identifier", "manifestRootMissing");
-    if (!new Set(["package", "workspace"]).has(root.value)) fail("manifestRootInvalid", root.position);
-    return { kind: root.value, ...this.parseRecord() };
+    if (!new Set(["package", "build"]).has(root.value)) fail("manifestRootInvalid", root.position);
+    const fields = this.parseRecord();
+    if (Object.hasOwn(fields, "kind")) fail("manifestRootKindFieldInvalid", root.position);
+    return { kind: root.value, ...fields };
   }
 
   parseBuildManifest() {
     const records = [];
-    const seen = new Set();
+    let build = null;
+    const packages = [];
     while (!this.at("eof")) {
       const rootPosition = this.current().position;
       const record = this.parseRootRecord();
-      if (seen.has(record.kind)) fail("manifestDuplicateRoot", rootPosition);
-      seen.add(record.kind);
-      records.push(record);
+      if (record.kind === "package") {
+        packages.push(record);
+        records.push(record);
+      } else {
+        if (build) fail("manifestDuplicateRoot", rootPosition);
+        build = record;
+        records.push(record);
+      }
     }
-    if (records.length === 0) fail("manifestRootMissing", this.current().position);
+    if (packages.length === 0) fail("manifestRootMissing", this.current().position);
+    if (packages.length > 1 && !build) fail("manifestBuildCoordinatorRequired", this.current().position);
+    const roots = new Set();
+    for (const record of packages) {
+      if (record.schema !== "w.package/1") fail("manifestPackageSchemaInvalid", 0);
+      if (typeof record.root !== "string" || !validExactRoot(record.root)) fail("manifestPackageRootInvalid", 0);
+      const normalizedRoot = record.root.replaceAll("\\", "/").replace(/\/$/u, "") || ".";
+      if (roots.has(normalizedRoot)) fail("manifestDuplicatePackageRoot", 0);
+      roots.add(normalizedRoot);
+    }
+    if (build && build.schema !== "w.build/1") fail("manifestBuildSchemaInvalid", 0);
+    if (build) {
+      for (const field of Object.keys(build)) {
+        if (field !== "kind" && !BUILD_COORDINATOR_FIELDS.has(field)) fail("manifestBuildFieldUnknown", 0);
+      }
+    }
     return {
       kind: "build_manifest",
       records,
-      package: records.find((record) => record.kind === "package") ?? null,
-      workspace: records.find((record) => record.kind === "workspace") ?? null,
+      packages,
+      build,
     };
   }
 
@@ -276,6 +300,14 @@ class Parser {
   }
 }
 
+function validExactRoot(root) {
+  if (root === ".") return true;
+  if (root.length === 0 || root.startsWith("/") || root.startsWith("\\") || /^[A-Za-z]:/u.test(root)) return false;
+  if (/[\\*?\[\]{}!]/u.test(root)) return false;
+  const segments = root.replaceAll("\\", "/").split("/");
+  return segments.every((segment) => segment.length > 0 && segment !== "." && segment !== "..") && segments.at(-1) !== "build.w";
+}
+
 export function canonical(value) {
   if (Array.isArray(value)) return value.map(canonical);
   if (value && typeof value === "object") {
@@ -303,12 +335,47 @@ export function parseBuildManifest(source) {
   return new Parser(source).parseBuildManifest();
 }
 
-export function deriveOwnerBasis(document) {
+export function derivePackageBasis(document) {
   if (!document || typeof document !== "object" || Array.isArray(document)) fail("manifestDocumentInvalid", 0);
-  if (!new Set(["package", "workspace"]).has(document.kind)) fail("manifestRootInvalid", 0);
-  return canonical(Object.fromEntries(Object.entries(document).filter(([key]) => !OWNER_EXCLUDED.has(key))));
+  if (document.kind !== "package") fail("manifestRootInvalid", 0);
+  return canonical(Object.fromEntries(Object.entries(document).filter(([key]) => !PACKAGE_IDENTITY_EXCLUDED.has(key))));
 }
 
-export function deriveOwnerDigest(document) {
-  return digestRecord("w.owner/1", deriveOwnerBasis(document));
+export function derivePackageDigest(document) {
+  return digestRecord("w.package/1", derivePackageBasis(document));
+}
+
+export function derivePublicationPackageDigest(packageRecord, coordinator) {
+  const packageDigest = derivePackageDigest(packageRecord);
+  const patches = coordinator?.patches ?? [];
+  if (!Array.isArray(patches)) fail("manifestPatchSetInvalid", 0);
+  if (patches.some((patch) => patch?.package === packageRecord.name)) {
+    fail("manifestLocalPatchUnpublishable", 0);
+  }
+  return packageDigest;
+}
+
+export function derivePackageSetDigest(packages) {
+  if (!Array.isArray(packages) || packages.length === 0) fail("manifestPackageSetInvalid", 0);
+  const digests = packages.map(derivePackageDigest).sort();
+  if (new Set(digests).size !== digests.length) fail("manifestDuplicatePackageIdentity", 0);
+  return digestRecord("w.package-set/1", digests);
+}
+
+export function deriveBuildPlanDigest(document) {
+  if (!document || typeof document !== "object" || !document.build) fail("manifestBuildCoordinatorMissing", 0);
+  if (!Array.isArray(document.packages) || document.packages.length === 0) fail("manifestPackageSetInvalid", 0);
+  const packageRoots = document.packages
+    .map(({ name, root }) => ({ name, root }))
+    .sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
+  const packageSetDigest = derivePackageSetDigest(document.packages);
+  const resolutionDigest = document.build.resolution
+    ? digestRecord("w.resolution/1", document.build.resolution)
+    : null;
+  return digestRecord("w.build-plan/1", {
+    packageSetDigest,
+    packageRoots,
+    resolutionDigest,
+    coordinator: canonical(document.build),
+  });
 }

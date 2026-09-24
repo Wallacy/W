@@ -33,7 +33,7 @@
 - [Shared state, atomics, and locks](#shared-state-atomics-and-locks)
 - [Units, matrices, tensors, and SIMD](#units-matrices-tensors-and-simd)
 - [Foreign code and ABI](#foreign-code-and-abi)
-- [Packages and workspaces](#packages-and-workspaces)
+- [Packages and build roots](#packages-and-build-roots)
 
 ## Programs, entries, and execution context
 
@@ -2315,17 +2315,23 @@ test "foreign calls remain inside unsafe" for callC {
 }
 ```
 
-## Packages and workspaces
+## Packages and build roots
 
-`build.w` is data, so it stays separate from module source. A standalone
-package needs only a `package` root:
+`build.w` is data, so it stays separate from module source. A single
+independently publishable package can omit the local build coordinator only
+when selection, resolution, recipe, and deployment are unambiguous. Every
+package record has an exact local `root`, excluded from public package
+identity. Package-authored build requirements, profiles, and recipes remain
+inside the package. Multiple packages require one local-only `build`
+coordinator; package record order never changes package recipe identity.
 
 <!-- w-example role=logical-contract -->
 ```w
 // excerpt-kind: manifest-fragment
 package {
   schema: "w.package/1"
-  name: "last-light"
+  root: "."
+  name: "last-light/restaurant"
   version: "0.1.0"
   edition: "2026"
   moduleSets: [{ name: "app", root: "src", include: ["*.w"] }]
@@ -2415,27 +2421,52 @@ that recipe is local-only and is not a distributable portable target.
 ASLR/DEP-oriented target hardening contract. Reproducibility is required by the
 future product contract, but is not yet implemented or evidenced.
 
-An aggregate manifest may contain only a `workspace` root. A member can also be
-the root package by using `"."`:
+An aggregate build root lists each package directly and uses the coordinator
+only for local selection and orchestration:
 
 <!-- w-example role=logical-contract -->
 ```w
 // excerpt-kind: manifest-fragment
-workspace {
-  schema: "w.workspace/1"
-  members: [".", "packages/core", "packages/server"]
-  defaultMembers: ["."]
+package {
+  schema: "w.package/1"
+  root: "packages/core"
+  name: "example/core"
+  products: [{ name: "core", kind: .library, module: "core" }]
+}
+
+package {
+  schema: "w.package/1"
+  root: "packages/server"
+  name: "example/server"
+  products: [{ name: "server", kind: .executable, module: "server" }]
+}
+
+build {
+  schema: "w.build/1"
+  default: { package: "example/server", product: "server" }
   patches: []
+  resolution: {
+    schema: "w.resolution/1"
+    resolver: "w.resolver/1"
+    contexts: []
+    packages: []
+  }
+  deployments: []
 }
 ```
 
-A root that is both publishable and an aggregate writes one `package` record
-and one `workspace` record in the same `build.w`; their order is irrelevant.
+There is no `workspace` record or workspace identity. Roots must be exact local
+paths beneath the selected `build.w`; globs, escapes, ancestor/cwd scanning,
+nested build roots, and configuration cycles are rejected. The coordinator may
+not weaken package-authored requirements. Local patches are rejected by
+publication, and receipts bind package and resolved build-plan identities
+separately.
 
 ```text
-w check                         # checks the current package or workspace defaults
-w check --package core          # selects one workspace member
-w run last-light-native -- --tui
+w context --build build.w       # inspect one explicitly selected build root
+w build example/server:server   # exact package/product selection
+w build all                     # only when the caller explicitly requests all
+w run last-light/restaurant:last-light-native -- --tui
 ```
 
 The normative contract and implementation status remain in [DESIGN.md](DESIGN.md).

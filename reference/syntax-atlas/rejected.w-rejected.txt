@@ -3,6 +3,16 @@ W syntax atlas — Rejected witnesses
 This file is not W source. The checker must not parse it.
 
 - raw literals with arbitrary multiple hashes [W-218: rejected; W uses one fence]
+- `workspace { schema: "w.workspace/1" ... }` [W-565/W-1451: no workspace record or workspace identity]
+- a build-only document with no direct `package` record [W-1451: at least one package is required]
+- two direct `build { schema: "w.build/1" ... }` coordinators [W-1451: at most one local coordinator]
+- `build { schema: "w.build/1", include: .path("build.w") }` [W-1451: no nested config include or cycle]
+- `package { root: "../outside" }` [W-1451: exact package root cannot escape its build root]
+- `package { root: "packages/tool/build.w" }` [W-1451: a manifest file is not a package root]
+- `package { root: "packages/*" }` [W-1451: package roots are exact paths, not globs]
+- multiple direct packages without a `build { schema: "w.build/1" ... }` coordinator [W-1451: selection and local resolution must be explicit]
+- `w build` with several packages [W-1415: select exact `<package>[:<product>]` or explicitly request `all`]
+- nested `packages/tool/build.w` under another build root [W-1451: nested build roots are not discovered]
 - spawn on .compute let value = work()  [Retirado antes do 1.0]
 - process.main = run                         [Rejeitado por enquanto]
 - [value] as an object literal               [Rejeitado por enquanto]

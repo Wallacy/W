@@ -116,7 +116,7 @@
     {
       "path": "reference/last-light/build.w",
       "symbol": "targetVariants: [\"native-terminal::posix\"]",
-      "digest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
+      "digest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
       "claim": "package resolution keeps static feature selection outside runtime policy"
     },
     {

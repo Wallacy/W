@@ -29,7 +29,7 @@ Atlas application families:
 | Block | Family | Atomic variants assigned to this act |
 | --- | --- | --- |
 | `package-root` | manifest | `root-package` |
-| `workspace-root` | manifest | `root-workspace` |
+| `build-root` | manifest | `root-build` |
 | `module-run-root` | roots | `root-module-run` |
 | `source-roots-imports` | roots | `root-module`, `import-ordinary`, `import-module-binding`, `import-named`, `import-wildcard`, `reexport-wildcard`, `reexport-named`, `import-kernel-named`, `import-kernel-qualified`, `module-kernel-contract`, `import-domain`, `import-service`, `module-contract-configuration` |
 | `entry-short-body` | entry | `entry-default-body` |

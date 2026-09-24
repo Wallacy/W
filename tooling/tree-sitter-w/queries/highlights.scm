@@ -93,7 +93,6 @@
   "var"
   "view"
   "weak"
-  "workspace"
 ] @keyword.modifier
 
 [
@@ -106,6 +105,7 @@
   "module"
   "domain"
   "package"
+  "build"
   "in"
   "init"
   "set"

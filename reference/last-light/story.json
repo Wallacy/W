@@ -6,9 +6,9 @@
     {
       "id": "open-the-doors",
       "summary": "The build selects a product and entry, binds process capabilities, and opens the restaurant without executing imported entry modules.",
-      "atlasBlocks": ["package-root", "workspace-root", "module-run-root", "source-roots-imports", "entry-short-body", "entry-declaration", "module-run-entry"],
+      "atlasBlocks": ["package-root", "build-root", "module-run-root", "source-roots-imports", "entry-short-body", "entry-declaration", "module-run-entry"],
       "sourceRefs": [
-        { "path": "reference/last-light/build.w", "symbol": "package {\n  schema: \"w.package/1\"" },
+        { "path": "reference/last-light/build.w", "symbol": "package {\n  schema: \"w.package/1\"\n  root: \".\"" },
         { "path": "reference/last-light/app.w", "symbol": "async fn runNative(" },
         { "path": "reference/last-light/simulation_app.w", "symbol": "entry LastLightSimulation(runSimulation)" }
       ],

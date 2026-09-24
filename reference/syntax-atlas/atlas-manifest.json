@@ -4,8 +4,8 @@
   "sourceOfTruth": "atlas-manifest.json metadata plus terse source markers and snippets in the atlas .w files. Editorial contract coverage is checked against CHEATSHEET.md. SYNTAX-COVERAGE.md is generated.",
   "grammar": {
     "path": "tooling/tree-sitter-w/grammar.js",
-    "digest": "sha256:19fb18c0271eb4b701ccf6707c1362e97b626e30263f6930c1df96e3c271d8ff",
-    "publicRuleSetDigest": "sha256:1a7636f27a289a2b13c36c352f3296bea0c39d0734fd6cd5d26f88da5aba1362"
+    "digest": "sha256:08796c73b4dc6f18678c9429dd0a6558fe0d8d5775474913d58a905b8a695660",
+    "publicRuleSetDigest": "sha256:9bca6bbd094c92a7df905d9904256a0e1c7e3d4e87567aaba257245e8a6f8397"
   },
   "sourceFiles": [
     "build.w",
@@ -32,7 +32,7 @@
     "entry-declaration",
     "module-run-entry",
     "package-root",
-    "workspace-root"
+    "build-root"
   ],
   "rootForms": [
     {
@@ -334,6 +334,14 @@
       "reason": "Direct source construction shown in the control-flow atlas block.",
       "markers": [
         "control-flow"
+      ]
+    },
+    {
+      "name": "build_coordinator",
+      "surface": "root",
+      "reason": "Document root or root-owned data grammar.",
+      "markers": [
+        "build-root"
       ]
     },
     {
@@ -1769,14 +1777,6 @@
       ]
     },
     {
-      "name": "workspace_manifest",
-      "surface": "root",
-      "reason": "Document root or root-owned data grammar.",
-      "markers": [
-        "workspace-root"
-      ]
-    },
-    {
       "name": "yield_statement",
       "surface": "direct",
       "reason": "Direct source construction shown in the stream-and-channel atlas block.",
@@ -1871,7 +1871,7 @@
       "family": "manifest",
       "blocks": [
         "package-root",
-        "workspace-root"
+        "build-root"
       ]
     }
   ],
@@ -1925,12 +1925,12 @@
       "witness": "package {"
     },
     {
-      "id": "root-workspace",
-      "block": "workspace-root",
-      "construction": "workspace manifest root",
+      "id": "root-build",
+      "block": "build-root",
+      "construction": "local build coordinator",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "workspace {"
+      "witness": "build {"
     },
     {
       "id": "import-ordinary",
@@ -3320,25 +3320,25 @@
       "sourceRefs": [
         {
           "path": "reference/last-light/build.w",
-          "symbol": "package {",
-          "digest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c"
+          "symbol": "package {\n  schema: \"w.package/1\"\n  root: \".\"",
+          "digest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e"
         }
       ],
-      "snippetDigest": "sha256:10b048fd48c900d83d91a3c612007fa64a333c8e89c6462e07fa802315d6e422",
-      "snippetBytes": 662
+      "snippetDigest": "sha256:392293184d21c5fdb8fb419de0301d9251aaade5c97dfe20162ce75a1e2ed708",
+      "snippetBytes": 870
     },
     {
-      "id": "workspace-root",
+      "id": "build-root",
       "file": "build.w",
       "order": 17,
-      "line": 44,
-      "title": "Workspace manifest root",
+      "line": 41,
+      "title": "Local build coordinator",
       "family": "manifest",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only-provider-missing",
-      "root": "workspace",
+      "root": "build",
       "grammarRefs": [
-        "workspace_manifest"
+        "build_coordinator"
       ],
       "designRefs": [
         "3.5.3"
@@ -3346,12 +3346,12 @@
       "sourceRefs": [
         {
           "path": "reference/last-light/build.w",
-          "symbol": "workspace {",
-          "digest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c"
+          "symbol": "build {\n  schema: \"w.build/1\"",
+          "digest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e"
         }
       ],
-      "snippetDigest": "sha256:06925d5357e47370e46c2fd3dcf1a3624206bb7e92062f172c1ef56b3a0f3418",
-      "snippetBytes": 503
+      "snippetDigest": "sha256:fec378e4a1da0bfe1ee60d9b48713cba1b08849209e6e314e351d0e59e9c0e53",
+      "snippetBytes": 518
     }
   ],
   "companionFiles": [
@@ -3374,6 +3374,6 @@
   ],
   "generated": {
     "coverage": "SYNTAX-COVERAGE.md",
-    "coverageDigest": "sha256:45f85e098bc046c146e47040c0b2afce3f22b3ddf157090b2651f429d5a97b6d"
+    "coverageDigest": "sha256:f0ce5b8bb604a17d3bbdb1e29882ceb52acc8b0be740689687cb1093ef44e35a"
   }
 }

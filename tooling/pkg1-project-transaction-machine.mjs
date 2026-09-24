@@ -1,7 +1,8 @@
 import {
   canonical,
-  deriveOwnerBasis as deriveManifestOwnerBasis,
-  deriveOwnerDigest as deriveManifestOwnerDigest,
+  derivePackageBasis as deriveManifestPackageBasis,
+  derivePackageDigest as deriveManifestPackageDigest,
+  derivePackageSetDigest as deriveManifestPackageSetDigest,
   digestRecord,
 } from "./w-manifest-data.mjs";
 
@@ -20,9 +21,10 @@ const CALLER_ECHO_KEYS = new Set([
   "route",
   "result",
   "ok",
-  "ownerDigest",
+  "packageSetDigest",
   "resolutionDigest",
   "deploymentDigest",
+  "buildPlanDigest",
   "receipt",
   "atomicVisible",
   "crashDurable",
@@ -79,21 +81,62 @@ function rejectLegacyProviderClaims(operation) {
   }
 }
 
-export function deriveOwnerBasis(document) {
-  requireObject(document, "documentSchemaInvalid");
-  if (!["package", "workspace"].includes(document.kind)) fail("ownerKindInvalid");
-  return deriveManifestOwnerBasis(document);
+export function derivePackageBasis(packageRecord) {
+  requireObject(packageRecord, "packageSchemaInvalid");
+  if (packageRecord.kind !== "package") fail("packageKindInvalid");
+  return deriveManifestPackageBasis(packageRecord);
 }
 
-export function deriveOwnerDigest(document) {
-  return deriveManifestOwnerDigest(document);
+export function derivePackageDigest(packageRecord) {
+  return deriveManifestPackageDigest(packageRecord);
 }
 
-function validateResolution(document, ownerDigest) {
-  const resolution = requireObject(document.resolution, "resolutionMissing");
+export function derivePackageSetDigest(packages) {
+  return deriveManifestPackageSetDigest(packages);
+}
+
+function exactPackageRoot(root) {
+  if (typeof root !== "string" || root.length === 0 || root.startsWith("/") || root.startsWith("\\") || /^[A-Za-z]:/u.test(root)) return false;
+  if (/[\\*?\[\]{}!]/u.test(root)) return false;
+  const segments = root.replaceAll("\\", "/").split("/");
+  return root === "." || segments.every((segment) => segment.length > 0 && segment !== "." && segment !== "..");
+}
+
+function validateManifestDocument(document) {
+  if (document.kind !== "build_manifest" || !Array.isArray(document.packages) || document.packages.length === 0) fail("buildManifestShapeInvalid");
+  const names = new Set();
+  const roots = new Set();
+  for (const [index, packageRecord] of document.packages.entries()) {
+    if (!packageRecord || packageRecord.kind !== "package" || packageRecord.schema !== "w.package/1" || !exactPackageRoot(packageRecord.root)) {
+      fail("packageRecordInvalid", { index });
+    }
+    if (typeof packageRecord.name !== "string" || packageRecord.name.trim() === "") fail("packageNameInvalid", { index });
+    const root = packageRecord.root.replaceAll("\\", "/");
+    if (names.has(packageRecord.name)) fail("duplicatePackageIdentity", { name: packageRecord.name });
+    if (roots.has(root)) fail("duplicatePackageRoot", { root });
+    names.add(packageRecord.name);
+    roots.add(root);
+  }
+  if (document.build !== undefined) {
+    if (!document.build || document.build.schema !== "w.build/1") fail("buildCoordinatorInvalid");
+  } else {
+    if (document.packages.length !== 1) fail("buildCoordinatorRequired");
+    const packageRecord = document.packages[0];
+    const products = packageRecord.products ?? [];
+    const dependencies = packageRecord.dependencies ?? [];
+    const targets = products[0]?.targets ?? [];
+    if (products.length !== 1 || dependencies.length !== 0 || targets.length !== 1 || packageRecord.unambiguousDeployment !== true) {
+      fail("singlePackageContextAmbiguous");
+    }
+  }
+  return document;
+}
+
+function validateResolution(build, packageSetDigest) {
+  const resolution = requireObject(build?.resolution, "resolutionMissing");
   if (resolution.schema !== "w.resolution/1") fail("resolutionSchemaInvalid");
   if (resolution.resolver !== "w.resolver/1") fail("resolverSchemaInvalid");
-  if (resolution.ownerDigest !== ownerDigest) fail("resolutionOwnerMismatch");
+  if (resolution.packageSetDigest !== packageSetDigest) fail("resolutionPackageSetMismatch");
   if (resolution.resolutionDigest !== undefined) fail("resolutionSelfReference");
   if (!Array.isArray(resolution.contexts) || !Array.isArray(resolution.packages)) fail("resolutionRecordInvalid");
 
@@ -112,10 +155,10 @@ function validateResolution(document, ownerDigest) {
   const contextKeys = new Set();
   for (const [index, context] of resolution.contexts.entries()) {
     if (!context || typeof context !== "object") fail("resolutionContextInvalid", { index });
-    const key = `${context.name ?? ""}\0${context.target ?? ""}\0${context.use ?? ""}`;
+    const key = `${context.package ?? ""}\0${context.product ?? ""}\0${context.target ?? ""}\0${context.use ?? ""}`;
     if (contextKeys.has(key)) fail("resolutionContextDuplicate", { index });
     contextKeys.add(key);
-    if (typeof context.name !== "string" || typeof context.target !== "string" || typeof context.use !== "string") {
+    if (typeof context.package !== "string" || typeof context.product !== "string" || typeof context.target !== "string" || typeof context.use !== "string") {
       fail("resolutionContextClosureInvalid", { index });
     }
     if (!Array.isArray(context.nodes)) fail("resolutionContextNodesInvalid", { index });
@@ -136,10 +179,11 @@ function validateResolution(document, ownerDigest) {
   return resolution;
 }
 
-function validateDeployments(document) {
-  if (!Array.isArray(document.deployments)) fail("deploymentsInvalid");
+function validateDeployments(build) {
+  const deployments = build?.deployments ?? [];
+  if (!Array.isArray(deployments)) fail("deploymentsInvalid");
   const names = new Set();
-  return document.deployments.map((deployment, index) => {
+  return deployments.map((deployment, index) => {
     if (!deployment || typeof deployment !== "object" || typeof deployment.name !== "string" || deployment.name.trim() === "") {
       fail("deploymentInvalid", { index });
     }
@@ -160,22 +204,28 @@ function formatDocument(document) {
 
 export function deriveDocumentState(document) {
   requireObject(document, "documentSchemaInvalid");
-  if (!["package", "workspace"].includes(document.kind)) fail("ownerKindInvalid");
-  const owner = deriveOwnerBasis(document);
-  const ownerDigest = digestRecord("w.owner/1", owner);
-  const resolution = validateResolution(document, ownerDigest);
-  const deployments = validateDeployments(document);
-  const resolutionDigest = digestRecord("w.resolution/1", resolution);
+  validateManifestDocument(document);
+  const packageSetDigest = derivePackageSetDigest(document.packages);
+  const resolution = document.build ? validateResolution(document.build, packageSetDigest) : null;
+  const deployments = document.build ? validateDeployments(document.build) : [];
+  const resolutionDigest = resolution ? digestRecord("w.resolution/1", resolution) : null;
+  const packageRoots = document.packages
+    .map(({ name, root }) => ({ name, root }))
+    .sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
   const deploymentDigests = deployments.map((deployment) => ({
     name: deployment.name,
     digest: digestRecord("w.deployment/1", deployment),
   }));
+  const buildPlanDigest = document.build
+    ? digestRecord("w.build-plan/1", { packageSetDigest, packageRoots, resolutionDigest, coordinator: document.build })
+    : null;
   const formatted = formatDocument(document);
   return {
-    ownerBasis: owner,
-    ownerDigest,
+    packageSetDigest,
+    packageDigests: document.packages.map((packageRecord) => ({ name: packageRecord.name, digest: derivePackageDigest(packageRecord) })).sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0),
     resolutionDigest,
     deploymentDigests,
+    buildPlanDigest,
     documentDigest: digestRecord("w.document/1", formatted),
     bytes: formatted,
   };
@@ -183,11 +233,11 @@ export function deriveDocumentState(document) {
 
 function ensureNoDerivedFields(document) {
   if (!document || typeof document !== "object") return;
-  for (const key of ["ownerDigest", "resolutionDigest", "deploymentDigest", "receipt"]) {
+  for (const key of ["packageSetDigest", "resolutionDigest", "buildPlanDigest", "deploymentDigest", "receipt"]) {
     if (Object.prototype.hasOwnProperty.call(document, key)) fail("forgedDigestOrReceipt", { key });
   }
-  if (document.resolution && Object.prototype.hasOwnProperty.call(document.resolution, "resolutionDigest")) fail("resolutionSelfReference");
-  for (const deployment of document.deployments ?? []) {
+  if (document.build?.resolution && Object.prototype.hasOwnProperty.call(document.build.resolution, "resolutionDigest")) fail("resolutionSelfReference");
+  for (const deployment of document.build?.deployments ?? []) {
     if (deployment && Object.prototype.hasOwnProperty.call(deployment, "deploymentDigest")) fail("forgedDigestOrReceipt", { key: "deploymentDigest" });
   }
 }
@@ -231,12 +281,16 @@ function stateSnapshot(state) {
 }
 
 function initialize(state, operation) {
-  if (state.document) fail("ownerAlreadyInitialized");
+  if (state.document) fail("buildRootAlreadyInitialized");
   ensureNoDerivedFields(operation.document);
   rejectCallerEcho(operation.document);
   const document = clone(operation.document);
-  if (operation.ownerAmbiguous) fail("ownerAmbiguous");
-  document.resolution = updateResolution(document, {}, deriveOwnerDigest(document));
+  if (operation.selectionAmbiguous) fail("buildSelectionAmbiguous");
+  if (document.build?.resolution && Object.prototype.hasOwnProperty.call(document.build.resolution, "packageSetDigest")) fail("forgedDigestOrReceipt", { key: "packageSetDigest" });
+  validateManifestDocument(document);
+  if (document.build) {
+    document.build.resolution = updateResolution(document, {}, derivePackageSetDigest(document.packages));
+  }
   const derived = deriveDocumentState(document);
   state.document = document;
   state.bytes = derived.bytes;
@@ -244,9 +298,11 @@ function initialize(state, operation) {
   return {
     status: "accepted",
     code: "initialized",
-    ownerDigest: derived.ownerDigest,
+    packageSetDigest: derived.packageSetDigest,
+    packageDigests: derived.packageDigests,
     resolutionDigest: derived.resolutionDigest,
     deploymentDigests: derived.deploymentDigests,
+    buildPlanDigest: derived.buildPlanDigest,
     documentDigest: derived.documentDigest,
   };
 }
@@ -391,11 +447,13 @@ function reduceProvider(operation, context) {
   return { platform, result };
 }
 
-function updateResolution(document, resolutionPatch, ownerDigest) {
-  const current = clone(document.resolution);
+function updateResolution(document, resolutionPatch, packageSetDigest) {
+  if (!document.build) fail("buildCoordinatorRequired");
+  const current = clone(document.build.resolution);
   const next = merge(current, resolutionPatch ?? {});
-  next.ownerDigest = ownerDigest;
+  next.packageSetDigest = packageSetDigest;
   delete next.resolutionDigest;
+  document.build.resolution = next;
   return next;
 }
 
@@ -412,29 +470,40 @@ function transaction(state, operation) {
   if (!["resolve", "add", "remove", "update", "deployment"].includes(operation.command)) fail("commandUnsupported");
   if (operation.command === "resolve") {
     if (operation.solve === "fail" || operation.fetch === "missing" || operation.policy === "missing") fail(operation.solve === "fail" ? "resolutionFailed" : operation.fetch === "missing" ? "externalFetchMissing" : "policyMissing");
-    next.resolution = updateResolution(next, operation.resolution, before.ownerDigest);
+    updateResolution(next, operation.resolution, before.packageSetDigest);
   } else if (operation.command === "deployment") {
+    if (!next.build) fail("buildCoordinatorRequired");
     const name = operation.deployment?.name;
-    const index = next.deployments.findIndex((entry) => entry.name === name);
+    const index = next.build.deployments.findIndex((entry) => entry.name === name);
     if (index < 0) fail("deploymentUnknown", { name });
     const patch = clone(operation.deployment);
     delete patch.name;
-    next.deployments[index] = merge(next.deployments[index], patch);
+    next.build.deployments[index] = merge(next.build.deployments[index], patch);
   } else {
     if (operation.solve === "fail" || operation.fetch === "missing" || operation.policy === "missing") fail(operation.solve === "fail" ? "resolutionFailed" : operation.fetch === "missing" ? "externalFetchMissing" : "policyMissing");
-    if (operation.ownerPatch) {
-      delete operation.ownerPatch.ownerDigest;
-      next = merge(next, operation.ownerPatch);
+    if (!next.build) fail("buildCoordinatorRequired");
+    if (operation.packagePatch) {
+      const packageRecord = next.packages.find(({ name }) => name === operation.packagePatch.name);
+      if (!packageRecord) fail("packageUnknown", { name: operation.packagePatch.name });
+      const fields = clone(operation.packagePatch.fields ?? {});
+      delete fields.packageSetDigest;
+      Object.assign(packageRecord, merge(packageRecord, fields));
     }
-    next.resolution = updateResolution(next, operation.resolution, deriveOwnerDigest(next));
+    if (operation.packageAppend) next.packages.push(clone(operation.packageAppend));
+    if (operation.packageRemove) {
+      const index = next.packages.findIndex(({ name }) => name === operation.packageRemove);
+      if (index < 0) fail("packageUnknown", { name: operation.packageRemove });
+      next.packages.splice(index, 1);
+    }
+    updateResolution(next, operation.resolution, derivePackageSetDigest(next.packages));
   }
   ensureNoDerivedFields(next);
   const after = deriveDocumentState(next);
-  const ownerChanged = after.ownerDigest !== before.ownerDigest;
+  const packageSetChanged = after.packageSetDigest !== before.packageSetDigest;
   const resolutionChanged = after.resolutionDigest !== before.resolutionDigest;
   const deploymentChanged = JSON.stringify(after.deploymentDigests) !== JSON.stringify(before.deploymentDigests);
-  if (operation.command === "resolve" && ownerChanged) fail("resolutionChangedOwner");
-  if (operation.command === "deployment" && (ownerChanged || resolutionChanged)) fail("deploymentChangedOwner");
+  if (operation.command === "resolve" && packageSetChanged) fail("resolutionChangedPackageSet");
+  if (operation.command === "deployment" && (packageSetChanged || resolutionChanged)) fail("deploymentChangedPackageSet");
 
   const dryRun = operation.dryRun === true;
   if (dryRun) {
@@ -442,12 +511,14 @@ function transaction(state, operation) {
       status: "accepted",
       code: "dryRun",
       dryRun: true,
-      ownerDigest: after.ownerDigest,
+      packageSetDigest: after.packageSetDigest,
+      packageDigests: after.packageDigests,
       resolutionDigest: after.resolutionDigest,
       deploymentDigests: after.deploymentDigests,
+      buildPlanDigest: after.buildPlanDigest,
       documentDigest: before.documentDigest,
       wouldDocumentDigest: after.documentDigest,
-      changed: { owner: ownerChanged, resolution: resolutionChanged, deployment: deploymentChanged },
+      changed: { packageSet: packageSetChanged, resolution: resolutionChanged, deployment: deploymentChanged, buildPlan: after.buildPlanDigest !== before.buildPlanDigest },
     };
   }
 
@@ -469,7 +540,7 @@ function transaction(state, operation) {
     state.bytes = after.bytes;
     state.documentDigest = after.documentDigest;
     const reopened = currentState(state);
-    if (reopened.documentDigest !== after.documentDigest || reopened.ownerDigest !== after.ownerDigest || reopened.resolutionDigest !== after.resolutionDigest) fail("publicationReceiptMismatch");
+    if (reopened.documentDigest !== after.documentDigest || reopened.packageSetDigest !== after.packageSetDigest || reopened.resolutionDigest !== after.resolutionDigest || reopened.buildPlanDigest !== after.buildPlanDigest) fail("publicationReceiptMismatch");
     const crashDurable = provider.crashDurable === true;
     const receipt = {
       schema: "w.project-transaction-receipt/1",
@@ -477,8 +548,9 @@ function transaction(state, operation) {
       platform,
       oldDocumentDigest: before.documentDigest,
       newDocumentDigest: after.documentDigest,
-      ownerDigest: after.ownerDigest,
+      packageSetDigest: after.packageSetDigest,
       resolutionDigest: after.resolutionDigest,
+      buildPlanDigest: after.buildPlanDigest,
       deploymentDigests: after.deploymentDigests,
       atomicVisible: true,
       crashDurable,
@@ -491,15 +563,17 @@ function transaction(state, operation) {
       status: "accepted",
       code: "replaced",
       route: platform === "posix" ? "posix-rename" : "windows-replacefile",
-      ownerDigest: after.ownerDigest,
+      packageSetDigest: after.packageSetDigest,
+      packageDigests: after.packageDigests,
       resolutionDigest: after.resolutionDigest,
       deploymentDigests: after.deploymentDigests,
+      buildPlanDigest: after.buildPlanDigest,
       documentDigest: after.documentDigest,
       atomicVisible: true,
       crashDurable,
       durabilityEvidence: receipt.durabilityEvidence,
       providerReceiptDigest: receipt.providerReceiptDigest,
-      changed: { owner: ownerChanged, resolution: resolutionChanged, deployment: deploymentChanged },
+      changed: { packageSet: packageSetChanged, resolution: resolutionChanged, deployment: deploymentChanged, buildPlan: after.buildPlanDigest !== before.buildPlanDigest },
     };
   } finally {
     state.temporary = Math.max(0, state.temporary - 1);
@@ -537,7 +611,7 @@ export function runPkg1Program(testCase) {
       trace,
       state: stateSnapshot(state),
       final: derived
-        ? { ownerDigest: derived.ownerDigest, resolutionDigest: derived.resolutionDigest, deploymentDigests: derived.deploymentDigests, documentDigest: derived.documentDigest }
+        ? { packageSetDigest: derived.packageSetDigest, packageDigests: derived.packageDigests, resolutionDigest: derived.resolutionDigest, deploymentDigests: derived.deploymentDigests, buildPlanDigest: derived.buildPlanDigest, documentDigest: derived.documentDigest }
         : null,
     };
   } catch (error) {

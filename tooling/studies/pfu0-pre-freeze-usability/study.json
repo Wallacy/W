@@ -12,24 +12,24 @@
   "question": "Does the bounded host oracle close the three decisions without changing ownership, stream, service, or property contracts?",
   "corpus": {
     "path": "../../pfu0-pre-freeze-usability-cases.json",
-    "digest": "sha256:7cdb11342392961599af4600ab17f983f4b55f5845c4c5d41a151085d9710959"
+    "digest": "sha256:2d496f80a04ac5654897a6feb7dbbd06443ee67f03b8c29593d90e16d715a528"
   },
   "machine": {
     "path": "../../pfu0-pre-freeze-usability-machine.mjs",
-    "digest": "sha256:9359a7566b056d308056c75e96e83a3d65c6e8d1026498e110345d6cbfe1ddbe"
+    "digest": "sha256:dc52677f6347f1b3a96d8fdbf403eaa4f6945ea989b6079d59b0348d5a561f6c"
   },
   "sourceRefs": [
     {
       "path": "../../../reference/last-light/build.w",
-      "symbol": "package {",
-      "digest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
-      "claim": "Current package root."
+      "symbol": "root: \"packages/menu-compiler\"",
+      "digest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
+      "claim": "Current exact local package root, excluded from public identity."
     },
     {
       "path": "../../../reference/last-light/build.w",
-      "symbol": "workspace {",
-      "digest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
-      "claim": "Current workspace owner."
+      "symbol": "schema: \"w.build/1\"",
+      "digest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
+      "claim": "Current local-only build coordinator."
     },
     {
       "path": "../../../reference/last-light/streams.w",

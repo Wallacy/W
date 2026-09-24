@@ -136,47 +136,47 @@ function sortedStrings(value) {
 function commonManifestFacts(facts) {
   const rootFiles = sortedStrings(facts?.rootFiles);
   const packageRecords = facts?.packageRecords;
-  const workspaceRecords = facts?.workspaceRecords;
-  const recordCount = (Number.isInteger(packageRecords) ? packageRecords : -1) +
-    (Number.isInteger(workspaceRecords) ? workspaceRecords : -1);
-  const ownerContext = facts?.ownerContext;
+  const buildRecords = facts?.buildRecords;
   const resolutionOwner = facts?.resolutionOwner;
   const deploymentOwner = facts?.deploymentOwner;
   const base = object(facts) && facts.dataOnly === true &&
-    Number.isInteger(packageRecords) && packageRecords >= 0 && packageRecords <= 1 &&
-    Number.isInteger(workspaceRecords) && workspaceRecords >= 0 && workspaceRecords <= 1 &&
-    recordCount >= 1 && recordCount <= 2 &&
-    facts.inlinePackage !== true && facts.nestedWorkspace !== true && facts.glob !== true &&
-    facts.environmentalScan !== true && facts.executableSource !== true && facts.duplicateOwner !== true &&
-    facts.owner !== "both" && facts.owner !== "none";
+    Number.isInteger(packageRecords) && packageRecords >= 1 &&
+    Number.isInteger(buildRecords) && buildRecords >= 0 && buildRecords <= 1 &&
+    Array.isArray(facts.packageRoots) && facts.packageRoots.length === packageRecords &&
+    facts.packageIdentitiesUnique === true && facts.packageOrderInvariant === true &&
+    facts.packageAuthoredPolicyIncluded === true && facts.coordinatorWeakensPackage !== true &&
+    facts.inlinePackage !== true && facts.nestedBuildRoot !== true && facts.glob !== true &&
+    facts.environmentalScan !== true && facts.pathEscape !== true && facts.executableSource !== true &&
+    facts.duplicatePackageIdentity !== true && facts.duplicatePackageRoot !== true &&
+    facts.duplicateCoordinator !== true;
   if (!base || rootFiles.length !== 1 || rootFiles[0] !== "build.w") {
-    return { accepted: false, reason: "manifest-root-or-data-boundary" };
+    return { accepted: false, reason: "manifest-root-or-package-boundary" };
   }
-  const packageOnlyStandalone = packageRecords === 1 && workspaceRecords === 0 && facts.owner === "package" &&
-    ownerContext === "standalone" && resolutionOwner === "package" && deploymentOwner === "package";
-  const packageMember = packageRecords === 1 && workspaceRecords === 0 && facts.owner === "workspace" &&
-    ownerContext === "workspace-member" && resolutionOwner === "workspace" && deploymentOwner === "workspace";
-  const workspaceOnly = packageRecords === 0 && workspaceRecords === 1 && facts.owner === "workspace" &&
-    ownerContext === "workspace" && resolutionOwner === "workspace" && deploymentOwner === "workspace";
-  const colocated = packageRecords === 1 && workspaceRecords === 1 && facts.owner === "workspace" &&
-    ownerContext === "workspace" && resolutionOwner === "workspace" && deploymentOwner === "workspace";
-  if (!(packageOnlyStandalone || packageMember || workspaceOnly || colocated)) return { accepted: false, reason: "manifest-owner-context" };
-  const targets = sortedStrings(facts.memberTargets);
-  const packageTargets = sortedStrings(facts.memberBuildPackages);
-  if (!same(targets, packageTargets)) return { accepted: false, reason: "member-without-package" };
-  if (workspaceOnly || colocated) {
-    if (targets.length === 0) return { accepted: false, reason: "workspace-member-missing" };
-  } else if (targets.length !== 0 && !packageMember) {
-    return { accepted: false, reason: "package-member-unexpected" };
+  const roots = facts.packageRoots;
+  const exactRoot = (root) => typeof root === "string" && root.length > 0 &&
+    !root.startsWith("/") && !root.startsWith("\\") && !/^[A-Za-z]:/u.test(root) && !/[\\*?\[\]{}!]/u.test(root) &&
+    !root.replaceAll("\\", "/").split("/").some((segment) => segment === ".." || segment === "");
+  if (!roots.every(exactRoot) || new Set(roots.map((root) => root.replaceAll("\\", "/"))).size !== roots.length) {
+    return { accepted: false, reason: "package-root-not-exact-or-unique" };
   }
-  if (Array.isArray(facts.memberBuildWorkspaces) && facts.memberBuildWorkspaces.length > 0) {
-    return { accepted: false, reason: "nested-workspace-member" };
+  if (buildRecords === 0) {
+    if (packageRecords !== 1) return { accepted: false, reason: "multi-package-coordinator-required" };
+    if (facts.unambiguousSelection !== true || facts.unambiguousResolution !== true || facts.unambiguousDeployment !== true) {
+      return { accepted: false, reason: "single-package-context-ambiguous" };
+    }
+  } else {
+    if (facts.exactSelector !== true || facts.packageProductDefaultExact !== true ||
+        facts.coordinatorOwnsLocalResolution !== true || facts.coordinatorOwnsLocalDeployments !== true ||
+        facts.patchPublicationRejected !== true) {
+      return { accepted: false, reason: "build-coordinator-contract" };
+    }
   }
   return {
     accepted: true,
-    reason: "single-build-data-only",
+    reason: "package-centric-build-root",
     form: "build.w",
-    ownerContext,
+    packageRecords,
+    buildRecords,
     resolutionOwner,
     deploymentOwner,
   };
@@ -343,14 +343,22 @@ export function mutationChecks() {
   const emptyBuild = clone(corpus);
   const emptyBuildSample = emptyBuild.cases.find((testCase) => testCase.id === "PFU0-W-1451-candidate").observations.samples[0];
   emptyBuildSample.packageRecords = 0;
-  emptyBuildSample.workspaceRecords = 0;
   checks.emptyBuildRejected = validateCorpus(emptyBuild).results.find((result) => result.caseId === "PFU0-W-1451-candidate")?.status === "rejected";
-  const incompatibleOwner = clone(corpus);
-  incompatibleOwner.cases.find((testCase) => testCase.id === "PFU0-W-1451-candidate").observations.samples[1].owner = "package";
-  checks.incompatibleBuildOwnerRejected = validateCorpus(incompatibleOwner).results.find((result) => result.caseId === "PFU0-W-1451-candidate")?.status === "rejected";
-  const duplicateRecord = clone(corpus);
-  duplicateRecord.cases.find((testCase) => testCase.id === "PFU0-W-1451-candidate").observations.samples[0].packageRecords = 2;
-  checks.duplicateBuildRecordRejected = validateCorpus(duplicateRecord).results.find((result) => result.caseId === "PFU0-W-1451-candidate")?.status === "rejected";
+  const multiWithoutCoordinator = clone(corpus);
+  const multiSample = multiWithoutCoordinator.cases.find((testCase) => testCase.id === "PFU0-W-1451-candidate").observations.samples[0];
+  multiSample.packageRecords = 2;
+  multiSample.packageRoots = [".", "tools/second"];
+  multiSample.buildRecords = 0;
+  checks.multiPackageNeedsCoordinator = validateCorpus(multiWithoutCoordinator).results.find((result) => result.caseId === "PFU0-W-1451-candidate")?.status === "rejected";
+  const duplicateCoordinator = clone(corpus);
+  duplicateCoordinator.cases.find((testCase) => testCase.id === "PFU0-W-1451-candidate").observations.samples[0].duplicateCoordinator = true;
+  checks.duplicateCoordinatorRejected = validateCorpus(duplicateCoordinator).results.find((result) => result.caseId === "PFU0-W-1451-candidate")?.status === "rejected";
+  const escapingRoot = clone(corpus);
+  escapingRoot.cases.find((testCase) => testCase.id === "PFU0-W-1451-candidate").observations.samples[0].packageRoots[0] = "../outside";
+  checks.escapingRootRejected = validateCorpus(escapingRoot).results.find((result) => result.caseId === "PFU0-W-1451-candidate")?.status === "rejected";
+  const weakenedPackage = clone(corpus);
+  weakenedPackage.cases.find((testCase) => testCase.id === "PFU0-W-1451-candidate").observations.samples[0].coordinatorWeakensPackage = true;
+  checks.coordinatorCannotWeakenPackage = validateCorpus(weakenedPackage).results.find((result) => result.caseId === "PFU0-W-1451-candidate")?.status === "rejected";
   const service = clone(corpus);
   service.cases.find((testCase) => testCase.id === "PFU0-W-1452-candidate").observations.samples[0].channelImplicit = true;
   checks.implicitChannelRejected = validateCorpus(service).results.find((result) => result.caseId === "PFU0-W-1452-candidate")?.status === "rejected";

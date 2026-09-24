@@ -4,7 +4,8 @@ import { describe, expect, test } from "bun:test";
 import {
   createPkg1State,
   applyPkg1Operation,
-  deriveOwnerDigest,
+  derivePackageDigest,
+  derivePackageSetDigest,
   deriveDocumentState,
   digestRecord,
   derivePkg1,
@@ -15,12 +16,12 @@ import {
 import { parseManifestDocument } from "./w-manifest-data.mjs";
 
 const corpus = JSON.parse(fs.readFileSync(path.join(import.meta.dir, "pkg1-project-transaction-cases.json"), "utf8"));
-const workspaceFixture = corpus.fixtures.workspace.operations[0];
-const baseDigest = "sha256:0bc1bf029fca3ee18af1b92e92c256f313ba7a77ea8230fb5165ad31fb5a1022";
+const buildRootFixture = corpus.fixtures.buildRoot.operations[0];
+const baseDigest = "sha256:0bb8b0d59a989b098bc0191a909dd17a8be006f88b51e3a13cd9ce27d38453e1";
 
 function seeded() {
   const state = createPkg1State();
-  applyPkg1Operation(state, workspaceFixture);
+  applyPkg1Operation(state, buildRootFixture);
   return state;
 }
 
@@ -29,24 +30,36 @@ const posixSuccess = () => events("temp-created", "temp-written", "temp-data-flu
 const windowsSuccess = () => events("temp-created", "temp-written", "temp-data-flushed", "compare-verified", "replace-file-committed", "target-reopened", "content-verified");
 
 describe("PKG1 project transaction host oracle", () => {
-  test("structured manifest canonicalization is recursive and rejects duplicate fields", () => {
-    const left = parseManifestDocument('workspace { schema: "w.workspace/1" members: [".", "tools"] nested: { beta: 2 alpha: 1 } resolution: {} deployments: [] }');
-    const right = parseManifestDocument('workspace { deployments: [] nested: { alpha: 1 beta: 2 } members: [".", "tools"] schema: "w.workspace/1" resolution: {} }');
-    expect(deriveOwnerDigest(left)).toBe(deriveOwnerDigest(right));
-    const reorderedMembers = structuredClone(right);
-    reorderedMembers.members.reverse();
-    expect(deriveOwnerDigest(reorderedMembers)).not.toBe(deriveOwnerDigest(right));
-    expect(() => parseManifestDocument('workspace { schema: "w.workspace/1" schema: "duplicate" }')).toThrow("manifestDuplicateField");
+  test("package canonicalization is recursive and rejects duplicate fields", () => {
+    const left = parseManifestDocument('package { schema: "w.package/1" root: "." name: "example/core" nested: { beta: 2 alpha: 1 } build: { network: .deny } }');
+    const right = parseManifestDocument('package { build: { network: .deny } nested: { alpha: 1 beta: 2 } name: "example/core" root: "." schema: "w.package/1" }');
+    expect(derivePackageDigest(left)).toBe(derivePackageDigest(right));
+    const relocated = structuredClone(right);
+    relocated.root = "packages/core";
+    expect(derivePackageDigest(relocated)).toBe(derivePackageDigest(right));
+    const changedAuthoredBuild = structuredClone(right);
+    changedAuthoredBuild.build.network = { $member: "allow" };
+    expect(derivePackageDigest(changedAuthoredBuild)).not.toBe(derivePackageDigest(right));
+    expect(() => parseManifestDocument('package { schema: "w.package/1" schema: "duplicate" }')).toThrow("manifestDuplicateField");
   });
 
-  test("owner basis excludes resolution and deployments", () => {
-    const document = structuredClone(workspaceFixture.document);
-    const first = deriveOwnerDigest(document);
-    document.resolution.extra = "refresh";
-    document.deployments[0].plans = [{ id: "changed" }];
-    expect(deriveOwnerDigest(document)).toBe(first);
-    document.members = [".", "packages/menu-compiler", "packages/new"];
-    expect(deriveOwnerDigest(document)).not.toBe(first);
+  test("package identities exclude exact roots and coordinator selection; package-set order is canonical", () => {
+    const document = structuredClone(buildRootFixture.document);
+    const first = derivePackageDigest(document.packages[0]);
+    const set = derivePackageSetDigest(document.packages);
+    const relocated = structuredClone(document.packages[0]);
+    relocated.root = "relocated/exact-root";
+    expect(derivePackageDigest(relocated)).toBe(first);
+    expect(derivePackageSetDigest([...document.packages].reverse())).toBe(set);
+    const changedAuthoredBuild = structuredClone(document.packages[0]);
+    changedAuthoredBuild.build.requirements.network = "deny";
+    expect(derivePackageDigest(changedAuthoredBuild)).not.toBe(first);
+    const state = seeded();
+    const before = deriveDocumentState(state.document);
+    state.document.build.default.product = "another-product";
+    const after = deriveDocumentState(state.document);
+    expect(after.packageSetDigest).toBe(before.packageSetDigest);
+    expect(after.buildPlanDigest).not.toBe(before.buildPlanDigest);
   });
 
   test("resolution and deployment identities remain separate", () => {
@@ -56,12 +69,12 @@ describe("PKG1 project transaction host oracle", () => {
     const resolution = applyPkg1Operation(state, {
       op: "transaction",
       command: "resolve",
-      resolution: { contexts: [{ name: "product", root: "last-light-native", use: "product", target: "x86_64-unknown-linux-gnu", targetVariants: ["refresh"], nodes: ["sha256:1111111111111111111111111111111111111111111111111111111111111111"], rootEdges: [{ alias: "chart", id: "sha256:1111111111111111111111111111111111111111111111111111111111111111" }] }] },
+      resolution: { contexts: [{ package: "last-light/restaurant", product: "last-light-native", use: "product", target: "x86_64-unknown-linux-gnu", targetVariants: ["refresh"], nodes: ["sha256:1111111111111111111111111111111111111111111111111111111111111111"], rootEdges: [{ alias: "chart", id: "sha256:1111111111111111111111111111111111111111111111111111111111111111" }] }] },
       expectedDocumentDigest: before.documentDigest,
       platform: "posix",
       providerEvents: posixSuccess(),
     });
-    expect(resolution.changed).toEqual({ owner: false, resolution: true, deployment: false });
+    expect(resolution.changed).toMatchObject({ packageSet: false, resolution: true, deployment: false, buildPlan: true });
     const afterResolution = deriveDocumentState(state.document);
     const deployment = applyPkg1Operation(state, {
       op: "transaction",
@@ -71,7 +84,7 @@ describe("PKG1 project transaction host oracle", () => {
       platform: "posix",
       providerEvents: posixSuccess(),
     });
-    expect(deployment.changed.owner).toBe(false);
+    expect(deployment.changed.packageSet).toBe(false);
     expect(deployment.changed.resolution).toBe(false);
     expect(deployment.changed.deployment).toBe(true);
   });
@@ -85,8 +98,8 @@ describe("PKG1 project transaction host oracle", () => {
 
   test("solve failure and dry-run do not replace", () => {
     const state = seeded();
-    expect(() => applyPkg1Operation(state, { op: "transaction", command: "update", ownerPatch: { dependencies: [] }, solve: "fail", expectedDocumentDigest: baseDigest })).toThrow("resolutionFailed");
-    const dry = applyPkg1Operation(state, { op: "transaction", command: "resolve", resolution: { contexts: [{ name: "product", root: "last-light-native", use: "product", target: "x86_64-unknown-linux-gnu", targetVariants: ["dry"], nodes: ["sha256:1111111111111111111111111111111111111111111111111111111111111111"], rootEdges: [{ alias: "chart", id: "sha256:1111111111111111111111111111111111111111111111111111111111111111" }] }] }, dryRun: true, expectedDocumentDigest: baseDigest });
+    expect(() => applyPkg1Operation(state, { op: "transaction", command: "update", packagePatch: { name: "last-light/restaurant", fields: { dependencies: [] } }, solve: "fail", expectedDocumentDigest: baseDigest })).toThrow("resolutionFailed");
+    const dry = applyPkg1Operation(state, { op: "transaction", command: "resolve", resolution: { contexts: [{ package: "last-light/restaurant", product: "last-light-native", use: "product", target: "x86_64-unknown-linux-gnu", targetVariants: ["dry"], nodes: ["sha256:1111111111111111111111111111111111111111111111111111111111111111"], rootEdges: [{ alias: "chart", id: "sha256:1111111111111111111111111111111111111111111111111111111111111111" }] }] }, dryRun: true, expectedDocumentDigest: baseDigest });
     expect(dry.code).toBe("dryRun");
     expect(state.documentDigest).toBe(baseDigest);
   });

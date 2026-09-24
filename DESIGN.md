@@ -957,10 +957,9 @@ kernel_contract_record = "{" kernel_contract_item
 kernel_contract_item = identifier ":" identifier ;
 
 manifest_document = build_manifest EOF ;
-build_manifest = package_manifest workspace_manifest?
-               | workspace_manifest package_manifest? ;
+build_manifest = (package_manifest | build_coordinator)+ ;
 package_manifest = "package" manifest_record ;
-workspace_manifest = "workspace" manifest_record ;
+build_coordinator = "build" manifest_record ;
 manifest_record = "{" manifest_field* "}" ;
 manifest_field = identifier ":" manifest_value ","? ;
 manifest_value = manifest_record
@@ -978,25 +977,37 @@ manifest_constructor = contextual_member
 manifest_argument = (identifier ":")? manifest_value ;
 ```
 
-O documento físico é um `build_manifest` com um ou dois records diretos
-`package`/`workspace`, em qualquer ordem, sem wrapper. Ele não possui um root
-`lock` ou `deployment` separado. O owner basis é o record canônico do owner
-sem os fields aninhados `resolution` e `deployments`. O owner basis usa ordem
-canônica de fields, valores normalizados e não inclui path físico, comments ou
-formatação. O `ownerDigest` é o SHA-256 tagged `w.owner/1` desse record.
+The physical `build.w` document has one or more direct top-level `package`
+records and at most one direct `build` coordinator, in any record order, with
+no wrapper. At least one package is required. The coordinator is local-only;
+there is no `workspace` record or workspace identity. Each package record has
+one exact local `root` path, which is excluded from public package identity.
+Package-authored semantic requirements, build profiles, and recipes remain
+inside that independently publishable package record and contribute to its
+identity. Canonical named-field order and normalized values make spelling
+order irrelevant.
 
-`resolution` é um record lógico separado. Ele contém `ownerDigest`, schema,
-resolver, contexts, packages e facts de closure. O `resolutionDigest` é o
-SHA-256 tagged `w.resolution/1` do record completo. O record não contém seu
-próprio digest. Cada deployment nomeado possui um `deploymentDigest` próprio.
-O deployment liga artifacts, plans e receipts por referências explícitas. Ele
-não herda resolution por proximidade.
+The tagged `w.package/1` digest covers authored package metadata and source,
+excluding its local `root`. A package-set digest sorts package identities, so
+top-level record order cannot change a package recipe or output identity. The
+local coordinator owns exact package/product selection, local resolution
+contexts, patches, deployments, target/recipe/profile policy, lock context,
+and optional default selector. These local facts do not enter package
+identity. Package-authored requirements cannot be weakened or widened by a
+coordinator selection.
 
-Uma alteração de dependency, member ou policy muda `ownerDigest` e invalida a
-resolution antiga. Uma atualização somente de `resolution` preserva
-`ownerDigest`. Uma alteração somente de deployment preserva os dois digests do
-owner e da resolution. Identity isolated-package e workspace usam a mesma
-regra, com owner único e sem ambiguidade.
+A single package may omit the coordinator only when package/product selection,
+resolution, target/profile recipe, and deployment are unambiguous without
+local build policy. Two or more packages require one coordinator. Named
+deployment identities remain separate from `SemanticInterfaceKey`.
+`resolution` has a separate `w.resolution/1` digest and binds the package-set
+digest, resolver, contexts, selected nodes, and closure facts. The resolved
+build-plan digest separately binds the exact package-name/root map and covers
+the coordinator, its exact resolution, lock context, selection, patches,
+deployments, and toolchain facts. Receipts
+bind package digest, resolved build-plan digest, recipe, target/runtime
+closure, and outputs. A package or package-authored policy change changes
+package identity; a local resolution or deployment update does not.
 
 Um manifest ocupa o documento inteiro. Ele não usa a grammar geral de
 expressions. `package Name<...>`, `package<...>` e `package` junto de `module`
@@ -1013,30 +1024,33 @@ compatíveis. A baseline inclui os adapters para `fn(): ()` e para handlers com
 não entra no conjunto publicado. Um nome solicitado que não existe ou não é
 compatível falha em `source.entry`.
 
-Um source dentro de package usa o package ou workspace context selecionado. Fora
-de projeto, `w run` cria um contexto efêmero hermético com `std` e imports locais
-explícitos. Um import externo nesse contexto falha e pede um package ou
-workspace. O resolver não executa solve, update, install ou fetch oculto.
-`w context` explica a seleção sem alterar nenhum root.
+Source inside a package uses the selected package and, when present, its local
+build-coordinator context. Outside a package context, `w run` creates a
+hermetic ephemeral context containing `std` and explicit local imports. An
+external import fails there and requires a package or explicitly selected
+local build context. The resolver never performs hidden solve, update, install,
+or fetch operations. `w context` explains a selection without mutating any
+build root.
 
-O source graph contém somente imports explícitos. A seleção física usa a
-membership do package ou workspace owner, não uma busca pelo ancestor mais
-próximo. Um source fora de projeto usa seu diretório somente como root local
-para imports explícitos. O host/provider aplica canonical containment, inclusive
-symlink, e rejeita traversal, escape, owner duplicado e boundary inválida. Não
-há scan recursivo, scan de cwd, scan de `PATH` ou scan de environment. URL,
-stdin e shebang permanecem rejeitados na baseline.
+The source graph contains explicit imports only. Physical source selection uses
+the declared exact package `root`, never a nearest-ancestor search. Outside a
+package context, a source directory is used only as the local root for explicit
+imports. The host/provider enforces canonical containment, including symlinks,
+and rejects traversal, escape, duplicate package roots, and invalid boundaries.
+There is no recursive, cwd, `PATH`, or environment scan. URL, stdin, and
+shebang sources remain rejected in this baseline.
 
-Cada dependency pertence ao `package` ou ao `workspace` owner e usa o record
-normal com `alias`, package identity, version constraint, `use` e source
-authority. Aliases são únicos. `.path`, branch ou ref mutable e registry
-ambiental continuam rejeitados. A `resolution` aninhada usa o payload
-content-addressed `w.resolution/1` com `schema`, `resolver`, `contexts[]` e
-`packages[]`. Cada context fecha root, target/use, active source set, selected
-nodes e edges. O host recompõe o digest canônico. Closure, dangling,
-unreachable, missing node, cycle e alias collision são verificações obrigatórias.
-Artifacts e action outputs são sidecars pós-resolution. O CAS é uma lista
-ambiental de objetos content-addressed. O digest sozinho não concede authority.
+Each dependency belongs to its declaring package and uses the ordinary record
+with `alias`, package identity, version constraint, `use`, and source authority.
+Aliases are unique. `.path`, mutable branch/ref, and ambient registry sources
+are not publishable sources; a local `.path` is permitted only in an explicit
+coordinator patch. Nested `w.resolution/1` data has `schema`, `resolver`,
+`contexts[]`, and `packages[]`. Each context closes over package/product,
+target/use, active source set, selected nodes, and edges. The host recomputes
+the canonical digest. Closure, dangling and unreachable nodes, missing nodes,
+cycles, and alias collisions are mandatory checks. Artifacts and action outputs
+are post-resolution sidecars. CAS is a content-addressed object set, not an
+ambient source of authority; a digest alone grants no authority.
 
 `w run` compila o source normal, mas não resolve constraint, atualiza
 `resolution`, instala package ou executa install/build action oculto. A
@@ -1066,7 +1080,8 @@ ou identity. Imports locais exigem digest associado ao path lógico. Trace e
 capabilities e recipe. Contexto efêmero ou failed run não deixa manifest ou
 estado oculto.
 
-As operações de dependency usam somente package ou workspace roots:
+Dependency operations use package identities and the explicitly selected local
+build root only:
 
 ```text
 w add <package>@<constraint> --as <alias>
@@ -1075,10 +1090,10 @@ w resolve
 w update <package>
 ```
 
-Um contexto efêmero não possui dependency externa. Add, remove, resolve e
-update trocam o record `resolution` somente depois de validar a nova seleção.
-Failure não altera source, package metadata ou deployment. `--with`, comment
-metadata e dependency inference não fazem parte da forma vigente.
+An ephemeral context has no external dependencies. Add, remove, resolve, and
+update replace local resolution only after validating the new selection. A
+failure leaves source, package metadata, and deployments unchanged. `--with`,
+comment metadata, and dependency inference are not part of the current form.
 
 Imports devem aparecer após o module header opcional e antes da primeira
 declaration comum. Essa ordem deixa o grafo de nomes visível sem executar o
@@ -1325,9 +1340,9 @@ Newline não encerra declaration. A próxima keyword de declaration, `}` ou EOF
 pode concluir uma signature sem body somente no contexto permitido. Em outro
 contexto, o frontend emite body ausente.
 
-Recovery mantém a raiz escolhida. Depois de reconhecer `package`, `workspace`,
-`deployment` ou `lock`, o parser não muda para source de módulo. Depois de
-reconhecer `module`, import ou declaration, ele não muda para manifest.
+Recovery preserves the selected root. After recognizing a `package` or `build`
+manifest record, the parser does not switch to module source. After recognizing
+`module`, an import, or a declaration, it does not switch to a manifest.
 
 O parser usa estes diagnostics adicionais:
 
@@ -1355,7 +1370,7 @@ de parse:
 | `W-RUN-0001` | `source.validate`: edition ausente ou inválida |
 | `W-RUN-0002` | `source.validate`: field desconhecido ou duplicado |
 | `W-RUN-0003` | `source.validate`: dependency alias duplicado ou record de dependency inválido |
-| `W-RUN-0004` | `source.context`: owner de package/workspace ausente, duplicado ou ambíguo |
+| `W-RUN-0004` | `source.context`: package/default selection ausente, duplicada ou ambígua |
 | `W-RUN-0005` | `source.entry`: descriptor ausente, duplicado, incompatível ou seleção nomeada inválida |
 | `W-RUN-0006` | `source.resolution`: resolution ausente, digest inválido ou root não recompõe |
 | `W-RUN-0007` | `source.resolution`: selection, target, edition, nodes, edges ou aliases divergem |
@@ -4760,6 +4775,7 @@ são enum-like e possuem tipos conhecidos.
 ```w
 package {
   schema: "w.package/1"
+  root: "."
   authority: .registry("w")
   name: "last-light/restaurant"
   version: "0.1.0"
@@ -8436,7 +8452,7 @@ No seed D9, os kinds nominais são somente `STRUCT=1`, `TYPE=2`,
 function overload e const declaration não são type constructors nesta fatia e
 continuam um gap separado.
 
-Version, revision, source/mirror, dependency alias, workspace, checkout/file
+Version, revision, source/mirror, dependency alias, local build root, checkout/file
 path, source-set, feature, target, profile, edition, spans, docs, interface
 digest e body são excluídos. `ModuleIdentity` é `PackageIdentity` mais o caminho
 canônico. O caminho vem de `modules`/`moduleSets`, não do filename físico depois
@@ -10449,7 +10465,7 @@ permitida pelo contrato. Ele não habilita fallback. `.fixed<capacity: N>` segue
 portátil, com placement escolhido pelo target.
 
 Os envelopes compiler-owned opcionais de module usam os fields abaixo. O module
-pode preservar ou restringir o owner, workspace e profile. Ele nunca relaxa uma
+preserva ou restringe package requirements e package-authored profile. Ele nunca relaxa uma
 policy superior:
 
 ```w
@@ -18049,8 +18065,8 @@ Um foreign link usa `.adapter(digest)`. O adapter declara quais partes de
 `ServiceIR` preserva. Uma edge com capabilities, pipeline ou errors que o
 adapter não representa falha durante resolution.
 
-O deployment record pode restringir a escolha. O record `workspace` nomeado em
-`build.w` grava link, adapter, codec, transport, peer e interface digests por
+O deployment record local pode restringir a escolha. O coordinator `build`
+nomeado em `build.w` grava link, adapter, codec, transport, peer e interface digests por
 edge. Startup não troca
 o link por uma alternativa ambiental.
 
@@ -18199,7 +18215,7 @@ sem boundary, o programador usa import comum.
 
 #### 13.8.4 Manifest e deployment nomeado
 
-**Exemplo:** o deployment nomeado `local` no record `workspace` de
+**Example:** the named `local` deployment in the local `build` coordinator of
 [`build.w`](reference/last-light/build.w) seleciona recipe, packing,
 bindings e limites. O deployment `distributed` também fixa placement e session
 wRPC. O record grava as escolhas por digest.
@@ -18212,10 +18228,11 @@ wRPC. O record grava as escolhas por digest.
 | `limits` | reduções por unit, supervisor e service edge |
 | `security.wrpc` | channels, peer identity, credentials, trust, handshake e lifecycle |
 
-O record `w.deployment/1` é data-only e fica aninhado no record `workspace` (ou
-no record `package` quando o package é isolado) de `build.w`. `.product(...)` referencia uma recipe
-reproduzível. `w deploy resolve --deployment <name>` grava cada artifact e unit
-por digest no record nomeado.
+The `w.deployment/1` record is data-only and is nested only in the local `build`
+coordinator of `build.w`; an independently publishable package never owns a
+local deployment. `.product(...)` references a reproducible recipe.
+`w deploy resolve --deployment <name>` records every artifact and unit by
+digest in the named deployment.
 
 `limits.execution` identifica uma unit. Ele pode reduzir task, frame, timer,
 ready e pool capacity do profile gravado nessa unit. O resolver rejeita um
@@ -25970,7 +25987,7 @@ adapter records unsupported and lossy semantics. W does not require native
 JSON, XML, or SOAP literal syntax to support these formats.
 
 Contracts may attach to a declaration, type, protocol, module, service, entry,
-package, or workspace. An exported contract has a stable logical name, a
+or package. An exported contract has a stable logical name, a
 version, a normalized `ContractIR` digest, source and adapter identities, and a
 declared trust boundary. An importer can check the contract without receiving
 private implementation source. A binary package may therefore publish its
@@ -26083,7 +26100,7 @@ binding because silent shadowing would change the proposition. `before` and
 `after` remain ordinary identifiers outside callable contract expressions.
 
 These contextual binders initially apply only to callable declarations. A type,
-protocol, service, entry, package, or workspace can attach a named or inline
+protocol, service, entry, or package can attach a named or inline
 documentation contract to its declared static surface. A module instead uses
 its `contracts:` header field. Neither form gains implicit runtime `after` or
 `result` state outside a callable. Stateful cross-operation laws must name their
@@ -28727,8 +28744,8 @@ Whole-module optimization é o piso dos profiles otimizados, não uma flag que o
 usuário precisa descobrir. Todos os files que compõem o módulo entram na mesma
 optimization region. Como package é a unidade de compilação, uma recipe com os
 sources do package disponíveis estende essa região pelo grafo exato de módulos.
-Workspace e product podem ampliá-la novamente até o maior grafo provadamente
-fechado. O compiler não inventa closed world quando uma dynamic library, um
+Um package set local e um product podem ampliá-la novamente até o maior grafo
+provadamente fechado. O compiler não inventa closed world quando uma dynamic library, um
 provider tardio, um package binário sem body compatível ou outra boundary
 observável impede essa prova.
 
@@ -28774,7 +28791,7 @@ consegue provar:
 |---|---|---|
 | module | todos os files e declarations do módulo | DCE, inlining, specialization, escape/alias e layout local |
 | package | grafo exato dos módulos source do package | internalization cross-module, generic sharing/specialization e runtime closure |
-| workspace/product | packages construídos juntos e dependências com bodies compatíveis | WPO, deduplication, devirtualização e eliminação de adapters/thunks fechados |
+| package-set/product | packages construídos juntos pelo coordinator local e dependências com bodies compatíveis | WPO, deduplication, devirtualização e eliminação de adapters/thunks fechados |
 
 Incremental build não cria uma boundary semântica. O compiler pode reutilizar
 interface, body summaries, HIR ou object chunks recipe-exact e reotimizar apenas
@@ -29421,32 +29438,46 @@ fecham cada linha da matriz. A evidência de LLVM, WASI, Android e MLIR fica em
 
 ### 21.1 Manifest e resolução
 
-`build.w` usa um documento data-only. Ele aceita records, lists, strings,
-numbers, size literals, booleans e enum values. Ele não executa imports, loops,
-funções ou I/O. O arquivo físico contém diretamente um ou dois records
-top-level, em qualquer ordem: no máximo um `package` e no máximo um
-`workspace`, e pelo menos um. Não existe um wrapper `build.w { ... }`.
+`build.w` is a data-only document. It accepts records, lists, strings, numbers,
+size literals, booleans, and enum values; it executes no imports, loops,
+functions, or I/O. The physical file contains one or more direct top-level
+`package { ... }` records and at most one direct local-only
+`build { schema: "w.build/1" ... }` coordinator. There is no `workspace` record,
+workspace identity, or `build.w { ... }` wrapper.
 
-As formas válidas são package-only, workspace-only e package+workspace. Um
-package-only selecionado em contexto standalone (`--standalone`) é o owner de
-`resolution` e `deployments`. Quando o diretório do package-only é um member
-declarado de um workspace, o workspace que declarou esse member é o owner e o
-record `package` do member omite esses fields. Um workspace-only é o owner
-desses fields; quando os dois records estão no mesmo `build.w`, somente o
-workspace os contém e o package os omite. `workspace.members` aponta para
-diretórios cujo `build.w` contém um record `package`. Um member não pode conter
-um record `workspace` aninhado. A seleção usa membership declarada, nunca
-ancestor scan.
+Every package record declares one exact local `root` path. The path resolves
+only beneath the selected build root and is excluded from the package's public
+identity. Package records remain independently publishable. Their physical
+order does not affect package digests, product recipes, or outputs. The
+coordinator is not published; it owns local resolution contexts, patches,
+deployments, target/recipe/profile selection, lock context, toolchain policy,
+and an optional exact default package/product selector. Package-authored build
+requirements, profiles, and recipes remain in the package record and cannot
+be weakened or widened by the coordinator.
 
-O manifest ocupa o arquivo inteiro. Ele não pode coexistir com import, função,
-type ou outro source executável. Arquivo vazio, record duplicado, package
-inline, workspace member nested, glob, scan ambiental e ownership duplicado
-são erros. Os schemas `w.package/1` e `w.workspace/1` permanecem. Antes de
-1.0, `package.w` e `workspace.w` são removidos sem shim ou compatibilidade.
+A single package may omit the coordinator only when the requested
+package/product, dependency resolution, target/profile recipe, and deployment
+are each unambiguous without local build policy. Two or more packages require
+one coordinator. `w build <package>[:<product>]` selects an exact package and
+optional exact product. `w build all` selects all declared packages only
+when explicitly requested; it is never an implicit default. There is no scan,
+glob, ambient working-directory or ancestor discovery, nested build root,
+path escape, or configuration cycle. Empty files, missing roots, duplicate
+package identities or paths, multiple coordinators, unknown fields, and
+executable source in `build.w` are errors.
+
+Lock contexts are distinct by package, product, target, and dependency use;
+feature union is confined to one context. Publication rejects local patches
+and excludes each local root, resolution, deployment, lock, and other
+coordinator facts from package identity. Receipts bind package digest, resolved
+build-plan digest, recipe, target/runtime closure, and outputs separately.
+Only `build.w` is a physical build configuration root; lock and deployment are
+not independent root file kinds.
 
 ```w
 package {
   schema: "w.package/1"
+  root: "."
   authority: .registry("w")
   name: "last-light/restaurant"
   version: "0.1.0"
@@ -29629,31 +29660,44 @@ escolhe o fallback portátil ou permite a seleção otimizada descrita na seçã
 `dynamicAllocation` é obrigatório e aceita `.allow` ou `.forbid`.
 `automaticStorage` é obrigatório e aceita `.infer` ou
 `.stack(maximumFrame:N, maximumCallPath:N)`; a variante `.stack` rejeita task
-frames suspensos. A distribuição não consulta environment nem instala um
-allocator implícito. O workspace corrente permanece data-only; module pode
-somente preservar ou restringir essa policy, nunca relaxá-la.
+frames suspensos. The distribution does not inspect the environment or install
+an implicit allocator. The local build coordinator remains data-only; a
+package-authored requirement may preserve or restrict the selected policy but
+can never relax it.
 
-- `build.w` é um formato data-only com um ou dois records top-level;
-- `resolution` aninhada no owner package/workspace é obrigatória para build
-  reprodutível;
-- o resolver é determinístico e registra sua versão;
-- o design vigente usa uma versão por package identity em cada resolution
-  realm;
-- o resolver escolhe a maior versão compatível no snapshot assinado;
-- pre-release exige opt-in;
-- aliases são locais e não mudam identity;
-- múltiplas versões ficam fora da v0;
-- features são aditivas, explícitas e entram na chave do artefato.
+- `build.w` has direct package records and at most one local coordinator;
+- package roots are exact, local, and excluded from package identity;
+- the coordinator owns local resolution/deployment/lock and build selection;
+- package/product/target/use contexts have separate locks and feature unions;
+- package order cannot change recipe or output identity;
+- local patches are visible and publication rejects them;
+- a default package/product selector is exact and never means `all`.
 
-**W-1415 — roots físicos unificados:** somente `build.w` é root físico aceito.
-`lock` e `deployment` não são manifest kinds nem arquivos root independentes.
-Um `build.w` pode conter os fields data-only
-`resolution` e `deployments`:
+The resolver is deterministic and records its version. It selects the greatest
+compatible version in the signed snapshot; pre-release requires opt-in, aliases
+are local and do not change identity, and multiple versions remain outside the
+v0 graph. Package features are additive and explicit.
+
+**W-1415 — unified physical build root:** `build.w` is the only physical build
+configuration root. Lock and deployment are not independent manifest kinds or
+root files. Package identity, resolution, deployment, and local plan identities
+remain separate:
 
 ```w
 package {
   schema: "w.package/1"
-  name: "last-light/example"
+  root: "."
+  name: "last-light/restaurant"
+}
+package {
+  schema: "w.package/1"
+  root: "packages/menu-compiler"
+  name: "last-light/menu-compiler"
+}
+build {
+  schema: "w.build/1"
+  default: { package: "last-light/restaurant", product: "last-light-native" }
+  patches: []
   resolution: {
     schema: "w.resolution/1"
     resolver: "w.resolver/1"
@@ -29661,125 +29705,59 @@ package {
     packages: []
   }
   deployments: [
-    {
-      schema: "w.deployment/1"
-      name: "local"
-      artifacts: []
-    },
+    { schema: "w.deployment/1", name: "local", artifacts: [] },
   ]
 }
 ```
 
-`package` isolado é o owner de sua `resolution` e de seus deployments. Se um
-package pertence a um `workspace`, o workspace é o owner único desses fields.
-Um member não pode duplicar `resolution` ou `deployments`. O workspace mantém
-contexts para todos os members, usages e targets e pode nomear deployments que
-selecionam products de qualquer member.
+The package digest uses public package metadata and source, excluding `root`.
+The package set is normalized by package identity, not record order. The
+resolved build-plan digest binds the exact package-name/root map and covers
+local coordinator facts, resolution and lock context, selected
+target/profile/recipe, patches, and deployments. Named
+deployment identity is separate and does not enter `SemanticInterfaceKey`.
+`w resolve` changes only local resolution. A deployment edit does not re-resolve
+packages or change source, artifact bytes, or semantic interface.
 
-As três identidades permanecem separadas. Package identity usa metadata e
-source publicável. Resolution identity usa o payload normalizado de
-`w.resolution/1`. Deployment identity usa nome, bindings, placement, limits e
-artifacts do deployment. O digest de deployment não entra na
-`SemanticInterfaceKey`. `w resolve` e `w update` reescrevem somente
-`resolution`. Uma edição de deployment não re-resolve packages nem altera
-source, artifact bytes ou interface semântica.
+Publication serializes one package's metadata, source modules, and release
+evidence. It excludes local root, resolution, lock, deployments, and build
+coordinator facts. Local patches fail publication. A deployment is selected by
+name with an exact package/product selector, for example
+`w run example/server:server --deployment local`, never by physical path.
 
-Publication serializa package metadata, source modules e release evidence. Ela
-exclui `resolution` e `deployments` locais. Um deployment é selecionado por
-nome, por exemplo `w run product --deployment local`, nunca por path físico.
-Deployments locais não concedem authority ao package publicado.
+#### 21.1.1 Package roots and local selection
 
-#### 21.1.1 Workspace
+The `build` coordinator is a local development/resolution context, not a
+package, module, product, release, or publishable identity. Each direct package
+record has one exact root beneath the selected `build.w` directory. A root may
+be `.`, but cannot be absolute, contain `..`, use a glob, escape through a
+symlink, alias another declared root, or contain a nested `build.w`.
 
-**Exemplo:** o Última Luz desenvolve o restaurante e o compiler de cardápio no
-mesmo checkout, mas cada package mantém identity e release próprias:
+The local package set is explicit in the file. Dependency resolution may reuse
+a directly declared package only when its public identity and version satisfy
+the dependency; a mismatch fails closed rather than silently falling back to
+the registry. Package records have no parent/child ownership relation.
 
-```w
-workspace {
-  schema: "w.workspace/1"
-  members: [
-    ".",
-    "packages/menu-compiler",
-  ]
-  defaultMembers: ["."]
-  patches: []
-  toolchainPolicy: {
-    catalogs: [.distribution]
-    systemImports: .explicit
-    providerOrder: [.distribution, .system]
-    foreignLanguages: [.c]
-    executionPlatforms: [
-      {
-        name: "linux-x64"
-        target: "x86_64-unknown-linux-gnu"
-        sandbox: "w.build-sandbox/1"
-      },
-      {
-        name: "windows-x64"
-        target: "x86_64-pc-windows-msvc"
-        sandbox: "w.build-sandbox/1"
-      },
-      {
-        name: "macos-arm64"
-        target: "aarch64-apple-darwin"
-        sandbox: "w.build-sandbox/1"
-      },
-    ]
-  }
-}
-```
+The CLI selector is exact: `w build <package>[:<product>]`. If a package has
+multiple products, omitting the product is ambiguous. `w build all` is the
+explicit all-packages operation. At most one exact `default` selector may
+choose one package and one product; it never expands to other packages. The
+CLI uses one explicitly selected `build.w`; it does not scan directories,
+search ancestors, inspect ambient cwd candidates, or follow configuration
+cycles.
 
-O record `workspace` em `build.w` usa o mesmo codec data-only dos outros
-manifests. Ele é uma fronteira de desenvolvimento e resolução. Ele não é
-package, module, product ou release. O record não é publicado como parte da
-identidade de um member.
+`toolchainPolicy` in the coordinator limits the sources available to build
+analysis. `.distribution` selects the signed snapshot shipped with W.
+`.explicit` permits only system SDKs and tools authorized separately.
+`providerOrder` orders authorized source, authority, or provider selectors;
+ambiguity fails. `foreignLanguages` authorizes adapters, and
+`executionPlatforms` lists exact target/sandbox profiles. The policy cannot
+select an executable, endpoint, or runner by path and is not package identity.
+The package cannot grant its consumer a toolchain authority.
 
-`members` contém `PackagePath` relativos e exatos. A v0 não aceita glob, path
-absoluto, `..` ou symlink que saia da raiz. Cada path precisa conter um
-`build.w` com record `package`, e duas entries não podem resolver para a mesma
-árvore ou identity. Um workspace com um único member continua válido.
-
-Todos os members compartilham a `resolution` do record `workspace` e o mesmo
-CAS. A resolution mantém contexts separados por product, target e usage de
-dependência. Outputs continuam imutáveis; packages não escrevem no diretório de
-outro member.
-
-Uma dependência usa automaticamente um member quando package identity e version
-constraint conferem. O field `authority` do member participa dessa prova.
-Version incompatível produz error. O resolver não usa uma release do registry
-no lugar do member local sem informar o usuário. A resolution grava o manifest
-digest, o source-inventory digest e a razão da seleção. Cada context grava seu
-active source-set digest. A recipe grava o content tree digest.
-
-O owner local é selecionado pela membership declarada no record `workspace` de
-`build.w`, não por
-uma simples busca de ancestor. `w context` mostra manifest, workspace,
-resolution e roots antes de qualquer mutation. CI e release usam
-`--workspace <path>` ou `--standalone`; eles não dependem de discovery ambiental.
-
-`defaultMembers` afeta somente comandos sem seleção, como `w workspace check`.
-Ele não muda dependências ou artifacts. `w publish check` resolve cada member
-como package externo, sem substituição automática por workspace. Assim, um
-workspace verde não esconde uma dependência que ainda não pode ser publicada.
-
-`toolchainPolicy` limita as fontes que a análise de build pode usar.
-`.distribution` seleciona o snapshot assinado que acompanha a distribuição W em
-execução. `.explicit` permite somente SDKs e tools de sistema importados por um
-comando separado. O build não procura executables em `PATH` e não escolhe o SDK
-mais recente instalado. `providerOrder` ordena selectors de source, authority ou
-provider autorizados. A raiz pode inserir `.authority("acme:sha256:...")` ou
-`.provider("w/llvm-lld", authority: "w:sha256:...")` nessa lista. Dois provider
-lineages na mesma posição continuam ambíguos. `foreignLanguages` autoriza
-adapters estrangeiros; o Última Luz autoriza somente C.
-`executionPlatforms` é uma lista ordenada de target specs e sandbox profiles
-aceitos. Um executor local ou remoto pode satisfazer a mesma entry. A policy não
-fixa endpoint ou caminho local e não faz parte da identity publicável de um
-member. A toolchain plan fixa a resolução concreta.
-
-Sem workspace, a root usa `--toolchain-policy <file>` ou o default seguro da
-distribuição. Esse default usa somente providers da distribuição, nega system
-imports ainda não autorizados e nega foreign languages. Um package nunca fornece
-a policy do consumer. O builder de publicação aplica sua própria policy:
+The safe default uses distribution providers only, denies unauthorized system
+imports, and denies foreign languages. A package never supplies the consumer's
+policy. The publication builder applies its own policy:
 
 ```text
 w toolchain resolve \
@@ -30052,10 +30030,10 @@ fica no manifest.
 Comparações com seleção de target de outras build systems ficam em
 [`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
-#### 21.1.5 Sources e patches
+#### 21.1.5 Sources and patches
 
-**Exemplo:** uma dependency pública usa registry. Um root privado pode fixar um
-commit Git. O workspace pode testar uma correção local com a mesma identity:
+A package declares registry or immutable Git sources. A local build coordinator
+may select an exact direct package root or apply a same-identity patch:
 
 ```w
 dependencies: [
@@ -30078,13 +30056,16 @@ dependencies: [
   },
 ]
 
-patches: [
-  {
-    package: "acme/telemetry"
-    version: "0.8.2"
-    source: .path("patches/telemetry")
-  },
-]
+build {
+  schema: "w.build/1"
+  patches: [
+    {
+      package: "acme/telemetry"
+      version: "0.8.2"
+      source: .path("patches/telemetry")
+    },
+  ]
+}
 ```
 
 Uma source localiza metadata e source. O manifest encontrado declara a
@@ -30129,9 +30110,11 @@ display name, não no identificador usado por filesystem, URL e type identity.
 - `.registry(name)` exige a mesma registry authority no package encontrado;
 - `.git(url, revision:)` localiza um snapshot de source. Ele não concede
   authority e o package encontrado deve declarar registry authority;
-- dependency source `.path(path)` existe somente no record `workspace` de
-  `build.w` e aponta para um diretório cujo `build.w` contém `package`;
-- um member compatível é uma source local implícita e registrada no lock;
+- local `.path(path)` sources are declared as patches only in the local `build`
+  coordinator and resolve to one exact path beneath the selected build root;
+- a directly declared package root is eligible for local resolution only when
+  package identity and version match; the lock records the exact root and
+  source inventory;
 - binary artifacts são candidatos de uma release resolvida, não outra source
   declarada na dependency.
 
@@ -30139,14 +30122,14 @@ Branch, tag, `latest` e URL de archive mutável não entram em `build.w`. Um
 comando de conveniência pode resolver uma referência humana, mas grava o commit
 imutável antes do build.
 
-`patches` pertence somente à raiz do workspace. O package encontrado precisa
-declarar a mesma identity e uma version compatível. Trocar por um fork com outra
-identity exige alterar a dependency. Isso impede que um override local mude
-silenciosamente type identity ou authority.
+`patches` belongs only to the local build coordinator. A patched package must
+retain the same public identity and a compatible version. Replacing it with a
+fork of another identity requires changing the dependency. A patch cannot
+silently change type identity or authority.
 
-Patch ativo entra no lock, recipe, provenance e diagnostics. `w publish check`
-rejeita patches. Para publicar a correção, o autor publica uma release da mesma
-identity ou usa uma identity nova.
+An active patch enters the lock context, recipe, provenance, and diagnostics.
+`w publish check` rejects patches. To publish the fix, the author releases the
+same identity or declares a new one.
 
 O registry público inicial aceita somente dependencies de release por registry.
 Git continua disponível como source locator para roots privados e experimentos.
@@ -30171,9 +30154,9 @@ de um resolution realm. Um conflito de constraints falha com paths mínimos do
 grafo. Realms diferentes podem escolher versões ou features diferentes e
 produzem artifact keys diferentes.
 
-`resolution` reutiliza o codec data-only e possui o schema
-`w.resolution/1`. O resolver grava esse record dentro do owner físico em UTF-8,
-LF e ordem canônica:
+`resolution` reuses the data-only codec and has schema `w.resolution/1`. The
+resolver stores it inside the selected local `build` coordinator in UTF-8, LF,
+and canonical order:
 
 Este bloco usa metavalores esquemáticos; não é um fragmento W compilável nem
 fixa os valores da fixture.
@@ -30182,7 +30165,7 @@ fixa os valores da fixture.
 resolution {
   schema: "w.resolution/1"
   resolver: "w.resolver/1"
-  ownerDigest: "sha256:..."
+  packageSetDigest: "sha256:..."
   authorities: [
     {
       kind: .registry
@@ -30204,9 +30187,12 @@ resolution {
   ]
   contexts: [
     {
+      package: "last-light/restaurant"
+      product: "last-light-native"
       root: .product("last-light-native")
       use: .product
-      targetRole: .target: "x86_64-unknown-linux-gnu"
+      targetRole: .target
+      target: "x86_64-unknown-linux-gnu"
       features: []
       targetVariants: [
         "last-light/restaurant::native-terminal/posix",
@@ -30215,6 +30201,8 @@ resolution {
       nodes: []
     },
     {
+      package: "last-light/menu-compiler"
+      product: "menu-compiler"
       root: .tool("menu-compiler")
       use: .build
       targetRole: .execution
@@ -30234,11 +30222,7 @@ resolution {
       }
       name: "last-light/menu-compiler"
       version: "0.1.0"
-      source: .member(
-        path: "packages/menu-compiler",
-        manifest: "sha256:...",
-        sourceInventory: "sha256:...",
-      )
+      source: .path("packages/menu-compiler")
       dependencies: []
     },
   ]
@@ -30252,11 +30236,12 @@ e compara o origin com o trust store antes de usar o record. Evidence e record
 podem mudar sem mudar a type identity. O exemplo não prova os IDs dos package
 nodes. O encoder exato desses nodes e a persistência CAS real continuam gaps.
 
-O field `ownerDigest` da resolution prova o owner físico. O owner basis exclui
-`resolution` e `deployments`, portanto não existe ciclo de digest. O resolver
-deriva `resolutionDigest` do record completo depois de validar owner, contexts,
-packages, aliases e closure. Cada deployment deriva seu `deploymentDigest` do
-record completo e declara os artifacts, plans e receipts que consome.
+`packageSetDigest` binds the resolution contexts to the normalized set of
+public package digests; local roots and coordinator fields do not enter those
+package identities. The resolver derives `resolutionDigest` from the complete
+resolution after validating package/product/target/use contexts, packages,
+aliases, and graph closure. Each deployment has its own digest and declares
+the artifacts, plans, and receipts it consumes.
 
 `w resolve` altera somente `resolution`. `w add`, `w remove` e `w update`
 preparam a alteração declarativa e a nova resolution na mesma transação. O
@@ -30266,18 +30251,18 @@ policy, alias ou context deixa os bytes antigos.
 
 O protocolo de transação é determinístico:
 
-1. ler bytes e digest exatos;
-2. parsear e normalizar o owner;
-3. derivar owner basis e `ownerDigest`;
-4. preparar mutation e solve;
-5. derivar resolution e deployments;
-6. validar closure, aliases e contexts;
-7. formatar replacement completo;
-8. escrever temp sibling e fazer flush dos dados;
-9. verificar novamente o digest antigo;
-10. substituir atomicamente;
-11. reabrir e verificar bytes e digests;
-12. publicar receipt derivado dos eventos.
+1. read the exact bytes and digest;
+2. parse and normalize the package set and local build coordinator;
+3. derive each public package digest and the package-set digest;
+4. prepare the local mutation and solve;
+5. derive resolution, lock contexts, deployments, and build-plan digest;
+6. validate package/product/target/use contexts, aliases, and graph closure;
+7. format one complete replacement;
+8. write a sibling temporary file and flush data;
+9. compare the old digest again;
+10. replace atomically;
+11. reopen and verify bytes and digests;
+12. publish a receipt derived from events.
 
 O digest antigo é um compare-and-replace. Mudança concorrente produz stale-write.
 O host não faz merge automático nem last-write-wins. O cleanup remove o temp uma
@@ -30291,38 +30276,37 @@ Consulte [`ReplaceFile`](https://learn.microsoft.com/en-us/windows/win32/api/win
 `crashDurable` são outcomes separados. Durability é true somente com receipt
 explícito do provider. Sem receipt, o outcome é `evidence-missing`.
 
-`id` é uma referência interna ao lock. Ele é o digest do package identity,
-version, source descriptor e dependency edges normalizados. Um member usa
-manifest e source-inventory digests; o content tree local fica na recipe. Um
-package externo usa metadata snapshot e content tree digest. Realms, feature
-sets ou target variants distintos podem produzir nodes distintos para a mesma
-identity e version. O node ID não participa de type identity.
+`id` is an internal lock reference derived from normalized package identity,
+version, source descriptor, and dependency edges. A local package uses its
+package digest and source-inventory digest; its exact content tree belongs to
+the recipe. An external package uses the authenticated metadata snapshot and
+content-tree digest. Distinct package/product/target/use contexts may produce
+different graph nodes for one identity/version. A node ID is not type identity.
 
-O lock de workspace registra:
+Each build lock records:
 
-- schema e resolver version;
-- digest de cada manifest e do workspace;
-- roots, usages, features, target variants e target roles;
-- versões, sources, external tree digests e edges transitivos;
-- member e patch paths, manifest digests e source-inventory digests;
-- active source-set digest de cada context;
-- build-tool packages e metadata snapshots;
-- razão de cada seleção e exceção de policy.
+- schema, resolver version, and package digests;
+- package/product/target/use contexts and root selections;
+- versions, sources, external tree digests, and transitive edges;
+- exact local roots, patches, package manifests, and source inventories;
+- active source-set digests, features, target variants, and target roles;
+- build-tool packages, metadata snapshots, and selection reasons.
 
-Um módulo executado fora de package ou workspace usa um contexto efêmero. Ele
-aceita apenas std e imports locais explícitos. Não há root virtual, aliases de
-dependency, lock separado ou `rootEdges` implícitos; uma dependency externa
-falha e pede um package/workspace. Dentro de workspace, membership e owner único
-determinam a resolution. Duplicate owners ou resolução divergente produzem
-diagnostic antes do build.
+A module run outside a selected package/build context uses an ephemeral
+context. It accepts only std and explicit local imports. It has no virtual
+package root, dependency aliases, separate lock, or implicit `rootEdges`; an
+external dependency requires an explicit package and local build plan. Within
+one coordinator, exact package roots and independent lock contexts determine
+resolution. Duplicate package identities, roots, or incompatible contexts
+produce diagnostics before a build.
 
-O source-inventory digest cobre todas as declarations de source, inclusive
-activation owner e cases inativos. O active source-set digest cobre a lista
-ordenada de `PackagePath`, module identity e role após features e target
-variants. Ambos mudam quando um arquivo entra, sai ou muda de role. Eles não
-mudam quando o conteúdo de um arquivo existente muda. Assim, edição local
-normal não exige nova resolução, mas um arquivo novo não entra em `--locked`
-por discovery.
+The source-inventory digest covers all declared source inputs, including
+inactive activations and target cases. The active source-set digest covers the
+ordered package-root-relative source paths, module identities, and roles after
+feature and target selection. Both change when a file enters, leaves, or
+changes role, but not when an existing file's contents change. A local edit
+does not normally require resolution, but a new file cannot enter `--locked`
+through discovery.
 
 O lock não contém payload digest, action output, profile, compiler, sysroot ou
 provenance do build. Esses facts pertencem à recipe e ao artifact record. `w
@@ -30330,12 +30314,12 @@ resolve` grava o lock de forma atômica. `w diff-lock` mostra mudanças semânti
 Um lock modificado não recebe confiança especial; o resolver valida todos os
 digests e invariants antes do uso.
 
-O lock de uma library publicado com sua release preserva a resolução usada nos
-próprios tests e artifacts. A recipe correspondente conclui a reprodução. O
-lock não força a resolution dos consumers. O consumer usa as constraints do
-record `package` em `build.w` e grava o resultado no próprio lock.
+The lock published with a library release preserves the resolution used for
+its tests and artifacts. The corresponding recipe completes reproduction. The
+lock does not force consumer resolution; each consumer records its own result
+in its local build coordinator.
 
-A evidência comparativa de workspaces, features e sources fica em
+Comparative evidence on package build roots, features, and sources lives in
 [`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 #### 21.1.7 Source snapshot publicável
@@ -30371,9 +30355,9 @@ inclui `build.w` ou manifest de subpackage. `.path` usa
 lista normalizada entra no release recipe. Um arquivo novo fora de `.modules`
 não é publicado até a allowlist mudar.
 
-`.gitignore`, excludes globais do editor e estado do VCS não alteram o
-snapshot. Eles servem ao checkout, não à supply chain. Subpackages também não
-entram por traversal; cada member publica sua própria árvore.
+`.gitignore`, editor-global excludes, and VCS state do not alter the snapshot;
+they serve the checkout, not the supply chain. Nested directories never enter
+by traversal; each package publishes only its own declared source snapshot.
 
 `w package list` mostra path, size, digest e razão de inclusão. `w package
 check` cria o snapshot sem publicar, verifica que todos os modules, resources,
@@ -30497,7 +30481,7 @@ registra os outputs dessa recipe. Os quatro schemas não se fundem:
 
 | Record | Inputs principais | Não contém |
 |---|---|---|
-| `resolution` em package/workspace | versões, sources, features, contexts e metadata | payloads e resultados de actions |
+| `resolution` in local `build` coordinator | versions, sources, features, contexts, and metadata | payloads and action results |
 | toolchain plan | product, target spec, profile, execution platforms, catalogs e inventories | package graph e outputs |
 | recipe | source trees, resolution digest, product, target spec, profile e toolchain-plan row | payload digest autorreferente |
 | artifact record | recipe digest, payloads, resources e sidecars | inputs ambientais não declarados |
@@ -30508,19 +30492,19 @@ registra os outputs dessa recipe. Os quatro schemas não se fundem:
 host e runtime graph:
 
 ```text
-w build last-light-native \
+w build last-light/restaurant:last-light-native \
   --target x86_64-unknown-linux-gnu \
   --packing single-process \
   --profile release \
   --locked
 
-w build last-light-worker \
+w build last-light/restaurant:last-light-worker \
   --target wasm32-wasip3 \
   --packing entry-only \
   --profile release \
   --locked
 
-w build --matrix desktop --product last-light-native --locked
+w build last-light/restaurant:last-light-native --matrix desktop --locked
 ```
 
 `--matrix` agenda recipes independentes. Ele não muda a identidade dos
@@ -30568,7 +30552,7 @@ w toolchain resolve \
   --profile release \
   --output build/last-light-linux.wplan
 
-w build last-light-native \
+w build last-light/restaurant:last-light-native \
   --target x86_64-unknown-linux-gnu \
   --profile release \
   --toolchains build/last-light-linux.wplan \
@@ -30951,8 +30935,8 @@ Um executável nativo pode oferecer `--cli`, `--tui` e `--serve`. Seu único
 `process.main` escolhe o modo e mantém um só descriptor:
 
 ```text
-w run last-light-native --deployment local -- --tui
-w run last-light-native --deployment local \
+w run last-light/restaurant:last-light-native --deployment local -- --tui
+w run last-light/restaurant:last-light-native --deployment local \
   -- --serve 127.0.0.1:8080
 ```
 
@@ -31718,37 +31702,37 @@ dependencies aparecem como relações distintas na provenance e no SBOM.
 ### 21.6 CLI
 
 ```text
-w context [<path/file.w>]
+w context [--build <path/build.w>] [<path/file.w>]
 w check <path/file.w> [--json]
-w workspace check
 w resolve
 w add <package>@<constraint> --as <alias> --use <use>
 w remove <alias>
 w update <package>
-w tree [product]
+w tree [<package>[:<product>]]
 w fetch --locked
 w package list [package]
 w package check [package]
 w toolchain import <provider> [provider options]
 w toolchain inventory [--execution-platform <platform>] --output <inventory>
-w toolchain resolve --product <product> (--target <target> | --matrix <set>) [--toolchain-policy <file>] [--execution-platform <platform>] [--providers <inventory>] --output <plan>
-w toolchain explain <product> --target <target> [--execution-platform <platform>]
-w build <product> --target <target> [--packing <packing>] [--toolchains <plan>] [--output-index <path>] --locked
-w build --matrix <set> --product <product> [--toolchains <plan>] [--output-index <path>] --locked
-w run <product> [--deployment <name>] -- <arguments>
+w toolchain resolve --product <package>[:<product>] (--target <target> | --matrix <set>) [--toolchain-policy <file>] [--execution-platform <platform>] [--providers <inventory>] --output <plan>
+w toolchain explain <package>[:<product>] --target <target> [--execution-platform <platform>]
+w build <package>[:<product>] --target <target> [--packing <packing>] [--toolchains <plan>] [--output-index <path>] --locked
+w build <package>[:<product>] --matrix <set> [--toolchains <plan>] [--output-index <path>] --locked
+w build all [--locked]
+w run <package>[:<product>] [--deployment <name>] -- <arguments>
 w run <path/file.w> [--offline] [--entry <name>] [--deployment <name>] -- <arguments>
 w repl
-w test [product] --locked
+w test [<package>[:<product>]] --locked
 w explain dependency <package>
 w explain authority <locator-or-origin>
 w explain feature <package>::<feature>
 w explain target-variant <package>::<variant> --target <target>
 w explain action <action>
-w explain product <product>
+w explain product <package>[:<product>]
 w explain synthesis <package>::<symbol> [--target <target>]
 w explain artifact <digest>
 w explain workflow <supervisor> --key <key>
-w audit effects <product>
+w audit effects <package>[:<product>]
 w diff-lock
 w interface show <artifact>
 w interface diff <old> <new>
@@ -31778,16 +31762,16 @@ completos.
 `w check <path/file.w>` usa o source indicado como root da verificação. Ele
 carrega e verifica o module graph alcançável já definido pela resolution
 vigente, mas não transforma os demais products do owner em roots implícitos. O
-comando usa o mesmo contexto de module-run de `w run <path/file.w>`: o package
-ou workspace owner fornece a resolution vigente, e um contexto efêmero aceita somente std e
-imports locais explícitos. O comando não exige nem seleciona `entry`.
+comando usa o mesmo contexto de module-run de `w run <path/file.w>`: the
+selected package and local build coordinator provide current resolution; an
+ephemeral context accepts only std and explicit local imports. O comando não
+exige nem seleciona `entry`.
 
 `w check <path/file.w>` consome o contexto existente, mas não busca, resolve,
 atualiza ou instala dependencies. Ele não executa build action, backend, link
-ou runtime. Ele não gera artifact. `w package check [package]` verifica o
-package selecionado e seu module graph no realm de package. `w workspace check`
-verifica os members selecionados no realm de workspace e aplica sua resolution
-compartilhada. Nenhum desses comandos é um alias implícito para os outros.
+ou runtime. Ele não gera artifact. `w package check <package>` verifies one
+exact package and its product graph. `w build all` is the explicit all-package
+build; none of these commands silently selects other package roots.
 
 O resultado de `w check` é agregado. A precedência é `3 > 2 > 1 > 0`, e o
 comando nunca retorna sucesso parcial:
@@ -31828,7 +31812,7 @@ multifile, incluindo child nested, diagnóstico determinístico, barriers e
 containment. O contrato executável completo de alcance, limits, exits e
 renderers está em [§24.3.5](#2435-chk9-rota-pública-w-check-para-root-efêmera-local).
 
-Owner detection, resolução externa, package/workspace, provider `std`,
+Package selection, external resolution, the local build coordinator, provider `std`,
 reexport/service-import no CST seed, diagnostics além de `W-SEM-0001`, frontend
 normativo, compiler, backend e runtime continuam gaps. O perfil não executa
 build, link ou runtime e não gera artifact.
@@ -31840,9 +31824,9 @@ Diagnostics distinguem locator sem trust, genesis mismatch, rollback, gap,
 threshold old/new insuficiente, lock-origin mismatch, Git authority não
 suportada e release `.local`.
 
-`w add` e `w remove` alteram o owner package/workspace e atualizam somente a
-resolution em uma única transação. Falha de resolução não deixa o manifest
-parcialmente atualizado. `--dry-run` mostra o diff de manifest, resolution,
+`w add` and `w remove` update package intent and only the selected build
+coordinator's resolution in one transaction. A resolution failure leaves the
+manifest unchanged. `--dry-run` shows the manifest and resolution diff,
 authorities, versions, features e target variants. O comando não executa build
 tool ou install script.
 
@@ -31868,14 +31852,14 @@ publica metadata somente depois de validar o conjunto.
 
 ```text
 $ w resolve
-resolved 14 packages; updated build.w workspace resolution
+resolved 14 packages; updated local build resolution
 
-$ w build last-light-native --target x86_64-unknown-linux-gnu --locked
-built last-light-native
+$ w build last-light/restaurant:last-light-native --target x86_64-unknown-linux-gnu --locked
+built last-light/restaurant:last-light-native
 payload sha256:7e...
 recipe  sha256:21...
 
-$ w run last-light-native --deployment local -- --cli
+$ w run last-light/restaurant:last-light-native --deployment local -- --cli
 ```
 
 O CLI não imprime download, compile unit ou cache hit por default. `--verbose`
@@ -31890,10 +31874,10 @@ ran path/file.w in ephemeral module-run context
 
 `w run path/file.w` compila o módulo com parser, checker e HIR normais. Sem
 `--entry`, ele seleciona somente o descriptor explícito `.default`; com
-`--entry Name`, seleciona o descriptor nomeado. Dentro de um package, o
-package ou workspace owner fornece a resolution vigente. Fora de projeto, o
-contexto efêmero aceita apenas std e imports locais explícitos; dependency
-externa falha com instrução para criar ou adotar um package/workspace. Nenhum
+`--entry Name`, seleciona o descriptor nomeado. Within a selected build root,
+the package and local build coordinator provide current resolution. Outside
+one, the ephemeral context accepts only std and explicit local imports; an
+external dependency requires an explicit package/build selection. Nenhum
 run resolve, atualiza, instala ou busca dependency de forma oculta. O contrato
 está em [module run / arquivo único](#2412-module-run-arquivo-único).
 
@@ -31908,7 +31892,7 @@ standalone.
 #### 21.6.2 Publicação e reprodução
 
 ```text
-w build last-light-native \
+w build last-light/restaurant:last-light-native \
   --target x86_64-unknown-linux-gnu \
   --profile release \
   --toolchains build/release.wplan \
@@ -31966,8 +31950,8 @@ do lançamento público. Slogans não são promessa técnica.
 - `w interface diff` classifica compatibilidade de source e casos para revisão;
 - `w test` reúne unit, doc, compile-fail, property e fuzz;
 - `w explain` mostra resolução, tipos, moves, layout, effects e custos;
-- `w build --locked` usa somente o grafo fixado;
-- `w run <path/file.w>` usa contexto package/workspace/efêmero, seleciona entry
+- `w build <package>[:<product>] --locked` usa seleção exata e somente o grafo fixado;
+- `w run <path/file.w>` usa contexto package/build-root/efêmero, seleciona entry
   explícito e compila pelo pipeline normal;
 - `w add/remove/resolve/update` atualiza somente a resolution com mutation
   atomicamente verificável;
@@ -32138,7 +32122,7 @@ The alias is an immutable test-only `process.Command` value. It contains no
 ambient process handle and grants no authority; `process.spawn` still requires
 the test fixture's explicit process capability. A module or symbol subject does
 not synthesize this binding. The complete planned subject set is bare symbol,
-`module`, `product`, `package`, `workspace`, `executable`, and `script`;
+`module`, `product`, `package`, `executable`, and `script`;
 `artifact` remains reserved until capsule and registry identities are stable.
 
 An executable locator containing a path separator resolves relative to the
@@ -34218,30 +34202,33 @@ que declaram `std.process` `Arguments`, `Context` e `ExitCode`, com os
 effects e return types do profile. Descriptor incompatível não entra no conjunto
 CLI e seleção nomeada incompatível falha com `source.entry`.
 
-A root física é `build.w`, com um ou dois records diretos. Package isolado em
-contexto standalone é o owner de sua resolution; um package member usa o
-workspace que o declarou, mesmo quando o member tem um `build.w` package-only.
-Quando há workspace, membership e owner único selecionam o workspace, e owners
-duplicados falham. Ancestor scan sozinho não seleciona um workspace. Fora de
-projeto, o contexto efêmero aceita somente std
-e imports locais explícitos. Dependency externa não resolvida falha e orienta
-criar ou adotar um package/workspace. `w run` não faz solve, update, install ou fetch
-oculto.
+A root física é `build.w`, com um ou mais records `package` diretos e no máximo
+um coordinator local `build`. Cada package declara root local exata e continua
+independentemente publicável; requirements, profiles e recipes authored pelo
+package pertencem à sua identity. O coordinator possui resolution, patches,
+deployments, selection e lock contexts locais, sem poder relaxar requirements
+do package. Um package pode omiti-lo somente quando package/product,
+resolution, target/profile recipe e deployment são inequívocos; múltiplos
+packages exigem coordinator. Seleção é exata, e nenhuma ancestor/cwd discovery
+escolhe contexto. Fora de package/build context, o contexto efêmero aceita
+somente std e imports locais explícitos. Dependency externa não resolvida falha
+e orienta declarar package e build plan explícitos. `w run` não faz solve,
+update, install ou fetch oculto.
 
 O grafo de imports contém somente edges explícitos. Canonical containment,
 symlink, traversal e escape são avaliados na boundary do target/provider.
 Recursive scan, cwd scan, `PATH` scan, environment scan, URL, stdin e shebang
 não são formas de source.
 
-O owner selecionado pode carregar `resolution: { schema: "w.resolution/1", ... }`
-e uma lista `deployments` de records `w.deployment/1` nomeados. Em workspace,
-esses fields pertencem ao workspace e não são duplicados nos members. `w
-resolve` e `w update` reescrevem somente `resolution`; o deployment é
-selecionado por nome. Publication exclui resolution e deployments locais.
-Package, resolution e deployment mantêm identities e digests lógicos separados;
+O coordinator local pode carregar `resolution: { schema: "w.resolution/1", ... }`
+e uma lista `deployments` de records `w.deployment/1` nomeados. `w resolve`
+reescreve somente local resolution; o deployment é selecionado por nome.
+Publication exclui root, resolution, lock, deployments e demais facts do
+coordinator da package identity, e rejeita local patches. Package, package-set,
+resolution, deployment e build-plan mantêm identities/digests separados;
 deployment digest não altera `SemanticInterfaceKey`.
 
-Requirements de capability continuam explícitos no package/workspace/deployment;
+Requirements de capability continuam explícitos no package/build-coordinator/deployment;
 não concedem grants ou secrets. Process arguments são channel baseline, não
 capability. Fetch, CAS, artifact, signature, authority e offline seguem
 [§21.1.6](#2116-contexts-de-resolução-e-lock). A recipe registra digests de
@@ -34250,7 +34237,7 @@ diagnóstico e provenance, nunca identity. Run temporário ou falho não deixa
 estado oculto.
 
 **W-1485 — inventário local em contexto efêmero (Forma vigente):** fora de
-package ou workspace, o parent lógico do source root explícito forma uma root
+package/build-root context, o parent lógico do source root explícito forma uma root
 efêmera por invocation.
 O provider deve abrir e confirmar essa root e cada source alcançado. Um import
 local parser-validado contém um ou mais componentes identifier. O host
@@ -34267,8 +34254,8 @@ completo e identifiers Unicode quando o resolver completo estiver disponível.
 
 `std` e `std.*` pertencem somente ao provider de std. Um arquivo local não
 sombreia std. Um import não-std sem source local falha como dependency externa
-indisponível no contexto efêmero e orienta criar ou adotar package ou
-workspace. Não existe fallback, scan ou fetch. A root recebe module path pelo
+indisponível no contexto efêmero e orienta declarar package e build plan quando
+for necessária dependency externa. Não existe fallback, scan ou fetch. A root recebe module path pelo
 header quando presente ou pelo stem lógico. Como a CLI nomeou a root
 explicitamente, um header diferente do stem é aceito. Um import desse module
 path resolve a root antes de derivar outro source.
@@ -34276,7 +34263,7 @@ path resolve a root antes de derivar outro source.
 Um source descoberto por import recebe o module path do import normalizado. Sem
 header, o último componente fornece o nome local. Com header, ele deve ser
 igual ao último componente. Outro nome ou composição multi-file exige package
-ou workspace. Como a root efêmera é o parent do source explícito, o `SourceId`
+e seleção/build context explícitos. Como a root efêmera é o parent do source explícito, o `SourceId`
 da root é somente o basename lógico `.w`; sources descobertos usam
 `PackagePath` root-relative e podem conter `/`, como `kitchen/menu.w`. Module
 path permanece separado, como `app` ou `kitchen.menu`. Canonical provider token
@@ -34343,19 +34330,22 @@ limites de evidência estão em
 [§24.3.7](#2437-own0-observação-guarded-de-candidatos-buildw).
 
 **W-1498 — MAN0 guarded structural data-only manifest reader (Forma vigente):**
-MAN0 é uma fronteira C23 interna, bounded e caller-owned. A lane C11 é somente
-recovery explícita. Ela lê todos os
-candidatos de um guard OWN0 `LIVE_OBSERVED`, reconfirma o guard uma vez,
-compara uma segunda leitura byte-exact e só então publica records estruturais
-canônicos para `package` e `workspace`. MAN0 preserva fields desconhecidos,
-mas não seleciona owner ou workspace e não valida o schema de manifest. O
-contrato, os limits, os receipts e as lacunas de composição estão em
+MAN0 é uma fronteira C23 interna, bounded e caller-owned, cuja implementação
+seed ainda usa um modelo estrutural de duas roots que não é o manifest atual.
+A lane C11 é somente recovery explícita. Ela lê todos os candidatos de um
+guard OWN0 `LIVE_OBSERVED`, reconfirma o guard uma vez, compara uma segunda
+leitura byte-exact e só então publica records estruturais canônicos. Esse
+subset não lê nem valida os atuais records `package`/`build` ou seus schemas,
+não seleciona package, não deriva package identity e não compõe o compiler. A
+grammar selecionada permanece a de §21.1; o compiler manifest reader e sua
+integração com resolver/CLI/lock seguem implementation gaps. Os limites,
+receipts e lacunas de composição do seed estão em
 [§24.3.8](#2438-man0-guarded-structural-data-only-manifest-reader).
 
 CHK7 acrescenta a composição interna caller-owned CHK6 → frontend seed → D0.
 A composição preflighta todos os diagnostics e usa `SourceId` lógico e spans
 válidos. O JSONL passa por staging separado e somente o buffer final é
-publicado. Esse corte não abre filesystem, provider `std`, package/workspace
+publicado. Esse corte não abre filesystem, provider `std`, package/build-root
 ou a CLI pública.
 
 CHK8 prova o adapter Windows real do mesmo provider. O adapter usa
@@ -34376,7 +34366,7 @@ bytes e digest da aquisição e da revalidação e faz o commit all-or-nothing. 
 gate compila e executa os targets Linux e Windows
 separados, exige a prova Windows nativa, executa a prova Linux real via WSL no
 host Windows e valida os stubs fail-closed cruzados. Esta prova não abre
-`w check` público multi-file e não fecha package/workspace, provider `std` ou
+`w check` público multi-file e não fecha package/build-root selection, provider `std` ou
 conformance de todos os filesystems Windows.
 
 CHK9 acrescenta a rota pública `w check` para uma root explícita em contexto
@@ -34414,15 +34404,15 @@ origin. CHK5 cobre o provider core injetável e o adapter filesystem Linux com
 `openat2`; CHK6 cobre o driver interno de discovery local bounded; CHK7 cobre a
 composição interna caller-owned; CHK8 cobre o adapter Windows real; e CHK9 cobre
 a rota pública bootstrap de root efêmera local.
-CHK9 não fecha NFC completo, provider `std`, owner detection, resolução externa,
-package/workspace, reexport/service-import no CST seed, diagnostics completos,
+CHK9 não fecha NFC completo, provider `std`, build-root selection, resolução externa,
+package/build-coordinator, reexport/service-import no CST seed, diagnostics completos,
 frontend normativo, compiler, backend, runtime ou conformance multiplataforma
 além dos adapters cobertos.
 
 O estudo PYN1 superseded em [`RATIONALE.md` §1.3.16](RATIONALE.md#1316-workflow-single-file-pyn1-superseded)
 preserva a proveniência do antigo fluxo standalone. A forma vigente é este
 module-run uniforme; operações de dependency são `w add`, `w remove`,
-`w resolve` e `w update` no contexto package/workspace.
+`w resolve` e `w update` no build-root context selecionado explicitamente.
 
 O contrato **RSX0 de W-1518 (design contract; implementation evidence missing)**
 usa `w run registry:package@version` como fluxo remoto adicional. A resolução
@@ -35092,7 +35082,7 @@ final e seu `jsonl_length` permanecem bitwise inalterados.
 A prova CHK7 cobre um import e chamada de export de `root` para `child` e uma
 falha `if 1` em `child.w`, com `W-SEM-0001` e source lógico `child.w` em ordem
 determinística. Ela mapeia somente esse diagnostic. O corte não prova frontend
-completo, novos diagnostics, package/workspace, provider `std`, filesystem novo
+completo, novos diagnostics, package/build-root selection, provider `std`, filesystem novo
 ou resolução pública multi-file; não transforma a composição em `w check`
 público.
 
@@ -35123,7 +35113,7 @@ inválidos.
 O gate compila e executa os targets Linux e Windows separados. Ele exige a
 prova Windows nativa, executa a prova Linux real via WSL no host Windows e
 valida os stubs fail-closed cruzados. CHK8 é evidência de adapter interno. Não
-abre `w check` público multi-file e não fecha package/workspace, provider `std`
+abre `w check` público multi-file e não fecha package/build-root selection, provider `std`
 ou conformance de todos os filesystems Windows.
 
 ### 24.3.5 CHK9 — rota pública `w check` para root efêmera local
@@ -35169,7 +35159,7 @@ não alcançado, missing, `std`, cycle, identidade inválida, UTF-8 inválido,
 parse incompleto, frontend unsupported, limits de source e graph e escape por
 symlink ou junction.
 
-CHK9 não fecha owner detection, resolução externa, package/workspace, provider
+CHK9 não fecha package/build-root selection, resolução externa, provider
 `std`, NFC completo, identifiers Unicode no SourceId bootstrap,
 reexport/service-import no CST seed, diagnostics além de `W-SEM-0001`, frontend
 normativo, compiler, backend ou runtime.
@@ -35232,7 +35222,7 @@ repetir CHK7 completo e preserva bytes, exits e renderers públicos. `w check`
 não passa a chamar o pipeline ACQ0. ACQ0 não transforma as waves CHK6 em um
 snapshot global do filesystem: somente a última wave estável alimenta bytes,
 CST, facts e graph. O corte não prova containment de OS, owner detection,
-package/workspace, provider `std`, resolver geral ou contexto público/geral de
+package/build-root selection, provider `std`, resolver geral ou contexto público/geral de
 aquisição.
 
 O `benchmarkDisposition` é `compiler-lifecycle`. O gate liga somente o oracle
@@ -35317,23 +35307,31 @@ benchmark, stage, timing ou result. `startup` e `execution` permanecem na track
 
 ### 24.3.8 MAN0 — guarded structural data-only manifest reader
 
-**Exemplo:** OWN0 observa dois candidatos `build.w`, um no diretório da source
-e outro em uma root ancestral. MAN0 lê os dois pela sessão retida, reconfirma
-OWN0 uma vez, repete as duas leituras pelas mesmas identidades e publica dois
-documentos estruturais. MAN0 não escolhe qual documento é owner.
+**Example:** OWN0 may observe `build.w` candidates supplied by its guard.
+MAN0 reads those candidates through the retained session, revalidates OWN0
+once, repeats reads against the same identities, and publishes structural
+documents. It does not choose which document is the owner. This bounded seed
+path is not the selected compiler's package/build-root discovery policy.
 
-**W-1498 — escopo MAN0 (Forma vigente):** `w_seed_manifest` é um parser C23
-próprio. Ele não chama `w_seed_parser`, frontend seed, Tree-sitter, JavaScript
-ou tooling host. Ele pode reutilizar somente os primitives seed de bytes,
-UTF-8, classificação Unicode e SHA-256. A saída é caller-owned, bounded e sem
-heap. O parser aceita somente a grammar estrutural de manifest de §2.2.
+**W-1498 — MAN0 scope (implementation evidence missing):** `w_seed_manifest`
+is an internal C23 structural prototype. It does not call `w_seed_parser`, the
+seed frontend, Tree-sitter, JavaScript, or host tooling. It may reuse only seed
+primitives for bytes, UTF-8, Unicode classification, and SHA-256. Its output
+is caller-owned, bounded, and heapless. The prototype has not been migrated to
+the selected §21.1 grammar/schema. Compiler manifest reading, cardinality and
+schema validation, and integration with package resolution, CLI selection, and
+lock persistence remain implementation gaps.
 
-Um documento ocupa o arquivo inteiro. Ele contém um ou dois roots diretos,
-`package` e `workspace`, em qualquer ordem física. Cada root aparece no máximo
-uma vez. Um documento pode ser package-only, workspace-only ou conter os dois.
-MAN0 publica ambos quando coexistem e não infere precedência. O batch contém
-todos os candidates do guard na ordem folha → root. Nenhum candidate é omitido
-ou promovido por conteúdo.
+The selected document occupies the entire file and contains one or more direct
+`package` records and at most one local `build` coordinator, in any order. At
+least one package is required, and multiple packages require the coordinator.
+Each package has one exact local root. Schema validation requires unique
+package identities and roots, one `w.package/1` schema per package, and
+`w.build/1` on the optional coordinator. The local root, resolution, and
+deployment are never inferred from candidate order. A guarded batch includes
+all supplied candidates in leaf-to-root order; no candidate is omitted or
+promoted based on its contents. MAN0 does not prove that the selected compiler
+accepts this shape.
 
 MAN0 aceita somente estes values:
 
@@ -35349,7 +35347,7 @@ MAN0 aceita somente estes values:
 
 Byte string, raw string, multiline string, interpolation, expression geral,
 import, module, declaration, call não contextual, função, loop, I/O e qualquer
-forma executável falham. Não existe recovery. Depois do último root, somente
+forma executável falham. Não existe recovery. Depois do último record, somente
 trivia pode anteceder EOF. Source adicional falha como trailing source.
 
 O contrato lexical acompanha o source seed vigente. Ele exige UTF-8 estrito,
@@ -35359,29 +35357,34 @@ removido. Space, tab, LF, CRLF, comment de linha e block comment aninhado são
 trivia. CR isolado falha. MAN0 preserva todos os bytes, inclusive trivia e
 CRLF, no source view e no source digest; a forma semântica não inclui trivia.
 
-Record fields e list items seguem a EBNF vigente: uma vírgula depois de cada
-item é opcional. Constructor arguments exigem vírgula entre argumentos e
-aceitam uma vírgula final. Roots são únicos por kind. Fields são únicos dentro
-do próprio record. Labels presentes em um mesmo constructor são únicas;
-argumentos posicionais podem repetir. As comparações usam os bytes UTF-8 do
-identifier. Um decoder de schema posterior deve rejeitar fields desconhecidos,
-extensions inválidas e shapes incompatíveis. MAN0 preserva esses fields e os
-inclui nos digests. Um parse MAN0 bem-sucedido não chama o documento de
-manifest válido.
+Record fields and list items follow the current EBNF; a trailing comma after
+each item is optional. Constructor arguments require commas between arguments
+and allow a trailing comma. The selected root contract permits multiple
+package records and at most one build coordinator; exact root uniqueness and
+the single-package ambiguity rule require schema validation beyond syntax
+parsing. Fields are unique within a record. Labels within one constructor are
+unique; positional arguments may repeat. Comparisons use identifier UTF-8
+bytes. A schema decoder must reject unknown fields, invalid extensions, and
+incompatible shapes. MAN0 preserves unknown fields and includes them in its
+digests. A successful MAN0 parse does not make the document a valid manifest.
 
 #### Records, ordem e valores canônicos
 
-Cada document record retém a view exata de source, o candidate ref, a
-generation, os bindings e quatro digests. Roots ficam em ordem semântica
-`package`, `workspace`. Fields de cada record ficam em ordem crescente dos
-bytes UTF-8 do name. Lists e constructor arguments preservam a ordem física.
+Each document record retains the exact source view, candidate reference,
+generation, bindings, and four digests. Package roots retain physical record
+order for provenance; package-set identity sorts independent package digests.
+A single build coordinator is a separate local plan. Record fields are ordered
+by the UTF-8 bytes of their names. Lists and constructor arguments preserve
+physical order.
 Nodes mantêm spans half-open exatos. Um field ou argument span exclui trivia e
 a vírgula opcional; o source view preserva ambos. Todos os índices publicados
 são `u32`; `UINT32_MAX` é o sentinel de índice único. Um span ausente usa
 `{SIZE_MAX, SIZE_MAX}`. Um span vazio presente usa dois offsets iguais dentro
 do source.
 
-Os códigos wire são fixos. Root usa `package = 0` e `workspace = 1`. Node usa,
+The selected wire root codes are package = 0 and build = 1. The current C seed
+has not been migrated to this selection and provides no compiler evidence.
+Node usa,
 nesta ordem, `record = 0`, `list = 1`, `constructor = 2`, `member = 3`,
 `string = 4`, `number = 5`, `size = 6`, `quantity = 7` e `bool = 8`. Edge usa
 `listItem = 0` e `constructorArgument = 1`. Binding usa `none = 0` e
@@ -35929,8 +35932,8 @@ consultar a callback. Não existe fallback textual. O gate Linux
 é obrigatório: em host Windows, ele usa WSL Ubuntu, executa duas vezes e exige
 output exato. Skip e `UNSUPPORTED` não contam como prova Linux.
 
-MAN0 não seleciona owner ou workspace, não deriva `ownerDigest`, não chama um
-decoder de schema, não resolve members, não integra WSP0 e não chama ACQ0,
+MAN0 não seleciona package/coordinator, não deriva package identity, não chama
+um decoder de schema, não resolve package dependencies, não integra WSP0 e não chama ACQ0,
 frontend, `w check` ou `w run`. O provenance MAN0 liga somente a sessão OWN0.
 Um composer posterior ainda deve ligar criptograficamente essa mesma source e
 root ao provider token ou receipt ACQ0 antes de aquisição ou execução. O core
@@ -36197,7 +36200,7 @@ permanece somente como decisão histórica superseded por W-1484.
 
 | ID | Controle vigente | Alternativa avaliada | Rejeitado |
 |---|---|---|---|
-| W-1451 | `build.w` direto e data-only com um ou dois records top-level, em qualquer ordem; no máximo um `package` e um `workspace`, pelo menos um. Package-only selecionado em contexto standalone possui `resolution`/`deployments`; package-only membro de workspace omite esses fields e o workspace declarado é o owner; workspace-only ou package+workspace: workspace possui, package omite. `workspace.members` aponta para dirs cujo `build.w` contém package. | Nenhuma forma alternativa é promovida. | Arquivo vazio, records duplicados, wrapper físico `build.w {}`, package inline, nested workspace member, glob, scan ambiental, source executável e owners duplicados; `package.w`/`workspace.w` sem shim. |
+| W-1451 | `build.w` is data-only with one or more direct `package` records and at most one local `build { schema: "w.build/1" }` coordinator; package-record order does not change recipe/output identity; exact roots are excluded from package identity; package-authored policy stays in the package; the coordinator owns only selection/orchestration and local facts, without weakening package requirements. A single package omits the coordinator only when selection/resolution/target-profile recipe/deployment are unambiguous; multiple packages require it. | No alternative form is promoted. | Workspace record/identity, `build.w {}` wrapper, missing/duplicate root, path escape/glob, ambient discovery, nested build root, executable source, implicit selection among packages, or local patch in publication. |
 | W-1452 | APIs de service retornam explicitamente `some Stream<Item, Failure>`. A chamada via `ServiceRef` acrescenta `ServiceFailure` na fase de abertura/admission; o erro da função chamadora deve ser `ServiceFailure` ou ter exatamente uma conversão total. Separadamente, `Failure` terminal permanece no stream. `Channel` é sempre explícito (capacity, endpoints, ownership, backpressure e close); mailbox e `Stream` têm lifecycle próprio. | Nenhuma promoção de `stream fn`; a forma geral é rejeitada por capturas, lifecycle e erro ambíguos. | `stream fn`, client-stream, bidi, channel implícito, capacity implícita, `ServiceRef` sem `await`, closed-turn change ou colapso entre `ServiceFailure` e `Failure`. |
 | W-1453 | Snapshot histórico superseded por W-1516: `get`, `get ref`, `get mut ref` e `set` definem as modalidades de property; `init` bypassa accessors; assignment simples usa `set`/replacement; mutation direta usa `get mut ref`; `inout` compõe get+set e writeback; hooks de access observer são opt-in em behavior nominal. | Nenhuma promoção de observer spelling ad hoc ou implícita. | accessor de mutation histórico, `willSet`/`didSet` solto, observer implícito, hidden oldValue copy, backing type/deinit oculto e notificação externa sem nome. |
 
@@ -36467,7 +36470,7 @@ benchmark   → HTTP/database workloads e performance evidence
 ABI lab     → static W, dynamic C, components e version skew
 ```
 
-O repository do produto é um workspace:
+The product repository contains two independent packages coordinated by a local build root:
 
 ```text
 last-light/restaurant      → products e runtime do restaurante
@@ -36477,8 +36480,9 @@ compile-final-menu         → menu source -> resource no CAS
 
 O segundo package é uma `.build` dependency. O tool artifact é compilado para o
 target da execution platform. A action executa nessa platform. O tool não entra
-no payload nativo. O workspace usa o member local; `w publish check` prova que a
-release também resolve fora do workspace.
+no payload nativo. O coordinator local resolve o segundo package sem torná-lo
+parte da identity do restaurante; `w publish check` prova que a release também
+resolve sem patches locais.
 
 O gate final é o **Turno do Horizonte Violeta**:
 
@@ -36527,7 +36531,7 @@ type-check, lowering ou comportamento runtime.
 O produto detalhado está em
 [Restaurante Última Luz](reference/last-light/README.md). Products, targets e
 comandos estão em [BUILD.md](reference/last-light/BUILD.md). Os deployments
-nomeados ficam no record `workspace` de [build.w](reference/last-light/build.w).
+nomeados ficam no coordinator local de [build.w](reference/last-light/build.w).
 
 ## 26. Plano de implementação
 
@@ -36645,7 +36649,7 @@ A aceitação do primeiro checker é fechada por estes casos:
   64 sources falham fechados;
 - o resultado agregado não retorna sucesso parcial.
 
-O contrato de package/workspace e resolução externa continua gap. O frontend
+O contrato do package set/build root e resolução externa continua gap. O frontend
 probe atual de `compiler/seed-c` fixa um contexto de harness; o target `w` usa
 a boundary pública CHK9 somente para a root efêmera e imports locais
 alcançáveis.
@@ -36655,8 +36659,8 @@ bounded deste corte. Ele lê um path explícito de até 16 MiB, usa o source
 reader, lexer, parser e frontend seed e emite somente o mapping D0 de
 `W-SEM-0001`. O gate prova um source síncrono real de Última Luz, a inversão
 negativa, o renderer humano e as barreiras de source, parse, unsupported e
-capacity. O driver sozinho não implementa a rota pública e não resolve package
-ou workspace. O target bootstrap `w` reutiliza o núcleo privado do driver.
+capacity. O driver sozinho não implementa a rota pública nem resolve package
+selection ou build coordinator. O target bootstrap `w` reutiliza o núcleo privado do driver.
 
 CHK3 acrescenta evidência bounded caller-owned para a fronteira entre CST,
 resolver e frontend. O scanner de origins preserva o span de `module` e os
@@ -36684,7 +36688,7 @@ somente como evidência interna. Esses cortes não alteram a claim normativa de
 resolução: o resolver ainda fornece origins, identities e edges explícitos.
 
 O discovery loop bounded interno tem evidência CHK6. NFC completo, provider
-std, owner discovery, package/workspace, reexport ou service-import origin,
+std, build-root selection, package resolution, reexport ou service-import origin,
 multi-file package, conformance multiplataforma e a resolução pública de `w
 check` continuam gaps.
 Reexport e service-import ainda não possuem CST seed; NFC continua
@@ -36697,7 +36701,7 @@ todos os diagnostics, copia o JSONL uma vez para o buffer final e então atualiz
 inalterados. A fixture comprova import/call de `root` para `child` e `W-SEM-0001`
 originado em `child.w`, com ordem determinística. A evidência cobre somente
 `W-SEM-0001`; não abre CLI pública, filesystem novo, provider `std`,
-package/workspace ou frontend completo.
+package/build-root selection ou frontend completo.
 
 CHK8 acrescenta o adapter Windows real do provider efêmero. A implementação
 usa `NtCreateFile` com `RootDirectory` e `OBJ_DONT_REPARSE`, valida o handle
@@ -36725,7 +36729,7 @@ e labels e publica summaries específicos. A evidência inclui matrix 17/17, spa
 sets determinísticos, três diagnostics em ordem e witness público Restaurant
 de `W-MATCH-0001` com `missingCases` sorted, label `match-subject`, exit `1` e
 JSON idêntico em duas execuções. Isso é evidência bounded de mapping e não
-frontend completo nem `w check` completo; package/workspace, provider `std`,
+frontend completo nem `w check` completo; package/build-root selection, provider `std`,
 resolution externa, owner detection, compiler, backend e runtime permanecem
 gaps.
 
@@ -36814,7 +36818,7 @@ performance continuam deferred. Os blockers são HIR geral,
 Saída: `w check <path/file.w> [--json]` verifica o subset síncrono do
 restaurante em root efêmera explícita e imports locais alcançáveis. O target
 bootstrap `w` executa a rota pública CHK9. Owner detection, resolução
-externa, provider `std`, package/workspace, reexport/service-import no CST
+externa, provider `std`, package/build-root selection, reexport/service-import no CST
 seed, diagnostics fora dos 17 profiles e frontend normativo completo
 continuam gaps. O comando continua sem build, backend, link, runtime ou
 artifact.
@@ -37146,7 +37150,7 @@ W-1521 is `source-backed-current` only for the bounded public command
 the same evidence runs the Linux binary through WSL Ubuntu; this does not
 promote native Windows support. The `.w` path is explicit and singular. The
 command does not perform recursive, cwd or PATH discovery, imports,
-package/workspace selection, registry access or network access. Source must be
+package/build-root selection, registry access or network access. Source must be
 non-empty, valid UTF-8 and at most 4096 bytes.
 
 **Example:**
@@ -39463,7 +39467,7 @@ entry {
 This is evidence for one bounded executable product closure inside one module,
 not cross-module WMO/WPO. The W-1564 product witness remains one-document and
 one-module. W-1575 adds only an HIR-side prerequisite for a resolved local
-document graph. Package/workspace graph lowering, library product exports,
+document graph. Multi-package graph lowering, library product exports,
 reflection, FFI, provider, service and dynamic-loading roots, incremental summary
 reuse, cross-module inlining, other targets, and optimization-quality claims
 remain gaps. The executable catalog owns exploratory W/C/Rust measurements
@@ -39672,7 +39676,7 @@ async fn run(args: Arguments, ctx: Context): ExitCode {
 entry(run)
 ```
 
-The task is bounded to one package or workspace, one executable product, one
+The task is bounded to one package/build-root plan, one executable product, one
 explicit entry, one target/profile pair, and the existing finite CHK4 graph
 limits. It compares two explicit source graphs with the same reachable entry
 closure. One graph may add unused imports or an unreachable module chain. The
@@ -40147,7 +40151,8 @@ requires at least two documents plus one resolved local edge. The physical
 `lib.helper` fails before stdout or artifact publication.
 
 Enum, switch, pattern, external-module, process, effect, service, reflection,
-FFI, and dynamic-loading families fail closed. Packages, workspaces, remote or
+FFI, and dynamic-loading families fail closed. Package resolution, multi-package
+build roots, remote or
 provider-backed modules, multi-document `std.process`, native dead-node artifact
 equivalence, general WMO/WPO optimization quality, and concurrency remain
 outside this slice. W-1568 remains an implementation-evidence gap. Its
@@ -43350,7 +43355,7 @@ o contrato público vigente de `w check`.
 W-1495 permanece source-backed somente como proveniência da execução RUN0
 bounded histórica; W-1505 é a forma vigente para o subset input-driven. A
 promoção não publica `w run`, aquisição pública ou geral de source, seleção de
-contexto ou owner, workspace, backend, linker, runtime ou provider geral. Esses
+package/build-root selection, backend, linker, runtime ou provider geral. Esses
 componentes e a execução de outros programas W continuam gaps. ACQ0 de W-1496
 fecha somente a aquisição interna bounded no contexto efêmero já fornecido.
 
@@ -43406,12 +43411,12 @@ não é um snapshot global entre waves.
 | Evidência local | Prova bounded |
 |---|---|
 | [`test_pipeline_restaurant` em `test_acquisition.c`](compiler/seed-c/tests/test_acquisition.c) | Root e child Restaurant, growth e retry, counts, order, inventory, edge e resolução exatos. |
-| [`test_pipeline_barriers_and_fixed_output` em `test_acquisition.c`](compiler/seed-c/tests/test_acquisition.c) | Propagação de containment e revalidação fake e capacity fixa, com output publicado inalterado. Não prova policy de OS, owner/workspace, snapshot global, frontend/D0, CLI ou `w run`. |
+| [`test_pipeline_barriers_and_fixed_output` em `test_acquisition.c`](compiler/seed-c/tests/test_acquisition.c) | Propagação de containment e revalidação fake e capacity fixa, com output publicado inalterado. Não prova policy de OS, package/build-root selection, snapshot global, frontend/D0, CLI ou `w run`. |
 
 CHK9 reutiliza storage, bind e retry de ACQ0, mas continua a executar o retry
 externo de CHK7 para preservar frontend, D0, bytes, exits e renderers públicos.
 ACQ0 permanece standalone: ele não adiciona frontend, policy de filesystem,
-CLI, `w run`, owner detection, package/workspace, provider `std` ou resolver
+CLI, `w run`, package/build-root selection, provider `std` ou resolver
 geral.
 
 O `benchmarkDisposition` é `compiler-lifecycle`. O gate de ACQ0 é somente um
@@ -43456,7 +43461,7 @@ dessa célula e não adiciona evidência de benchmark, stage, timing ou result.
 
 #### 26.4.5 Reader MAN0 guarded e estrutural
 
-**Exemplo:** os três `build.w` e os casos adversariais de duplicate/capacity mostram resultados `accepted` e `rejected` observáveis.
+**Example:** the W-1451 host oracle accepts direct package/build records and rejects ambiguous or unsafe build-root shapes; MAN0 remains a separate internal parser gate.
 
 **W-1498 — MAN0 guarded structural data-only manifest reader (Forma vigente):**
 o bundle fecha a fronteira em cinco milestones. M1 registrou o contrato, o
@@ -43467,12 +43472,15 @@ root, a documentação e os casos de substituição. M4b atualizou as projeçõe
 registrou a evidência corrente. M5 concluiu a revisão final e reduziu o gate
 integrado para não repetir OWN0 dentro de MAN0.
 
-Os checks C23 do core cobrem os três `build.w` reais em `reference/`, uma
-fixture workspace-only, package+workspace, comments, CRLF, canonical order,
-unknown fields preservados, duplicates, comma rules, forms proibidas, limits,
-capacity, alias e forgery. O gate de composição cobre todos os candidates de
-um guard, duas waves, mutation, replacement, stale/copy/cross-context, ordem de
-refs e publicação all-or-nothing. O gate root executa MAN0 somente depois de
+The C23 core tests cover bounded internal record/value parsing, comments, CRLF,
+canonical field order, preserved unknown fields, duplicate fields, comma rules,
+forbidden expression forms, limits, capacity, aliasing, and forgery. Those
+prototype tests do not prove the selected `package`/`build` grammar or schema.
+The host-oracle bundle at W-1451 supplies current valid/rejected manifest
+fixtures, exact-root checks, package/set/plan identity checks, and publication
+patch rejection. The MAN0 composition gate covers all observed candidates,
+two waves, mutation, replacement, stale/copy/cross-context, ref ordering, and
+all-or-nothing output. The root gate runs MAN0 only after
 `check:owner-guard`. Linux real é obrigatório, inclusive por WSL Ubuntu em
 host Windows, e cada execução deve produzir o mesmo output exato duas vezes.
 No Windows, a factory MAN0 é somente um stub direto `UNSUPPORTED` fail-closed;
@@ -43515,7 +43523,7 @@ W-1499 permanece `implementation-evidence-gap` no geral. Windows operacional,
 schema/WSP0, produto público, backend/runtime e o vínculo ACQ0 geral ainda são
 blockers. A subevidência Linux é somente bounded ao token
 `linux-openat2-v2` e aos adapters presentes. BND0 não abre `w run`, package ou
-workspace geral, registry, backend ou runtime.
+multi-package build orchestration, registry, backend ou runtime.
 
 O `benchmarkDisposition` é `compiler-lifecycle` somente como classificação da
 track futura. O gate não cria stage, timing ou result e não é oracle de
@@ -43718,7 +43726,7 @@ e restart de instance.
 de marcar a versão como reproduced.
 
 - package parser, resolver, lock e CAS;
-- workspace parser, members exatos e resolução standalone;
+- package/build-root parser, roots exatas e seleção/resolução standalone inequívoca;
 - usages `.product`, `.build`, `.test` e `.benchmark`;
 - feature closure por root, target role e usage;
 - target variants, source inventory e active source sets por context;

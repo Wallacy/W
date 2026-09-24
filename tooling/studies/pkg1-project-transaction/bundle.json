@@ -2,27 +2,39 @@
   "$schema": "w-substitution-study-bundle-1",
   "status": "design-oracle-input",
   "id": "R1-pkg1-project-transaction",
-  "title": "Project identity split and atomic replacement",
+  "title": "Package identity split and atomic build-root replacement",
   "r0Cases": [
     "R0-manifest-record"
   ],
   "sourceBase": {
     "path": "../../../reference/last-light/build.w",
-    "symbol": "workspace {",
-    "digest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c"
+    "symbol": "name: \"last-light/restaurant\"",
+    "digest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e"
   },
   "sourceRefs": [
     {
       "path": "../../../reference/last-light/build.w",
-      "symbol": "package {",
-      "digest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
-      "claim": "Isolated package root witness."
+      "symbol": "name: \"last-light/restaurant\"",
+      "digest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
+      "claim": "Direct publishable package with exact local root and authored build policy."
+    },
+    {
+      "path": "../../../reference/last-light/build.w",
+      "symbol": "name: \"last-light/menu-compiler\"",
+      "digest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
+      "claim": "Independent package root and package-authored build policy."
+    },
+    {
+      "path": "../../../reference/last-light/build.w",
+      "symbol": "build {",
+      "digest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
+      "claim": "Local coordinator owns selection, resolution, patches, deployments, and lock context."
     },
     {
       "path": "../../../reference/last-light/BUILD.md",
-      "symbol": "deployment",
-      "digest": "sha256:c23db7139c9efedf2c2a365a3625d603490830f8ce6b42644e9bb63fb5c0ac04",
-      "claim": "Named deployment witness."
+      "symbol": "w build all",
+      "digest": "sha256:c29f8255fa48aaa99000acd5ea92a9572d99dc3fd77a8b41e29c27bf1357a3c0",
+      "claim": "Exact package/product selection and explicit all-packages operation."
     }
   ],
   "variants": [
@@ -33,9 +45,9 @@
       "path": "identity-split.w",
       "digest": "sha256:68e466f17c914fe0f7c034c9a59528d451d5b0e09fe54716d11da18932f443ca",
       "changedConstructs": [
-        "owner basis",
-        "nested resolution record",
-        "separate identity digest"
+        "package identity excluding local root",
+        "order-independent package-set identity",
+        "separate local resolution/build-plan digests"
       ],
       "parseEvidence": {
         "status": "tree-sitter-parse",
@@ -47,7 +59,7 @@
       "role": "alternative",
       "language": "w-reserved",
       "path": "atomic-replace.txt",
-      "digest": "sha256:925fab7462e176c94be157e5b7cf3176eb52b6cd48c64d08ac9d7eb8df068228",
+      "digest": "sha256:ba769ad0490cdc3f2881baaad642872a232997a029ea8858fd8fe227ede918cf",
       "changedConstructs": [
         "textual transaction witness",
         "reserved replacement record"
@@ -58,22 +70,31 @@
       }
     }
   ],
-  "entry": "resolution",
+  "entry": "build-root transaction",
   "inputs": [
     {
-      "id": "owner-refresh",
+      "id": "package-set-refresh",
       "operation": "resolution-only",
       "expected": {
-        "ownerDigestStable": true,
-        "resolutionDigestChanged": true
+        "packageSetDigestStable": true,
+        "resolutionDigestChanged": true,
+        "buildPlanDigestChanged": true
       }
     },
     {
-      "id": "owner-edit",
-      "operation": "dependency-edit",
+      "id": "package-edit",
+      "operation": "package-edit",
       "expected": {
-        "ownerDigestChanged": true,
+        "packageSetDigestChanged": true,
         "atomicReplacement": true
+      }
+    },
+    {
+      "id": "local-plan-edit",
+      "operation": "coordinator-edit",
+      "expected": {
+        "packageSetDigestStable": true,
+        "buildPlanDigestChanged": true
       }
     },
     {
@@ -88,7 +109,7 @@
   "tasks": [
     {
       "kind": "explain",
-      "instruction": "Explain why owner and resolution identities use separate records."
+      "instruction": "Explain why package identity and local resolution/build-plan identities are separate."
     },
     {
       "kind": "recall",
@@ -99,13 +120,13 @@
       "kind": "repair",
       "instruction": "Repair a stale transaction without merging concurrent bytes.",
       "mutations": {
-        "identity-split": "Restore the owner basis and nested resolution fields.",
+        "identity-split": "Restore package-only digest identity and separate the local coordinator plan.",
         "atomic-replace": "Keep the replacement route as a host-only witness."
       }
     },
     {
       "kind": "change",
-      "instruction": "Change one deployment plan without changing owner or resolution digests."
+      "instruction": "Change one local deployment plan without changing package or resolution digests."
     }
   ],
   "presentationOrders": [
@@ -132,7 +153,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:1ae2fe2745ba3bf63cd33cecf9a64adc8dbd7d8142e25a8b03eff58a8a86b5c4"
+    "digest": "sha256:5053c384b57cac732c78abf8cf17a25c87e7d5890604de7f3609d062d6914f96"
   },
   "evidence": {
     "current": [

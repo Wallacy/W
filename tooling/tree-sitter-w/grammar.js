@@ -970,10 +970,7 @@ module.exports = grammar({
       seq("(", field("default_handler", $.identifier), ")"),
 
     build_manifest: ($) =>
-      choice(
-        seq($.package_manifest, optional($.workspace_manifest)),
-        seq($.workspace_manifest, optional($.package_manifest)),
-      ),
+      repeat1(choice($.package_manifest, $.build_coordinator)),
     package_manifest: ($) =>
       prec(
         1,
@@ -982,11 +979,11 @@ module.exports = grammar({
         field("body", $.manifest_record),
         ),
       ),
-    workspace_manifest: ($) =>
+    build_coordinator: ($) =>
       prec(
         1,
         seq(
-        "workspace",
+        "build",
         field("body", $.manifest_record),
         ),
       ),

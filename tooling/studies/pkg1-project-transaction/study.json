@@ -2,7 +2,7 @@
   "$schema": "w-pkg1-project-transaction-study-1",
   "status": "design-oracle-input",
   "id": "PKG1",
-  "title": "Project identity split and atomic root transactions",
+  "title": "Package identity split and atomic build-root transactions",
   "routes": {
     "identitySplit": "current",
     "atomicTransaction": "current",
@@ -11,27 +11,27 @@
   "sourceRefs": [
     {
       "path": "../../../reference/last-light/build.w",
-      "symbol": "workspace {",
-      "digest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
-      "claim": "Unified physical workspace root with nested resolution and deployments."
+      "symbol": "name: \"last-light/restaurant\"",
+      "digest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
+      "claim": "Independently publishable package with exact local root and authored requirements, profiles, and recipes."
     },
     {
       "path": "../../../reference/last-light/build.w",
-      "symbol": "package {",
-      "digest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
-      "claim": "Isolated package root remains a data-only manifest."
+      "symbol": "name: \"last-light/menu-compiler\"",
+      "digest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
+      "claim": "Direct second package with its own package-authored policy."
+    },
+    {
+      "path": "../../../reference/last-light/build.w",
+      "symbol": "build {",
+      "digest": "sha256:024c9b2f66e5fb4f215f220d890d305da5a391b829dbc181a0d61282837a150e",
+      "claim": "Local-only coordinator binds exact selection, resolution, deployments, and lock context."
     },
     {
       "path": "../../../reference/last-light/BUILD.md",
-      "symbol": "deployment",
-      "digest": "sha256:c23db7139c9efedf2c2a365a3625d603490830f8ce6b42644e9bb63fb5c0ac04",
-      "claim": "Reference build documents named deployment records."
-    },
-    {
-      "path": "../../../reference/last-light/build.w",
-      "symbol": "resolution: {",
-      "digest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
-      "claim": "Resolution is a nested logical record."
+      "symbol": "w build all",
+      "digest": "sha256:c29f8255fa48aaa99000acd5ea92a9572d99dc3fd77a8b41e29c27bf1357a3c0",
+      "claim": "Exact package/product selection and explicitly requested all-packages build."
     }
   ],
   "officialRefs": [
@@ -63,11 +63,11 @@
   ],
   "corpus": {
     "path": "../../pkg1-project-transaction-cases.json",
-    "digest": "sha256:af25b954322a53b8a5da67891fbd886a6a081cfbfa0c6645282b4b441c8836cd"
+    "digest": "sha256:35e568c074ac5f732582e0bbc42eb9c65ebf69708281aa806f5600565ae4ce83"
   },
   "oracle": {
     "path": "../../pkg1-project-transaction-machine.mjs",
-    "digest": "sha256:1e414e61d38ccc5eb7b3d995fbdbbbadb4041c336475e1f0663d984b50f02707"
+    "digest": "sha256:2ff2beab2f9c2d152358d53b4dcebd3cef9375117a73761dfe12d4f040bafd15"
   },
   "evidence": {
     "current": [
@@ -88,12 +88,12 @@
   "artifactRefs": [
     {
       "path": "../../pkg1-project-transaction-cases.json",
-      "digest": "sha256:af25b954322a53b8a5da67891fbd886a6a081cfbfa0c6645282b4b441c8836cd",
+      "digest": "sha256:35e568c074ac5f732582e0bbc42eb9c65ebf69708281aa806f5600565ae4ce83",
       "role": "corpus"
     },
     {
       "path": "../../pkg1-project-transaction-machine.mjs",
-      "digest": "sha256:1e414e61d38ccc5eb7b3d995fbdbbbadb4041c336475e1f0663d984b50f02707",
+      "digest": "sha256:2ff2beab2f9c2d152358d53b4dcebd3cef9375117a73761dfe12d4f040bafd15",
       "role": "oracle"
     },
     {
@@ -108,22 +108,22 @@
     },
     {
       "path": "../../pkg1-project-transaction-reference.test.mjs",
-      "digest": "sha256:741db2c34abfced8ebcbcdb76392b3f8a11206f042e3b55eff002145aa62ca49",
+      "digest": "sha256:7b24e6db768068f8f41b0d0fc7c47470160b5666916afa9c22c82f4d1e596e16",
       "role": "host-test"
     },
     {
       "path": "../../pkg1-project-transaction-results.snapshot.jsonl",
-      "digest": "sha256:48087ec0a0cc4df6f9145be1bbd008da844037d5a58402f743c56f66e0f59650",
+      "digest": "sha256:159b87a7d7a2ec0f92b22f8d59c2d03ca4b969824214a8ef9ac24fe0c50dc64e",
       "role": "snapshot"
     },
     {
       "path": "bundle.json",
-      "digest": "sha256:2f076f6a606c3f00ea7d9853a96348d28637299b88f638c8eae704cdc5d607d4",
+      "digest": "sha256:50b9107df5233359fa54f0e09adead1c9d4087d738485fee87d3a68e4f6aadbb",
       "role": "study-bundle"
     },
     {
       "path": "oracle.test.mjs",
-      "digest": "sha256:1ae2fe2745ba3bf63cd33cecf9a64adc8dbd7d8142e25a8b03eff58a8a86b5c4",
+      "digest": "sha256:5053c384b57cac732c78abf8cf17a25c87e7d5890604de7f3609d062d6914f96",
       "role": "study-test"
     }
   ]

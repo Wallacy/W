@@ -1,6 +1,6 @@
 PFU0 candidate witness. This file is reserved text, not W source.
 
-build.w contains direct package and/or workspace records (no wrapper) // one or two records, at least one; order-independent; standalone package owns its fields; declared workspace owns a member or colocated package
+build.w uses the package-centric selected form: one or more direct package records, each with an exact local root, plus at most one local-only build { schema: "w.build/1" } coordinator // record order is irrelevant; multiple packages require the coordinator; a single package may omit it only when selection, resolution, recipe, and deployment are unambiguous; the exact selector is w build <package>[:<product>]; there is no workspace record or identity
 service stream fn updates(...): Item throws Failure // interface normalizes to some Stream<Item,Failure>; ServiceFailure admission/open stays distinct from terminal Failure
 property value { get mut ref + defer is the current local-borrow control; replace / get mut ref phases are reserved comparison text; willSet / didSet has no final spelling or owner }
 
