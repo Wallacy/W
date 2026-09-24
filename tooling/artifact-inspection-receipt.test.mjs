@@ -41,7 +41,15 @@ function mockedTools(readobjOutput, extras = {}) {
         return { stdout: readobjOutput, stderr: "" };
       }
       if (tool === "llvm-objdump") return { stdout: extras.disassembly ?? "file: file format\n\nDisassembly of section .text:\n  1000:\tretq\n", stderr: "" };
-      if (tool === "llvm-nm") return { stdout: extras.undefinedSymbols ?? "object.obj: external_fn U 0 0\n", stderr: "" };
+      if (tool === "llvm-nm") {
+        const objectName = path.basename(args.at(-1));
+        const error = extras.undefinedSymbolsErrorByObject?.[objectName];
+        if (error) throw new Error(error);
+        return {
+          stdout: extras.undefinedSymbolsByObject?.[objectName] ?? extras.undefinedSymbols ?? "object.obj: external_fn U 0 0\n",
+          stderr: "",
+        };
+      }
       throw new Error(`unexpected tool ${tool}`);
     },
   };
@@ -79,25 +87,26 @@ DelayImport {
 }
 `;
 
-test("argument parser requires one explicit artifact and accepts optional evidence paths", () => {
+test("argument parser requires one explicit artifact and accepts repeatable object and allowlist paths", () => {
   assert.deepEqual(parseArtifactInspectionArguments(["sample.exe", "--post-opt-ir", "after.ll", "--object=obj.obj"]), {
     help: false,
     artifact: "sample.exe",
     postOptIr: "after.ll",
-    object: "obj.obj",
+    objectPaths: ["obj.obj"],
   });
-  assert.deepEqual(parseArtifactInspectionArguments(["sample.exe", "--toolchain-dir", "cache", "--object", "x.obj"]), {
+  assert.deepEqual(parseArtifactInspectionArguments(["sample.exe", "--toolchain-dir", "cache", "--object", "x.obj", "--object=y.obj", "--allowlists", "allowed.json"]), {
     help: false,
     artifact: "sample.exe",
     postOptIr: undefined,
-    object: "x.obj",
+    objectPaths: ["x.obj", "y.obj"],
+    allowlistsPath: "allowed.json",
     toolchainDirectory: "cache",
   });
   assert.deepEqual(parseArtifactInspectionArguments(["sample.exe", "--toolchain-dir=cache"]), {
     help: false,
     artifact: "sample.exe",
     postOptIr: undefined,
-    object: undefined,
+    objectPaths: [],
     toolchainDirectory: "cache",
   });
   assert.deepEqual(parseArtifactInspectionArguments(["--help"]), { help: true });
@@ -105,12 +114,13 @@ test("argument parser requires one explicit artifact and accepts optional eviden
   assert.throws(() => parseArtifactInspectionArguments(["a.exe", "b.exe"]), /exactly one artifact/u);
   assert.throws(() => parseArtifactInspectionArguments(["a.exe", "--object"]), /--object requires/u);
   assert.throws(() => parseArtifactInspectionArguments(["a.exe", "--nope"]), /unknown option/u);
-  assert.throws(() => parseArtifactInspectionArguments(["a.exe", "--object", "a.obj", "--object", "b.obj"]), /only once/u);
   assert.throws(() => parseArtifactInspectionArguments(["a.exe", "--toolchain-dir"]), /--toolchain-dir requires/u);
   assert.throws(() => parseArtifactInspectionArguments(["a.exe", "--toolchain-dir", "one", "--toolchain-dir", "two"]), /--toolchain-dir may be specified only once/u);
+  assert.throws(() => parseArtifactInspectionArguments(["a.exe", "--allowlists"]), /--allowlists requires/u);
+  assert.throws(() => parseArtifactInspectionArguments(["a.exe", "--allowlists", "one.json", "--allowlists", "two.json"]), /--allowlists may be specified only once/u);
 });
 
-test("PE receipt inventories section bytes, imports, IR declarations, and one object's undefined symbols", async (t) => {
+test("PE receipt inventories section bytes, imports, IR declarations, and supplied object's undefined symbols", async (t) => {
   const directory = withTempDirectory(t);
   const artifactPath = path.join(directory, "sample.exe");
   const irPath = path.join(directory, "after.ll");
@@ -128,7 +138,7 @@ test("PE receipt inventories section bytes, imports, IR declarations, and one ob
     runTool: tools.runTool,
   });
 
-  assert.equal(receipt.schema, "w-artifact-inspection-receipt-1");
+  assert.equal(receipt.schema, "w-artifact-inspection-receipt-2");
   assert.equal(receipt.artifact.format, "PE");
   assert.equal(receipt.artifact.bytes, 512);
   assert.equal(receipt.sectionInventory.status, "observed");
@@ -144,10 +154,235 @@ test("PE receipt inventories section bytes, imports, IR declarations, and one ob
   assert.equal(receipt.postOptIr.externals.coverage, "partial");
   assert.deepEqual(receipt.postOptIr.externals.externalFunctions, ["puts"]);
   assert.deepEqual(receipt.postOptIr.externals.externalGlobals, ["runtime_state"]);
-  assert.deepEqual(receipt.objectUndefinedSymbols.items, ["external_fn"]);
+  assert.equal(receipt.objectUndefinedSymbols.scope, "caller-supplied-object-paths");
+  assert.deepEqual(receipt.objectUndefinedSymbols.items.map((item) => item.undefinedSymbols), [["external_fn"]]);
+  assert.equal(receipt.checks.postOptExternalClosure.status, "unknown");
+  assert.equal(receipt.checks.suppliedObjectUndefinedSymbolClosure.status, "unknown");
+  assert.equal(receipt.checks.finalImportClosure.status, "unknown");
   assert.equal(receipt.checks.finalDependencyClosure.status, "unknown");
+  assert.equal(receipt.checks.requestedClosureValidation.status, "not-requested");
   assert.equal(receipt.checks.crtFree.status, "unknown");
   assert.deepEqual(tools.calls.map((call) => call.tool), ["llvm-readobj", "llvm-objdump", "llvm-nm"]);
+});
+
+test("every supplied object is inspected and an unexpected later-object symbol rejects its closure", async (t) => {
+  const directory = withTempDirectory(t);
+  const artifactPath = path.join(directory, "sample.exe");
+  const firstObjectPath = path.join(directory, "first.obj");
+  const secondObjectPath = path.join(directory, "second.obj");
+  fs.writeFileSync(artifactPath, makePeFixture());
+  fs.writeFileSync(firstObjectPath, "first object");
+  fs.writeFileSync(secondObjectPath, "second object");
+  const tools = mockedTools(peReadobjOutput, {
+    undefinedSymbolsByObject: {
+      "first.obj": "allowed_fn U 0 0\n",
+      "second.obj": "surprise_fn U 0 0\n",
+    },
+  });
+
+  const receipt = await createArtifactInspectionReceipt({
+    artifactPath,
+    objectPaths: [firstObjectPath, secondObjectPath],
+    allowlists: {
+      schema: "w-artifact-inspection-allowlists-1",
+      objectUndefinedSymbols: ["allowed_fn"],
+    },
+    findTool: tools.findTool,
+    runTool: tools.runTool,
+  });
+
+  assert.equal(receipt.objectUndefinedSymbols.status, "observed");
+  assert.deepEqual(receipt.objectUndefinedSymbols.items.map((item) => path.basename(item.path)), ["first.obj", "second.obj"]);
+  assert.deepEqual(receipt.objectUndefinedSymbols.items.map((item) => item.undefinedSymbols), [["allowed_fn"], ["surprise_fn"]]);
+  assert.equal(receipt.checks.suppliedObjectUndefinedSymbolClosure.status, "rejected");
+  assert.deepEqual(receipt.checks.suppliedObjectUndefinedSymbolClosure.unexpectedReferences, ["surprise_fn"]);
+  assert.equal(tools.calls.filter((call) => call.tool === "llvm-nm").length, 2);
+});
+
+test("explicit PE import and dependency allowlists are checked as separate closures", async (t) => {
+  const directory = withTempDirectory(t);
+  const artifactPath = path.join(directory, "sample.exe");
+  const allowlistsPath = path.join(directory, "allowed.json");
+  fs.writeFileSync(artifactPath, makePeFixture());
+  const allowlistBytes = Buffer.from(JSON.stringify({
+    schema: "w-artifact-inspection-allowlists-1",
+    finalImports: [
+      { library: "KERNEL32.dll", kind: "regular", symbols: ["ExitProcess", "WriteFile"] },
+      { library: "USER32.dll", kind: "delay", symbols: ["MessageBoxW"] },
+    ],
+    finalDependencies: ["KERNEL32.dll", "USER32.dll"],
+  }));
+  fs.writeFileSync(allowlistsPath, allowlistBytes);
+  const tools = mockedTools(peReadobjOutput);
+
+  const receipt = await createArtifactInspectionReceipt({
+    artifactPath,
+    allowlistsPath,
+    findTool: tools.findTool,
+    runTool: tools.runTool,
+  });
+
+  assert.equal(receipt.allowlists.status, "observed");
+  assert.equal(receipt.allowlists.source, allowlistsPath);
+  assert.equal(receipt.allowlists.sha256.length, 64);
+  assert.deepEqual(receipt.allowlists.boundaries, ["finalDependencies", "finalImports"]);
+  assert.deepEqual(receipt.allowlists.policy.finalDependencies, ["KERNEL32.dll", "USER32.dll"]);
+  assert.equal(receipt.checks.finalImportClosure.status, "passed");
+  assert.equal(receipt.checks.finalDependencyClosure.status, "passed");
+  assert.equal(receipt.checks.requestedClosureValidation.status, "passed");
+});
+
+test("unexpected final imports and dependencies are both reported against their own allowlists", async (t) => {
+  const directory = withTempDirectory(t);
+  const artifactPath = path.join(directory, "sample.exe");
+  fs.writeFileSync(artifactPath, makePeFixture());
+  const tools = mockedTools(peReadobjOutput);
+
+  const receipt = await createArtifactInspectionReceipt({
+    artifactPath,
+    allowlists: {
+      schema: "w-artifact-inspection-allowlists-1",
+      finalImports: [{ library: "KERNEL32.dll", kind: "regular", symbols: ["ExitProcess"] }],
+      finalDependencies: ["KERNEL32.dll"],
+    },
+    findTool: tools.findTool,
+    runTool: tools.runTool,
+  });
+
+  assert.equal(receipt.checks.finalImportClosure.status, "rejected");
+  assert.deepEqual(receipt.checks.finalImportClosure.unexpectedReferences, [
+    "KERNEL32.dll!WriteFile (regular)", "USER32.dll (delay)",
+  ]);
+  assert.equal(receipt.checks.finalDependencyClosure.status, "rejected");
+  assert.deepEqual(receipt.checks.finalDependencyClosure.unexpectedReferences, ["USER32.dll"]);
+  assert.equal(receipt.checks.requestedClosureValidation.status, "incomplete");
+});
+
+test("post-opt IR allowlists report definite violations but never claim closure from the partial scanner", async (t) => {
+  const directory = withTempDirectory(t);
+  const artifactPath = path.join(directory, "sample.exe");
+  const irPath = path.join(directory, "after.ll");
+  fs.writeFileSync(artifactPath, makePeFixture());
+  fs.writeFileSync(irPath, "declare i32 @puts(ptr)\n@runtime_state = external global ptr\n");
+  const tools = mockedTools(peReadobjOutput);
+  const matching = await createArtifactInspectionReceipt({
+    artifactPath,
+    postOptIrPath: irPath,
+    allowlists: {
+      schema: "w-artifact-inspection-allowlists-1",
+      postOptIrExternals: { functions: ["puts"], globals: ["runtime_state"] },
+    },
+    findTool: tools.findTool,
+    runTool: tools.runTool,
+  });
+  assert.equal(matching.checks.postOptExternalClosure.status, "unknown");
+  assert.deepEqual(matching.checks.postOptExternalClosure.unexpectedReferences, []);
+  assert.match(matching.checks.postOptExternalClosure.reason, /partial parser coverage/u);
+
+  const violating = await createArtifactInspectionReceipt({
+    artifactPath,
+    postOptIrPath: irPath,
+    allowlists: {
+      schema: "w-artifact-inspection-allowlists-1",
+      postOptIrExternals: { functions: [], globals: [] },
+    },
+    findTool: tools.findTool,
+    runTool: tools.runTool,
+  });
+  assert.equal(violating.checks.postOptExternalClosure.status, "rejected");
+  assert.deepEqual(violating.checks.postOptExternalClosure.unexpectedReferences, [
+    "function:puts", "global:runtime_state",
+  ]);
+});
+
+test("requested closure boundaries stay non-passing when their evidence is missing or unsupported", async (t) => {
+  const directory = withTempDirectory(t);
+  const artifactPath = path.join(directory, "sample.elf");
+  fs.writeFileSync(artifactPath, makeElfFixture());
+  const elfOutput = JSON.stringify([{
+    FileSummary: { Format: "elf64-x86-64" },
+    Sections: [{ Section: { Name: { Name: ".text" }, Type: { Name: "SHT_PROGBITS" }, Offset: 64, Size: 20 } }],
+    DynamicSection: [{ Type: "NEEDED", Library: "libc.so.6" }],
+    NeededLibraries: ["libc.so.6"],
+  }]);
+  const tools = mockedTools(elfOutput);
+
+  const receipt = await createArtifactInspectionReceipt({
+    artifactPath,
+    allowlists: {
+      schema: "w-artifact-inspection-allowlists-1",
+      postOptIrExternals: { functions: [], globals: [] },
+      objectUndefinedSymbols: [],
+      finalImports: [],
+      finalDependencies: ["libc.so.6"],
+    },
+    findTool: tools.findTool,
+    runTool: tools.runTool,
+  });
+
+  assert.equal(receipt.checks.postOptExternalClosure.status, "unknown");
+  assert.match(receipt.checks.postOptExternalClosure.reason, /was not supplied/u);
+  assert.equal(receipt.checks.suppliedObjectUndefinedSymbolClosure.status, "unknown");
+  assert.match(receipt.checks.suppliedObjectUndefinedSymbolClosure.reason, /no object files/u);
+  assert.equal(receipt.checks.finalImportClosure.status, "unknown");
+  assert.match(receipt.checks.finalImportClosure.reason, /not enumerated/u);
+  assert.equal(receipt.checks.finalDependencyClosure.status, "passed");
+  assert.equal(receipt.checks.requestedClosureValidation.status, "incomplete");
+  assert.deepEqual(receipt.checks.requestedClosureValidation.nonPassingBoundaries, [
+    "finalImports", "objectUndefinedSymbols", "postOptIrExternals",
+  ]);
+});
+
+test("malformed allowlists, duplicate object paths, and conflicting ELF dependency inventories fail closed", async (t) => {
+  const directory = withTempDirectory(t);
+  const pePath = path.join(directory, "sample.exe");
+  const objectPath = path.join(directory, "sample.obj");
+  const elfPath = path.join(directory, "sample.elf");
+  fs.writeFileSync(pePath, makePeFixture());
+  fs.writeFileSync(objectPath, "object fixture");
+  fs.writeFileSync(elfPath, makeElfFixture());
+  const tools = mockedTools(peReadobjOutput);
+
+  await assert.rejects(createArtifactInspectionReceipt({
+    artifactPath: pePath,
+    allowlists: { schema: "w-artifact-inspection-allowlists-1", objectUndefinedSymbols: ["same", "same"] },
+    findTool: tools.findTool,
+    runTool: tools.runTool,
+  }), /duplicate symbol/u);
+  await assert.rejects(createArtifactInspectionReceipt({
+    artifactPath: pePath,
+    objectPaths: [objectPath, objectPath],
+    findTool: tools.findTool,
+    runTool: tools.runTool,
+  }), /supplied more than once/u);
+  const incompleteImportTools = mockedTools(`${peReadobjOutput}Import {\n`);
+  await assert.rejects(createArtifactInspectionReceipt({
+    artifactPath: pePath,
+    findTool: incompleteImportTools.findTool,
+    runTool: incompleteImportTools.runTool,
+  }), /malformed Import block/u);
+
+  const conflictingElfOutput = JSON.stringify([{
+    FileSummary: { Format: "elf64-x86-64" },
+    Sections: [{ Section: { Name: { Name: ".text" }, Type: { Name: "SHT_PROGBITS" }, Offset: 64, Size: 20 } }],
+    DynamicSection: [{ Type: "NEEDED", Library: "libc.so.6" }],
+    NeededLibraries: ["libpthread.so.0"],
+  }]);
+  const conflictingTools = mockedTools(conflictingElfOutput);
+  await assert.rejects(createArtifactInspectionReceipt({
+    artifactPath: elfPath,
+    findTool: conflictingTools.findTool,
+    runTool: conflictingTools.runTool,
+  }), /conflicting DT_NEEDED inventories/u);
+  const ambiguousElfTools = mockedTools(JSON.stringify([
+    { FileSummary: { Format: "elf64-x86-64" }, Sections: [] },
+    { FileSummary: { Format: "elf64-x86-64" }, Sections: [] },
+  ]));
+  await assert.rejects(createArtifactInspectionReceipt({
+    artifactPath: elfPath,
+    findTool: ambiguousElfTools.findTool,
+    runTool: ambiguousElfTools.runTool,
+  }), /ambiguous ELF file-record count/u);
 });
 
 test("ELF receipt handles NOBITS and reports dependencies without claiming import or CRT closure", async (t) => {
@@ -446,14 +681,26 @@ test("artifact and optional files must be regular, and post-opt input must be .l
   }), /object must be a regular non-link file/u);
 });
 
-test("oversized input is rejected before it is read into memory", async (t) => {
+test("oversized artifact and allowlist inputs are rejected before they are read into memory", async (t) => {
   const directory = withTempDirectory(t);
   const artifactPath = path.join(directory, "oversized.exe");
-  const handle = fs.openSync(artifactPath, "w");
+  const artifactHandle = fs.openSync(artifactPath, "w");
   try {
-    fs.ftruncateSync(handle, 128 * 1024 * 1024 + 1);
+    fs.ftruncateSync(artifactHandle, 128 * 1024 * 1024 + 1);
   } finally {
-    fs.closeSync(handle);
+    fs.closeSync(artifactHandle);
   }
   await assert.rejects(createArtifactInspectionReceipt({ artifactPath }), /128 MiB input safety limit/u);
+
+  const allowlistsPath = path.join(directory, "oversized.json");
+  const allowlistHandle = fs.openSync(allowlistsPath, "w");
+  try {
+    fs.ftruncateSync(allowlistHandle, 1024 * 1024 + 1);
+  } finally {
+    fs.closeSync(allowlistHandle);
+  }
+  await assert.rejects(createArtifactInspectionReceipt({
+    artifactPath: path.join(directory, "missing.exe"),
+    allowlistsPath,
+  }), /allowlists exceeds the 1 MiB input safety limit/u);
 });

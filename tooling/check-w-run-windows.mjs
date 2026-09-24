@@ -224,14 +224,17 @@ function fail(message) {
 
 function parseArguments(argv) {
   let ci = false
+  let testPeImportPolicy = false
   for (const argument of argv) {
     if (argument === "--ci" && !ci) ci = true
+    else if (argument === "--test-pe-import-policy" && !testPeImportPolicy)
+      testPeImportPolicy = true
     else throw new Error(`unknown option: ${String(argument)}`)
   }
-  return { ci }
+  return { ci, testPeImportPolicy }
 }
 
-const { ci: ciMode } = parseArguments(process.argv.slice(2))
+const { ci: ciMode, testPeImportPolicy } = parseArguments(process.argv.slice(2))
 
 function assert(condition, message) {
   if (!condition) fail(message)
@@ -449,7 +452,7 @@ function assertPeX64(bytes, label) {
   assert(bytes.length >= 0x40 && bytes[0] === 0x4d && bytes[1] === 0x5a,
     `${label} is not an MZ image`)
   const peOffset = bytes.readUInt32LE(0x3c)
-  assert(peOffset + 6 <= bytes.length && bytes.subarray(peOffset, peOffset + 4)
+  assert(peOffset + 24 <= bytes.length && bytes.subarray(peOffset, peOffset + 4)
     .equals(Buffer.from("PE\0\0", "ascii")) && bytes.readUInt16LE(peOffset + 4) === 0x8664,
   `${label} is not a PE x64 image`)
 }
@@ -471,22 +474,23 @@ function peSectionNames(bytes, label) {
   })
 }
 
-function peImportDllNames(bytes, label) {
+function peImportTable(bytes, label) {
   assertPeX64(bytes, label)
   const peOffset = bytes.readUInt32LE(0x3c)
   const fileHeader = peOffset + 4
   const sectionCount = bytes.readUInt16LE(fileHeader + 2)
   const optionalHeaderSize = bytes.readUInt16LE(fileHeader + 16)
   const optionalHeader = fileHeader + 20
-  assert(optionalHeader + optionalHeaderSize <= bytes.length &&
+  assert(optionalHeaderSize >= 128 &&
+    optionalHeader + optionalHeaderSize <= bytes.length &&
     bytes.readUInt16LE(optionalHeader) === 0x20b,
   `${label} has an invalid PE32+ optional header`)
   const directoryCount = bytes.readUInt32LE(optionalHeader + 108)
-  assert(directoryCount >= 2 && optionalHeaderSize >= 128,
+  assert(directoryCount >= 2,
     `${label} has no complete PE import directory`)
   const importRva = bytes.readUInt32LE(optionalHeader + 120)
   const importSize = bytes.readUInt32LE(optionalHeader + 124)
-  assert(importRva !== 0 && importSize >= 20 && importSize % 20 === 0,
+  assert(importRva !== 0 && importSize >= 40 && importSize % 20 === 0,
     `${label} has an invalid PE import directory`)
   const sizeOfHeaders = bytes.readUInt32LE(optionalHeader + 60)
   const sectionTable = optionalHeader + optionalHeaderSize
@@ -502,10 +506,14 @@ function peImportDllNames(bytes, label) {
     }
   })
   const rvaToOffset = (rva, length) => {
+    assert(Number.isInteger(rva) && rva >= 0 && rva <= 0xffffffff &&
+      Number.isInteger(length) && length > 0 && rva + length <= 0x100000000,
+    `${label} has an invalid PE RVA range`)
+    const matches = []
     if (rva < sizeOfHeaders) {
       assert(rva + length <= sizeOfHeaders && rva + length <= bytes.length,
         `${label} has an out-of-bounds PE header RVA`)
-      return rva
+      matches.push(rva)
     }
     for (const section of sections) {
       const delta = rva - section.virtualAddress
@@ -513,42 +521,270 @@ function peImportDllNames(bytes, label) {
         const offset = section.rawPointer + delta
         assert(offset + length <= bytes.length,
           `${label} has an out-of-bounds PE section RVA`)
-        return offset
+        matches.push(offset)
       }
     }
-    fail(`${label} has an unmapped PE RVA 0x${rva.toString(16)}`)
+    assert(matches.length === 1,
+      matches.length === 0
+        ? `${label} has an unmapped PE RVA 0x${rva.toString(16)}`
+        : `${label} has an ambiguous PE RVA 0x${rva.toString(16)}`)
+    return matches[0]
   }
-  const names = []
+  const readRvaAsciiString = (rva, description) => {
+    const offset = rvaToOffset(rva, 1)
+    const terminator = bytes.indexOf(0, offset)
+    assert(terminator > offset,
+      `${label} has an invalid or unterminated PE ${description}`)
+    rvaToOffset(rva, terminator - offset + 1)
+    for (let index = offset; index < terminator; index += 1)
+      assert(bytes[index] >= 0x21 && bytes[index] <= 0x7e,
+        `${label} has a non-printable PE ${description}`)
+    return bytes.subarray(offset, terminator).toString("ascii")
+  }
+  const readThunkNames = (thunkRva, description) => {
+    const names = []
+    let terminated = false
+    const maximumEntries = Math.min(65536, Math.floor(bytes.length / 8))
+    for (let index = 0; index < maximumEntries; index += 1) {
+      const currentRva = thunkRva + index * 8
+      const entryOffset = rvaToOffset(currentRva, 8)
+      const thunk = bytes.readBigUInt64LE(entryOffset)
+      if (thunk === 0n) {
+        terminated = true
+        break
+      }
+      assert((thunk & 0x8000000000000000n) === 0n,
+        `${label} has an ordinal ${description}; named provider imports are required`)
+      assert(thunk <= 0xffffffffn && Number(thunk) <= 0xfffffffd,
+        `${label} has an invalid PE import-by-name RVA`)
+      const nameRva = Number(thunk) + 2
+      rvaToOffset(Number(thunk), 3)
+      names.push(readRvaAsciiString(nameRva, "import symbol name"))
+    }
+    assert(terminated && names.length > 0,
+      `${label} has an unterminated or empty PE ${description}`)
+    return names.sort()
+  }
+  const importOffset = rvaToOffset(importRva, importSize)
+  const entries = []
+  const seenDlls = new Set()
   let terminated = false
   for (let index = 0; index < importSize / 20; index += 1) {
-    const descriptor = rvaToOffset(importRva + index * 20, 20)
+    const descriptor = importOffset + index * 20
     const fields = Array.from({ length: 5 }, (_, field) =>
       bytes.readUInt32LE(descriptor + field * 4))
     if (fields.every((field) => field === 0)) {
       terminated = true
       break
     }
-    const nameRva = fields[3]
-    assert(nameRva !== 0, `${label} has an import descriptor without a DLL name`)
-    const nameOffset = rvaToOffset(nameRva, 1)
-    const terminator = bytes.indexOf(0, nameOffset)
-    assert(terminator > nameOffset,
-      `${label} has an invalid or unterminated PE import DLL name`)
-    const name = bytes.subarray(nameOffset, terminator).toString("ascii")
-    assert(/^[A-Za-z0-9._-]+\.dll$/iu.test(name),
+    const [originalFirstThunk, , , nameRva, firstThunk] = fields
+    assert(nameRva !== 0,
+      `${label} has an import descriptor without a DLL name`)
+    assert(firstThunk !== 0,
+      `${label} has an import descriptor without an import address table`)
+    const name = readRvaAsciiString(nameRva, "import DLL name").toLowerCase()
+    assert(/^[a-z0-9._-]+\.dll$/u.test(name),
       `${label} has an invalid PE import DLL name: ${name}`)
-    names.push(name.toLowerCase())
+    assert(!seenDlls.has(name),
+      `${label} has duplicate PE import descriptors for ${name}`)
+    seenDlls.add(name)
+    const lookupRva = originalFirstThunk || firstThunk
+    const symbols = readThunkNames(lookupRva, `${name} import table`)
+    const addressTableOffset = rvaToOffset(firstThunk,
+      (symbols.length + 1) * 8)
+    assert(bytes.readBigUInt64LE(addressTableOffset + symbols.length * 8) === 0n,
+      `${label} has an unterminated ${name} import address table`)
+    entries.push({ dll: name, symbols })
   }
-  assert(terminated && names.length > 0,
+  assert(terminated && entries.length > 0,
     `${label} has an unterminated or empty PE import table`)
-  return [...new Set(names)].sort()
+  return entries.sort((left, right) => left.dll < right.dll ? -1 :
+    left.dll > right.dll ? 1 : 0)
 }
 
-function assertKernel32OnlyImports(bytes, label) {
-  const imports = peImportDllNames(bytes, label)
-  assert(JSON.stringify(imports) === JSON.stringify(["kernel32.dll"]),
-    `${label} has imports outside the selected Kernel32 capability: ` +
-      JSON.stringify(imports))
+function expectedKernel32Symbols(route, label) {
+  assert(route !== null && typeof route === "object" &&
+    typeof route.usesProcessArgumentAdapter === "boolean" &&
+    typeof route.writesStdout === "boolean",
+  `${label} has no explicit Windows import route`)
+  const symbols = ["ExitProcess"]
+  if (route.usesProcessArgumentAdapter) symbols.push("GetCommandLineW")
+  if (route.writesStdout) symbols.push("GetStdHandle", "WriteFile")
+  return symbols.sort()
+}
+
+function assertKernel32OnlyImports(bytes, label, route) {
+  const imports = peImportTable(bytes, label)
+  const expected = [{
+    dll: "kernel32.dll",
+    symbols: expectedKernel32Symbols(route, label),
+  }]
+  assert(JSON.stringify(imports) === JSON.stringify(expected),
+    `${label} has imports outside its exact Kernel32 route allowlist: ` +
+      `expected ${JSON.stringify(expected)}, observed ${JSON.stringify(imports)}`)
+  console.log(`W RUN Windows: imports ${label}: ${JSON.stringify(imports)}`)
+  return imports
+}
+
+function expectPeImportFailure(operation, expectedMessage, label) {
+  let caught
+  try {
+    operation()
+  } catch (error) {
+    caught = error
+  }
+  assert(caught instanceof Error && caught.message.includes(expectedMessage),
+    `${label} was not rejected with ${JSON.stringify(expectedMessage)}; ` +
+      `observed ${caught?.message ?? "acceptance"}`)
+}
+
+function syntheticPeImports({
+  dll = "kernel32.dll",
+  symbols = ["ExitProcess", "GetStdHandle", "WriteFile"],
+  importDirectory = true,
+  importSize = 40,
+  originalFirstThunk = 0x1040,
+  firstThunk = 0x1100,
+  ambiguousSectionMapping = false,
+  ordinal,
+} = {}) {
+  const bytes = Buffer.alloc(0x600)
+  const peOffset = 0x80
+  const fileHeader = peOffset + 4
+  const optionalHeader = fileHeader + 20
+  const sectionTable = optionalHeader + 0xf0
+  bytes.write("MZ", 0, "ascii")
+  bytes.writeUInt32LE(peOffset, 0x3c)
+  bytes.write("PE\0\0", peOffset, "binary")
+  bytes.writeUInt16LE(0x8664, fileHeader)
+  bytes.writeUInt16LE(ambiguousSectionMapping ? 2 : 1, fileHeader + 2)
+  bytes.writeUInt16LE(0xf0, fileHeader + 16)
+  bytes.writeUInt16LE(0x20b, optionalHeader)
+  bytes.writeUInt32LE(0x200, optionalHeader + 60)
+  bytes.writeUInt32LE(16, optionalHeader + 108)
+  if (importDirectory) {
+    bytes.writeUInt32LE(0x1000, optionalHeader + 120)
+    bytes.writeUInt32LE(importSize, optionalHeader + 124)
+  }
+  bytes.write(".rdata", sectionTable, "ascii")
+  bytes.writeUInt32LE(0x400, sectionTable + 8)
+  bytes.writeUInt32LE(0x1000, sectionTable + 12)
+  bytes.writeUInt32LE(0x400, sectionTable + 16)
+  bytes.writeUInt32LE(0x200, sectionTable + 20)
+  if (ambiguousSectionMapping) {
+    const secondSection = sectionTable + 40
+    bytes.write(".other", secondSection, "ascii")
+    bytes.writeUInt32LE(0x400, secondSection + 8)
+    bytes.writeUInt32LE(0x1000, secondSection + 12)
+    bytes.writeUInt32LE(0x400, secondSection + 16)
+    bytes.writeUInt32LE(0x200, secondSection + 20)
+  }
+
+  const sectionOffset = (rva) => 0x200 + (rva - 0x1000)
+  const writeString = (offset, value) => {
+    bytes.write(value, offset, "ascii")
+    bytes[offset + Buffer.byteLength(value, "ascii")] = 0
+  }
+  const descriptor = sectionOffset(0x1000)
+  bytes.writeUInt32LE(originalFirstThunk, descriptor)
+  bytes.writeUInt32LE(0, descriptor + 4)
+  bytes.writeUInt32LE(0, descriptor + 8)
+  bytes.writeUInt32LE(0x1030, descriptor + 12)
+  bytes.writeUInt32LE(firstThunk, descriptor + 16)
+  writeString(sectionOffset(0x1030), dll)
+  let nameOffset = sectionOffset(0x1080)
+  const lookupTableRva = originalFirstThunk || firstThunk
+  if (ordinal !== undefined && lookupTableRva !== 0) {
+    bytes.writeBigUInt64LE(0x8000000000000000n | BigInt(ordinal),
+      sectionOffset(lookupTableRva))
+    bytes.writeBigUInt64LE(0x8000000000000000n | BigInt(ordinal),
+      sectionOffset(0x1100))
+  } else if (lookupTableRva !== 0) {
+    for (let index = 0; index < symbols.length; index += 1) {
+      const symbol = symbols[index]
+      const hintNameRva = 0x1080 + (nameOffset - sectionOffset(0x1080))
+      bytes.writeBigUInt64LE(BigInt(hintNameRva),
+        sectionOffset(lookupTableRva) + index * 8)
+      bytes.writeBigUInt64LE(BigInt(hintNameRva), sectionOffset(0x1100) + index * 8)
+      bytes.writeUInt16LE(0, nameOffset)
+      writeString(nameOffset + 2, symbol)
+      nameOffset += 3 + Buffer.byteLength(symbol, "ascii")
+    }
+  }
+  return bytes
+}
+
+function runPeImportPolicySelfTests() {
+  const simpleOutput = syntheticPeImports()
+  const processAdapterOutput = syntheticPeImports({
+    symbols: ["ExitProcess", "GetCommandLineW", "GetStdHandle", "WriteFile"],
+  })
+  const processAdapterNoOutput = syntheticPeImports({
+    symbols: ["ExitProcess", "GetCommandLineW"],
+  })
+  const standaloneOutputRoute = {
+    usesProcessArgumentAdapter: false,
+    writesStdout: true,
+  }
+  const processAdapterNoOutputRoute = {
+    usesProcessArgumentAdapter: true,
+    writesStdout: false,
+  }
+  const argumentsOutput = {
+    usesProcessArgumentAdapter: true,
+    writesStdout: true,
+  }
+  assertKernel32OnlyImports(simpleOutput, "synthetic standalone-output product",
+    standaloneOutputRoute)
+  assertKernel32OnlyImports(processAdapterOutput,
+    "synthetic process-adapter-output product",
+    argumentsOutput)
+  assertKernel32OnlyImports(processAdapterNoOutput,
+    "synthetic process-error product", processAdapterNoOutputRoute)
+  assertKernel32OnlyImports(syntheticPeImports({
+    originalFirstThunk: 0,
+  }), "synthetic FirstThunk lookup product", standaloneOutputRoute)
+  expectPeImportFailure(() => assertKernel32OnlyImports(processAdapterOutput,
+    "synthetic over-imported standalone product", standaloneOutputRoute),
+  "exact Kernel32 route allowlist", "argument import outside standalone route")
+  expectPeImportFailure(() => peImportTable(syntheticPeImports({
+    importDirectory: false,
+  }), "synthetic missing import directory"), "invalid PE import directory",
+  "missing import directory")
+  expectPeImportFailure(() => peImportTable(syntheticPeImports({
+    importSize: 20,
+  }), "synthetic missing descriptor terminator"), "invalid PE import directory",
+  "ambiguous unterminated descriptor table")
+  expectPeImportFailure(() => peImportTable(syntheticPeImports({
+    ambiguousSectionMapping: true,
+  }), "synthetic ambiguous RVA mapping"), "ambiguous PE RVA",
+  "ambiguous section mapping")
+  expectPeImportFailure(() => peImportTable(syntheticPeImports({
+    originalFirstThunk: 0,
+    firstThunk: 0,
+  }), "synthetic descriptor without thunk table"),
+  "without an import address table", "ambiguous descriptor without thunk table")
+  expectPeImportFailure(() => assertKernel32OnlyImports(
+    syntheticPeImports({ dll: "user32.dll" }), "synthetic unexpected DLL",
+    standaloneOutputRoute), "exact Kernel32 route allowlist", "unexpected DLL")
+  expectPeImportFailure(() => assertKernel32OnlyImports(syntheticPeImports({
+    symbols: ["ExitProcess", "GetStdHandle", "WriteFile", "VirtualAlloc"],
+  }), "synthetic unexpected symbol", standaloneOutputRoute),
+  "exact Kernel32 route allowlist", "unexpected Kernel32 symbol")
+  expectPeImportFailure(() => peImportTable(syntheticPeImports({ ordinal: 42 }),
+    "synthetic ordinal import"), "ordinal", "ordinal import")
+  expectPeImportFailure(() => peImportTable(syntheticPeImports({ symbols: [] }),
+    "synthetic empty thunk table"), "empty PE kernel32.dll import table",
+  "empty import symbol table")
+  console.log("W RUN Windows: PE import policy self-test passed " +
+    "(process-error=ExitProcess/GetCommandLineW; " +
+    "standalone=ExitProcess/GetStdHandle/WriteFile; " +
+    "process-adapter-output=ExitProcess/GetCommandLineW/GetStdHandle/WriteFile)")
+}
+
+if (testPeImportPolicy) {
+  runPeImportPolicySelfTests()
+  process.exit(0)
 }
 
 if (process.platform !== "win32" || process.arch !== "x64") {
@@ -1393,7 +1629,8 @@ try {
     targetTriple, "--output", buildWhileBreakContinue], 0,
     Buffer.alloc(0), "build verified loop CFG fixture")
   assertKernel32OnlyImports(await readFile(buildWhileBreakContinue),
-    "built verified loop CFG artifact")
+    "built verified loop CFG artifact",
+    { usesProcessArgumentAdapter: false, writesStdout: true })
   expectExact(buildWhileBreakContinue, [], 0,
     Buffer.from("0,4,8\n", "utf8"),
     "execute built verified loop CFG artifact")
@@ -1449,7 +1686,8 @@ try {
   assertPeX64(await readFile(buildProcessFloatRoundingSuccess),
     "built constant float rounding success artifact")
   assertKernel32OnlyImports(await readFile(buildProcessFloatRoundingSuccess),
-    "built constant float rounding success artifact")
+    "built constant float rounding success artifact",
+    { usesProcessArgumentAdapter: true, writesStdout: true })
   expectExact(buildProcessFloatRoundingSuccess, [], 0,
     Buffer.from("Rounded 2\n", "utf8"),
     "execute built constant float rounding success artifact")
@@ -1461,7 +1699,8 @@ try {
   assertPeX64(processFloatRoundingRuntimeIfBytes,
     "built runtime conditional float rounding artifact")
   assertKernel32OnlyImports(processFloatRoundingRuntimeIfBytes,
-    "built runtime conditional float rounding artifact")
+    "built runtime conditional float rounding artifact",
+    { usesProcessArgumentAdapter: true, writesStdout: true })
   expectExact(buildProcessFloatRoundingRuntimeIf, [], 0,
     Buffer.from("Rounded 2\n", "utf8"),
     "execute built runtime conditional float rounding without arguments")
@@ -1474,7 +1713,8 @@ try {
   assertPeX64(await readFile(buildProcessFloatRoundingError),
     "built constant float rounding typed-error artifact")
   assertKernel32OnlyImports(await readFile(buildProcessFloatRoundingError),
-    "built constant float rounding typed-error artifact")
+    "built constant float rounding typed-error artifact",
+    { usesProcessArgumentAdapter: true, writesStdout: false })
   expectExact(buildProcessFloatRoundingError, [], 1, Buffer.alloc(0),
     "execute built constant float rounding typed-error artifact")
   expectExact(binary, ["build", processIntegerExactRuntimeFixture, "--target",
@@ -1506,7 +1746,8 @@ try {
   assertPeX64(processArgumentsCountBytes,
     "built process-arguments-count artifact")
   assertKernel32OnlyImports(processArgumentsCountBytes,
-    "built process-arguments-count artifact")
+    "built process-arguments-count artifact",
+    { usesProcessArgumentAdapter: true, writesStdout: true })
   expectExact(binary, ["build", processArgumentsCountSelectiveImportFixture,
     "--target", targetTriple, "--output", buildProcessArgumentsCountSelectiveImport],
     0, Buffer.alloc(0),
@@ -1516,7 +1757,8 @@ try {
   assertPeX64(selectiveImportBytes,
     "built selective-import process-arguments-count artifact")
   assertKernel32OnlyImports(selectiveImportBytes,
-    "built selective-import process-arguments-count artifact")
+    "built selective-import process-arguments-count artifact",
+    { usesProcessArgumentAdapter: true, writesStdout: true })
   const firstImportDifference = selectiveImportBytes.findIndex(
     (value, index) => flatImportBytes[index] !== value)
   assert(selectiveImportBytes.equals(flatImportBytes),
@@ -1554,7 +1796,8 @@ try {
   assertPeX64(processArgumentsOrderingBytes,
     "built ordered process-arguments artifact")
   assertKernel32OnlyImports(processArgumentsOrderingBytes,
-    "built ordered process-arguments artifact")
+    "built ordered process-arguments artifact",
+    { usesProcessArgumentAdapter: true, writesStdout: true })
   const orderedArgumentCountCases = [
     ["without user arguments", [], "Argument mode compact: count=0\n"],
     ["with one empty argument", [""], "Argument mode compact: count=1\n"],

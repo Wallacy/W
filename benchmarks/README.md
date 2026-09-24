@@ -31,19 +31,27 @@ After an executable passes its exact oracle, inspect the same pinned artifact
 while the next language feature advances. For a local PE or ELF product, run:
 
 ```sh
-bun tooling/artifact-inspection-receipt.mjs <artifact> [--post-opt-ir <optimized.ll>] [--object <product.o>]
+bun tooling/artifact-inspection-receipt.mjs <artifact> \
+  [--post-opt-ir <optimized.ll>] \
+  [--object <product.o> ...] \
+  [--allowlists <closure-policy.json>]
 ```
 
 The read-only JSON receipt separates file size, named section bytes, bytes
 covered by declared sections, bytes outside those sections, disassembly
-inventory, observed dependencies and optional IR/object externals. Bytes
+inventory, observed dependencies and optional IR/object externals. Every
+supplied object is inspected. An optional
+`w-artifact-inspection-allowlists-1` policy independently constrains post-opt
+IR externals, undefined object symbols, final imports, and final dependencies;
+a requested boundary that is absent, unsupported, ambiguous, or rejected makes
+the command exit with status 2. Partial textual IR parsing can reject an
+unexpected external but cannot prove closure. Bytes
 outside sections are not automatically linker overhead or wasted space.
 It is diagnostic input for a generic optimization candidate, not a benchmark
-result or a dependency-closure proof: omitted objects, partial textual IR
-parsing and absent runtime allowlists leave those checks explicitly `unknown`.
-Inspect all emitted objects and validate final policy through the product gate
-before claiming CRT-free output. Raw disassembly and temporary binaries remain
-local; keep only the current compact finding and reproducible recipe in Git.
+result. Inspect every emitted object, bind the policy to the selected provider
+and target ABI in the product gate, and validate the final artifact before
+claiming CRT-free output. Raw disassembly and temporary binaries remain local;
+keep only the current compact finding and reproducible recipe in Git.
 
 ### Executable benchmark catalog (M3a)
 

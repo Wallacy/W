@@ -10,6 +10,7 @@ import {
 
 const MAX_TOOL_OUTPUT_BYTES = 128 * 1024 * 1024;
 const MAX_INPUT_FILE_BYTES = 128 * 1024 * 1024;
+const MAX_ALLOWLIST_BYTES = 1024 * 1024;
 const KEY_SECTION_NAMES = [".text", ".rodata", ".rdata"];
 
 function fail(message) {
@@ -61,7 +62,7 @@ function detectArtifactFormat(bytes) {
   fail("artifact is neither a recognized PE nor ELF file");
 }
 
-async function readRegularFile(inputPath, label, cwd) {
+async function readRegularFile(inputPath, label, cwd, maxBytes = MAX_INPUT_FILE_BYTES) {
   if (typeof inputPath !== "string" || inputPath.length === 0) fail(`${label} path is required`);
   const absolutePath = path.resolve(cwd, inputPath);
   let stats;
@@ -71,7 +72,7 @@ async function readRegularFile(inputPath, label, cwd) {
     fail(`${label} cannot be read: ${error.message}`);
   }
   if (!Number.isSafeInteger(stats.size) || stats.size < 0) fail(`${label} has an unsupported file size`);
-  if (stats.size > MAX_INPUT_FILE_BYTES) fail(`${label} exceeds the 128 MiB input safety limit`);
+  if (stats.size > maxBytes) fail(`${label} exceeds the ${maxBytes / (1024 * 1024)} MiB input safety limit`);
   if (!stats.isFile() || stats.isSymbolicLink()) fail(`${label} must be a regular non-link file`);
   let bytes;
   try {
@@ -233,6 +234,7 @@ function parseElfJson(text, artifactBytes) {
   } catch {
     fail("llvm-readobj returned invalid ELF JSON");
   }
+  if (Array.isArray(parsed) && parsed.length !== 1) fail("llvm-readobj returned an ambiguous ELF file-record count");
   const record = Array.isArray(parsed) ? parsed[0] : parsed;
   if (!record || typeof record !== "object" || !/^elf(?:32|64)-/iu.test(record.FileSummary?.Format ?? "")) {
     fail("llvm-readobj did not return ELF section data");
@@ -261,12 +263,21 @@ function parseNamedToolBlocks(text, heading) {
 
 function parseCoffImports(text) {
   const imports = [];
+  const seen = new Set();
   for (const [kind, heading] of [["regular", "Import"], ["delay", "DelayImport"]]) {
-    for (const body of parseNamedToolBlocks(text, heading)) {
+    const starts = [...text.matchAll(new RegExp(`^${heading} \\{`, "gmu"))].length;
+    const blocks = parseNamedToolBlocks(text, heading);
+    if (starts !== blocks.length) fail(`llvm-readobj returned a malformed ${heading} block`);
+    for (const body of blocks) {
       const library = /^\s+Name:\s+([^\r\n]+)\s*$/mu.exec(body)?.[1]?.trim();
-      if (!library) continue;
+      if (!library) fail(`llvm-readobj returned a ${heading} block without a library name`);
+      const key = `${library.toLowerCase()}\0${kind}`;
+      if (seen.has(key)) fail(`llvm-readobj returned an ambiguous duplicate ${heading} block for ${library}`);
+      seen.add(key);
       const symbols = [...body.matchAll(/^\s+Symbol:\s+([^\r\n]+?)\s*(?:\([^\r\n]*\))?\s*$/gmu)]
         .map((match) => match[1].trim());
+      if (symbols.length === 0) fail(`llvm-readobj returned an ${heading} block without import symbols for ${library}`);
+      if (new Set(symbols).size !== symbols.length) fail(`llvm-readobj returned duplicate import symbols for ${library}`);
       imports.push({ library, kind, symbols });
     }
   }
@@ -275,16 +286,31 @@ function parseCoffImports(text) {
 
 function parseElfDependencies(record) {
   const libraries = record.NeededLibraries;
-  if (Array.isArray(libraries) && libraries.every((value) => typeof value === "string")) {
-    return { status: "observed", items: [...new Set(libraries)].sort() };
+  if (libraries !== undefined && libraries !== null && (!Array.isArray(libraries) || !libraries.every((value) => typeof value === "string"))) {
+    fail("llvm-readobj returned a malformed NeededLibraries inventory");
+  }
+  const neededLibraries = Array.isArray(libraries) && libraries.every((value) => typeof value === "string")
+    ? [...new Set(libraries)].sort()
+    : undefined;
+  if (record.DynamicSection !== undefined && record.DynamicSection !== null && !Array.isArray(record.DynamicSection)) {
+    fail("llvm-readobj returned a malformed ELF dynamic-section inventory");
   }
   if (Array.isArray(record.DynamicSection)) {
-    const needed = record.DynamicSection.filter((entry) => entry?.Type === "NEEDED" && typeof entry.Library === "string")
-      .map((entry) => entry.Library);
-    if (record.DynamicSection.every((entry) => entry?.Type !== "NEEDED" || typeof entry.Library === "string")) {
-      return { status: "observed", items: [...new Set(needed)].sort() };
+    if (record.DynamicSection.some((entry) => !entry || typeof entry !== "object" || typeof entry.Type !== "string")) {
+      fail("llvm-readobj returned a malformed ELF dynamic-section entry");
     }
+    if (record.DynamicSection.some((entry) => entry?.Type === "NEEDED" && typeof entry.Library !== "string")) {
+      fail("llvm-readobj returned a DT_NEEDED entry without a library name");
+    }
+    const dynamicLibraries = [...new Set(record.DynamicSection
+      .filter((entry) => entry?.Type === "NEEDED")
+      .map((entry) => entry.Library))].sort();
+    if (neededLibraries !== undefined && JSON.stringify(neededLibraries) !== JSON.stringify(dynamicLibraries)) {
+      fail("llvm-readobj returned conflicting DT_NEEDED inventories");
+    }
+    return { status: "observed", items: dynamicLibraries };
   }
+  if (neededLibraries !== undefined) return { status: "observed", items: neededLibraries };
   return { status: "unknown", items: [], reason: "llvm-readobj did not provide a complete DT_NEEDED inventory" };
 }
 
@@ -372,6 +398,154 @@ function parsePostOptIR(bytes) {
   };
 }
 
+function validateSymbolList(value, label) {
+  if (!Array.isArray(value)) fail(`${label} must be an explicit array`);
+  const seen = new Set();
+  for (const symbol of value) {
+    if (typeof symbol !== "string" || symbol.trim().length === 0 || symbol.includes("\0")) {
+      fail(`${label} must contain only non-empty symbol strings`);
+    }
+    if (seen.has(symbol)) fail(`${label} contains a duplicate symbol: ${symbol}`);
+    seen.add(symbol);
+  }
+  return [...seen].sort();
+}
+
+function compareText(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function normalizeAllowlists(value) {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== "object" || Array.isArray(value)) fail("allowlists must be an object");
+  if (value.schema !== "w-artifact-inspection-allowlists-1") fail("allowlists.schema must be w-artifact-inspection-allowlists-1");
+  const allowedKeys = new Set([
+    "schema", "postOptIrExternals", "objectUndefinedSymbols", "finalImports", "finalDependencies",
+  ]);
+  for (const key of Object.keys(value)) if (!allowedKeys.has(key)) fail(`unknown allowlist boundary: ${key}`);
+
+  const normalized = { schema: value.schema };
+  if (Object.hasOwn(value, "postOptIrExternals")) {
+    const entry = value.postOptIrExternals;
+    if (!entry || typeof entry !== "object" || Array.isArray(entry) ||
+        Object.keys(entry).some((key) => !["functions", "globals"].includes(key))) {
+      fail("postOptIrExternals must contain only functions and globals arrays");
+    }
+    normalized.postOptIrExternals = {
+      functions: validateSymbolList(entry.functions, "postOptIrExternals.functions"),
+      globals: validateSymbolList(entry.globals, "postOptIrExternals.globals"),
+    };
+  }
+  if (Object.hasOwn(value, "objectUndefinedSymbols")) {
+    normalized.objectUndefinedSymbols = validateSymbolList(value.objectUndefinedSymbols, "objectUndefinedSymbols");
+  }
+  if (Object.hasOwn(value, "finalImports")) {
+    if (!Array.isArray(value.finalImports)) fail("finalImports must be an explicit array");
+    const seen = new Set();
+    normalized.finalImports = value.finalImports.map((item, index) => {
+      if (!item || typeof item !== "object" || Array.isArray(item) ||
+          Object.keys(item).some((key) => !["library", "kind", "symbols"].includes(key))) {
+        fail(`finalImports[${index}] must contain only library, kind, and symbols`);
+      }
+      const { library, kind } = item;
+      if (typeof library !== "string" || library.trim().length === 0 || library.includes("\0")) {
+        fail(`finalImports[${index}].library must be a non-empty string`);
+      }
+      if (!["regular", "delay"].includes(kind)) fail(`finalImports[${index}].kind must be regular or delay`);
+      const key = `${library.toLowerCase()}\0${kind}`;
+      if (seen.has(key)) fail(`finalImports contains a duplicate library/kind entry: ${library}/${kind}`);
+      seen.add(key);
+      return { library, kind, symbols: validateSymbolList(item.symbols, `finalImports[${index}].symbols`) };
+    }).sort((left, right) => compareText(left.library, right.library) || compareText(left.kind, right.kind));
+  }
+  if (Object.hasOwn(value, "finalDependencies")) {
+    normalized.finalDependencies = validateSymbolList(value.finalDependencies, "finalDependencies");
+  }
+  if (Object.keys(normalized).length === 1) fail("allowlists must declare at least one closure boundary");
+  return normalized;
+}
+
+function closureCheck({ allowlist, evidenceStatus, references, label, reason, coverage = "complete" }) {
+  if (allowlist === undefined) {
+    return { status: "unknown", reason: `no explicit ${label} allowlist was supplied` };
+  }
+  if (evidenceStatus !== "observed") {
+    return { status: "unknown", reason: reason ?? `${label} evidence was not observed` };
+  }
+  const allowed = new Set(allowlist);
+  const unexpectedReferences = [...new Set(references)].filter((reference) => !allowed.has(reference)).sort();
+  if (unexpectedReferences.length > 0) {
+    return {
+      basis: "exact-comparison-with-caller-supplied-allowlist",
+      status: "rejected",
+      allowedReferenceCount: allowed.size,
+      observedReferenceCount: new Set(references).size,
+      unexpectedReferences,
+      ...(coverage === "complete" ? {} : { reason: `${label} evidence has ${coverage} parser coverage` }),
+    };
+  }
+  if (coverage !== "complete") {
+    return {
+      basis: "exact-comparison-with-caller-supplied-allowlist",
+      status: "unknown",
+      allowedReferenceCount: allowed.size,
+      observedReferenceCount: new Set(references).size,
+      unexpectedReferences,
+      reason: `${label} evidence has ${coverage} parser coverage; closure was not proven`,
+    };
+  }
+  return {
+    basis: "exact-comparison-with-caller-supplied-allowlist",
+    status: "passed",
+    allowedReferenceCount: allowed.size,
+    observedReferenceCount: new Set(references).size,
+    unexpectedReferences: [],
+  };
+}
+
+function finalImportClosureCheck(allowlist, imports) {
+  if (allowlist === undefined) return { status: "unknown", reason: "no explicit final-import allowlist was supplied" };
+  if (imports.status !== "observed") {
+    return { status: "unknown", reason: imports.reason ?? "final import inventory was not observed" };
+  }
+  const allowedByLibrary = new Map(allowlist.map((entry) => [
+    `${entry.library.toLowerCase()}\0${entry.kind}`,
+    new Set(entry.symbols),
+  ]));
+  const unexpectedReferences = [];
+  for (const entry of imports.items) {
+    const symbols = allowedByLibrary.get(`${entry.library.toLowerCase()}\0${entry.kind}`);
+    if (!symbols) {
+      unexpectedReferences.push(`${entry.library} (${entry.kind})`);
+      continue;
+    }
+    for (const symbol of entry.symbols) {
+      if (!symbols.has(symbol)) unexpectedReferences.push(`${entry.library}!${symbol} (${entry.kind})`);
+    }
+  }
+  return {
+    basis: "exact-comparison-with-caller-supplied-allowlist",
+    status: unexpectedReferences.length === 0 ? "passed" : "rejected",
+    allowedLibraryKindCount: allowedByLibrary.size,
+    observedLibraryKindCount: imports.items.length,
+    unexpectedReferences: [...new Set(unexpectedReferences)].sort(),
+  };
+}
+
+function allowlistReceipt(allowlists, source, bytes) {
+  if (allowlists === undefined) return { status: "unknown", reason: "no closure allowlists were supplied" };
+  const serialized = JSON.stringify(allowlists);
+  return {
+    status: "observed",
+    source,
+    authority: "caller-supplied; provider identity and target/ABI authorization are not authenticated",
+    sha256: sha256(bytes ?? Buffer.from(serialized, "utf8")),
+    schema: allowlists.schema,
+    boundaries: Object.keys(allowlists).filter((key) => key !== "schema").sort(),
+    policy: allowlists,
+  };
+}
+
 function disassemblySummary(text) {
   const instructionLines = text.split(/\r?\n/u).filter((line) => /^\s*[0-9a-f]+:\s+\S/iu.test(line)).length;
   const bytes = Buffer.from(text, "utf8");
@@ -383,8 +557,9 @@ export function parseArtifactInspectionArguments(argv) {
   if (argv.length === 1 && ["--help", "-h"].includes(argv[0])) return { help: true };
   let artifact;
   let postOptIr;
-  let object;
+  const objects = [];
   let toolchainDirectory;
+  let allowlistsPath;
   let positionalOnly = false;
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -393,7 +568,7 @@ export function parseArtifactInspectionArguments(argv) {
       continue;
     }
     const option = !positionalOnly && argument.startsWith("--") ? argument.split("=", 1)[0] : undefined;
-    if (option === "--post-opt-ir" || option === "--object" || option === "--toolchain-dir") {
+    if (option === "--post-opt-ir" || option === "--object" || option === "--toolchain-dir" || option === "--allowlists") {
       const inline = argument.startsWith(`${option}=`) ? argument.slice(option.length + 1) : undefined;
       const value = inline ?? argv[++index];
       if (typeof value !== "string" || value.length === 0 || value.startsWith("--")) fail(`${option} requires a path`);
@@ -401,11 +576,13 @@ export function parseArtifactInspectionArguments(argv) {
         if (postOptIr !== undefined) fail("--post-opt-ir may be specified only once");
         postOptIr = value;
       } else if (option === "--object") {
-        if (object !== undefined) fail("--object may be specified only once");
-        object = value;
-      } else {
+        objects.push(value);
+      } else if (option === "--toolchain-dir") {
         if (toolchainDirectory !== undefined) fail("--toolchain-dir may be specified only once");
         toolchainDirectory = value;
+      } else {
+        if (allowlistsPath !== undefined) fail("--allowlists may be specified only once");
+        allowlistsPath = value;
       }
       continue;
     }
@@ -418,20 +595,23 @@ export function parseArtifactInspectionArguments(argv) {
     help: false,
     artifact,
     postOptIr,
-    object,
+    objectPaths: objects,
+    ...(allowlistsPath === undefined ? {} : { allowlistsPath }),
     ...(toolchainDirectory === undefined ? {} : { toolchainDirectory }),
   };
 }
 
 export function artifactInspectionUsage() {
   return [
-    "usage: bun tooling/artifact-inspection-receipt.mjs <artifact> [--post-opt-ir <file.ll>] [--object <file.o|file.obj>] [--toolchain-dir <materialized-toolchain>]",
+    "usage: bun tooling/artifact-inspection-receipt.mjs <artifact> [--post-opt-ir <file.ll>] [--object <file.o|file.obj> ...] [--allowlists <file.json>] [--toolchain-dir <materialized-toolchain>]",
     "",
     "Reads one PE or ELF artifact and emits a compact JSON evidence receipt.",
+    "Repeated --object options inspect every supplied object with llvm-nm.",
     "By default llvm-readobj, llvm-objdump, and (when --object is used) llvm-nm are resolved on PATH.",
     "--toolchain-dir validates an existing pinned Windows materialization and resolves exact tool basenames from its archive inventory without PATH fallback.",
+    "--allowlists supplies explicit per-boundary symbol/import/dependency allowlists using schema w-artifact-inspection-allowlists-1.",
     "Input files and each tool's combined output are capped at 128 MiB.",
-    "Dependency closure and CRT-free status are always reported as unknown; inventories are not an allowlist proof.",
+    "CRT-free status remains unknown; a partial IR scan or unsupported import inventory cannot prove closure.",
   ].join("\n");
 }
 
@@ -439,12 +619,35 @@ export async function createArtifactInspectionReceipt({
   artifactPath,
   postOptIrPath,
   objectPath,
+  objectPaths,
   toolchainDir,
+  allowlists: allowlistsInput,
+  allowlistsPath,
   cwd = process.cwd(),
   findTool = defaultFindTool,
   runTool = defaultRunTool,
   loadMaterialization = loadPinnedMaterialization,
 } = {}) {
+  if (objectPath !== undefined && objectPaths !== undefined) fail("use either objectPath or objectPaths, not both");
+  const requestedObjectPaths = objectPaths === undefined ? (objectPath === undefined ? [] : [objectPath]) : objectPaths;
+  if (!Array.isArray(requestedObjectPaths)) fail("objectPaths must be an array");
+  if (requestedObjectPaths.some((item) => typeof item !== "string" || item.length === 0)) fail("objectPaths must contain non-empty paths");
+  if (allowlistsInput !== undefined && allowlistsPath !== undefined) fail("use either inline allowlists or allowlistsPath, not both");
+
+  let allowlistSnapshot;
+  let suppliedAllowlists = allowlistsInput;
+  let allowlistSource = "caller-inline";
+  if (allowlistsPath !== undefined) {
+    allowlistSnapshot = await readRegularFile(allowlistsPath, "allowlists", cwd, MAX_ALLOWLIST_BYTES);
+    try {
+      suppliedAllowlists = JSON.parse(allowlistSnapshot.bytes.toString("utf8"));
+    } catch (error) {
+      fail(`allowlists file is not valid JSON: ${error.message}`);
+    }
+    allowlistSource = allowlistSnapshot.path;
+  }
+  const allowlists = normalizeAllowlists(suppliedAllowlists);
+
   const artifact = await readRegularFile(artifactPath, "artifact", cwd);
   const format = detectArtifactFormat(artifact.bytes);
   const toolchain = toolchainDir === undefined
@@ -483,33 +686,100 @@ export async function createArtifactInspectionReceipt({
     };
   }
 
-  let objectUndefinedSymbols = { status: "unknown", items: [], reason: "no object path was supplied" };
-  let objectSnapshot;
+  const objectSnapshots = [];
+  const objectRecords = [];
   let llvmNmPath = null;
-  if (objectPath !== undefined) {
-    const object = await readRegularFile(objectPath, "object", cwd);
+  const resolvedObjectPaths = new Set();
+  for (const objectPathValue of requestedObjectPaths) {
+    const object = await readRegularFile(objectPathValue, "object", cwd);
+    const pathKey = process.platform === "win32" ? object.path.toLowerCase() : object.path;
+    if (resolvedObjectPaths.has(pathKey)) fail(`object path was supplied more than once: ${object.path}`);
+    resolvedObjectPaths.add(pathKey);
     const nm = invokeTool("llvm-nm", ["--undefined-only", "--format=posix", object.path], toolFindContext);
-    objectSnapshot = object;
+    objectSnapshots.push(object);
     llvmNmPath = nm.executable;
-    objectUndefinedSymbols = {
-      status: "observed",
+    objectRecords.push({
       path: object.path,
       bytes: object.size,
       sha256: sha256(object.bytes),
-      items: parseUndefinedSymbols(nm.stdout, nm.stderr),
-    };
+      undefinedSymbols: parseUndefinedSymbols(nm.stdout, nm.stderr),
+    });
   }
 
-  for (const [label, snapshot] of [["artifact", artifact], ["post-opt IR", postOptIrSnapshot], ["object", objectSnapshot]]) {
+  const checkedSnapshots = [
+    { label: "artifact", snapshot: artifact },
+    { label: "post-opt IR", snapshot: postOptIrSnapshot },
+    { label: "allowlists", snapshot: allowlistSnapshot, maxBytes: MAX_ALLOWLIST_BYTES },
+    ...objectSnapshots.map((snapshot) => ({ label: "object", snapshot })),
+  ];
+  for (const { label, snapshot, maxBytes } of checkedSnapshots) {
     if (!snapshot) continue;
-    const after = await readRegularFile(snapshot.path, label, cwd);
+    const after = await readRegularFile(snapshot.path, label, cwd, maxBytes);
     if (after.size !== snapshot.size || sha256(after.bytes) !== sha256(snapshot.bytes) || after.modifiedMs !== snapshot.modifiedMs) {
       fail(`${label} changed during inspection; no receipt was emitted`);
     }
   }
 
+  const postOptFunctions = postOptIr?.externals.externalFunctions ?? [];
+  const postOptGlobals = postOptIr?.externals.externalGlobals ?? [];
+  const objectSymbols = objectRecords.flatMap((record) => record.undefinedSymbols);
+  const postOptAllowlist = allowlists?.postOptIrExternals;
+  const postOptExternalClosure = closureCheck({
+    allowlist: postOptAllowlist === undefined ? undefined : [
+      ...postOptAllowlist.functions.map((symbol) => `function:${symbol}`),
+      ...postOptAllowlist.globals.map((symbol) => `global:${symbol}`),
+    ],
+    evidenceStatus: postOptIr === undefined ? "unknown" : "observed",
+    references: [
+      ...postOptFunctions.map((symbol) => `function:${symbol}`),
+      ...postOptGlobals.map((symbol) => `global:${symbol}`),
+    ],
+    label: "post-opt IR external",
+    reason: "a post-opt .ll file was not supplied",
+    coverage: postOptIr?.externals.coverage ?? "unknown",
+  });
+  const objectUndefinedSymbolClosure = closureCheck({
+    allowlist: allowlists?.objectUndefinedSymbols,
+    evidenceStatus: objectRecords.length === 0 ? "unknown" : "observed",
+    references: objectSymbols,
+    label: "object undefined-symbol",
+    reason: "no object files were supplied",
+  });
+  const finalDependencyClosure = closureCheck({
+    allowlist: allowlists?.finalDependencies,
+    evidenceStatus: inventory.dependencies.status,
+    references: inventory.dependencies.items,
+    label: "final dependency",
+    reason: inventory.dependencies.reason ?? "final dependency inventory was not observed",
+  });
+  const finalImports = finalImportClosureCheck(allowlists?.finalImports, inventory.imports);
+  const allowlistInfo = allowlistReceipt(allowlists, allowlistSource, allowlistSnapshot?.bytes);
+  const checks = {
+    postOptExternalClosure,
+    suppliedObjectUndefinedSymbolClosure: objectUndefinedSymbolClosure,
+    finalImportClosure: finalImports,
+    finalDependencyClosure,
+    crtFree: { status: "unknown", reason: "inventory alone cannot rule out statically linked runtime code or establish the product's runtime policy" },
+  };
+  const boundaryChecks = {
+    postOptIrExternals: postOptExternalClosure,
+    objectUndefinedSymbols: objectUndefinedSymbolClosure,
+    finalImports,
+    finalDependencies: finalDependencyClosure,
+  };
+  const requestedBoundaries = Object.keys(allowlists ?? {}).filter((key) => key !== "schema");
+  const nonPassingBoundaries = requestedBoundaries.filter((key) => boundaryChecks[key].status !== "passed");
+  checks.requestedClosureValidation = {
+    status: requestedBoundaries.length === 0 ? "not-requested" : nonPassingBoundaries.length === 0 ? "passed" : "incomplete",
+    scope: "requested caller-allowlist comparisons only",
+    requestedBoundaries: requestedBoundaries.sort(),
+    nonPassingBoundaries: nonPassingBoundaries.sort(),
+    ...(nonPassingBoundaries.length === 0 ? {} : { reason: "every requested closure boundary must pass; unknown or rejected evidence is non-passing" }),
+  };
+
   return {
-    schema: "w-artifact-inspection-receipt-1",
+    schema: "w-artifact-inspection-receipt-2",
+    allowlists: allowlistInfo,
     artifact: { path: artifact.path, format, bytes: artifact.size, sha256: sha256(artifact.bytes) },
     sectionInventory: { status: "observed", items: inventory.sections, keySectionFileBytes: namedSectionBytes(inventory.sections) },
     fileByteAccounting: {
@@ -521,13 +791,10 @@ export async function createArtifactInspectionReceipt({
     dependencies: inventory.dependencies,
     disassembly: disassemblySummary(disassembly.stdout),
     postOptIr: postOptIr ?? { status: "unknown", reason: "no post-opt .ll path was supplied" },
-    objectUndefinedSymbols,
-    checks: {
-      postOptExternalClosure: { status: "unknown", reason: "the optional textual IR scan is partial and no required-symbol policy was supplied" },
-      allObjectUndefinedSymbolClosure: { status: "unknown", reason: "at most one explicit object was inspected; no complete object manifest or allowlist was supplied" },
-      finalDependencyClosure: { status: "unknown", reason: "observed imports/dependencies were not compared with a selected WRT, target SDK, provider, or hosted-capability allowlist" },
-      crtFree: { status: "unknown", reason: "inventory alone cannot rule out statically linked runtime code or establish the product's runtime policy" },
-    },
+    objectUndefinedSymbols: objectRecords.length === 0
+      ? { status: "unknown", scope: "caller-supplied-object-paths", items: [], reason: "no object paths were supplied" }
+      : { status: "observed", scope: "caller-supplied-object-paths", items: objectRecords },
+    checks,
     tools: {
       resolution: toolchain.selected === null ? "PATH" : "validated-materialized-toolchain",
       toolchainDirectory: toolchain.directory,
@@ -548,10 +815,12 @@ export async function main(argv = process.argv.slice(2)) {
     const receipt = await createArtifactInspectionReceipt({
       artifactPath: args.artifact,
       postOptIrPath: args.postOptIr,
-      objectPath: args.object,
+      objectPaths: args.objectPaths,
+      allowlistsPath: args.allowlistsPath,
       toolchainDir: args.toolchainDirectory,
     });
     process.stdout.write(`${JSON.stringify(receipt)}\n`);
+    if (receipt.checks.requestedClosureValidation.status === "incomplete") return 2;
     return 0;
   } catch (error) {
     process.stderr.write(`${error?.message ?? String(error)}\n`);

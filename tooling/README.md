@@ -76,7 +76,15 @@ bun tooling/artifact-inspection-receipt.mjs build/w-windows/w.exe `
 ```
 
 The selected executable paths and resolution source are recorded in the
-receipt. `llvm-nm.exe` is required only when `--object` is supplied.
+receipt. Repeat `--object` for every emitted object; `llvm-nm.exe` is required
+when at least one is supplied. `--allowlists <file.json>` accepts a
+`w-artifact-inspection-allowlists-1` policy with independent entries for
+post-opt IR externals, undefined object symbols, final PE imports, and final
+dependencies. Requested boundaries must pass or the CLI exits with status 2.
+The receipt records the policy and digest, but the product gate must still
+authenticate its provider authority and target/ABI applicability. ELF symbol
+imports and the current partial textual IR scanner remain explicit unknowns,
+never inferred successes.
 
 Use o runner para inspecionar uma suíte antes de executá-la:
 
