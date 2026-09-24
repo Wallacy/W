@@ -259,16 +259,13 @@ This is `compiler-lifecycle` correctness evidence only, with no performance
 claim or new benchmark row. Windows backslash-before-quote behavior remains
 parity with the current adapter, not a claim of complete CRT decoding.
 
-The current optimization audit cannot inspect a measured product after the
-fact: `w build` removes its intermediate MLIR, LLVM IR, and objects, and the
-benchmark runner discards the measured artifact. Add an explicit, bounded
-audit-only output directory for one pinned build, retaining pre/post-opt IR,
-every emitted object, and the final product until the audit closes; normal
-builds and benchmarks must keep their cleanup behavior. Extend the dependency
-receipt across *all* objects before claiming whole-product closure. Keep this
-inspection lane separate from ranked benchmark samples and clean its output
-at the next safe checkpoint. This unblocks evidence for the W/WRT0
-cross-object candidate without turning temporary traces into repository
+`w build --audit-dir` now retains one pinned build's pre/post-opt IR, every
+emitted object and final product in an explicit bounded directory; normal
+builds and benchmarks retain their cleanup behavior. Use that surface to audit
+the W/WRT0 cross-object optimization candidate and extend the dependency
+receipt across every object before claiming whole-product closure. Keep this
+inspection lane separate from ranked benchmark samples and clean it at the
+next safe checkpoint; retained traces are evidence inputs, not repository
 history.
 
 ### Evidence promotion and safety closure
