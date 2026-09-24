@@ -63,6 +63,23 @@ when its design contract, executable implementation, focused positive and
 negative evidence, target/provider status, and benchmark disposition are all
 recorded.
 
+### Graphics and scene-library candidate
+
+[`WGFX0`](../tooling/studies/wgfx0-first-party-scene-graphics/) studies a
+Three.js-inspired W-native graphics surface. The candidate retains the compact
+scene/camera/geometry/material/texture/light/animation vocabulary, explicit
+loaders, and composable render passes, but does not copy the JavaScript object
+model or make a complete engine part of `std`.
+
+The proposed ownership boundary is deliberately narrow: bundled `std` may own
+portable color, image, extent, transform, bounded asset-byte, resource, and
+presentation foundations. A first-party package owns scene construction,
+materials, animation, culling, instancing, and render-graph composition. Target
+providers own devices, surfaces, swapchains, synchronization, shader artifacts,
+and presentation; optional loaders, controls, effects, physics, and editors stay
+separately reachable packages. This is a study and future witness plan, not an
+available standard-library module or provider.
+
 ## Módulos e contratos
 
 Cada diretório abaixo é um módulo concreto. Ele declara target facts, required

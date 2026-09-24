@@ -21,17 +21,17 @@
     ]
   },
   "counts": {
-    "studyDirectories": 75,
-    "metadataFiles": 98,
-    "fixtureFiles": 344,
+    "studyDirectories": 76,
+    "metadataFiles": 99,
+    "fixtureFiles": 345,
     "references": 915,
     "digestReferences": 772,
     "pathOnlyReferences": 143,
     "dependencyEdges": 54,
     "entrypoints": 56,
     "scripts": 107,
-    "roots": 23,
-    "leaves": 73,
+    "roots": 24,
+    "leaves": 74,
     "missing": 0,
     "stale": 0,
     "duplicates": 0,
@@ -623,14 +623,14 @@
     {
       "path": "tooling/studies/r1c0-closure/manifest.json",
       "kind": "manifest",
-      "digest": "sha256:976e4ed9712d278c2e8f04c8ea3ce010ed12b2c63093b492af831c1315bfc4a1",
+      "digest": "sha256:22cde8e3d74bbd8b6c303979127c7df494465d468621eaf77bb5d82a37b86f4f",
       "status": "design-oracle-input",
       "id": "R1C0"
     },
     {
       "path": "tooling/studies/r1c0-closure/study.json",
       "kind": "study",
-      "digest": "sha256:555c6c2b37af994cfae5288de70cb65091fa209aede8543acbb7b12f2db2fb7f",
+      "digest": "sha256:e4133b25b94d3377969efcca828051079a5fd3388177659e5cf411a869e030d6",
       "status": "design-oracle-input",
       "id": "R1C0"
     },
@@ -717,6 +717,13 @@
       "digest": "sha256:30d481ea94a8cacaa6d06956e3610da6d58e7ffd10eeb74bae435d69571354ba",
       "status": "design-oracle-input",
       "id": "WCCP0"
+    },
+    {
+      "path": "tooling/studies/wgfx0-first-party-scene-graphics/study.json",
+      "kind": "study",
+      "digest": "sha256:20782c14b8a559bfd6841555e4b55e8440afa08035dc03e2e6879fea5138ba6e",
+      "status": "design-oracle-input",
+      "id": "WGFX0"
     },
     {
       "path": "tooling/studies/wvui0-web-ui-providers/study.json",
@@ -1070,6 +1077,7 @@
     "tooling/studies/tgm0-task-group-map-collect/oracle.mjs",
     "tooling/studies/tgm0-task-group-map-collect/oracle.test.mjs",
     "tooling/studies/wccp0-computable-contracts/README.md",
+    "tooling/studies/wgfx0-first-party-scene-graphics/README.md",
     "tooling/studies/wvui0-web-ui-providers/README.md"
   ],
   "scripts": [
@@ -5845,6 +5853,43 @@
       }
     },
     {
+      "directory": "tooling/studies/wgfx0-first-party-scene-graphics",
+      "id": "WGFX0",
+      "title": "First-party scene and graphics library inspired by proven web 3D ergonomics",
+      "status": "design-oracle-input",
+      "ids": [
+        "WGFX0",
+        "candidate-study-only"
+      ],
+      "gates": [],
+      "metadata": [
+        97
+      ],
+      "fixtures": [
+        343
+      ],
+      "references": [],
+      "entrypoints": [
+        29,
+        30,
+        31,
+        32,
+        41,
+        42,
+        45,
+        46,
+        47,
+        48,
+        49,
+        53,
+        54
+      ],
+      "dependencies": {
+        "inbound": [],
+        "outbound": []
+      }
+    },
+    {
       "directory": "tooling/studies/wvui0-web-ui-providers",
       "id": "WVUI0",
       "title": "First-party web UI providers for embedded, browser, and terminal targets",
@@ -5855,10 +5900,10 @@
       ],
       "gates": [],
       "metadata": [
-        97
+        98
       ],
       "fixtures": [
-        343
+        344
       ],
       "references": [],
       "entrypoints": [
@@ -13429,7 +13474,7 @@
       "pointer": "snapshot.path",
       "path": "tooling/r1c0-closure-results.snapshot.jsonl",
       "resolved": "tooling/r1c0-closure-results.snapshot.jsonl",
-      "declaredDigest": "sha256:c1d3478e6a26de3aaff18526e6855dc7fb2e0acac48fda810bc39af09e5384d2",
+      "declaredDigest": "sha256:2732419cc95c5fba2a586a813c34a113a773ef53ef9060b7e11182a1f0f2f8d4",
       "status": "resolved",
       "source": "tooling/studies/r1c0-closure/manifest.json"
     },
@@ -13439,7 +13484,7 @@
       "pointer": "study.path",
       "path": "tooling/studies/r1c0-closure/study.json",
       "resolved": "tooling/studies/r1c0-closure/study.json",
-      "declaredDigest": "sha256:555c6c2b37af994cfae5288de70cb65091fa209aede8543acbb7b12f2db2fb7f",
+      "declaredDigest": "sha256:e4133b25b94d3377969efcca828051079a5fd3388177659e5cf411a869e030d6",
       "status": "resolved",
       "source": "tooling/studies/r1c0-closure/manifest.json"
     },
@@ -13529,7 +13574,7 @@
       "pointer": "artifacts.snapshot.path",
       "path": "../../r1c0-closure-results.snapshot.jsonl",
       "resolved": "tooling/r1c0-closure-results.snapshot.jsonl",
-      "declaredDigest": "sha256:c1d3478e6a26de3aaff18526e6855dc7fb2e0acac48fda810bc39af09e5384d2",
+      "declaredDigest": "sha256:2732419cc95c5fba2a586a813c34a113a773ef53ef9060b7e11182a1f0f2f8d4",
       "status": "resolved",
       "source": "tooling/studies/r1c0-closure/study.json"
     },
@@ -15710,7 +15755,8 @@
         71,
         72,
         73,
-        74
+        74,
+        75
       ],
       "appliesTo": [
         {
@@ -16011,6 +16057,10 @@
         },
         {
           "study": 74,
+          "reason": "study-glob"
+        },
+        {
+          "study": 75,
           "reason": "study-glob"
         }
       ]
@@ -16099,7 +16149,8 @@
         71,
         72,
         73,
-        74
+        74,
+        75
       ],
       "appliesTo": [
         {
@@ -16400,6 +16451,10 @@
         },
         {
           "study": 74,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 75,
           "reason": "study-tooling"
         }
       ]
@@ -16490,7 +16545,8 @@
         71,
         72,
         73,
-        74
+        74,
+        75
       ],
       "appliesTo": [
         {
@@ -16791,6 +16847,10 @@
         },
         {
           "study": 74,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 75,
           "reason": "study-tooling"
         }
       ]
@@ -16880,7 +16940,8 @@
         71,
         72,
         73,
-        74
+        74,
+        75
       ],
       "appliesTo": [
         {
@@ -17181,6 +17242,10 @@
         },
         {
           "study": 74,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 75,
           "reason": "study-tooling"
         }
       ]
@@ -17428,7 +17493,8 @@
         71,
         72,
         73,
-        74
+        74,
+        75
       ],
       "appliesTo": [
         {
@@ -17729,6 +17795,10 @@
         },
         {
           "study": 74,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 75,
           "reason": "study-tooling"
         }
       ]
@@ -17817,7 +17887,8 @@
         71,
         72,
         73,
-        74
+        74,
+        75
       ],
       "appliesTo": [
         {
@@ -18118,6 +18189,10 @@
         },
         {
           "study": 74,
+          "reason": "study-tooling"
+        },
+        {
+          "study": 75,
           "reason": "study-tooling"
         }
       ]
@@ -18248,7 +18323,8 @@
         71,
         72,
         73,
-        74
+        74,
+        75
       ],
       "appliesTo": [
         {
@@ -18549,6 +18625,10 @@
         },
         {
           "study": 74,
+          "reason": "study-glob"
+        },
+        {
+          "study": 75,
           "reason": "study-glob"
         }
       ]
@@ -18637,7 +18717,8 @@
         71,
         72,
         73,
-        74
+        74,
+        75
       ],
       "appliesTo": [
         {
@@ -18938,6 +19019,10 @@
         },
         {
           "study": 74,
+          "reason": "study-glob"
+        },
+        {
+          "study": 75,
           "reason": "study-glob"
         }
       ]
@@ -19028,7 +19113,8 @@
         71,
         72,
         73,
-        74
+        74,
+        75
       ],
       "appliesTo": [
         {
@@ -19329,6 +19415,10 @@
         },
         {
           "study": 74,
+          "reason": "study-glob"
+        },
+        {
+          "study": 75,
           "reason": "study-glob"
         }
       ]
@@ -19417,7 +19507,8 @@
         71,
         72,
         73,
-        74
+        74,
+        75
       ],
       "appliesTo": [
         {
@@ -19718,6 +19809,10 @@
         },
         {
           "study": 74,
+          "reason": "study-glob"
+        },
+        {
+          "study": 75,
           "reason": "study-glob"
         }
       ]
@@ -19810,7 +19905,8 @@
         71,
         72,
         73,
-        74
+        74,
+        75
       ],
       "appliesTo": [
         {
@@ -20111,6 +20207,10 @@
         },
         {
           "study": 74,
+          "reason": "study-glob"
+        },
+        {
+          "study": 75,
           "reason": "study-glob"
         }
       ]
@@ -20259,7 +20359,8 @@
         71,
         72,
         73,
-        74
+        74,
+        75
       ],
       "appliesTo": [
         {
@@ -20561,6 +20662,10 @@
         {
           "study": 74,
           "reason": "study-glob"
+        },
+        {
+          "study": 75,
+          "reason": "study-glob"
         }
       ]
     },
@@ -20648,7 +20753,8 @@
         71,
         72,
         73,
-        74
+        74,
+        75
       ],
       "appliesTo": [
         {
@@ -20949,6 +21055,10 @@
         },
         {
           "study": 74,
+          "reason": "study-glob"
+        },
+        {
+          "study": 75,
           "reason": "study-glob"
         }
       ]
@@ -21380,6 +21490,7 @@
       "TGM0",
       "W-1503",
       "WCCP0",
+      "WGFX0",
       "WVUI0"
     ],
     "leaves": [
@@ -21455,6 +21566,7 @@
       "TGM0",
       "W-1503",
       "WCCP0",
+      "WGFX0",
       "WVUI0"
     ],
     "rootDirectories": [
@@ -21480,6 +21592,7 @@
       "tooling/studies/tgm0-task-group-map-collect",
       "tooling/studies/w1503-allocation-placement",
       "tooling/studies/wccp0-computable-contracts",
+      "tooling/studies/wgfx0-first-party-scene-graphics",
       "tooling/studies/wvui0-web-ui-providers"
     ],
     "leafDirectories": [
@@ -21555,6 +21668,7 @@
       "tooling/studies/tgm0-task-group-map-collect",
       "tooling/studies/w1503-allocation-placement",
       "tooling/studies/wccp0-computable-contracts",
+      "tooling/studies/wgfx0-first-party-scene-graphics",
       "tooling/studies/wvui0-web-ui-providers"
     ],
     "cycles": []

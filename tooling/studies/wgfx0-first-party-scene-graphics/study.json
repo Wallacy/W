@@ -1,0 +1,137 @@
+{
+  "$schema": "w-wgfx0-first-party-scene-graphics-study-1",
+  "id": "WGFX0",
+  "status": "design-oracle-input",
+  "title": "First-party scene and graphics library inspired by proven web 3D ergonomics",
+  "question": "Which layered W library can retain Three.js-like scene productivity while enabling native ownership, specialization, provider portability, and whole-product optimization?",
+  "decision": "candidate-study-only",
+  "scope": [
+    "standard-library versus first-party-package boundary",
+    "scene, animation, material, asset, and render-graph vocabulary",
+    "dense data and resource ownership direction",
+    "MLIR lowering and graphics-provider boundary",
+    "AI-generation ergonomics and evaluation",
+    "incremental executable witnesses and performance axes"
+  ],
+  "candidateLayers": [
+    "language and compiler primitives",
+    "portable bundled standard-library foundations",
+    "first-party scene and renderer package",
+    "first-party asset packages",
+    "target graphics and presentation providers",
+    "optional registry packages"
+  ],
+  "crosspoints": [
+    "fixed arrays, views, matrices, SIMD, and numeric modes",
+    "virtual objects, ownership, tasks, and resource lifecycle",
+    "accelerator domains, kernels, shader lowering, and providers",
+    "std.presentation, image buffers, and asset packaging",
+    "WVUI0 browser and WebView targets",
+    "registry reachability and signed binary distribution"
+  ],
+  "benchmarkDisposition": "not-applicable",
+  "benchmarkReason": "This package records a design candidate and future witness plan; it contains no compiled graphics product or performance result.",
+  "witnesses": [
+    "headless-transform-culling",
+    "reference-triangle-cube",
+    "textured-gltf-scene",
+    "animated-instanced-scene",
+    "typed-render-pipeline"
+  ],
+  "performanceAxes": [
+    "compile time",
+    "cold first frame",
+    "steady frame time distribution",
+    "CPU and GPU memory",
+    "upload bytes and count",
+    "draw and dispatch count",
+    "pipeline compilation count",
+    "package and native binary size",
+    "runtime dependency closure"
+  ],
+  "officialRefs": [
+    {
+      "url": "https://threejs.org/manual/pages/fundamentals.html",
+      "accessed": "2026-09-24",
+      "claim": "Three.js composes a renderer, scene graph, camera, geometry, material, texture, and lights over lower-level WebGL."
+    },
+    {
+      "url": "https://threejs.org/manual/pages/scenegraph.html",
+      "accessed": "2026-09-24",
+      "claim": "Three.js treats a local-space hierarchy as its central scene composition model."
+    },
+    {
+      "url": "https://threejs.org/manual/pages/animation-system.html",
+      "accessed": "2026-09-24",
+      "claim": "Three.js animation includes clips, actions, mixers, blending, bones, morph targets, and grouped state."
+    },
+    {
+      "url": "https://threejs.org/manual/pages/installation.html",
+      "accessed": "2026-09-24",
+      "claim": "Three.js keeps controls, loaders, and post-processing as separately imported addons."
+    },
+    {
+      "url": "https://threejs.org/docs/pages/GLTFLoader.html",
+      "accessed": "2026-09-24",
+      "claim": "The glTF loader returns scenes, cameras, and animations and composes optional decoders and format extensions."
+    },
+    {
+      "url": "https://threejs.org/manual/pages/cleanup.html",
+      "accessed": "2026-09-24",
+      "claim": "Three.js applications must explicitly dispose textures, geometries, materials, and other graphics resources."
+    },
+    {
+      "url": "https://threejs.org/manual/pages/webgpurenderer",
+      "accessed": "2026-09-24",
+      "claim": "WebGPURenderer targets WebGPU, can fall back to WebGL2, and integrates the node-based shader system."
+    },
+    {
+      "url": "https://threejs.org/manual/pages/webgpu-postprocessing.html",
+      "accessed": "2026-09-24",
+      "claim": "The WebGPU post-processing path supports MRT and combines compatible node effects to reduce passes."
+    },
+    {
+      "url": "https://github.com/mrdoob/three.js/blob/dev/package.json",
+      "accessed": "2026-09-24",
+      "claim": "Three.js publishes separate core, addon, WebGPU, and shader-node entrypoints and maintains a tree-shaking test."
+    },
+    {
+      "url": "https://mlir.llvm.org/docs/Dialects/GPU/",
+      "accessed": "2026-09-24",
+      "claim": "MLIR GPU is a middle-level kernel, launch, and binary abstraction rather than a complete graphics host API."
+    },
+    {
+      "url": "https://mlir.llvm.org/docs/Dialects/SPIR-V/",
+      "accessed": "2026-09-24",
+      "claim": "MLIR provides a SPIR-V dialect and conversions while host resource management remains external."
+    },
+    {
+      "url": "https://mlir.llvm.org/docs/Dialects/Vector/",
+      "accessed": "2026-09-24",
+      "claim": "MLIR virtual vectors preserve target-independent vector semantics before lower-level specialization."
+    }
+  ],
+  "evidenceBoundary": {
+    "current": [
+      "official-primary-references",
+      "existing-W-language-and-provider-contracts",
+      "layer-and-witness-analysis"
+    ],
+    "missing": [
+      "public-W-api",
+      "compiled-scene",
+      "real-provider-smoke",
+      "GPU-output",
+      "image-oracle",
+      "resource-and-security-adversarial-execution",
+      "human-study",
+      "model-study",
+      "performance-results"
+    ],
+    "implementationClaimed": false,
+    "apiPromotion": false,
+    "syntaxPromotion": false,
+    "specPromotion": false
+  },
+  "stopCondition": "Stop if the candidate requires one physical object per scene node, hides resource lifetime, grants ambient I/O, couples portable semantics to one graphics API, silently falls back between providers, or claims implementation or performance without a real product witness."
+}

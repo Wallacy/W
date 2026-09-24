@@ -891,6 +891,14 @@ The finite dependency order is:
    device-change behavior;
 5. asset/resource packaging and an optional WebView provider.
 
+WGFX0 records the corresponding high-level graphics candidate. It uses the
+ergonomic lessons of Three.js without copying its API or JavaScript runtime
+model: a small bundled foundation, a separately reachable first-party scene and
+render package, first-party asset packages, and target-owned graphics providers.
+Its first witnesses are headless transform/culling, a CPU-reference plus real-GPU
+triangle/cube, a bounded glTF scene, an animated instanced scene, and a typed
+render pipeline. The study is not an implementation or API promotion.
+
 These are SDK/provider and implementation gaps unless an executable slice
 proves that a missing general language rule is required. They must not displace
 the scalar, control-flow, aggregate and explicit-ownership prerequisites above.
