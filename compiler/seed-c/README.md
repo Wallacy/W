@@ -3770,10 +3770,13 @@ result.
 de link no Linux. Ele não transforma W em C, não é um C backend e não pertence
 à distribuição pública.
 
-For local development only, `W_MLIR0_DEVELOPMENT_PATCH_COMPAT=1` permits tools
-from the same `23.1.x` line and resolves version-suffixed WSL commands such as
-`mlir-opt-23`. Exact evidence remains pinned to 23.1.1; this switch neither
-rewrites receipts nor promotes a patch-compatible run to exact evidence.
+For local PATH discovery, the runner prefers version-suffixed `*-23` commands
+before bare command names on both direct Linux and WSL. The suffix only guides
+selection: each LLVM/MLIR tool is still checked against the exact 23.1.1 pin,
+or the already-authorized 23.1.x local development allowance
+(`W_MLIR0_DEVELOPMENT_PATCH_COMPAT=0` disables that allowance). A mixed major or
+minor-version tool set fails closed. Exact evidence remains pinned to 23.1.1;
+patch-compatible runs do not rewrite receipts or become exact evidence.
 
 ### Direct-entry facts in HIR15 (W-1544)
 

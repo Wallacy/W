@@ -13,6 +13,8 @@ import {
   assertCrtFreeExecElf,
   assertElfNoExecutableStack,
   parseArguments,
+  incompatibleToolVersions,
+  resolveToolCommand,
   validateManifest,
 } from "./check-w-run.mjs"
 
@@ -20,7 +22,7 @@ const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
 const helloFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
 const targetTriple = "x86_64-unknown-linux-gnu"
-const workflowPath = resolve(root, ".github", "workflows", "validate.yml")
+const workflowPath = resolve(root, ".github", "workflows", "native-toolchains.yml")
 const workflowText = await readFile(workflowPath, "utf8")
 const ciManifest = JSON.parse(await readFile(
   resolve(import.meta.dir, "mlir0-ci-toolchain.json"), "utf8"))
@@ -115,6 +117,51 @@ describe("W RUN native CI contract", () => {
     )
   })
 
+  test("prefers version-suffixed LLVM tools over unversioned PATH entries", () => {
+    const paths = new Map([
+      ["mlir-opt-23", "/opt/llvm-23/bin/mlir-opt-23"],
+      ["mlir-opt", "/usr/bin/mlir-opt"],
+    ])
+    const resolved = resolveToolCommand("mlir-opt", {
+      versionedMajor: "23",
+      findExecutable: (name) => paths.get(name),
+    })
+    expect(resolved).toBe("/opt/llvm-23/bin/mlir-opt-23")
+  })
+
+  test("rejects stale unversioned LLVM tools when no 23-suffixed tool exists", () => {
+    const resolved = resolveToolCommand("mlir-opt", {
+      versionedMajor: "23",
+      findExecutable: (name) => name === "mlir-opt"
+        ? "/usr/bin/mlir-opt" : undefined,
+    })
+    expect(resolved).toBe("/usr/bin/mlir-opt")
+    expect(incompatibleToolVersions({
+      mlirOpt: "Debian LLVM version 21.1.0",
+    }, "23.1.1", true)).toEqual(["mlirOpt"])
+  })
+
+  test("fails closed when the native link driver is missing", () => {
+    expect(() => resolveToolCommand("/usr/bin/ld", {
+      role: "native link driver",
+      findExecutable: () => undefined,
+      required: true,
+    })).toThrow("required tool native link driver is unavailable")
+  })
+
+  test("rejects a mixed-major LLVM/MLIR tool set", () => {
+    expect(incompatibleToolVersions({
+      mlirOpt: "Debian LLVM version 23.1.2",
+      mlirTranslate: "Debian LLVM version 21.1.0",
+      llvmConfig: "23.1.4",
+      opt: "LLVM version 23.1.4",
+      llc: "LLVM version 23.1.4",
+    }, "23.1.1", true)).toEqual(["mlirTranslate"])
+    expect(incompatibleToolVersions({
+      mlirOpt: "LLVM version 23.1.2",
+    }, "23.1.1", false)).toEqual(["mlirOpt"])
+  })
+
   test("validates the separate pinned CI manifest", () => {
     expect(validateManifest(ciManifest, true)).toEqual({
       mlirOpt: "mlir-opt",
@@ -170,10 +217,10 @@ describe("W RUN native CI contract", () => {
     const workflow = Bun.YAML.parse(workflowText)
     const linux = workflow.jobs["native-linux"]
     expect(linux["runs-on"]).toBe("ubuntu-24.04")
-    expect(linux.steps).toContainEqual({
-      name: "Acquire and verify the pinned Linux MLIR toolchain",
-      run: "bun tooling/acquire-mlir0-ci-linux.mjs --download",
-    })
+    const acquisition = linux.steps.find((step) =>
+      step.name === "Acquire and verify the pinned Linux MLIR toolchain")
+    expect(acquisition?.run).toBe(
+      "bun tooling/acquire-mlir0-ci-linux.mjs --download")
     expect(linux.steps.some((step) =>
       String(step.uses ?? "").includes("setup-mlir"))).toBe(false)
   })

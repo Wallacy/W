@@ -277,6 +277,36 @@ function escapedVersion(value) {
   return value.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&")
 }
 
+export function resolveToolCommand(command, {
+  role = command,
+  versionedMajor,
+  findExecutable,
+  required = false,
+}) {
+  assert(typeof findExecutable === "function",
+    "tool resolver requires an executable lookup")
+  const candidates = versionedMajor === undefined
+    ? [command] : [`${command}-${versionedMajor}`, command]
+  for (const candidate of candidates) {
+    const resolved = findExecutable(candidate)
+    if (resolved) return resolved
+  }
+  if (required) throw new Error(`required tool ${role} is unavailable: ${command}`)
+  return command
+}
+
+export function incompatibleToolVersions(outputs, expectedVersion,
+  patchCompatible) {
+  const parts = expectedVersion.split(".")
+  const acceptedVersion = patchCompatible
+    ? `${escapedVersion(parts[0])}\\.${escapedVersion(parts[1])}\\.[0-9]+`
+    : escapedVersion(expectedVersion)
+  const pattern = new RegExp(`(?<![\\d.])${acceptedVersion}(?![\\d.])`, "u")
+  return Object.entries(outputs)
+    .filter(([, output]) => !pattern.test(output))
+    .map(([role]) => role)
+}
+
 export function validateManifest(manifest, mode = ciMode) {
   const manifestVersion = "23.1.1"
   const expectedSchema = mode
@@ -423,27 +453,36 @@ function wslWhich(command) {
   return /^\/[A-Za-z0-9._+\-/]+$/u.test(value) ? value : undefined
 }
 
+function findHostExecutable(command) {
+  return isWindows
+    ? wslWhich(command)
+    : Bun.which(command) ??
+      (isAbsolute(command) && existsSync(command) ? command : undefined)
+}
+
 function resolveLocalTool(command, role, externalRoot) {
-  if (role === "linkDriver") return command
+  if (role === "linkDriver")
+    return resolveToolCommand(command, {
+      role: "native link driver",
+      findExecutable: findHostExecutable,
+      required: true,
+    })
   assert(/^[A-Za-z0-9._+-]+$/u.test(command),
     `local tool ${role} is not a simple command name`)
   if (externalRoot) return `${externalRoot}/bin/${command}`
-  if (isWindows) {
-    if (developmentPatchCompatibility) {
-      const [major] = expectedVersion.split(".")
-      const compatible = wslWhich(`${command}-${major}`)
-      if (compatible) return compatible
-    }
-    const exact = wslWhich(command)
-    if (exact) return exact
-    return command
-  }
-  return Bun.which(command) ?? command
+  // The suffix is only a discovery hint; versionProbe below enforces the
+  // exact pin or the separately authorized 23.1.x development allowance.
+  const [major] = expectedVersion.split(".")
+  return resolveToolCommand(command, {
+    role,
+    versionedMajor: major,
+    findExecutable: findHostExecutable,
+  })
 }
 
 function versionProbe(command, versionArgs) {
   if (!isWindows && !existsSync(command))
-    return { present: false, valid: false, output: "" }
+    return { present: false, succeeded: false, output: "" }
   const result = isWindows
     ? wslRun(command, versionArgs)
     : spawn(command, versionArgs)
@@ -451,10 +490,7 @@ function versionProbe(command, versionArgs) {
   const output = `${result.stdoutBytes}\n${result.stderrBytes}`
   return {
     present,
-    valid: present && result.exitCode === 0 &&
-      new RegExp(developmentPatchCompatibility
-        ? `\\b${escapedVersion(expectedVersion.split(".").slice(0, 2).join("."))}\\.[0-9]+\\b`
-        : `\\b${escapedVersion(expectedVersion)}\\b`, "u").test(output),
+    succeeded: present && result.exitCode === 0,
     output,
   }
 }
@@ -792,7 +828,12 @@ if (externalToolchainRoot !== undefined)
 const resolvedCommands = Object.fromEntries(roles.map((role) => {
   if (!ciMode) return [role,
     resolveLocalTool(commands[role], role, externalToolchainRoot)]
-  if (role === "linkDriver") return [role, commands[role]]
+  if (role === "linkDriver") return [role, resolveToolCommand(
+    commands[role], {
+      role: "native link driver",
+      findExecutable: findHostExecutable,
+      required: true,
+    })]
   const resolved = Bun.which(commands[role])
   assert(resolved && isAbsolute(resolved) && existsSync(resolved),
     `CI tool ${role} basename did not resolve to an absolute executable`)
@@ -806,9 +847,14 @@ if (!probes.some(([, probe]) => probe.present)) {
 }
 for (const [role, probe] of probes)
   if (!probe.present) fail(`pinned toolchain is incomplete: ${role} is absent`)
-for (const [role, probe] of probes)
-  if (!probe.valid) fail(`${role} version is not ${developmentPatchCompatibility
+const invalidVersionRoles = incompatibleToolVersions(
+  Object.fromEntries(probes.map(([role, probe]) => [role, probe.output])),
+  expectedVersion, developmentPatchCompatibility)
+for (const [role, probe] of probes) {
+  if (probe.succeeded && !invalidVersionRoles.includes(role)) continue
+  fail(`${role} version is not ${developmentPatchCompatibility
     ? "in the 23.1.x development line" : expectedVersion}: ${probe.output.trim()}`)
+}
 
 const hostProbe = (command, args) => isWindows ? wslRun(command, args) : spawn(command, args)
 const linkTarget = hostProbe(resolvedCommands.linkDriver, ["-V"])
