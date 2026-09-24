@@ -1079,9 +1079,12 @@ Frontend schema `w-seed-frontend-20` preserves enum payload patterns as
 structural CST owners and publishes a caller-owned capture relation. Each
 capture identifies its switch arm, declaration payload ordinal, name, span,
 and resolved type; identifier reads point back to that relation rather than
-reparsing source spelling. The current executable seed accepts signed `i64`
-captures only. HIR0 still rejects this new record family explicitly, so this
-is frontend evidence rather than native payload-enum evidence.
+reparsing source spelling. That frontend-only status described the original
+D0 checkpoint; it is no longer the current payload-enum boundary. HIR25 now
+verifies local closed `Bool`/`i64` payload cases and capture reads, and the
+bounded native `enum-cfg-join.w` and `enum-payload.w` routes exercise those
+records. The enum-subset slice in this section remains payloadless; this does
+not add payload-bearing subsets or a public enum layout.
 
 The same schema applies the ordinary W call-binding rule to local enum
 constructors: labeled payload arguments may be reordered, unlabeled payload
@@ -1089,7 +1092,7 @@ arguments retain their declaration order, and every accepted argument records
 its resolved parameter ordinal. Types never choose between payload slots.
 
 Este D0 não implementa conversão explícita `try Subset(base)`, subsets
-importados, aliases genéricos ou empilhados, payload lowering, guards,
+importados, aliases genéricos ou empilhados, payload-bearing subset lowering, guards,
 switches de tuple/range/struct ou facts completos de fluxo. Literals em enum
 switch preservam fato explícito unsupported. As formas sem código normativo
 continuam fatos/barreiras explícitos; o seed não apresenta esta fatia como
@@ -1225,8 +1228,9 @@ final PE import table against the exact Kernel32 output/exit allowlist. This is
 bounded CRT-free product evidence, not a stable aggregate layout or C ABI
 claim.
 
-Payload enums, arrays, mutable or nested/arbitrary aggregates, aggregate
-ownership, stable layout, and ABI/FFI remain gaps. The benchmark disposition is
+Arrays, mutable or nested/arbitrary aggregates, aggregate ownership, stable
+layout, and ABI/FFI remain gaps. Payload-enum support has its own bounded native
+route below; it does not establish aggregate support. The benchmark disposition is
 `compiler-lifecycle`: C23 and Rust 2024 are independent output references, but
 W's closed literal inputs do not establish equivalent runtime work or a
 performance result.
@@ -3566,9 +3570,21 @@ MLIR conversion, translation, native link, and execution, requiring
 `Courses 10/30/20\n`, empty stderr, and exit zero. The i2 sign-bit tag is
 spelled `-2` for the pinned MLIR textual parser while retaining tag-2 bits.
 
-This remains a correctness-only compiler-lifecycle witness. Payload-bearing
-cases, general or mixed CFG, public ABI/layout stability, other targets, timing,
-ranking, and performance are not implemented or claimed here. W-1571 separately
+This remains the payloadless W-1563 base witness and a correctness-only
+compiler-lifecycle result. The bounded dispatch-plus-return switch itself is
+unchanged. Its current implementation classification also includes a separate
+cross-function value-flow proof: [`enum-cfg-join.w`](fixtures/enum-cfg-join.w)
+returns a local `Lookup` from one typed `if` join, passes it to another local
+function, then exhaustively switches it in reverse declaration order. HIR keeps
+the nominal enum type and exact typed incoming values; the tag and payload
+carrier remain downstream and internal. Windows x64 and CRT-free Linux/WSL x64
+development and Release routes require exit 0, stdout `42/0\n`, and empty
+stderr. Adversarial HIR mutations cover distinct nominal enum identity, edge
+and block-argument owner/type/ordinal, constructor/case/payload, switch-edge,
+capture, and transactional-capacity relations. The C23 fixture in the
+executable catalog is an output reference only. This does not admit general or
+same-function mixed CFG, loops, nested aggregates, ownership, stable public
+ABI/layout, other targets, timing, ranking, or performance. W-1571 separately
 records the bounded payloadless-subset successor with focused and dual-platform
 correctness evidence.
 
@@ -3660,9 +3676,14 @@ Native0 tests cover both target adapters and short-capacity atomic failure.
 The bundle's primary disposition is `compiler-lifecycle`; its runnable fixture
 also belongs to the executable benchmark catalog. Initial live measurements
 and C/Rust references use that catalog, not compiler-unit timings.
-General payload types, recursive payloads, niches, public payload ABI, and
-general mixed control flow remain unsupported. These limits are not syntax
-restrictions in the language design.
+Payload fields remain bounded to `Bool` and signed `i64`; recursive payloads,
+niches, public payload ABI, and general mixed control flow remain unsupported.
+The separate [`enum-cfg-join.w`](fixtures/enum-cfg-join.w) witness composes
+one typed enum-valued `if` join in `choose` with an exhaustive switch in `score`
+through a local call and return. It is accepted from verified nominal HIR by
+the generic NativeSubset0/MLIR route, not a process-specific selector or
+source-text recognizer; other CFG compositions remain outside the bounded
+subset. These limits are not syntax restrictions in the language design.
 
 ### Bounded same-module executable product closure (W-1564)
 

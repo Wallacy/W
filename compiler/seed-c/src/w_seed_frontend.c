@@ -19338,6 +19338,64 @@ static bool scalar_if_type(frontend_simple_type type) {
          type_is_float(type);
 }
 
+static bool scalar_if_enum_payload_type(frontend_simple_type type) {
+  return type.kind == W_SEED_FRONTEND_TYPE_BOOL ||
+         (type.kind == W_SEED_FRONTEND_TYPE_INTEGER && type.is_signed &&
+          type.bit_width == 64u);
+}
+
+static bool scalar_if_local_enum_type_supported(
+    const frontend_context *context, frontend_simple_type type) {
+  if (context == NULL || type.kind != W_SEED_FRONTEND_TYPE_ENUM ||
+      type.enum_index == W_SEED_FRONTEND_NONE ||
+      type.enum_name.length == 0u ||
+      enum_declaration_name_count(context, type.enum_name) != 1u)
+    return false;
+  uint32_t enum_index = W_SEED_FRONTEND_NONE;
+  const w_seed_frontend_document *enum_doc = NULL;
+  uint32_t enum_node = W_SEED_CST_NONE;
+  if (!enum_declaration_for_name(context, type.enum_name, &enum_index, NULL,
+                                 &enum_doc, &enum_node) ||
+      enum_index != type.enum_index || enum_doc == NULL ||
+      enum_node == W_SEED_CST_NONE ||
+      first_direct_kind(enum_doc, enum_node,
+                        W_SEED_CST_GENERIC_PARAMETERS) != W_SEED_CST_NONE)
+    return false;
+  const size_t case_count =
+      count_direct_kind(enum_doc, enum_node, W_SEED_CST_ENUM_CASE);
+  if (case_count == 0u || case_count > 64u) return false;
+  uint32_t case_cursor = enum_doc->nodes[enum_node].first_child;
+  uint32_t case_node = W_SEED_CST_NONE;
+  size_t guard = 0u;
+  while (next_child(enum_doc, &case_cursor, &case_node) &&
+         guard < enum_doc->parse.node_count) {
+    if (enum_doc->nodes[case_node].kind != W_SEED_CST_ENUM_CASE) {
+      guard += 1u;
+      continue;
+    }
+    uint32_t parameter_cursor = enum_doc->nodes[case_node].first_child;
+    uint32_t parameter_node = W_SEED_CST_NONE;
+    size_t parameter_guard = 0u;
+    while (next_child(enum_doc, &parameter_cursor, &parameter_node) &&
+           parameter_guard < enum_doc->parse.node_count) {
+      if (enum_doc->nodes[parameter_node].kind !=
+          W_SEED_CST_ENUM_CASE_PARAMETER) {
+        parameter_guard += 1u;
+        continue;
+      }
+      const uint32_t type_node = direct_type_index(enum_doc, parameter_node);
+      if (type_node == W_SEED_CST_NONE ||
+          !scalar_if_enum_payload_type(contextual_type_from_span(
+              context, enum_doc, enum_doc->nodes[type_node].raw_span)))
+        return false;
+      parameter_guard += 1u;
+    }
+    if (parameter_cursor != W_SEED_CST_NONE) return false;
+    guard += 1u;
+  }
+  return case_cursor == W_SEED_CST_NONE;
+}
+
 static bool scalar_if_arm_expression_node(
     const w_seed_frontend_document *doc, uint32_t block,
     uint32_t *expression_node) {
@@ -19464,8 +19522,10 @@ static bool normalize_if_expression(
   frontend_simple_type arm_expected =
       type_is_float(expected)
           ? simple_type_unknown()
-          : (scalar_if_type(expected) ? expected
-                                      : const_default_integer_type());
+          : (scalar_if_type(expected) ||
+                     scalar_if_local_enum_type_supported(context, expected)
+                 ? expected
+                 : const_default_integer_type());
   frontend_simple_type then_type = simple_type_unknown();
   frontend_simple_type else_type = simple_type_unknown();
   frontend_expr_value then_value;
@@ -19488,13 +19548,21 @@ static bool normalize_if_expression(
                                  &else_type, &else_value))
     return false;
 
+  const bool same_result_type =
+      frontend_type_equal(context, then_type, else_type);
+  const bool scalar_result =
+      scalar_if_type(then_type) && scalar_if_type(else_type) &&
+      same_result_type &&
+      cst_scalar_if_surface_ok(doc, then_node, 0u, true) &&
+      cst_scalar_if_surface_ok(doc, else_node, 0u, true);
+  const bool enum_result =
+      scalar_if_local_enum_type_supported(context, then_type) &&
+      scalar_if_local_enum_type_supported(context, else_type) &&
+      same_result_type;
   bool supported = condition_value.supported && type_is_bool(condition_type) &&
                    then_value.supported && else_value.supported &&
-                   scalar_if_type(then_type) && scalar_if_type(else_type) &&
-                   frontend_type_equal(context, then_type, else_type) &&
-                   cst_scalar_if_surface_ok(doc, condition_node, 0u, false) &&
-                   cst_scalar_if_surface_ok(doc, then_node, 0u, true) &&
-                   cst_scalar_if_surface_ok(doc, else_node, 0u, true);
+                   (scalar_result || enum_result) &&
+                   cst_scalar_if_surface_ok(doc, condition_node, 0u, false);
   if (condition_type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
       !type_is_bool(condition_type)) {
     (void)append_sem0001_diagnostic(
@@ -19504,7 +19572,7 @@ static bool normalize_if_expression(
     supported = false;
   }
   if (scalar_if_type(then_type) && scalar_if_type(else_type) &&
-      !frontend_type_equal(context, then_type, else_type)) {
+      !same_result_type) {
     (void)append_type0120_diagnostic(
         context, if_cst->raw_span, then_type,
         doc->nodes[then_node].raw_span, context->module_index, else_type,
@@ -19512,18 +19580,14 @@ static bool normalize_if_expression(
         "branch-result", "branch-result");
     supported = false;
   }
-  if (!scalar_if_type(then_type) || !scalar_if_type(else_type) ||
-      !cst_scalar_if_surface_ok(doc, condition_node, 0u, false) ||
-      !cst_scalar_if_surface_ok(doc, then_node, 0u, true) ||
-      !cst_scalar_if_surface_ok(doc, else_node, 0u, true)) {
+  if (!scalar_result && !enum_result) {
     (void)context_append_fact(
         context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION, if_cst->raw_span,
         text_from_span(doc, if_cst->raw_span));
     supported = false;
   }
   frontend_simple_type join_type =
-      frontend_type_equal(context, then_type, else_type) ? then_type
-                                                          : simple_type_unknown();
+      same_result_type ? then_type : simple_type_unknown();
   frontend_expression_parser parser = {0};
   parser.context = context;
   parser.document = doc;

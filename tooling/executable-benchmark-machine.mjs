@@ -21,6 +21,7 @@ export const EXECUTABLE_RUNTIME_CLOSURE_CLASSES = Object.freeze([
 ]);
 export const EXECUTABLE_RUNTIME_CLOSURE_UNVERIFIED = Object.freeze({ status: "unverified" });
 export const EXECUTABLE_LANGUAGES = Object.freeze(["w", "c", "rust"]);
+const ENUM_CFG_JOIN_WORKLOAD_ID = "enum-cfg-join";
 export const EXECUTABLE_STRUCTURE_CLASSES = Object.freeze([
   "public-end-to-end",
   "integration-linkage",
@@ -51,6 +52,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "enum-subset",
   "enum-payload",
   "enum-bool-payload",
+  ENUM_CFG_JOIN_WORKLOAD_ID,
   "comparison-composition",
   "integer-bitwise",
   "integer-shift-semantics",
@@ -101,6 +103,7 @@ const WORKLOAD_FAMILY_ROWS = Object.freeze({
   composition: Object.freeze([
     "main-dispatch", "main-cardinality", "enum-switch",
     "enum-subset", "enum-payload", "enum-bool-payload",
+    ENUM_CFG_JOIN_WORKLOAD_ID,
     "comparison-composition", "composition",
   ]),
   "integer-semantics": Object.freeze([
@@ -296,6 +299,7 @@ export function executableCatalogFileDigest(root = ROOT) {
 const PUBLIC_WINDOWS_RUN_GATE = "tooling/check-w-run-windows.mjs";
 const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
   "compiler/seed-c/fixtures/hlo0-hello.w": "hello",
+  "compiler/seed-c/fixtures/enum-cfg-join.w": ENUM_CFG_JOIN_WORKLOAD_ID,
   "compiler/seed-c/fixtures/process-enum-payload.w": "process-enum-payload",
   "compiler/seed-c/fixtures/process-arguments-count.w": "process-arguments-count",
   "compiler/seed-c/fixtures/process-arguments-ordering.w": "process-arguments-ordering",
@@ -1626,6 +1630,7 @@ function executableHostSlugSupportsPlatform(host, platformTarget) {
 
 function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PLATFORM_TARGET_WINDOWS) {
   if (platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) return SOURCE_ELIGIBILITY.wslDiagnostic;
+  if (workload?.id === ENUM_CFG_JOIN_WORKLOAD_ID) return SOURCE_ELIGIBILITY.correctnessOnly;
   if (workload?.id === "terminal-returns" ||
       workload?.id === "while-break-continue" ||
       workload?.id === "nested-labeled-while" ||

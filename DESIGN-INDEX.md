@@ -18,15 +18,15 @@
 |---|---:|
 | linhas de `DESIGN.md` | 43813 |
 | tokens aproximados de `DESIGN.md` | 518800 |
-| linhas de `RATIONALE.md` | 14816 |
-| tokens aproximados de `RATIONALE.md` | 359600 |
+| linhas de `RATIONALE.md` | 14823 |
+| tokens aproximados de `RATIONALE.md` | 359700 |
 | seções numeradas | 27 |
 | seções terminais com evidência local | 467/509 |
 | decisões | 1653 (W-001–W-1653) |
 | famílias de viabilidade | 184 |
 | slices normativos de grammar | 6 |
 | requisitos de ratificação comparativa | 203 |
-| casos de substituição estruturados | 203/203 |
+| casos de substituição estruturados | 204/203 |
 | decisões referenciadas por casos R0 | 316/1653 |
 | decisões classificadas para design freeze | 1653/1653 (825 implementation-evidence-gap; 86 superseded; 226 source-backed-current; 508 oracle-backed-current; 8 rejected) |
 | decisões com evidência legada de fonte/oráculo | 682/1653 (316 source + 415 oracle + 8 explícitas; 57 overlaps) |
@@ -36,7 +36,7 @@
 | surface lexemes das formas vigentes R0 | 10068 total; mediana 39; máximo 400 |
 | bundles executáveis R1 | 57 |
 | variantes/tarefas R1 | 162/228 |
-| casos R0 promovidos a R1 | 69/203 |
+| casos R0 promovidos a R1 | 69/204 |
 | protocolo HUM0 | 8 slices/32 tasks; 0 human records/0 model records; structure-only |
 | casos do corpus Tree-sitter | 136 |
 | pares canônicos do formatter F0 | 31 |
@@ -176,7 +176,7 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 |---:|---:|---:|---|
 | 1 | 15–6340 | 103500 | Evidência comparativa |
 | 2 | 6341–6370 | 500 | Proveniência |
-| 3 | 6371–14816 | 255500 | Ledger |
+| 3 | 6371–14823 | 255600 | Ledger |
 
 ## Bundles de leitura
 

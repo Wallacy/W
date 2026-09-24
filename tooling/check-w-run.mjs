@@ -19,6 +19,9 @@ const enumFixture = resolve(seedDirectory, "fixtures", "enum.w")
 const enumSubsetFixture = resolve(seedDirectory, "fixtures", "enum-subset.w")
 const enumPayloadFixture = resolve(seedDirectory,
   "fixtures", "enum-payload.w")
+const enumCfgJoinFixture = resolve(seedDirectory,
+  "fixtures", "enum-cfg-join.w")
+const enumCfgJoinOutput = Buffer.from("42/0\n", "utf8")
 const enumBoolPayloadFixture = resolve(seedDirectory,
   "fixtures", "enum-bool-payload.w")
 const comparisonCompositionFixture = resolve(seedDirectory, "fixtures", "comparison-composition.w")
@@ -719,10 +722,11 @@ async function verifyAuditTrace(directory, finalArtifact,
   "audit final artifact is not byte-identical to the published product")
 }
 
-async function inspectFlatAggregateAudit(directory, fixtureRoot,
-                                         toolchainRoot) {
+async function inspectNativeProductAudit(directory, fixtureRoot,
+                                          toolchainRoot,
+                                          inspectionName = "flat-value-aggregates") {
   const inspectionDirectory = join(fixtureRoot,
-    "flat-value-aggregates-inspection")
+    `${inspectionName}-inspection`)
   await mkdir(inspectionDirectory)
   const inputNames = ["optimized.ll", "output.o", "wrt0.o", "final-artifact"]
   const localPaths = new Map()
@@ -772,7 +776,7 @@ async function inspectFlatAggregateAudit(directory, fixtureRoot,
     JSON.stringify(receipt.postOptIr.externals.externalFunctions) ===
       JSON.stringify(["write"]) &&
     receipt.postOptIr.externals.externalGlobals.length === 0,
-  `flat aggregate post-opt external declarations changed: ${JSON.stringify(
+  `${inspectionName} post-opt external declarations changed: ${JSON.stringify(
     receipt.postOptIr.externals)}`)
   assert(JSON.stringify(receipt.objectUndefinedSymbols.items.map(
     (object) => object.undefinedSymbols)) === JSON.stringify([[
@@ -780,19 +784,19 @@ async function inspectFlatAggregateAudit(directory, fixtureRoot,
     ], [
       "main",
     ]]),
-  `flat aggregate object undefined symbols changed: ${JSON.stringify(
+  `${inspectionName} object undefined symbols changed: ${JSON.stringify(
     receipt.objectUndefinedSymbols.items)}`)
   assert(receipt.checks.requestedClosureValidation.status === "passed" &&
     receipt.checks.suppliedObjectUndefinedSymbolClosure.status === "passed" &&
     receipt.checks.finalDependencyClosure.status === "passed" &&
     receipt.dependencies.status === "observed" &&
     receipt.dependencies.items.length === 0,
-  `flat aggregate Linux runtime closure was not exact: ${JSON.stringify({
+  `${inspectionName} Linux runtime closure was not exact: ${JSON.stringify({
     requested: receipt.checks.requestedClosureValidation,
     objects: receipt.checks.suppliedObjectUndefinedSymbolClosure,
     dependencies: receipt.dependencies,
   })}`)
-  console.log(`W RUN: flat aggregate Release audit ${JSON.stringify({
+  console.log(`W RUN: ${inspectionName} Release audit ${JSON.stringify({
     postOptExternalFunctions:
       receipt.postOptIr.externals.externalFunctions,
     postOptParserCoverage: receipt.postOptIr.externals.coverage,
@@ -1316,6 +1320,9 @@ try {
   expectSuccess(binary, ["run", toWsl(enumPayloadFixture)],
     Buffer.from("Bills 32/44/10/7\n", "utf8"),
     "Restaurant enum payload return and reordered captures")
+  expectSuccess(binary, ["run", toWsl(enumCfgJoinFixture)],
+    enumCfgJoinOutput,
+    "bounded payload enum through one typed if join and exhaustive switch")
   expectSuccess(binary, ["run", toWsl(enumBoolPayloadFixture)],
     Buffer.from(
       "States true/false/false/true; charges 17/31; licensed true\n", "utf8"),
@@ -1802,6 +1809,8 @@ try {
   const buildFlatValueAggregates = buildOutput("flat-value-aggregates-build")
   const flatValueAggregatesAudit = buildOutput(
     "flat-value-aggregates-audit")
+  const buildEnumCfgJoin = buildOutput("enum-cfg-join-build")
+  const enumCfgJoinAudit = buildOutput("enum-cfg-join-audit")
   const buildMounted = join(fixtureDirectory, "mounted-build")
   const buildWrongTarget = buildOutput("wrong-target-build")
   const buildMissingParent = buildOutput("missing/artifact")
@@ -1833,8 +1842,21 @@ try {
     "execute Release flat tuple and immutable value-struct product")
   await verifyAuditTrace(flatValueAggregatesAudit,
     buildFlatValueAggregates, buildArtifactDirectory)
-  await inspectFlatAggregateAudit(flatValueAggregatesAudit, fixtureDirectory,
+  await inspectNativeProductAudit(flatValueAggregatesAudit, fixtureDirectory,
     externalToolchainRoot)
+
+  expectSuccess(binary, ["build", toWsl(enumCfgJoinFixture), "--target",
+    targetTriple, "--output", buildEnumCfgJoin, "--audit-dir", enumCfgJoinAudit],
+  Buffer.alloc(0), "build bounded enum CFG join in Release with audit")
+  const enumCfgJoinBytes = await readBuildArtifact(buildEnumCfgJoin)
+  assertCrtFreeElf(enumCfgJoinBytes)
+  assertElfNoExecutableStack(enumCfgJoinBytes)
+  expectExact(buildEnumCfgJoin, [], 0, enumCfgJoinOutput,
+    "execute Release bounded enum CFG join product")
+  await verifyAuditTrace(enumCfgJoinAudit, buildEnumCfgJoin,
+    buildArtifactDirectory)
+  await inspectNativeProductAudit(enumCfgJoinAudit, fixtureDirectory,
+    externalToolchainRoot, "enum-cfg-join")
 
   if (isWindows) {
     runRequired("WSL existing audit target directory", "wsl.exe", [

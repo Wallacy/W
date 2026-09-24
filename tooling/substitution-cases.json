@@ -6111,6 +6111,123 @@
       ]
     },
     {
+      "id": "R0-hir25-enum-cfg-value-flow",
+      "reviewItem": "nominal scalar-payload enum value through one typed if join and exhaustive switch against process-specific selectors and source-shape recognition",
+      "decisions": [
+        "W-1563"
+      ],
+      "task": "Carry a bounded local scalar-payload enum from one typed if-expression join through a local call and return, then exhaustively switch it through verified HIR, NativeSubset0, MLIR, and public native execution.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "// Expected: exit 0; stdout: \"42/0\\n\"; stderr: \"\"",
+          "enum Lookup {",
+          "  missing",
+          "  found(value: i64)",
+          "}",
+          "fn choose(available: Bool, amount: i64): Lookup {",
+          "  return if available { .found(value: amount) } else { .missing }",
+          "}",
+          "fn score(result: Lookup): i64 {",
+          "  return switch result {",
+          "    case .found(value: let value): value + 1",
+          "    case .missing: 0",
+          "  }",
+          "}",
+          "entry {",
+          "  let present_value = choose(available: true, amount: 41)",
+          "  let present = score(result: present_value)",
+          "  let absent_value = choose(available: false, amount: 41)",
+          "  let absent = score(result: absent_value)",
+          "  print(\"${present}/${absent}\")",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "process-specific-selector",
+          "language": "w-rejected",
+          "source": [
+            "select this exact function or fixture before generic verified HIR lowering"
+          ],
+          "expectedDifference": "The selected route derives admission from verified nominal enum, typed CFG edge, constructor, and switch records, independent of fixture or process names."
+        },
+        {
+          "name": "source-shape-recognizer",
+          "language": "w-rejected",
+          "source": [
+            "recognize the surface spelling of this if and switch and directly emit a native artifact"
+          ],
+          "expectedDifference": "The selected route preserves the typed HIR join and lowers it through generic NativeSubset0 and MLIR value/CFG paths."
+        },
+        {
+          "name": "raw-tag-or-precomputed-output",
+          "language": "w-rejected",
+          "source": [
+            "replace Lookup with an integer tag or write 42/0 directly"
+          ],
+          "expectedDifference": "The selected route preserves local nominal enum identity, typed payload fields, exhaustive cases, and executes the resulting native product."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_frontend.c",
+          "symbol": "normalize_if_expression",
+          "claim": "The frontend preserves the nominal local-enum result type on the ordinary typed if expression without matching a fixture name or token sequence."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_enum_if_arm_value_ok",
+          "claim": "HIR independently checks direct enum constructors and scalar payload leaves against the exact local nominal enum and parameter ordinals."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_scalar_jump_shape",
+          "claim": "HIR binds each typed join edge value to the branch, jump, block argument, owner, ordinal, and exact nominal type."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "program_scalar_cfg_branch",
+          "claim": "NativeSubset0 admits bounded enum-valued typed CFG joins from verified HIR and retains the existing structural branch proof."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "append_program_function",
+          "claim": "MLIR lowers typed block arguments and edge values through the generic function CFG path while keeping physical enum carriers internal."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_enum_if_value_join_hir",
+          "claim": "Focused HIR tests verify nominal joins, constructor/payload and reversed switch relations, adversarial forgeries, and transactional capacity failure."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/enum-cfg-join.c",
+          "symbol": "main",
+          "claim": "Independent C23 source oracle computes and prints the same exact 42/0 output."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "enumCfgJoinFixture",
+          "claim": "Linux/WSL public development and audited Release routes execute the fixture, verify CRT-free ELF closure, and inspect post-opt IR and object imports."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "enumCfgJoinFixture",
+          "claim": "Native Windows public development and Release routes execute the fixture and verify the PE import allowlist."
+        }
+      ],
+      "checks": [
+        "HIR0 proves the one typed enum join with exact same-nominal incoming values and exhaustively verifies the reversed-source-order switch",
+        "resealed wrong nominal types, owners, ordinals, cases, payload parameters, switch edges, and capture relations fail; capacity failure preserves all output and result bytes",
+        "NativeSubset0 and MLIR0 lower the verified graph generically; no process-specific selector or source-text recognition is admitted",
+        "public Windows and Linux/WSL development and Release products require exit zero, exact 42/0 LF output, and empty stderr; import/dependency audits remain closed",
+        "the C23 source is an independent correctness output reference; no timing or performance equivalence is claimed"
+      ],
+      "measures": [
+        "semantic-correctness"
+      ]
+    },
+    {
       "id": "R0-hir22-same-module-product-closure",
       "reviewItem": "same-module executable product roots against retain-all-exports and source-name shortcuts",
       "decisions": [

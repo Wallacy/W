@@ -31,6 +31,8 @@ const ifFixture = resolve(seedDirectory, "fixtures", "if.w")
 const enumFixture = resolve(seedDirectory, "fixtures", "enum.w")
 const enumSubsetFixture = resolve(seedDirectory, "fixtures", "enum-subset.w")
 const enumPayloadFixture = resolve(seedDirectory, "fixtures", "enum-payload.w")
+const enumCfgJoinFixture = resolve(seedDirectory, "fixtures", "enum-cfg-join.w")
+const enumCfgJoinOutput = Buffer.from("42/0\n", "utf8")
 const enumBoolPayloadFixture = resolve(seedDirectory, "fixtures", "enum-bool-payload.w")
 const whileFixture = resolve(seedDirectory, "fixtures", "while.w")
 const whileMultiFixture = resolve(seedDirectory,
@@ -1093,6 +1095,9 @@ try {
   expectExact(binary, ["run", enumPayloadFixture], 0,
     Buffer.from("Bills 32/44/10/7\n", "utf8"),
     "Restaurant enum payload return, reordered captures, and shared variant storage")
+  expectExact(binary, ["run", enumCfgJoinFixture], 0,
+    enumCfgJoinOutput,
+    "bounded payload enum through one typed if join and exhaustive switch")
   const enumPayloadMutation = join(fixtureDirectory, "enum-payload-mutation.w")
   const enumPayloadSource = await readFile(enumPayloadFixture, "utf8")
   const enumPayloadMutatedSource = enumPayloadSource
@@ -1543,6 +1548,8 @@ try {
   const buildHello = join(fixtureDirectory, "hello-build.exe")
   const buildFlatValueAggregates = join(fixtureDirectory,
     "flat-value-aggregates-build.exe")
+  const buildEnumCfgJoin = join(fixtureDirectory,
+    "enum-cfg-join-build.exe")
   const flatValueAggregatesWindowsRoute = {
     usesProcessArgumentAdapter: false,
     writesStdout: true,
@@ -1633,6 +1640,17 @@ try {
     flatValueAggregatesWindowsRoute)
   expectExact(buildFlatValueAggregates, [], 0, flatValueAggregatesOutput,
     "execute Windows Release flat tuple and immutable value-struct product")
+  expectExact(binary, ["build", enumCfgJoinFixture, "--target", targetTriple,
+    "--output", buildEnumCfgJoin], 0, Buffer.alloc(0),
+  "build bounded enum CFG join in Windows Release")
+  const enumCfgJoinWindowsBytes = await readFile(buildEnumCfgJoin)
+  assertPeX64(enumCfgJoinWindowsBytes,
+    "built bounded enum CFG join Windows artifact")
+  assertKernel32OnlyImports(enumCfgJoinWindowsBytes,
+    "built bounded enum CFG join Windows artifact",
+    flatValueAggregatesWindowsRoute)
+  expectExact(buildEnumCfgJoin, [], 0, enumCfgJoinOutput,
+    "execute Windows Release bounded enum CFG join product")
   expectExact(binary, ["build", localGraphFixture, "--target", targetTriple,
     "--output", buildLocalGraph], 0, Buffer.alloc(0),
     "build resolved local-module graph")

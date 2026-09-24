@@ -5478,6 +5478,9 @@ static bool append_program_block_argument_name(
     integer_ok = mlir0_integer_type_facts(program, argument->type_index,
                                           &is_signed, &bit_width);
   }
+  const bool local_enum_ok =
+      argument_kind == W_SEED_HIR0_TYPE_ENUM &&
+      mlir0_enum_type_info(program, argument->type_index, NULL, NULL, NULL);
   /* The ordinary CFG adapter intentionally does not open floating block
    * arguments. The process-executable selector has already reverified this
    * exact rounding relation; allow only its source join argument, owned by
@@ -5512,7 +5515,7 @@ static bool append_program_block_argument_name(
                                         : process->rounding_error_type_index);
   if (argument_kind != W_SEED_HIR0_TYPE_I64 &&
       argument_kind != W_SEED_HIR0_TYPE_BOOL && !integer_ok &&
-      !typed_error_ok && !rounding_source_join_argument_ok)
+      !typed_error_ok && !rounding_source_join_argument_ok && !local_enum_ok)
     return false;
   const w_seed_hir0_block *block = &program->blocks[argument->owner_block];
   if (block->owner_function != function_index ||

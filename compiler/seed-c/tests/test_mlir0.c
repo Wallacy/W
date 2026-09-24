@@ -79,6 +79,7 @@ typedef struct {
   w_seed_frontend_enum_case_parameter
       enum_case_parameters[TEST_HIR_RECORDS];
   w_seed_frontend_switch_arm switch_arms[TEST_HIR_RECORDS];
+  w_seed_frontend_pattern_capture pattern_captures[TEST_HIR_RECORDS];
   w_seed_frontend_enum_subset_member
       enum_subset_members[TEST_HIR_RECORDS];
   w_seed_frontend_type_declaration type_declarations[TEST_STRUCTS];
@@ -118,6 +119,9 @@ typedef struct {
   w_seed_hir0_type hir_types[TEST_HIR_RECORDS];
   w_seed_hir0_enum hir_enums[TEST_HIR_RECORDS];
   w_seed_hir0_enum_case hir_enum_cases[TEST_HIR_RECORDS];
+  w_seed_hir0_enum_case_parameter
+      hir_enum_case_parameters[TEST_HIR_RECORDS];
+  w_seed_hir0_enum_payload hir_enum_payloads[TEST_HIR_RECORDS];
   w_seed_hir0_enum_subset_member
       hir_enum_subset_members[TEST_HIR_RECORDS];
   w_seed_hir0_function hir_functions[TEST_HIR_RECORDS];
@@ -126,6 +130,7 @@ typedef struct {
   w_seed_hir0_block_argument hir_block_arguments[TEST_HIR_RECORDS];
   w_seed_hir0_edge_argument hir_edge_arguments[TEST_HIR_RECORDS];
   w_seed_hir0_switch_edge hir_switch_edges[TEST_HIR_RECORDS];
+  w_seed_hir0_switch_capture hir_switch_captures[TEST_HIR_RECORDS];
   w_seed_hir0_instruction hir_instructions[TEST_HIR_RECORDS];
   w_seed_hir0_binding hir_bindings[TEST_HIR_RECORDS];
   w_seed_hir0_call hir_calls[TEST_HIR_RECORDS];
@@ -251,6 +256,8 @@ static bool parse_source(const uint8_t *source_bytes, size_t source_length) {
       .enum_case_parameter_capacity = TEST_HIR_RECORDS,
       .switch_arms = fixture.switch_arms,
       .switch_arm_capacity = TEST_HIR_RECORDS,
+      .pattern_captures = fixture.pattern_captures,
+      .pattern_capture_capacity = TEST_HIR_RECORDS,
       .enum_subset_members = fixture.enum_subset_members,
       .enum_subset_member_capacity = TEST_HIR_RECORDS,
       .type_declarations = fixture.type_declarations,
@@ -462,6 +469,10 @@ static bool lower_hir(const uint8_t *source_bytes, size_t source_length) {
       .enum_capacity = TEST_HIR_RECORDS,
       .enum_cases = fixture.hir_enum_cases,
       .enum_case_capacity = TEST_HIR_RECORDS,
+      .enum_case_parameters = fixture.hir_enum_case_parameters,
+      .enum_case_parameter_capacity = TEST_HIR_RECORDS,
+      .enum_payloads = fixture.hir_enum_payloads,
+      .enum_payload_capacity = TEST_HIR_RECORDS,
       .enum_subset_members = fixture.hir_enum_subset_members,
       .enum_subset_member_capacity = TEST_HIR_RECORDS,
       .functions = fixture.hir_functions,
@@ -476,6 +487,8 @@ static bool lower_hir(const uint8_t *source_bytes, size_t source_length) {
       .edge_argument_capacity = TEST_HIR_RECORDS,
       .switch_edges = fixture.hir_switch_edges,
       .switch_edge_capacity = TEST_HIR_RECORDS,
+      .switch_captures = fixture.hir_switch_captures,
+      .switch_capture_capacity = TEST_HIR_RECORDS,
       .instructions = fixture.hir_instructions,
       .instruction_capacity = TEST_HIR_RECORDS,
       .bindings = fixture.hir_bindings,
@@ -1770,6 +1783,107 @@ static bool test_enum_switch_mlir(void) {
   fixture.hir_terminators[dispatch_terminator].switch_carrier_width =
       saved_carrier;
   CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_enum_if_value_join_mlir(void) {
+  static const uint8_t SOURCE[] =
+      "enum Lookup { missing found(value: i64) }\n"
+      "fn choose(available: Bool, amount: i64): Lookup { "
+      "return if available { .found(value: amount) } else { .missing } }\n"
+      "fn score(result: Lookup): i64 { return switch result { "
+      "case .found(value: let value): value + 1 case .missing: 0 } }\n"
+      "entry { let present_value = choose(available: true, amount: 41) "
+      "let present = score(result: present_value) "
+      "let absent_value = choose(available: false, amount: 41) "
+      "let absent = score(result: absent_value) "
+      "print(\"${present}/${absent}\") }\n";
+  CHECK(lower_hir(SOURCE, sizeof(SOURCE) - 1u));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  uint32_t lookup_type = W_SEED_HIR0_NONE;
+  for (size_t type = 0u; type < program->type_count; type += 1u)
+    if (program->types[type].kind == W_SEED_HIR0_TYPE_ENUM)
+      lookup_type = (uint32_t)type;
+  CHECK(lookup_type != W_SEED_HIR0_NONE && program->function_count == 3u &&
+        program->functions[0].return_type == lookup_type &&
+        program->functions[1].parameter_count == 1u &&
+        program->parameters[program->functions[1].first_parameter].type_index ==
+            lookup_type);
+
+  uint32_t join_branch = W_SEED_HIR0_NONE;
+  for (size_t block = program->functions[0].first_block;
+       block < (size_t)program->functions[0].first_block +
+                   program->functions[0].block_count;
+       block += 1u)
+    if (program->terminators[block].kind ==
+            W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[block].result_type == lookup_type)
+      join_branch = (uint32_t)block;
+  CHECK(join_branch != W_SEED_HIR0_NONE &&
+        program->terminators[join_branch].target_block == join_branch + 1u &&
+        program->terminators[join_branch].else_block == join_branch + 2u);
+  const uint32_t join_block = join_branch + 3u;
+  CHECK(program->blocks[join_block].block_argument_count == 1u &&
+        program->block_arguments[
+            program->blocks[join_block].first_block_argument].type_index ==
+            lookup_type &&
+        program->edge_arguments[
+            program->terminators[join_branch + 1u].first_edge_argument]
+                .type_index == lookup_type &&
+        program->edge_arguments[
+            program->terminators[join_branch + 2u].first_edge_argument]
+                .type_index == lookup_type);
+
+  bool saw_switch = false;
+  for (size_t block = program->functions[1].first_block;
+       block < (size_t)program->functions[1].first_block +
+                   program->functions[1].block_count;
+       block += 1u)
+    if (program->terminators[block].kind ==
+        W_SEED_HIR0_TERMINATOR_SWITCH_ENUM)
+      saw_switch = true;
+  CHECK(saw_switch);
+
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK && selection.has_cfg &&
+        selection.has_local_calls);
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        memcmp(measured.mlir_sha256, emitted.mlir_sha256,
+               sizeof(measured.mlir_sha256)) == 0);
+  const size_t choose_start = find_bytes(
+      artifact, emitted.written.mlir_bytes,
+      "llvm.func internal @w_fn_0(", 0u);
+  const size_t score_start = find_bytes(
+      artifact, emitted.written.mlir_bytes,
+      "llvm.func internal @w_fn_1(", choose_start);
+  CHECK(contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.func internal @w_fn_0(") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "%p0: i1, %p1: i64) -> !llvm.struct<(i1, array<1 x i64>)>") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.cond_br") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.br ^w_fn_0_b_3(") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       ": !llvm.struct<(i1, array<1 x i64>)>)") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.insertvalue") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "cf.switch %switch_tag_") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.extractvalue") &&
+        choose_start != SIZE_MAX && score_start != SIZE_MAX &&
+        choose_start < score_start &&
+        find_bytes(artifact, score_start, "llvm.select", choose_start) ==
+            SIZE_MAX);
   return true;
 }
 
@@ -9197,6 +9311,7 @@ int main(int argc, char **argv) {
   if (!test_process_arguments_value_lane_mlir()) return 1;
   if (!test_process_arguments_count_ordered_mlir()) return 1;
   if (!test_enum_switch_mlir()) return 1;
+  if (!test_enum_if_value_join_mlir()) return 1;
   if (!test_enum_subset_switch_mlir()) return 1;
   if (!test_signed_comparison_artifacts()) return 1;
   if (!test_straight_line_mutation_is_ssa()) return 1;

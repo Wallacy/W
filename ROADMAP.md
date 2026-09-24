@@ -526,7 +526,8 @@ order:
 | Lane | Bounded package | May advance independently | Integration gate |
 | --- | --- | --- | --- |
 | CFG proof | Bounded two-loop HIR emission, reachability, dominance, typed carriers and adversarial lineage checks | Native selection and MLIR may consume only this verified graph, without another source-shape recognizer | Execute the pinned nested-loop witness through public CRT-free Windows and Linux/WSL products |
-| Product values | HIR-only flat two-`i64` tuple and one local immutable two-`i64` value-struct witnesses, plus independent C23/Rust correctness oracles | Source→frontend→measured/emitted HIR→output bridge→independent verifier; no native or performance claim | Extend a later native consumer from verified HIR only after layout/ABI policy and exact native witnesses are selected |
+| Product values | Flat two-`i64` tuple and one local immutable two-`i64` value struct remain HIR-only; independent C23/Rust correctness oracles | Source→frontend→measured/emitted HIR→output bridge→independent verifier; no native or performance claim for aggregates | Extend a later native consumer from verified HIR only after layout/ABI policy and exact native witnesses are selected |
+| Enum value flow | One local scalar-payload enum crosses one typed value-`if` join, a local call boundary, and an exhaustive switch; Bool/i64 payload domain, with physical representation internal | Verified nominal HIR, NativeSubset0 and MLIR0 route; exact CRT-free Windows and Linux/WSL correctness witnesses | Broaden only with a distinct proved CFG/value boundary; stable layout/ABI, nested aggregates, ownership, loops and general mixed CFG remain open |
 | Native output | Exact output storage, Hello-minimal layout and dependency-closure receipts | Product-value work uses an isolated checkout while current products are measured | Refresh every affected live public-product receipt before treating the catalog as current |
 
 Each lane should produce one useful family-level result, not a new executable
@@ -716,10 +717,13 @@ undefined-symbol inventories are exactly `write` in the product object and
 executable stack. This remains bounded compiler-lifecycle evidence, not a
 performance result or stable aggregate layout/ABI claim.
 
-The slice still does not implement stable layout or ABI/FFI, payload enums,
-arrays, mutable or nested/arbitrary aggregates, or aggregate ownership.
-ProductClosure0 promotes only these exact flat shapes and remains fail-closed
-for the other forms. C23/Rust sources are independent output references only. The standalone
+The aggregate slice still does not implement stable layout or ABI/FFI, arrays,
+mutable or nested/arbitrary aggregates, or aggregate ownership. The separate
+[`enum-cfg-join.w`](compiler/seed-c/fixtures/enum-cfg-join.w) witness now carries
+a local scalar-payload enum through one typed `if` join and an exhaustive
+switch, but it does not add aggregate support or a public enum layout. ProductClosure0
+continues to promote only its exact flat aggregate shapes and remains
+fail-closed for the other forms. C23/Rust sources are independent output references only. The standalone
 [`flat-aggregate-pair.w`](compiler/seed-c/fixtures/flat-aggregate-pair.w) and
 [`flat-value-struct-pair.w`](compiler/seed-c/fixtures/flat-value-struct-pair.w)
 continue as focused verified-HIR witnesses; labeled tuple type syntax remains

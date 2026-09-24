@@ -86,6 +86,7 @@ The timer covers lane runs, result validation, catalog update, and catalog/docum
 | [enum-bool-payload (C)](./executable/enum_bool_payload.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 134.4189 ms | 18.1474 ms | 19.0715 ms | 14.232 ms | 4845568 B (4.62 MiB) |
 | [enum-bool-payload (Rust)](./executable/enum_bool_payload.rs) | Windows · CRT | Rust | 113664 B (111.0 KiB) | 1.1267895 s | 19.3007 ms | 20.3202 ms | 13.613 ms | 4890624 B (4.66 MiB) |
 | [enum-bool-payload (W)](../compiler/seed-c/fixtures/enum-bool-payload.w) | Windows · no CRT (recipe-derived) | W | 2048 B (2.0 KiB) | 200.2631 ms | 12.9183 ms | 13.4094 ms | 10.365 ms | 3158016 B (3.01 MiB) |
+| [enum-cfg-join (W)](../compiler/seed-c/fixtures/enum-cfg-join.w), [enum-cfg-join (C)](../compiler/seed-c/fixtures/enum-cfg-join.c) | Not measured | — | — | — | — | — | — | — |
 | [comparison-composition (W)](../compiler/seed-c/fixtures/comparison-composition.w) | Windows · no CRT (recipe-derived) | W | 2048 B (2.0 KiB) | 230.9255 ms | 13.1237 ms | 13.9214 ms | 10.674 ms | 3158016 B (3.01 MiB) |
 
 ### Integer semantics

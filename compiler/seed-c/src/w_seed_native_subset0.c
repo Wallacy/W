@@ -685,11 +685,24 @@ static bool native_integer_is_wrapping_unary(w_seed_hir0_unary_operator op) {
   return op == W_SEED_HIR0_UNARY_WRAPPING_NEGATE;
 }
 
+static bool program_enum_type_supported(const w_seed_hir0_program *program,
+                                        uint32_t type_index,
+                                        uint32_t *enum_index,
+                                        uint32_t *carrier_width);
+
 static bool native_scalar_type_supported(const w_seed_hir0_program *program,
                                          uint32_t type_index) {
   if (program == NULL || type_index >= program->type_count) return false;
   return program->types[type_index].kind == W_SEED_HIR0_TYPE_BOOL ||
          native_integer_type_facts(program, type_index, &(native_integer_facts){0});
+}
+
+static bool native_value_cfg_type_supported(const w_seed_hir0_program *program,
+                                            uint32_t type_index) {
+  if (native_scalar_type_supported(program, type_index)) return true;
+  return program != NULL && type_index < program->type_count &&
+         program->types[type_index].kind == W_SEED_HIR0_TYPE_ENUM &&
+         program_enum_type_supported(program, type_index, NULL, NULL);
 }
 
 w_seed_native_subset0_status w_seed_native_subset0_select(
@@ -2799,7 +2812,9 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
                                    owner_function, false, depth + 1u);
   if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
     if ((type != W_SEED_HIR0_TYPE_I64 && type != W_SEED_HIR0_TYPE_U64 &&
-         type != W_SEED_HIR0_TYPE_INTEGER && type != W_SEED_HIR0_TYPE_BOOL) ||
+         type != W_SEED_HIR0_TYPE_INTEGER && type != W_SEED_HIR0_TYPE_BOOL &&
+         !program_enum_type_supported(program, value->type_index, NULL,
+                                      NULL)) ||
         value->block_argument_index == W_SEED_HIR0_NONE ||
         value->block_argument_index >= program->block_argument_count)
       return false;
@@ -3843,10 +3858,11 @@ static bool process_host_call_supported(
     uint32_t owner_function,
     const w_seed_native_subset0_process *process);
 
-/* HIR0 verification proves each branch is a structured diamond. Scalar
- * functions may use the same forward-only value-if diamonds, including a
- * nested diamond in either arm. Logical diamonds keep their existing Bool-only
- * shape. Keep this local structural proof because the maximum-output walk
+/* HIR0 verification proves each branch is a structured diamond. Functions
+ * returning scalar values or one bounded local enum may use the same
+ * forward-only value-if diamonds, including a nested diamond in either arm.
+ * Logical diamonds keep their existing Bool-only shape. Keep this local
+ * structural proof because the maximum-output walk
  * below is deliberately a less precise reverse dynamic program. */
 static bool program_scalar_cfg_arm(
     const w_seed_hir0_program *program, uint32_t function_index, size_t start,
@@ -3861,7 +3877,7 @@ static bool program_scalar_cfg_join(
     const w_seed_hir0_program *program, const w_seed_hir0_terminator *branch,
     size_t join_block, uint32_t expected_type) {
   if (program == NULL || branch == NULL || join_block >= program->block_count ||
-      !native_scalar_type_supported(program, expected_type))
+      !native_value_cfg_type_supported(program, expected_type))
     return false;
   const w_seed_hir0_block *join = &program->blocks[join_block];
   if (join->block_argument_count != 1u ||
@@ -3891,7 +3907,7 @@ static bool program_scalar_cfg_scalar_jump(
     expected_type =
         program->block_arguments[join->first_block_argument].type_index;
   }
-  if (!native_scalar_type_supported(program, expected_type))
+  if (!native_value_cfg_type_supported(program, expected_type))
     return false;
   const w_seed_hir0_terminator *jump = &program->terminators[jump_block];
   if (jump->owner_block != jump_block ||
@@ -4059,7 +4075,7 @@ static bool program_scalar_cfg_branch(
       expected_type =
           program->block_arguments[join->first_block_argument].type_index;
     }
-    if (!native_scalar_type_supported(program, expected_type) ||
+    if (!native_value_cfg_type_supported(program, expected_type) ||
         !program_scalar_cfg_scalar_jump(program, branch, then_last,
                                         then_join) ||
         !program_scalar_cfg_scalar_jump(program, branch, else_last,

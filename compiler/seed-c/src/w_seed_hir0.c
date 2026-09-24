@@ -92,6 +92,8 @@ static const hir0_cfg_loop_frame *hir0_cfg_plan_frame_for_statement(
 static uint32_t hir_type_from_frontend(
     const w_seed_frontend_output *output,
     const w_seed_frontend_result *result, uint32_t frontend_type);
+static bool hir_local_payload_enum_join_type_supported(
+    const w_seed_hir0_program *program, uint32_t type_index);
 static bool cfg_analysis_covers_all_blocks(
     const w_seed_hir0_cfg_analysis *analysis);
 static bool hir0_cfg_loop_exit_argument_span_ok(
@@ -4023,6 +4025,33 @@ static bool frontend_value_has_no_resolution(
          value->member_name.length == 0u && text_valid(value->member_name);
 }
 
+/* Enum-valued if expressions retain their nominal frontend identity even
+ * though they carry no case identity or other name resolution. Strip that
+ * one derived fact before applying the ordinary no-resolution predicate, and
+ * independently bind it back to the inferred local enum type. */
+static bool frontend_if_value_has_no_resolution(
+    const w_seed_hir0_input *input,
+    const w_seed_frontend_expression *value) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || value == NULL ||
+      value->kind != W_SEED_FRONTEND_EXPR_IF)
+    return false;
+  if (value->enum_index == W_SEED_FRONTEND_NONE)
+    return frontend_value_has_no_resolution(value);
+  if (value->enum_case_index != W_SEED_FRONTEND_NONE ||
+      value->inferred_type == W_SEED_FRONTEND_NONE ||
+      (size_t)value->inferred_type >= input->frontend_result->written.types)
+    return false;
+  const w_seed_frontend_type *type =
+      &input->frontend_output->types[value->inferred_type];
+  if (!frontend_local_enum_type_supported(input, type) ||
+      value->enum_index != type->enum_base_index)
+    return false;
+  w_seed_frontend_expression untagged = *value;
+  untagged.enum_index = W_SEED_FRONTEND_NONE;
+  return frontend_value_has_no_resolution(&untagged);
+}
+
 static bool frontend_tuple_projection_has_no_resolution(
     const w_seed_frontend_expression *value) {
   return value != NULL && value->enum_index == W_SEED_FRONTEND_NONE &&
@@ -4452,11 +4481,15 @@ static bool frontend_loop_scalar_tree_ok(
              root_statements, root_count, uses_root, depth + 1u);
 }
 
+static bool frontend_enum_if_arm_value_ok(
+    const w_seed_hir0_input *input, size_t module_index,
+    size_t function_index, size_t document_index, uint32_t expression_index,
+    uint32_t expected_type, size_t depth);
+
 /* Scalar-if arms are deliberately narrower than the ordinary HIR value
- * language.  This structural walk is independent of the dense postorder
- * cursor below, so a forged frontend record cannot smuggle a call, effect, or
- * aggregate through an otherwise well-shaped tree. Nested scalar-if values
- * are allowed only through this same bounded scalar grammar. */
+ * language. This structural walk is independent of the dense postorder
+ * cursor below, so a forged frontend record cannot smuggle an effect or an
+ * aggregate through an otherwise well-shaped tree. */
 static bool frontend_scalar_if_tree_ok(
     const w_seed_hir0_input *input, size_t module_index,
     size_t function_index, size_t document_index, uint32_t root_index,
@@ -4493,7 +4526,9 @@ static bool frontend_scalar_if_tree_ok(
         ((value->resolved_parameter_ordinal == W_SEED_FRONTEND_NONE) ==
          (value->resolved_binding_statement == W_SEED_FRONTEND_NONE)))
       return false;
-  } else if (!frontend_value_has_no_resolution(value) ||
+  } else if (!(value->kind == W_SEED_FRONTEND_EXPR_IF
+                   ? frontend_if_value_has_no_resolution(input, value)
+                   : frontend_value_has_no_resolution(value)) ||
              value->resolved_binding_statement != W_SEED_FRONTEND_NONE) {
     return false;
   }
@@ -4524,31 +4559,44 @@ static bool frontend_scalar_if_tree_ok(
         (size_t)else_value->inferred_type >=
             input->frontend_result->written.types ||
         !frontend_expression_is_bool(output, condition) ||
-        !(frontend_expression_is_i64(output, value) ||
-          frontend_expression_is_bool(output, value) ||
-          frontend_expression_is_float(output, value)) ||
-        !frontend_type_is_scalar(&output->types[value->inferred_type]) ||
-        !frontend_type_is_scalar(&output->types[then_value->inferred_type]) ||
-        !frontend_type_is_scalar(&output->types[else_value->inferred_type]) ||
-        !frontend_supported_types_equal_for_input(
-            input,
-            &output->types[value->inferred_type],
-            &output->types[then_value->inferred_type]) ||
-        !frontend_supported_types_equal_for_input(
-            input,
-            &output->types[then_value->inferred_type],
-            &output->types[else_value->inferred_type]) ||
         !frontend_scalar_if_tree_ok(input, module_index, function_index,
                                     document_index, value->left, true,
-                                    false, depth + 1u) ||
-        !frontend_scalar_if_tree_ok(input, module_index, function_index,
-                                    document_index, value->right, false,
-                                    false, depth + 1u) ||
-        !frontend_scalar_if_tree_ok(input, module_index, function_index,
-                                    document_index, value->else_expression,
-                                    false, false, depth + 1u))
+                                    false, depth + 1u))
       return false;
-    return true;
+    const w_seed_frontend_type *result_type =
+        &output->types[value->inferred_type];
+    const bool scalar_result =
+        (frontend_expression_is_i64(output, value) ||
+         frontend_expression_is_bool(output, value) ||
+         frontend_expression_is_float(output, value)) &&
+        frontend_type_is_scalar(result_type) &&
+        frontend_type_is_scalar(&output->types[then_value->inferred_type]) &&
+        frontend_type_is_scalar(&output->types[else_value->inferred_type]) &&
+        frontend_supported_types_equal_for_input(
+            input, result_type, &output->types[then_value->inferred_type]) &&
+        frontend_supported_types_equal_for_input(
+            input, &output->types[then_value->inferred_type],
+            &output->types[else_value->inferred_type]) &&
+        frontend_scalar_if_tree_ok(input, module_index, function_index,
+                                   document_index, value->right, false, false,
+                                   depth + 1u) &&
+        frontend_scalar_if_tree_ok(input, module_index, function_index,
+                                   document_index, value->else_expression,
+                                   false, false, depth + 1u);
+    if (scalar_result) return true;
+
+    if (!frontend_local_enum_type_supported(input, result_type) ||
+        !frontend_supported_types_equal_for_input(
+            input, result_type, &output->types[then_value->inferred_type]) ||
+        !frontend_supported_types_equal_for_input(
+            input, result_type, &output->types[else_value->inferred_type]))
+      return false;
+    return frontend_enum_if_arm_value_ok(
+               input, module_index, function_index, document_index,
+               value->right, value->inferred_type, depth + 1u) &&
+           frontend_enum_if_arm_value_ok(
+               input, module_index, function_index, document_index,
+               value->else_expression, value->inferred_type, depth + 1u);
   }
   if (value->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN) {
     if (!allow_fixed_integer_operand ||
@@ -4791,6 +4839,121 @@ static bool frontend_scalar_if_tree_ok(
   return false;
 }
 
+/* One enum value-if join admits only direct constructors of the same local
+ * closed enum. Constructor operands are existing Bool/i64 scalar leaves: no
+ * nested branch, call, aggregate, capture, or effect is folded into the join.
+ * The ordinary value-tree walk below independently verifies every child and
+ * dense frontend relation. */
+static bool frontend_enum_if_arm_value_ok(
+    const w_seed_hir0_input *input, size_t module_index,
+    size_t function_index, size_t document_index, uint32_t expression_index,
+    uint32_t expected_type, size_t depth) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || depth > W_SEED_HIR0_MAX_NESTING ||
+      expression_index == W_SEED_FRONTEND_NONE ||
+      (size_t)expression_index >= input->frontend_result->written.expressions ||
+      expected_type == W_SEED_FRONTEND_NONE ||
+      (size_t)expected_type >= input->frontend_result->written.types)
+    return false;
+  const w_seed_frontend_output *output = input->frontend_output;
+  const w_seed_frontend_expression *value =
+      &output->expressions[expression_index];
+  const w_seed_frontend_type *enum_type = &output->types[expected_type];
+  if (!frontend_local_enum_type_supported(input, enum_type) ||
+      !frontend_value_common_ok(input, value, module_index, function_index,
+                                document_index) ||
+      value->inferred_type == W_SEED_FRONTEND_NONE ||
+      (size_t)value->inferred_type >= input->frontend_result->written.types ||
+      !frontend_supported_types_equal_for_input(
+          input, enum_type, &output->types[value->inferred_type]))
+    return false;
+
+  if (value->kind == W_SEED_FRONTEND_EXPR_ENUM_CASE) {
+    return frontend_local_enum_case_value_ok(input, value) &&
+           value->module_index == module_index &&
+           value->owner_function == function_index &&
+           value->enum_index == enum_type->enum_base_index &&
+           value->enum_case_index < input->frontend_result->written.enum_cases &&
+           output->enum_cases[value->enum_case_index].payload_count == 0u;
+  }
+  if (value->kind != W_SEED_FRONTEND_EXPR_CALL ||
+      value->left == W_SEED_FRONTEND_NONE ||
+      (size_t)value->left >= input->frontend_result->written.expressions ||
+      value->first_argument == W_SEED_FRONTEND_NONE ||
+      value->argument_count == 0u ||
+      (size_t)value->first_argument > input->frontend_result->written.arguments ||
+      value->argument_count > input->frontend_result->written.arguments -
+                                  value->first_argument ||
+      value->enum_index != enum_type->enum_base_index ||
+      value->enum_case_index >= input->frontend_result->written.enum_cases ||
+      value->resolved_callee_kind != W_SEED_FRONTEND_CALLEE_NONE ||
+      value->resolved_function_index != W_SEED_FRONTEND_NONE ||
+      value->resolved_host_symbol_index != W_SEED_FRONTEND_NONE ||
+      value->resolved_external_module_index != W_SEED_FRONTEND_NONE ||
+      value->resolved_external_symbol_index != W_SEED_FRONTEND_NONE ||
+      value->resolved_local_ordinal != W_SEED_FRONTEND_NONE ||
+      value->resolved_const_declaration != W_SEED_FRONTEND_NONE ||
+      value->resolved_binding_statement != W_SEED_FRONTEND_NONE)
+    return false;
+  const w_seed_frontend_expression *callee = &output->expressions[value->left];
+  if (!frontend_local_enum_case_value_ok(input, callee) ||
+      callee->module_index != module_index ||
+      callee->owner_function != function_index ||
+      callee->enum_index != enum_type->enum_base_index ||
+      callee->enum_case_index != value->enum_case_index ||
+      !frontend_supported_types_equal_for_input(
+          input, enum_type, &output->types[callee->inferred_type]))
+    return false;
+  const w_seed_frontend_enum_case *enum_case =
+      &output->enum_cases[value->enum_case_index];
+  if (enum_case->payload_count != value->argument_count ||
+      enum_case->first_payload > input->frontend_result->written.enum_case_parameters ||
+      enum_case->payload_count > input->frontend_result->written.enum_case_parameters -
+                                     enum_case->first_payload)
+    return false;
+  for (size_t ordinal = 0u; ordinal < value->argument_count; ordinal += 1u) {
+    const w_seed_frontend_argument *argument =
+        &output->arguments[(size_t)value->first_argument + ordinal];
+    if (argument->module_index != module_index ||
+        argument->owner_expression != value->left ||
+        argument->expression_index == W_SEED_FRONTEND_NONE ||
+        (size_t)argument->expression_index >=
+            input->frontend_result->written.expressions ||
+        argument->resolved_parameter_ordinal >= enum_case->payload_count)
+      return false;
+    for (size_t prior = 0u; prior < ordinal; prior += 1u)
+      if (output->arguments[(size_t)value->first_argument + prior]
+              .resolved_parameter_ordinal ==
+          argument->resolved_parameter_ordinal)
+        return false;
+    const w_seed_frontend_enum_case_parameter *parameter =
+        &output->enum_case_parameters[(size_t)enum_case->first_payload +
+                                      argument->resolved_parameter_ordinal];
+    const w_seed_frontend_expression *payload =
+        &output->expressions[argument->expression_index];
+    const bool payload_type_is_scalar_leaf =
+        parameter->type_index < input->frontend_result->written.types &&
+        (output->types[parameter->type_index].kind ==
+             W_SEED_FRONTEND_TYPE_BOOL ||
+         frontend_type_is_i64(&output->types[parameter->type_index]));
+    const bool payload_is_scalar_leaf =
+        (payload->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER ||
+         payload->kind == W_SEED_FRONTEND_EXPR_INTEGER ||
+         payload->kind == W_SEED_FRONTEND_EXPR_BOOL) &&
+        (frontend_expression_is_bool(output, payload) ||
+         frontend_expression_is_i64(output, payload)) &&
+        parameter->owner_case == value->enum_case_index &&
+        frontend_supported_types_equal_for_input(
+            input, &output->types[parameter->type_index],
+            &output->types[payload->inferred_type]) &&
+        frontend_scalar_if_tree_ok(input, module_index, function_index,
+                                   document_index, argument->expression_index,
+                                   false, false, depth + 1u);
+    if (!payload_type_is_scalar_leaf || !payload_is_scalar_leaf) return false;
+  }
+  return true;
+}
+
 /* Frontend expressions are append-only postorder records. This walk consumes
  * exactly one dense subtree and measures the normalized HIR value tree. A
  * finite depth bound keeps validation stack use independent of hostile input. */
@@ -5028,39 +5191,9 @@ static bool frontend_value_tree_ok_impl(
         value->inferred_type == W_SEED_FRONTEND_NONE ||
         (size_t)value->inferred_type >= result->written.types ||
         !frontend_scalar_if_tree_ok(input, module_index, function_index,
-                                    document_index, value->left, true,
-                                    false, depth + 1u) ||
-        !frontend_scalar_if_tree_ok(input, module_index, function_index,
-                                    document_index, value->right, false,
-                                    false, depth + 1u) ||
-        !frontend_scalar_if_tree_ok(input, module_index, function_index,
-                                    document_index, value->else_expression,
-                                    false, false, depth + 1u) ||
-        !frontend_expression_is_bool(output, &output->expressions[value->left]) ||
-        output->expressions[value->right].inferred_type ==
-            W_SEED_FRONTEND_NONE ||
-        output->expressions[value->else_expression].inferred_type ==
-            W_SEED_FRONTEND_NONE ||
-        (size_t)output->expressions[value->right].inferred_type >=
-            result->written.types ||
-        (size_t)output->expressions[value->else_expression].inferred_type >=
-            result->written.types ||
-        !frontend_type_is_scalar(&output->types[value->inferred_type]) ||
-        !frontend_type_is_scalar(
-            &output->types[output->expressions[value->right].inferred_type]) ||
-        !frontend_type_is_scalar(&output->types[output->expressions[
-                                            value->else_expression]
-                                            .inferred_type]) ||
-        !frontend_supported_types_equal_for_input(
-            input,
-            &output->types[value->inferred_type],
-            &output->types[output->expressions[value->right].inferred_type]) ||
-        !frontend_supported_types_equal_for_input(
-            input,
-            &output->types[output->expressions[value->right].inferred_type],
-            &output->types[output->expressions[value->else_expression]
-                                 .inferred_type]) ||
-        !frontend_value_has_no_resolution(value) ||
+                                    document_index, root_index, false, false,
+                                    depth) ||
+        !frontend_if_value_has_no_resolution(input, value) ||
         value->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
         value->const_byte_offset != W_SEED_FRONTEND_NONE ||
         value->const_byte_count != 0u || value->has_bool_value ||
@@ -9198,9 +9331,8 @@ static bool frontend_statement_and_expression_cfg_ok(
          !frontend_function_has_terminal_if(input, function_index)));
     if (!walked || relation_if_count != function_if_count ||
         (return_kind == W_SEED_FRONTEND_TYPE_UNIT && walk.has_value_return) ||
-        incomplete_return) {
+        incomplete_return)
       return false;
-    }
     const bool observable_process_exact =
         walk.has_integer_exactly_binding &&
         calls == function_calls_before + 1u &&
@@ -21884,7 +22016,9 @@ static bool verify_edge_argument_records(const w_seed_hir0_program *program) {
           edge->owner_block != terminator->owner_block ||
           edge->ordinal != ordinal || edge->value_index >= program->value_count ||
           (edge->type_index != 2u && edge->type_index != 3u &&
-           !hir_float_type_index_valid(program, edge->type_index)) ||
+           !hir_float_type_index_valid(program, edge->type_index) &&
+           !hir_local_payload_enum_join_type_supported(program,
+                                                       edge->type_index)) ||
           !span_valid(edge->source_span, source_length) ||
           !span_equal(edge->source_span, terminator->source_span))
         return false;
@@ -24200,6 +24334,43 @@ static bool verify_logical_join_shape(const w_seed_hir0_program *program,
          span_equal(argument->source_span, branch->source_span);
 }
 
+static bool hir_local_payload_enum_join_type_supported(
+    const w_seed_hir0_program *program, uint32_t type_index) {
+  if (program == NULL || !hir_type_index_valid(program, type_index) ||
+      program->types[type_index].kind != W_SEED_HIR0_TYPE_ENUM ||
+      program->types[type_index].enum_index >= program->enum_count)
+    return false;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  const w_seed_hir0_enum *decl = &program->enums[type->enum_index];
+  if (decl->module_index != type->owner_module ||
+      decl->type_index != type_index || decl->case_count == 0u ||
+      decl->case_count > 64u ||
+      !range_valid(decl->first_case, decl->case_count,
+                   program->enum_case_count))
+    return false;
+  for (size_t ordinal = 0u; ordinal < decl->case_count; ordinal += 1u) {
+    const w_seed_hir0_enum_case *enum_case =
+        &program->enum_cases[(size_t)decl->first_case + ordinal];
+    if (enum_case->owner_enum != type->enum_index ||
+        enum_case->ordinal != ordinal ||
+        !range_valid(enum_case->first_payload, enum_case->payload_count,
+                     program->enum_case_parameter_count))
+      return false;
+    for (size_t payload = 0u; payload < enum_case->payload_count;
+         payload += 1u) {
+      const w_seed_hir0_enum_case_parameter *parameter =
+          &program->enum_case_parameters[(size_t)enum_case->first_payload +
+                                         payload];
+      if (parameter->owner_case != decl->first_case + ordinal ||
+          parameter->ordinal != payload ||
+          (parameter->type_index != W_SEED_HIR0_TYPE_I64 &&
+           parameter->type_index != W_SEED_HIR0_TYPE_BOOL))
+        return false;
+    }
+  }
+  return true;
+}
+
 static bool verify_scalar_jump_shape(
     const w_seed_hir0_program *program, const w_seed_hir0_terminator *branch,
     size_t jump_block, size_t join_block, size_t source_length) {
@@ -24208,7 +24379,9 @@ static bool verify_scalar_jump_shape(
                                                  W_SEED_HIR0_LOGICAL_NONE ||
       (branch->result_type != 0u && branch->result_type != 2u &&
        branch->result_type != 3u &&
-       !hir_float_type_index_valid(program, branch->result_type)) ||
+       !hir_float_type_index_valid(program, branch->result_type) &&
+       !hir_local_payload_enum_join_type_supported(program,
+                                                   branch->result_type)) ||
       program->blocks[join_block].block_argument_count != 1u)
     return false;
   const w_seed_hir0_terminator *jump = &program->terminators[jump_block];
@@ -24365,7 +24538,8 @@ static bool verify_join_shape(const w_seed_hir0_program *program,
                               size_t source_length) {
   if (program == NULL || branch == NULL || join_block >= program->block_count ||
       (expected_type != 2u && expected_type != 3u &&
-       !hir_float_type_index_valid(program, expected_type)))
+       !hir_float_type_index_valid(program, expected_type) &&
+       !hir_local_payload_enum_join_type_supported(program, expected_type)))
     return false;
   const w_seed_hir0_block *join = &program->blocks[join_block];
   if (join->block_argument_count != 1u ||
@@ -24445,7 +24619,9 @@ static bool verify_cfg_branch(const w_seed_hir0_program *program,
         return false;
       }
     } else if (branch->result_type == 2u || branch->result_type == 3u ||
-               hir_float_type_index_valid(program, branch->result_type)) {
+               hir_float_type_index_valid(program, branch->result_type) ||
+               hir_local_payload_enum_join_type_supported(
+                   program, branch->result_type)) {
       if (mutable_merge) return false;
       if (!verify_scalar_jump_shape(program, branch, then_last, then_join,
                                     source_length) ||
@@ -30535,7 +30711,9 @@ static bool verify_records(const w_seed_hir0_program *program) {
        if ((value->logical_operator == W_SEED_HIR0_LOGICAL_NONE
                ? (value->result_type != 0u && value->result_type != 2u &&
                   value->result_type != 3u &&
-                  !hir_float_type_index_valid(program, value->result_type))
+                  !hir_float_type_index_valid(program, value->result_type) &&
+                  !hir_local_payload_enum_join_type_supported(
+                      program, value->result_type))
                : value->result_type != 3u) ||
           value->value_index == W_SEED_HIR0_NONE ||
           value->value_index >= program->value_count ||

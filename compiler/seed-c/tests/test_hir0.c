@@ -16381,6 +16381,291 @@ static bool test_enum_switch_hir(void) {
   return true;
 }
 
+static bool test_enum_if_value_join_hir(void) {
+  static const char SOURCE[] =
+      "enum Lookup { missing found(value: i64) }\n"
+      "enum Alternative { absent present(value: i64) }\n"
+      "fn choose(available: Bool, amount: i64): Lookup { "
+      "return if available { .found(value: amount) } else { .missing } }\n"
+      "fn score(result: Lookup): i64 { return switch result { "
+      "case .found(value: let value): value + 1 case .missing: 0 } }\n"
+      "entry { }\n";
+  CHECK(fixture_parse(SOURCE));
+  configure_host();
+  const w_seed_frontend_status frontend_status =
+      w_seed_frontend_run(&fixture.input, &fixture.output, &fixture.result);
+  CHECK(frontend_status == W_SEED_FRONTEND_OK);
+  setup_hir_output();
+  const w_seed_hir0_input input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
+  w_seed_hir0_counts measured;
+  w_seed_hir0_result measure_result;
+  CHECK(w_seed_hir0_measure(&input, &measured, &measure_result) ==
+        W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &fixture.hir_result) ==
+        W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_program_from_output(&fixture.hir_output,
+                                        &fixture.hir_result,
+                                        &fixture.hir_program));
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_counts = measured;
+  w_seed_hir0_program *program = &fixture.hir_program;
+  uint32_t lookup_type = W_SEED_HIR0_NONE;
+  uint32_t alternative_type = W_SEED_HIR0_NONE;
+  uint32_t enum_index = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < program->type_count; index += 1u)
+    if (program->types[index].kind == W_SEED_HIR0_TYPE_ENUM) {
+      if (program->types[index].enum_index == 0u) {
+        lookup_type = (uint32_t)index;
+        enum_index = program->types[index].enum_index;
+      } else if (program->types[index].enum_index == 1u) {
+        alternative_type = (uint32_t)index;
+      }
+    }
+  CHECK(lookup_type != W_SEED_HIR0_NONE &&
+        alternative_type != W_SEED_HIR0_NONE && enum_index == 0u &&
+        program->enum_count == 2u &&
+        program->enums[enum_index].case_count == 2u &&
+        program->enum_case_parameter_count == 2u &&
+        program->enum_payload_count == 1u &&
+        program->switch_capture_count == 1u);
+  uint32_t join_branch = W_SEED_HIR0_NONE;
+  uint32_t score_dispatch = W_SEED_HIR0_NONE;
+  for (size_t block = 0u; block < program->block_count; block += 1u) {
+    const w_seed_hir0_terminator *term = &program->terminators[block];
+    if (term->kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        term->result_type == lookup_type)
+      join_branch = (uint32_t)block;
+    if (term->kind == W_SEED_HIR0_TERMINATOR_SWITCH_ENUM &&
+        term->switch_enum_index == enum_index)
+      score_dispatch = (uint32_t)block;
+  }
+  CHECK(join_branch != W_SEED_HIR0_NONE &&
+        score_dispatch != W_SEED_HIR0_NONE &&
+        program->functions[0].return_type == lookup_type &&
+        program->functions[1].parameter_count == 1u &&
+        program->parameters[program->functions[1].first_parameter].type_index ==
+            lookup_type);
+  const w_seed_hir0_terminator *branch =
+      &program->terminators[join_branch];
+  uint32_t join_block = W_SEED_HIR0_NONE;
+  uint32_t found_constructor = W_SEED_HIR0_NONE;
+  uint32_t missing_constructor = W_SEED_HIR0_NONE;
+  for (size_t block = 0u; block < program->block_count; block += 1u)
+    if (program->blocks[block].block_argument_count == 1u &&
+        program->block_arguments[
+            program->blocks[block].first_block_argument].type_index ==
+            lookup_type)
+      join_block = (uint32_t)block;
+  for (size_t value = 0u; value < program->value_count; value += 1u) {
+    const w_seed_hir0_value *candidate = &program->values[value];
+    if (candidate->kind != W_SEED_HIR0_VALUE_ENUM_CASE ||
+        candidate->enum_index != enum_index)
+      continue;
+    if (candidate->enum_case_index == 0u) missing_constructor = (uint32_t)value;
+    if (candidate->enum_case_index == 1u) found_constructor = (uint32_t)value;
+  }
+  CHECK(join_block != W_SEED_HIR0_NONE &&
+        program->blocks[join_block].block_argument_count == 1u &&
+        branch->target_block != branch->else_block &&
+        found_constructor != W_SEED_HIR0_NONE &&
+        missing_constructor != W_SEED_HIR0_NONE &&
+        program->values[found_constructor].type_index == lookup_type &&
+        program->values[missing_constructor].type_index == lookup_type);
+  const uint32_t then_term_index = program->blocks[branch->target_block].terminator_index;
+  const uint32_t else_term_index = program->blocks[branch->else_block].terminator_index;
+  CHECK(program->terminators[then_term_index].kind ==
+            W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[else_term_index].kind ==
+            W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[then_term_index].target_block == join_block &&
+        program->terminators[else_term_index].target_block == join_block &&
+        program->terminators[then_term_index].edge_argument_count == 1u &&
+        program->terminators[else_term_index].edge_argument_count == 1u);
+  const uint32_t then_edge =
+      program->terminators[then_term_index].first_edge_argument;
+  const uint32_t else_edge =
+      program->terminators[else_term_index].first_edge_argument;
+  CHECK(program->edge_arguments[then_edge].type_index == lookup_type &&
+        program->edge_arguments[else_edge].type_index == lookup_type &&
+        program->edge_arguments[then_edge].owner_terminator == then_term_index &&
+        program->edge_arguments[else_edge].owner_terminator == else_term_index &&
+        program->edge_arguments[then_edge].value_index == found_constructor &&
+        program->edge_arguments[else_edge].value_index == missing_constructor &&
+        program->block_arguments[
+            program->blocks[join_block].first_block_argument].owner_block ==
+            join_block &&
+        program->block_arguments[
+            program->blocks[join_block].first_block_argument].ordinal == 0u &&
+        program->switch_edges[0].enum_case_index == 0u &&
+        program->switch_edges[1].enum_case_index == 1u &&
+        program->switch_edges[1].capture_count == 1u &&
+        program->switch_captures[0].owner_switch_edge == 1u &&
+        program->switch_captures[0].parameter_ordinal == 0u &&
+        program->switch_captures[0].type_index == W_SEED_HIR0_TYPE_I64 &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_terminator saved_branch =
+      fixture.hir_terminators[join_branch];
+  fixture.hir_terminators[join_branch].result_type = W_SEED_HIR0_TYPE_I64;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[join_branch] = saved_branch;
+  fixture.hir_terminators[join_branch].result_type = alternative_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[join_branch] = saved_branch;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const uint32_t block_argument_index =
+      program->blocks[join_block].first_block_argument;
+  const w_seed_hir0_block_argument saved_block_argument =
+      fixture.hir_block_arguments[block_argument_index];
+  for (unsigned mutation = 0u; mutation < 4u; mutation += 1u) {
+    fixture.hir_block_arguments[block_argument_index] = saved_block_argument;
+    if (mutation == 0u)
+      fixture.hir_block_arguments[block_argument_index].owner_block = join_branch;
+    else if (mutation == 1u)
+      fixture.hir_block_arguments[block_argument_index].ordinal = 1u;
+    else if (mutation == 2u)
+      fixture.hir_block_arguments[block_argument_index].type_index =
+          W_SEED_HIR0_TYPE_I64;
+    else
+      fixture.hir_block_arguments[block_argument_index].type_index =
+          alternative_type;
+    reseal_hir_fixture();
+    CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  }
+  fixture.hir_block_arguments[block_argument_index] = saved_block_argument;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_edge_argument saved_then_edge = fixture.hir_edge_arguments[then_edge];
+  const w_seed_hir0_edge_argument saved_else_edge = fixture.hir_edge_arguments[else_edge];
+  for (unsigned mutation = 0u; mutation < 5u; mutation += 1u) {
+    fixture.hir_edge_arguments[then_edge] = saved_then_edge;
+    if (mutation == 0u)
+      fixture.hir_edge_arguments[then_edge].owner_terminator = else_term_index;
+    else if (mutation == 1u)
+      fixture.hir_edge_arguments[then_edge].owner_block = join_block;
+    else if (mutation == 2u)
+      fixture.hir_edge_arguments[then_edge].ordinal = 1u;
+    else if (mutation == 3u)
+      fixture.hir_edge_arguments[then_edge].value_index =
+          program->values[found_constructor].right_value;
+    else
+      fixture.hir_edge_arguments[then_edge].type_index = alternative_type;
+    reseal_hir_fixture();
+    CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  }
+  fixture.hir_edge_arguments[then_edge] = saved_then_edge;
+  fixture.hir_edge_arguments[else_edge] = saved_else_edge;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_value saved_found = fixture.hir_values[found_constructor];
+  fixture.hir_values[found_constructor].type_index = W_SEED_HIR0_TYPE_I64;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[found_constructor] = saved_found;
+  fixture.hir_values[found_constructor].enum_case_index = 0u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[found_constructor] = saved_found;
+  fixture.hir_values[found_constructor].enum_index = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[found_constructor] = saved_found;
+  const uint32_t payload_index = saved_found.first_enum_payload;
+  const w_seed_hir0_enum_payload saved_payload =
+      fixture.hir_enum_payloads[payload_index];
+  for (unsigned mutation = 0u; mutation < 4u; mutation += 1u) {
+    fixture.hir_enum_payloads[payload_index] = saved_payload;
+    if (mutation == 0u)
+      fixture.hir_enum_payloads[payload_index].owner_value = missing_constructor;
+    else if (mutation == 1u)
+      fixture.hir_enum_payloads[payload_index].ordinal = 1u;
+    else if (mutation == 2u)
+      fixture.hir_enum_payloads[payload_index].parameter_ordinal = 1u;
+    else
+      fixture.hir_enum_payloads[payload_index].type_index = W_SEED_HIR0_TYPE_BOOL;
+    reseal_hir_fixture();
+    CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  }
+  fixture.hir_enum_payloads[payload_index] = saved_payload;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_switch_edge saved_switch_edge =
+      fixture.hir_switch_edges[1];
+  fixture.hir_switch_edges[1].owner_terminator = join_branch;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_switch_edges[1] = saved_switch_edge;
+  fixture.hir_switch_edges[1].ordinal = 0u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_switch_edges[1] = saved_switch_edge;
+  fixture.hir_switch_edges[1].enum_case_index = 0u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_switch_edges[1] = saved_switch_edge;
+  fixture.hir_switch_edges[1].enum_index = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_switch_edges[1] = saved_switch_edge;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_switch_capture saved_capture =
+      fixture.hir_switch_captures[0];
+  for (unsigned mutation = 0u; mutation < 4u; mutation += 1u) {
+    fixture.hir_switch_captures[0] = saved_capture;
+    if (mutation == 0u)
+      fixture.hir_switch_captures[0].owner_switch_edge = 0u;
+    else if (mutation == 1u)
+      fixture.hir_switch_captures[0].ordinal = 1u;
+    else if (mutation == 2u)
+      fixture.hir_switch_captures[0].parameter_ordinal = 1u;
+    else
+      fixture.hir_switch_captures[0].type_index = W_SEED_HIR0_TYPE_BOOL;
+    reseal_hir_fixture();
+    CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  }
+  fixture.hir_switch_captures[0] = saved_capture;
+  uint32_t capture_read = W_SEED_HIR0_NONE;
+  for (size_t value = 0u; value < program->value_count; value += 1u)
+    if (program->values[value].kind ==
+        W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ)
+      capture_read = (uint32_t)value;
+  CHECK(capture_read != W_SEED_HIR0_NONE);
+  const uint32_t saved_capture_index =
+      fixture.hir_values[capture_read].pattern_capture_index;
+  fixture.hir_values[capture_read].pattern_capture_index = UINT32_MAX;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[capture_read].pattern_capture_index = saved_capture_index;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  w_seed_hir0_result rejected;
+  (void)memset(&rejected, 0x42, sizeof(rejected));
+  const w_seed_hir0_result rejected_before = rejected;
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  fixture.hir_output.block_argument_capacity =
+      fixture.hir_counts.block_arguments - 1u;
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &rejected) ==
+        W_SEED_HIR0_CAPACITY);
+  CHECK(hir_output_is_byte(0xa5u) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+  return true;
+}
+
 static bool test_enum_payload_captures(void) {
   static const char SOURCE[] =
       "enum Course { starter main(price: i64, tax: i64) dessert(value: i64) }\n"
@@ -22098,6 +22383,7 @@ int main(int argc, char **argv) {
   if (!test_local_enum_payload_declarations_hir()) return 1;
   if (!test_local_enum_payload_constructor_hir()) return 1;
   if (!test_enum_switch_hir()) return 1;
+  if (!test_enum_if_value_join_hir()) return 1;
   if (!test_enum_subset_hir()) return 1;
   if (!test_enum_payload_captures()) return 1;
   if (!test_flat_product_value_hir()) return 1;
