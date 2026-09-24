@@ -241,10 +241,10 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 }
 
 static bool test_products(void) {
-  CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-10") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-61") == 0);
+  CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-11") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-62") == 0);
   CHECK(strcmp(W_SEED_MLIR0_WINDOWS_SCHEMA_VERSION,
-               "w-seed-mlir0-windows-47") == 0);
+               "w-seed-mlir0-windows-48") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -343,6 +343,269 @@ static bool test_products(void) {
                        "\\4b\\69\\74\\63\\68\\65\\6e\\20\\63\\6c\\6f\\73\\65\\64\\0a") &&
         count_bytes(cfg_bytes, cfg_result.mlir.written.mlir_bytes,
                     "\\41\\66\\74\\65\\72\\20\\73\\65\\72\\76\\69\\63\\65\\0a") == 1u);
+  return true;
+}
+
+static bool native_subset_rejects_invalid_hir(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result) {
+  w_seed_native_subset0_program selection;
+  (void)memset(&selection, 0xa9, sizeof(selection));
+  const w_seed_native_subset0_program snapshot = selection;
+  return w_seed_native_subset0_select_program(program, hir_result,
+                                               &selection) ==
+             W_SEED_NATIVE_SUBSET0_INVALID &&
+         memcmp(&selection, &snapshot, sizeof(selection)) == 0;
+}
+
+static bool mlir_rejects_invalid_hir_without_publication(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result) {
+  const w_seed_mlir0_input input = {
+      .program = program,
+      .hir_result = hir_result,
+      .artifact_kind = W_SEED_MLIR0_ARTIFACT_EXECUTABLE};
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result result;
+  (void)memset(&counts, 0x31, sizeof(counts));
+  (void)memset(&result, 0x42, sizeof(result));
+  const w_seed_mlir0_counts counts_snapshot = counts;
+  const w_seed_mlir0_result result_snapshot = result;
+  if (w_seed_mlir0_measure(&input, &TARGET, &counts, &result) !=
+          W_SEED_MLIR0_INVALID_HIR ||
+      memcmp(&counts, &counts_snapshot, sizeof(counts)) != 0 ||
+      memcmp(&result, &result_snapshot, sizeof(result)) != 0)
+    return false;
+
+  uint8_t output_bytes[64];
+  uint8_t output_snapshot[sizeof(output_bytes)];
+  (void)memset(output_bytes, 0xa5, sizeof(output_bytes));
+  (void)memcpy(output_snapshot, output_bytes, sizeof(output_bytes));
+  const w_seed_mlir0_output output = {output_bytes, sizeof(output_bytes)};
+  return w_seed_mlir0_emit(&input, &TARGET, &output, &result) ==
+             W_SEED_MLIR0_INVALID_HIR &&
+         memcmp(output_bytes, output_snapshot, sizeof(output_bytes)) == 0 &&
+         memcmp(&result, &result_snapshot, sizeof(result)) == 0;
+}
+
+static bool test_product_closure_aggregate_input_aliases(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result) {
+  enum { WORD_CAPACITY = W_SEED_NATIVE0_HIR_VALUE_RECORDS };
+  static uint32_t words[18][WORD_CAPACITY];
+  static w_seed_product_closure0_value_fact
+      value_facts[WORD_CAPACITY];
+  static w_seed_product_closure0_type_fact type_facts[WORD_CAPACITY];
+  static w_seed_product_closure0_requirement_fact
+      requirement_facts[WORD_CAPACITY];
+  w_seed_product_closure0_output output = {
+      .reachable_modules = words[0],
+      .reachable_module_capacity = WORD_CAPACITY,
+      .omitted_modules = words[1],
+      .omitted_module_capacity = WORD_CAPACITY,
+      .reachable_functions = words[2],
+      .reachable_function_capacity = WORD_CAPACITY,
+      .omitted_functions = words[3],
+      .omitted_function_capacity = WORD_CAPACITY,
+      .reachable_identities = words[4],
+      .reachable_identity_capacity = WORD_CAPACITY,
+      .reachable_types = words[5],
+      .reachable_type_capacity = WORD_CAPACITY,
+      .reachable_values = words[6],
+      .reachable_value_capacity = WORD_CAPACITY,
+      .reachable_requirements = words[7],
+      .reachable_requirement_capacity = WORD_CAPACITY,
+      .reachable_external_modules = words[8],
+      .reachable_external_module_capacity = WORD_CAPACITY,
+      .reachable_external_symbols = words[9],
+      .reachable_external_symbol_capacity = WORD_CAPACITY,
+      .module_remap = words[10],
+      .module_remap_capacity = WORD_CAPACITY,
+      .function_remap = words[11],
+      .function_remap_capacity = WORD_CAPACITY,
+      .identity_remap = words[12],
+      .identity_remap_capacity = WORD_CAPACITY,
+      .type_remap = words[13],
+      .type_remap_capacity = WORD_CAPACITY,
+      .value_remap = words[14],
+      .value_remap_capacity = WORD_CAPACITY,
+      .requirement_remap = words[15],
+      .requirement_remap_capacity = WORD_CAPACITY,
+      .external_module_remap = words[16],
+      .external_module_remap_capacity = WORD_CAPACITY,
+      .external_symbol_remap = words[17],
+      .external_symbol_remap_capacity = WORD_CAPACITY,
+      .value_facts = value_facts,
+      .value_fact_capacity = WORD_CAPACITY,
+      .type_facts = type_facts,
+      .type_fact_capacity = WORD_CAPACITY,
+      .requirement_facts = requirement_facts,
+      .requirement_fact_capacity = WORD_CAPACITY};
+  const w_seed_product_closure0_input input = {program, hir_result};
+  w_seed_product_closure0_result result;
+  (void)memset(&result, 0, sizeof(result));
+  CHECK(w_seed_product_closure0_run(&input, &output, &result) ==
+        W_SEED_PRODUCT_CLOSURE0_OK);
+  CHECK(w_seed_product_closure0_verify(&input, &output, &result));
+  const w_seed_product_closure0_result saved_result = result;
+  const uint32_t saved_other_output = words[2][0];
+  const void *aggregate_arrays[] = {
+      program->tuple_components,
+      program->value_structs,
+      program->value_struct_fields,
+      program->tuple_elements,
+      program->value_struct_initializers};
+  for (size_t index = 0u;
+       index < sizeof(aggregate_arrays) / sizeof(aggregate_arrays[0]);
+       index += 1u) {
+    CHECK(aggregate_arrays[index] != NULL);
+    w_seed_product_closure0_output alias = output;
+    alias.reachable_modules = (uint32_t *)(void *)aggregate_arrays[index];
+    alias.reachable_module_capacity = 1u;
+    CHECK(w_seed_product_closure0_run(&input, &alias, &result) ==
+              W_SEED_PRODUCT_CLOSURE0_INVALID &&
+          memcmp(&result, &saved_result, sizeof(result)) == 0 &&
+          words[2][0] == saved_other_output &&
+          w_seed_hir0_verify(program, hir_result));
+  }
+  return true;
+}
+
+static bool test_flat_aggregate_lowering_and_barriers(void) {
+  static const uint8_t source[] =
+      "type Pair = (i64, i64)\n"
+      "struct Point { let left: i64 let right: i64 }\n"
+      "fn makePair(left: i64, right: i64): Pair { "
+      "let pair: Pair = (left, right) return pair }\n"
+      "fn combinePair(pair: Pair, scale: i64): i64 { "
+      "let product = pair.0 * scale return product + pair.1 }\n"
+      "fn makePoint(left: i64, right: i64): Point { "
+      "let point: Point = Point(right: right, left: left) return point }\n"
+      "fn combinePoint(point: Point, scale: i64): i64 { "
+      "let product = point.left * scale return product + point.right }\n"
+      "entry { let pair = makePair(left: 7, right: 5) "
+      "let point = makePoint(left: 7, right: 5) "
+      "let tupleResult = combinePair(pair: pair, scale: 3) "
+      "let structResult = combinePoint(point: point, scale: 3) "
+      "print(\"${pair.0},${point.left},${tupleResult + structResult}\") }\n";
+  static uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  const w_seed_native0_status source_status = run_source(
+      source, sizeof(source) - 1u, "flat-aggregate-native",
+      sizeof("flat-aggregate-native") - 1u, artifact, sizeof(artifact),
+      &result);
+  CHECK(source_status == W_SEED_NATIVE0_OK);
+  const w_seed_hir0_program *program = &storage.hir_program;
+  CHECK(w_seed_hir0_verify(program, &storage.hir_result));
+  CHECK(test_product_closure_aggregate_input_aliases(
+      program, &storage.hir_result));
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                       "llvm.insertvalue") &&
+        contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                       "llvm.extractvalue") &&
+        contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                       "!llvm.struct<(i64, i64)>"));
+
+  uint32_t tuple_constructor = W_SEED_HIR0_NONE;
+  uint32_t tuple_projection = W_SEED_HIR0_NONE;
+  uint32_t struct_constructor = W_SEED_HIR0_NONE;
+  uint32_t struct_projection = W_SEED_HIR0_NONE;
+  for (size_t value = 0u; value < program->value_count; value += 1u) {
+    const w_seed_hir0_value *item = &program->values[value];
+    if (item->kind == W_SEED_HIR0_VALUE_TUPLE &&
+        tuple_constructor == W_SEED_HIR0_NONE)
+      tuple_constructor = (uint32_t)value;
+    else if (item->kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT &&
+             tuple_projection == W_SEED_HIR0_NONE)
+      tuple_projection = (uint32_t)value;
+    else if (item->kind == W_SEED_HIR0_VALUE_VALUE_STRUCT &&
+             struct_constructor == W_SEED_HIR0_NONE)
+      struct_constructor = (uint32_t)value;
+    else if (item->kind == W_SEED_HIR0_VALUE_VALUE_STRUCT_FIELD &&
+             struct_projection == W_SEED_HIR0_NONE)
+      struct_projection = (uint32_t)value;
+  }
+  CHECK(tuple_constructor < program->value_count &&
+        tuple_projection < program->value_count &&
+        struct_constructor < program->value_count &&
+        struct_projection < program->value_count);
+  const w_seed_hir0_value *tuple = &program->values[tuple_constructor];
+  const w_seed_hir0_value *point = &program->values[struct_constructor];
+  CHECK(tuple->tuple_element_count == 2u &&
+        point->value_struct_initializer_count == 2u);
+  const w_seed_hir0_value_struct_initializer *first_initializer =
+      &program->value_struct_initializers[
+          point->first_value_struct_initializer];
+  const w_seed_hir0_value_struct_initializer *second_initializer =
+      &program->value_struct_initializers[
+          (size_t)point->first_value_struct_initializer + 1u];
+  CHECK(first_initializer->ordinal == 0u &&
+        first_initializer->field_ordinal == 1u &&
+        second_initializer->ordinal == 1u &&
+        second_initializer->field_ordinal == 0u);
+
+  const w_seed_hir0_value saved_tuple = *tuple;
+  storage.hir_values[tuple_constructor].first_tuple_element =
+      (uint32_t)program->tuple_element_count;
+  CHECK(native_subset_rejects_invalid_hir(program, &storage.hir_result) &&
+        mlir_rejects_invalid_hir_without_publication(
+            program, &storage.hir_result));
+  storage.hir_values[tuple_constructor] = saved_tuple;
+
+  w_seed_hir0_tuple_element *tuple_element =
+      &storage.hir_tuple_elements[saved_tuple.first_tuple_element + 1u];
+  const w_seed_hir0_tuple_element saved_tuple_element = *tuple_element;
+  tuple_element->ordinal = 0u;
+  CHECK(native_subset_rejects_invalid_hir(program, &storage.hir_result) &&
+        mlir_rejects_invalid_hir_without_publication(
+            program, &storage.hir_result));
+  *tuple_element = saved_tuple_element;
+
+  const uint32_t tuple_type = tuple->type_index;
+  const uint32_t first_component =
+      program->types[tuple_type].first_tuple_component;
+  const w_seed_hir0_tuple_component saved_component =
+      storage.hir_tuple_components[first_component];
+  storage.hir_tuple_components[first_component].type_index = 3u;
+  CHECK(native_subset_rejects_invalid_hir(program, &storage.hir_result) &&
+        mlir_rejects_invalid_hir_without_publication(
+            program, &storage.hir_result));
+  storage.hir_tuple_components[first_component] = saved_component;
+
+  const w_seed_hir0_value saved_projection =
+      storage.hir_values[tuple_projection];
+  storage.hir_values[tuple_projection].projection_ordinal = 2u;
+  CHECK(native_subset_rejects_invalid_hir(program, &storage.hir_result) &&
+        mlir_rejects_invalid_hir_without_publication(
+            program, &storage.hir_result));
+  storage.hir_values[tuple_projection] = saved_projection;
+
+  const uint32_t struct_index =
+      program->types[point->type_index].value_struct_index;
+  const uint32_t first_field = storage.hir_value_structs[struct_index].first_field;
+  const w_seed_hir0_value_struct_field saved_field =
+      storage.hir_value_struct_fields[first_field];
+  storage.hir_value_struct_fields[first_field].type_index = 3u;
+  CHECK(native_subset_rejects_invalid_hir(program, &storage.hir_result) &&
+        mlir_rejects_invalid_hir_without_publication(
+            program, &storage.hir_result));
+  storage.hir_value_struct_fields[first_field] = saved_field;
+
+  const uint32_t initializer_index = point->first_value_struct_initializer;
+  const w_seed_hir0_value_struct_initializer saved_initializer =
+      storage.hir_value_struct_initializers[initializer_index + 1u];
+  storage.hir_value_struct_initializers[initializer_index + 1u].field_ordinal =
+      storage.hir_value_struct_initializers[initializer_index].field_ordinal;
+  CHECK(native_subset_rejects_invalid_hir(program, &storage.hir_result) &&
+        mlir_rejects_invalid_hir_without_publication(
+            program, &storage.hir_result));
+  storage.hir_value_struct_initializers[initializer_index + 1u] =
+      saved_initializer;
+  CHECK(w_seed_hir0_verify(program, &storage.hir_result));
   return true;
 }
 
@@ -7242,7 +7505,8 @@ int main(void) {
       test_virtual_structured_task_product() &&
       test_virtual_static_yield_helper_product() &&
       test_async_direct_entry_product() && test_signed_comparison_products() &&
-      test_products() && test_strict_float_native_admission() &&
+      test_products() && test_flat_aggregate_lowering_and_barriers() &&
+      test_strict_float_native_admission() &&
       test_float_bits_native_admission() &&
       test_unsigned_binary_u64_slice() &&
       test_u64_wrapping_add_slice() && test_u64_saturating_add_slice() &&

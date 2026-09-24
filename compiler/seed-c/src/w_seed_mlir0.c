@@ -1940,6 +1940,10 @@ static bool program_has_tuple_product_values(
   if (program == NULL) return false;
   for (size_t index = 0u; index < program->value_count; index += 1u)
     if (program->values[index].kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT ||
+        program->values[index].kind == W_SEED_HIR0_VALUE_TUPLE ||
+        program->values[index].kind == W_SEED_HIR0_VALUE_VALUE_STRUCT ||
+        program->values[index].kind ==
+            W_SEED_HIR0_VALUE_VALUE_STRUCT_FIELD ||
         (program->values[index].kind == W_SEED_HIR0_VALUE_UNARY_U64 &&
          program->values[index].unary_operator ==
              W_SEED_HIR0_UNARY_OVERFLOWING_NEGATE) ||
@@ -3030,6 +3034,214 @@ static bool append_program_value_tree_in_loop(
     const mlir0_natural_loop_result_context *loop,
     bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES], uint8_t *artifact,
     size_t capacity, size_t *offset, size_t depth);
+
+static bool append_program_value_tree(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES], uint8_t *artifact,
+    size_t capacity, size_t *offset, size_t depth);
+
+static bool mlir0_flat_product_type_shape_supported(
+    const w_seed_hir0_program *program, uint32_t type_index);
+
+static const char *program_type_name(const w_seed_hir0_program *program,
+                                     uint32_t type_index, char buffer[96],
+                                     const mlir0_process_emit_context *process);
+
+static bool mlir0_flat_product_constructor_children(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t source_order[2], uint32_t field_order[2]) {
+  if (program == NULL || value_index >= program->value_count ||
+      source_order == NULL || field_order == NULL)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->type_index >= program->type_count ||
+      !mlir0_flat_product_type_shape_supported(program, value->type_index))
+    return false;
+  if (value->kind == W_SEED_HIR0_VALUE_TUPLE) {
+    const w_seed_hir0_type *type = &program->types[value->type_index];
+    if (type->kind != W_SEED_HIR0_TYPE_TUPLE ||
+        value->tuple_element_count != 2u ||
+        value->first_tuple_element > program->tuple_element_count ||
+        value->tuple_element_count >
+            program->tuple_element_count - value->first_tuple_element)
+      return false;
+    for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+      const w_seed_hir0_tuple_element *element =
+          &program->tuple_elements[(size_t)value->first_tuple_element +
+                                   ordinal];
+      if (element->owner_value != value_index || element->ordinal != ordinal ||
+          element->value_index >= value_index ||
+          element->type_index !=
+              program->tuple_components[
+                  (size_t)type->first_tuple_component + ordinal]
+                  .type_index ||
+          element->type_index >= program->type_count ||
+          program->types[element->type_index].kind != W_SEED_HIR0_TYPE_I64)
+        return false;
+      source_order[ordinal] = element->value_index;
+      field_order[ordinal] = (uint32_t)ordinal;
+    }
+    return true;
+  }
+  if (value->kind != W_SEED_HIR0_VALUE_VALUE_STRUCT ||
+      program->types[value->type_index].kind !=
+          W_SEED_HIR0_TYPE_VALUE_STRUCT ||
+      value->value_struct_initializer_count != 2u ||
+      value->first_value_struct_initializer >
+          program->value_struct_initializer_count ||
+      value->value_struct_initializer_count >
+          program->value_struct_initializer_count -
+              value->first_value_struct_initializer)
+    return false;
+  const w_seed_hir0_value_struct *decl = &program->value_structs[
+      program->types[value->type_index].value_struct_index];
+  bool initialized[2] = {false, false};
+  for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+    const w_seed_hir0_value_struct_initializer *initializer =
+        &program->value_struct_initializers[
+            (size_t)value->first_value_struct_initializer + ordinal];
+    if (initializer->owner_value != value_index ||
+        initializer->ordinal != ordinal || initializer->field_ordinal >= 2u ||
+        initialized[initializer->field_ordinal] ||
+        initializer->value_index >= value_index ||
+        initializer->type_index !=
+            program->value_struct_fields[
+                (size_t)decl->first_field + initializer->field_ordinal]
+                .type_index ||
+        initializer->type_index >= program->type_count ||
+        program->types[initializer->type_index].kind != W_SEED_HIR0_TYPE_I64)
+      return false;
+    initialized[initializer->field_ordinal] = true;
+    source_order[ordinal] = initializer->value_index;
+    field_order[ordinal] = initializer->field_ordinal;
+  }
+  return initialized[0] && initialized[1];
+}
+
+static bool append_flat_product_insert_operations(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop,
+    const uint32_t value_for_field[2], uint8_t *artifact, size_t capacity,
+    size_t *offset) {
+  if (program == NULL || value_index >= program->value_count ||
+      value_for_field == NULL || artifact == NULL ||
+      offset == NULL)
+    return false;
+  char type_buffer[96];
+  const char *type = program_type_name(
+      program, program->values[value_index].type_index, type_buffer, process);
+  if (type == NULL ||
+      !append_literal(artifact, capacity, offset, "    %v") ||
+      !append_size(artifact, capacity, offset, value_index) ||
+      !append_literal(artifact, capacity, offset,
+                      "_zero = llvm.mlir.zero : ") ||
+      !append_literal(artifact, capacity, offset, type) ||
+      !append_literal(artifact, capacity, offset, "\n"))
+    return false;
+  const char *base_suffix = "_zero";
+  for (size_t field = 0u; field < 2u; field += 1u) {
+    const uint32_t child = value_for_field[field];
+    if (child >= program->value_count ||
+        !append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        field == 1u ? " = llvm.insertvalue "
+                                    : "_insert_0 = llvm.insertvalue ") ||
+        !append_program_value_operand_in_loop(
+            program, child, function_index, process, loop, artifact, capacity,
+            offset) ||
+        !append_literal(artifact, capacity, offset, ", %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, base_suffix) ||
+        !append_literal(artifact, capacity, offset, "[") ||
+        !append_size(artifact, capacity, offset, field) ||
+        !append_literal(artifact, capacity, offset, "] : ") ||
+        !append_literal(artifact, capacity, offset, type) ||
+        !append_literal(artifact, capacity, offset, "\n"))
+      return false;
+    base_suffix = "_insert_0";
+  }
+  return true;
+}
+
+static bool append_flat_product_constructor(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES], uint8_t *artifact,
+    size_t capacity, size_t *offset, size_t depth) {
+  uint32_t source_order[2] = {W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
+  uint32_t field_order[2] = {W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
+  uint32_t value_for_field[2] = {W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
+  if (!mlir0_flat_product_constructor_children(program, value_index,
+                                               source_order, field_order)) {
+    return false;
+  }
+  for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+    if (!append_program_value_tree(program, source_order[ordinal],
+                                   function_index, process, emitted, artifact,
+                                   capacity, offset, depth + 1u)) {
+      return false;
+    }
+    value_for_field[field_order[ordinal]] = source_order[ordinal];
+  }
+  const bool inserted = append_flat_product_insert_operations(
+      program, value_index, function_index, process, NULL, value_for_field,
+      artifact, capacity, offset);
+  return inserted;
+}
+
+static bool append_flat_product_projection_operation(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
+  if (program == NULL || value_index >= program->value_count ||
+      artifact == NULL || offset == NULL)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if ((value->kind != W_SEED_HIR0_VALUE_TUPLE_ELEMENT &&
+       value->kind != W_SEED_HIR0_VALUE_VALUE_STRUCT_FIELD) ||
+      value->left_value >= program->value_count ||
+      value->projection_ordinal >= 2u ||
+      value->type_index >= program->type_count ||
+      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_I64)
+    return false;
+  const w_seed_hir0_value *receiver = &program->values[value->left_value];
+  if (receiver->type_index >= program->type_count ||
+      !mlir0_flat_product_type_shape_supported(program, receiver->type_index))
+    return false;
+  const w_seed_hir0_type *receiver_type =
+      &program->types[receiver->type_index];
+  if ((value->kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT &&
+       (receiver_type->kind != W_SEED_HIR0_TYPE_TUPLE ||
+        program->tuple_components[(size_t)receiver_type->first_tuple_component +
+                                  value->projection_ordinal]
+                .type_index != value->type_index)) ||
+      (value->kind == W_SEED_HIR0_VALUE_VALUE_STRUCT_FIELD &&
+       (receiver_type->kind != W_SEED_HIR0_TYPE_VALUE_STRUCT ||
+        program->value_struct_fields[
+            (size_t)program->value_structs[receiver_type->value_struct_index]
+                    .first_field + value->projection_ordinal]
+                .type_index != value->type_index)))
+    return false;
+  char type_buffer[96];
+  const char *type = program_type_name(program, receiver->type_index,
+                                       type_buffer, process);
+  return type != NULL &&
+         append_literal(artifact, capacity, offset, "    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, " = llvm.extractvalue ") &&
+         append_program_value_operand_in_loop(
+             program, value->left_value, function_index, process, loop,
+             artifact, capacity, offset) &&
+         append_literal(artifact, capacity, offset, "[") &&
+         append_size(artifact, capacity, offset, value->projection_ordinal) &&
+         append_literal(artifact, capacity, offset, "] : ") &&
+         append_literal(artifact, capacity, offset, type) &&
+         append_literal(artifact, capacity, offset, "\n");
+}
 
 static bool append_integer_widen_operation(
     const w_seed_hir0_program *program, uint32_t value_index,
@@ -6087,13 +6299,59 @@ static bool mark_program_reachable_values(
   return true;
 }
 
-/* ProductClosure0 v1 deliberately publishes only the scalar/local-call
- * family.  MLIR still owns the established enum/process adapters; keep their
- * existing behavior while requiring an independent closure cross-check for
- * every input that is in the published ProductClosure0 domain. */
+static bool mlir0_flat_product_type_shape_supported(
+    const w_seed_hir0_program *program, uint32_t type_index) {
+  if (program == NULL || type_index >= program->type_count) return false;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  if (type->kind == W_SEED_HIR0_TYPE_TUPLE) {
+    if (type->owner_module != W_SEED_HIR0_NONE ||
+        type->tuple_component_count != 2u ||
+        type->first_tuple_component == W_SEED_HIR0_NONE ||
+        type->first_tuple_component > program->tuple_component_count ||
+        type->tuple_component_count >
+            program->tuple_component_count - type->first_tuple_component)
+      return false;
+    for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+      const w_seed_hir0_tuple_component *component =
+          &program->tuple_components[(size_t)type->first_tuple_component +
+                                     ordinal];
+      if (component->owner_type != type_index || component->ordinal != ordinal ||
+          component->type_index >= program->type_count ||
+          program->types[component->type_index].kind !=
+              W_SEED_HIR0_TYPE_I64)
+        return false;
+    }
+    return true;
+  }
+  if (type->kind != W_SEED_HIR0_TYPE_VALUE_STRUCT ||
+      type->owner_module != 0u ||
+      type->value_struct_index >= program->value_struct_count)
+    return false;
+  const uint32_t struct_index = type->value_struct_index;
+  const w_seed_hir0_value_struct *decl =
+      &program->value_structs[struct_index];
+  if (decl->module_index != 0u || decl->type_index != type_index ||
+      decl->field_count != 2u || decl->first_field == W_SEED_HIR0_NONE ||
+      decl->first_field > program->value_struct_field_count ||
+      decl->field_count >
+          program->value_struct_field_count - decl->first_field)
+    return false;
+  for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+    const w_seed_hir0_value_struct_field *field =
+        &program->value_struct_fields[(size_t)decl->first_field + ordinal];
+    if (field->owner_struct != struct_index || field->ordinal != ordinal ||
+        field->type_index >= program->type_count ||
+        program->types[field->type_index].kind != W_SEED_HIR0_TYPE_I64)
+      return false;
+  }
+  return true;
+}
+
+/* Require ProductClosure0's independent proof for the scalar family plus the
+ * exact immutable flat pair value forms. */
 static bool mlir_product_closure_shape_candidate(
     const w_seed_hir0_program *program) {
-  if (program == NULL || program->type_count != 4u ||
+  if (program == NULL || program->type_count < 4u ||
       program->external_module_count != 0u ||
       program->external_symbol_count != 0u || program->enum_count != 0u ||
       program->enum_case_count != 0u ||
@@ -6102,6 +6360,9 @@ static bool mlir_product_closure_shape_candidate(
       program->enum_payload_count != 0u || program->switch_edge_count != 0u ||
       program->switch_capture_count != 0u)
     return false;
+  for (size_t type = 4u; type < program->type_count; type += 1u)
+    if (!mlir0_flat_product_type_shape_supported(program, (uint32_t)type))
+      return false;
   for (size_t function = 0u; function < program->function_count; function += 1u)
     if (program->functions[function].is_async ||
         program->functions[function].is_throws ||
@@ -6121,6 +6382,10 @@ static bool mlir_product_closure_shape_candidate(
       case W_SEED_HIR0_VALUE_UNARY_BOOL:
       case W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ:
       case W_SEED_HIR0_VALUE_UNARY_I64:
+      case W_SEED_HIR0_VALUE_TUPLE:
+      case W_SEED_HIR0_VALUE_TUPLE_ELEMENT:
+      case W_SEED_HIR0_VALUE_VALUE_STRUCT:
+      case W_SEED_HIR0_VALUE_VALUE_STRUCT_FIELD:
         break;
       case W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON:
         if (program->values[value].left_value >= program->value_count ||
@@ -6487,7 +6752,10 @@ static bool append_program_value_operand_in_loop(
           value->kind == W_SEED_HIR0_VALUE_ENUM_CASE ||
           value->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER ||
           value->kind == W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE ||
+          value->kind == W_SEED_HIR0_VALUE_TUPLE ||
           value->kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT ||
+          value->kind == W_SEED_HIR0_VALUE_VALUE_STRUCT ||
+          value->kind == W_SEED_HIR0_VALUE_VALUE_STRUCT_FIELD ||
           value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN ||
           value->kind == W_SEED_HIR0_VALUE_NUMERIC_WIDEN ||
           value->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS ||
@@ -6904,6 +7172,15 @@ static bool append_program_value_tree(
     emitted[value_index] = true;
     return true;
   }
+  if (value->kind == W_SEED_HIR0_VALUE_TUPLE ||
+      value->kind == W_SEED_HIR0_VALUE_VALUE_STRUCT) {
+    if (!append_flat_product_constructor(
+            program, value_index, function_index, process, emitted, artifact,
+            capacity, offset, depth))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
   if (value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN) {
     if (!append_program_value_tree(
             program, value->left_value, function_index, process, emitted,
@@ -7209,9 +7486,25 @@ static bool append_program_value_tree(
         !append_program_value_tree(program, value->left_value, function_index,
                                    process, emitted, artifact, capacity,
                                    offset, depth + 1u) ||
-        !append_tuple_element_operation(program, value_index, function_index,
-                                        process, NULL, artifact, capacity,
-                                        offset))
+        !(value->projection_ordinal != W_SEED_HIR0_NONE
+              ? append_flat_product_projection_operation(
+                    program, value_index, function_index, process, NULL,
+                    artifact, capacity, offset)
+              : append_tuple_element_operation(
+                    program, value_index, function_index, process, NULL,
+                    artifact, capacity, offset)))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_VALUE_STRUCT_FIELD) {
+    if (value->left_value >= program->value_count ||
+        !append_program_value_tree(program, value->left_value, function_index,
+                                   process, emitted, artifact, capacity,
+                                   offset, depth + 1u) ||
+        !append_flat_product_projection_operation(
+            program, value_index, function_index, process, NULL, artifact,
+            capacity, offset))
       return false;
     emitted[value_index] = true;
     return true;
@@ -7710,6 +8003,30 @@ static bool append_program_value_tree(
   return false;
 }
 
+static bool append_flat_product_constructor_in_loop(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop,
+    bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES], uint8_t *artifact,
+    size_t capacity, size_t *offset, size_t depth) {
+  uint32_t source_order[2] = {W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
+  uint32_t field_order[2] = {W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
+  uint32_t value_for_field[2] = {W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
+  if (!mlir0_flat_product_constructor_children(program, value_index,
+                                               source_order, field_order))
+    return false;
+  for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+    if (!append_program_value_tree_in_loop(
+            program, source_order[ordinal], function_index, process, loop,
+            emitted, artifact, capacity, offset, depth + 1u))
+      return false;
+    value_for_field[field_order[ordinal]] = source_order[ordinal];
+  }
+  return append_flat_product_insert_operations(
+      program, value_index, function_index, process, loop, value_for_field,
+      artifact, capacity, offset);
+}
+
 /* Emit an exit expression after an SCF loop.  Ordinary value-tree emission
  * deliberately keeps header block arguments as %argN inside the loop; this
  * companion only changes operands that resolve to those arguments into the
@@ -7730,6 +8047,15 @@ static bool append_program_value_tree_in_loop(
       value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ ||
       value->kind == W_SEED_HIR0_VALUE_CALL_RESULT ||
       value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_TUPLE ||
+      value->kind == W_SEED_HIR0_VALUE_VALUE_STRUCT) {
+    if (!append_flat_product_constructor_in_loop(
+            program, value_index, function_index, process, loop, emitted,
+            artifact, capacity, offset, depth))
+      return false;
     emitted[value_index] = true;
     return true;
   }
@@ -7947,9 +8273,25 @@ static bool append_program_value_tree_in_loop(
         !append_program_value_tree_in_loop(
             program, value->left_value, function_index, process, loop, emitted,
             artifact, capacity, offset, depth + 1u) ||
-        !append_tuple_element_operation(program, value_index, function_index,
-                                        process, loop, artifact, capacity,
-                                        offset))
+        !(value->projection_ordinal != W_SEED_HIR0_NONE
+              ? append_flat_product_projection_operation(
+                    program, value_index, function_index, process, loop,
+                    artifact, capacity, offset)
+              : append_tuple_element_operation(
+                    program, value_index, function_index, process, loop,
+                    artifact, capacity, offset)))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_VALUE_STRUCT_FIELD) {
+    if (value->left_value >= program->value_count ||
+        !append_program_value_tree_in_loop(
+            program, value->left_value, function_index, process, loop, emitted,
+            artifact, capacity, offset, depth + 1u) ||
+        !append_flat_product_projection_operation(
+            program, value_index, function_index, process, loop, artifact,
+            capacity, offset))
       return false;
     emitted[value_index] = true;
     return true;
@@ -8110,6 +8452,11 @@ static const char *program_type_name(const w_seed_hir0_program *program,
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_F64) return "f64";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_USIZE) return "i64";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_BOOL) return "i1";
+  if (program->types[type_index].kind == W_SEED_HIR0_TYPE_TUPLE ||
+      program->types[type_index].kind == W_SEED_HIR0_TYPE_VALUE_STRUCT)
+    return mlir0_flat_product_type_shape_supported(program, type_index)
+               ? "!llvm.struct<(i64, i64)>"
+               : NULL;
   if (program->types[type_index].kind ==
       W_SEED_HIR0_TYPE_U64_BOOL_TUPLE)
     return "!llvm.struct<(i64, i1)>";
@@ -9593,8 +9940,9 @@ static bool append_program_function(
                       "  llvm.func internal @w_fn_") ||
       !append_size(artifact, capacity, offset, function_index) ||
       !append_literal(artifact, capacity, offset,
-                      "(%buffer: !llvm.ptr, %cursor_address: !llvm.ptr"))
+                      "(%buffer: !llvm.ptr, %cursor_address: !llvm.ptr")) {
     return false;
+  }
   if (process != NULL && process->has_structured_checked_arithmetic &&
       !append_literal(artifact, capacity, offset,
                       ", %fault_address: !llvm.ptr"))
@@ -9610,8 +9958,9 @@ static bool append_program_function(
         !append_literal(artifact, capacity, offset, ", %p") ||
         !append_size(artifact, capacity, offset, ordinal) ||
         !append_literal(artifact, capacity, offset, ": ") ||
-        !append_literal(artifact, capacity, offset, type))
+        !append_literal(artifact, capacity, offset, type)) {
       return false;
+    }
   }
   if (!append_literal(artifact, capacity, offset, ")")) return false;
   if (function->return_type != 0u) {
@@ -9625,8 +9974,9 @@ static bool append_program_function(
                                                return_type_buffer, process);
     if (return_type == NULL || !append_literal(artifact, capacity, offset,
                                                 " -> ") ||
-        !append_literal(artifact, capacity, offset, return_type))
+        !append_literal(artifact, capacity, offset, return_type)) {
       return false;
+    }
   }
   if (!append_literal(artifact, capacity, offset,
                       " {\n    %text_base = llvm.mlir.addressof "
@@ -9671,8 +10021,9 @@ static bool append_program_function(
             program->bindings[instruction->binding_index].initializer_value;
         if (!append_program_value_tree(
                 program, initializer, (uint32_t)function_index, process,
-                emitted, artifact, capacity, offset, 0u))
+                emitted, artifact, capacity, offset, 0u)) {
           return false;
+        }
         continue;
       }
       if (instruction->kind == W_SEED_HIR0_INSTRUCTION_EXECUTION_YIELD)
@@ -9833,8 +10184,9 @@ static bool append_program_function(
       const char *return_type =
           program_type_name(program, function->return_type, return_type_buffer,
                             process);
-      if (return_type == NULL || terminator->value_index >= program->value_count)
+      if (return_type == NULL || terminator->value_index >= program->value_count) {
         return false;
+      }
       if (!append_program_value_tree(
               program, terminator->value_index, (uint32_t)function_index,
               process, emitted, artifact, capacity, offset, 0u))
@@ -9845,8 +10197,9 @@ static bool append_program_function(
               process, artifact, capacity, offset) ||
           !append_literal(artifact, capacity, offset, " : ") ||
           !append_literal(artifact, capacity, offset, return_type) ||
-          !append_literal(artifact, capacity, offset, "\n"))
+          !append_literal(artifact, capacity, offset, "\n")) {
         return false;
+      }
     } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_THROW) {
       if (process == NULL ||
           (uint32_t)function_index != process->function_index ||
@@ -9994,9 +10347,12 @@ static bool build_program_artifact(
       digest == NULL || selection->maximum_stdout_bytes > MLIR0_MAX_STDOUT_BYTES)
     return false;
   mlir0_program_plan plan;
-  if (!build_program_plan(program, hir_result, &plan, false, true) ||
-      plan.has_reachable_panic != selection->has_reachable_panic)
+  if (!build_program_plan(program, hir_result, &plan, false, true)) {
     return false;
+  }
+  if (plan.has_reachable_panic != selection->has_reachable_panic) {
+    return false;
+  }
   size_t buffer_bytes = 0u;
   if (!output_buffer_capacity(selection->maximum_stdout_bytes,
                               &buffer_bytes))
@@ -10103,8 +10459,9 @@ static bool build_program_artifact(
             selection->post_test_loop_functions[function],
             selection->verified_i64_loop_cfg_functions[function], NULL,
             artifact,
-            capacity, &offset))
+            capacity, &offset)) {
       return false;
+    }
   if (!append_literal(
           artifact, capacity, &offset,
           "  llvm.func @main() -> i32 {\n") ||
@@ -11417,7 +11774,7 @@ static bool input_aliases_outputs(const w_seed_mlir0_input *input,
                                   const w_seed_mlir0_result *result) {
   if (input == NULL || input->program == NULL || input->hir_result == NULL)
     return true;
-  mlir0_range ranges[41];
+  mlir0_range ranges[48];
   size_t range_count = 0u;
   const size_t range_capacity = sizeof(ranges) / sizeof(ranges[0]);
   if (range_add_or_alias(ranges, range_capacity, &range_count, input, 1u,
@@ -11478,6 +11835,17 @@ static bool input_aliases_outputs(const w_seed_mlir0_input *input,
       {program->requirements, program->requirement_capacity,
        sizeof(*program->requirements)},
       {program->values, program->value_capacity, sizeof(*program->values)},
+      {program->tuple_components, program->tuple_component_capacity,
+       sizeof(*program->tuple_components)},
+      {program->value_structs, program->value_struct_capacity,
+       sizeof(*program->value_structs)},
+      {program->value_struct_fields, program->value_struct_field_capacity,
+       sizeof(*program->value_struct_fields)},
+      {program->tuple_elements, program->tuple_element_capacity,
+       sizeof(*program->tuple_elements)},
+      {program->value_struct_initializers,
+       program->value_struct_initializer_capacity,
+       sizeof(*program->value_struct_initializers)},
       {program->interpolation_segments,
        program->interpolation_segment_capacity,
        sizeof(*program->interpolation_segments)},

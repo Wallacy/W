@@ -1221,6 +1221,10 @@ static bool product_value_kind_supported(w_seed_hir0_value_kind kind) {
     case W_SEED_HIR0_VALUE_UNARY_I64:
     case W_SEED_HIR0_VALUE_INTEGER_WIDEN:
     case W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS:
+    case W_SEED_HIR0_VALUE_TUPLE:
+    case W_SEED_HIR0_VALUE_TUPLE_ELEMENT:
+    case W_SEED_HIR0_VALUE_VALUE_STRUCT:
+    case W_SEED_HIR0_VALUE_VALUE_STRUCT_FIELD:
       return true;
     case W_SEED_HIR0_VALUE_CONST_USIZE:
     case W_SEED_HIR0_VALUE_CONST_U64:
@@ -1235,10 +1239,6 @@ static bool product_value_kind_supported(w_seed_hir0_value_kind kind) {
     case W_SEED_HIR0_VALUE_BINARY_FLOAT:
     case W_SEED_HIR0_VALUE_UNARY_U64:
     case W_SEED_HIR0_VALUE_UNARY_FLOAT:
-    case W_SEED_HIR0_VALUE_TUPLE_ELEMENT:
-    case W_SEED_HIR0_VALUE_TUPLE:
-    case W_SEED_HIR0_VALUE_VALUE_STRUCT:
-    case W_SEED_HIR0_VALUE_VALUE_STRUCT_FIELD:
     case W_SEED_HIR0_VALUE_NUMERIC_WIDEN:
     case W_SEED_HIR0_VALUE_FLOAT_FROM_BITS:
     case W_SEED_HIR0_VALUE_FLOAT_TO_BITS:
@@ -1267,6 +1267,54 @@ static bool product_terminator_kind_supported(w_seed_hir0_terminator_kind kind) 
   return false;
 }
 
+static bool product_flat_aggregate_type_supported(
+    const w_seed_hir0_program *program, uint32_t type_index) {
+  if (program == NULL || type_index >= program->type_count) return false;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  if (type->kind == W_SEED_HIR0_TYPE_TUPLE) {
+    if (type->owner_module != W_SEED_HIR0_NONE ||
+        type->tuple_component_count != 2u ||
+        type->first_tuple_component == W_SEED_HIR0_NONE ||
+        type->first_tuple_component > program->tuple_component_count ||
+        type->tuple_component_count >
+            program->tuple_component_count - type->first_tuple_component)
+      return false;
+    for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+      const w_seed_hir0_tuple_component *component =
+          &program->tuple_components[(size_t)type->first_tuple_component +
+                                     ordinal];
+      if (component->owner_type != type_index || component->ordinal != ordinal ||
+          component->type_index >= program->type_count ||
+          program->types[component->type_index].kind !=
+              W_SEED_HIR0_TYPE_I64)
+        return false;
+    }
+    return true;
+  }
+  if (type->kind != W_SEED_HIR0_TYPE_VALUE_STRUCT ||
+      type->owner_module != 0u ||
+      type->value_struct_index >= program->value_struct_count)
+    return false;
+  const uint32_t struct_index = type->value_struct_index;
+  const w_seed_hir0_value_struct *decl =
+      &program->value_structs[struct_index];
+  if (decl->module_index != 0u || decl->type_index != type_index ||
+      decl->field_count != 2u || decl->first_field == W_SEED_HIR0_NONE ||
+      decl->first_field > program->value_struct_field_count ||
+      decl->field_count >
+          program->value_struct_field_count - decl->first_field)
+    return false;
+  for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+    const w_seed_hir0_value_struct_field *field =
+        &program->value_struct_fields[(size_t)decl->first_field + ordinal];
+    if (field->owner_struct != struct_index || field->ordinal != ordinal ||
+        field->type_index >= program->type_count ||
+        program->types[field->type_index].kind != W_SEED_HIR0_TYPE_I64)
+      return false;
+  }
+  return true;
+}
+
 /* HIR0 is intentionally broader than this first product projection.  Keep
  * the projection honest by rejecting every family for which the closure does
  * not publish a complete semantic relation.  This check runs after HIR0's
@@ -1292,7 +1340,7 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
       program->terminator_count > W_SEED_PRODUCT_CLOSURE0_MAX_TERMINATORS)
     return false;
   if (!typed_throw_root) {
-    if (program->type_count != 4u ||
+    if (program->type_count < 4u ||
         program->external_module_count != 0u ||
         program->external_symbol_count != 0u || program->enum_count != 0u ||
         program->enum_case_count != 0u ||
@@ -1305,8 +1353,12 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
         W_SEED_HIR0_TYPE_UNIT, W_SEED_HIR0_TYPE_STRING,
         W_SEED_HIR0_TYPE_I64, W_SEED_HIR0_TYPE_BOOL};
     for (size_t type = 0u; type < program->type_count; type += 1u)
-      if (program->types[type].kind != expected[type] ||
-          program->types[type].owner_module != W_SEED_HIR0_NONE)
+      if (type < 4u &&
+          (program->types[type].kind != expected[type] ||
+           program->types[type].owner_module != W_SEED_HIR0_NONE))
+        return false;
+    for (size_t type = 4u; type < program->type_count; type += 1u)
+      if (!product_flat_aggregate_type_supported(program, (uint32_t)type))
         return false;
   } else {
     const bool process_typed_root =
@@ -1405,7 +1457,10 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
         item->return_type >= program->type_count || item->block_count == 0u)
       return false;
     if (!is_typed_root) {
-      if (item->return_type >= 4u ||
+      if ((item->return_type >= 4u &&
+           (typed_throw_root ||
+            !product_flat_aggregate_type_supported(program,
+                                                   item->return_type))) ||
           item->first_parameter > program->parameter_count ||
           item->parameter_count >
               program->parameter_count - item->first_parameter)
@@ -1413,7 +1468,12 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
       for (size_t parameter = 0u; parameter < item->parameter_count;
            parameter += 1u)
         if (program->parameters[(size_t)item->first_parameter + parameter]
-                .type_index >= 4u)
+                    .type_index >= 4u &&
+            (typed_throw_root ||
+             !product_flat_aggregate_type_supported(
+                 program,
+                 program->parameters[(size_t)item->first_parameter + parameter]
+                     .type_index)))
           return false;
     }
   }
@@ -1556,17 +1616,127 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
     } else if (!product_value_kind_supported(item->kind)) {
       return false;
     }
-    if (item->kind != W_SEED_HIR0_VALUE_ENUM_CASE && item->type_index >= 4u &&
-        !authenticated_diamond_usize &&
-        (!typed_numeric_root || item->type_index >= program->type_count ||
-         (program->types[item->type_index].kind != W_SEED_HIR0_TYPE_INTEGER &&
-          program->types[item->type_index].kind != W_SEED_HIR0_TYPE_U64 &&
-          program->types[item->type_index].kind != W_SEED_HIR0_TYPE_F32 &&
-          program->types[item->type_index].kind != W_SEED_HIR0_TYPE_F64 &&
-          program->types[item->type_index].kind !=
-              W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR &&
-          program->types[item->type_index].kind != W_SEED_HIR0_TYPE_NOMINAL)))
+    if (typed_throw_root) {
+      if (item->kind != W_SEED_HIR0_VALUE_ENUM_CASE &&
+          item->type_index >= 4u && !authenticated_diamond_usize &&
+          (!typed_numeric_root || item->type_index >= program->type_count ||
+           (program->types[item->type_index].kind !=
+                W_SEED_HIR0_TYPE_INTEGER &&
+            program->types[item->type_index].kind != W_SEED_HIR0_TYPE_U64 &&
+            program->types[item->type_index].kind != W_SEED_HIR0_TYPE_F32 &&
+            program->types[item->type_index].kind != W_SEED_HIR0_TYPE_F64 &&
+            program->types[item->type_index].kind !=
+                W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR &&
+            program->types[item->type_index].kind !=
+                W_SEED_HIR0_TYPE_NOMINAL)))
+        return false;
+    } else if (item->kind != W_SEED_HIR0_VALUE_ENUM_CASE &&
+               item->type_index >= 4u && !authenticated_diamond_usize &&
+               !product_flat_aggregate_type_supported(program,
+                                                      item->type_index)) {
       return false;
+    }
+    if (item->kind == W_SEED_HIR0_VALUE_TUPLE) {
+      if (typed_throw_root ||
+          program->types[item->type_index].kind != W_SEED_HIR0_TYPE_TUPLE ||
+          !product_flat_aggregate_type_supported(program, item->type_index) ||
+          item->tuple_element_count != 2u ||
+          item->first_tuple_element > program->tuple_element_count ||
+          item->tuple_element_count >
+              program->tuple_element_count - item->first_tuple_element)
+        return false;
+      const w_seed_hir0_type *tuple_type =
+          &program->types[item->type_index];
+      for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+        const w_seed_hir0_tuple_element *element =
+            &program->tuple_elements[(size_t)item->first_tuple_element +
+                                     ordinal];
+        if (element->owner_value != value || element->ordinal != ordinal ||
+            element->value_index >= value ||
+            element->type_index !=
+                program->tuple_components[
+                    (size_t)tuple_type->first_tuple_component + ordinal]
+                    .type_index ||
+            element->type_index >= program->type_count ||
+            program->types[element->type_index].kind != W_SEED_HIR0_TYPE_I64)
+          return false;
+      }
+    } else if (item->kind == W_SEED_HIR0_VALUE_VALUE_STRUCT) {
+      if (typed_throw_root ||
+          program->types[item->type_index].kind !=
+              W_SEED_HIR0_TYPE_VALUE_STRUCT ||
+          !product_flat_aggregate_type_supported(program, item->type_index) ||
+          item->value_struct_initializer_count != 2u ||
+          item->first_value_struct_initializer >
+              program->value_struct_initializer_count ||
+          item->value_struct_initializer_count >
+              program->value_struct_initializer_count -
+                  item->first_value_struct_initializer)
+        return false;
+      bool initialized[2] = {false, false};
+      const w_seed_hir0_value_struct *decl = &program->value_structs[
+          program->types[item->type_index].value_struct_index];
+      for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+        const w_seed_hir0_value_struct_initializer *initializer =
+            &program->value_struct_initializers[
+                (size_t)item->first_value_struct_initializer + ordinal];
+        if (initializer->owner_value != value ||
+            initializer->ordinal != ordinal ||
+            initializer->field_ordinal >= 2u ||
+            initialized[initializer->field_ordinal] ||
+            initializer->value_index >= value ||
+            initializer->type_index !=
+                program->value_struct_fields[
+                    (size_t)decl->first_field + initializer->field_ordinal]
+                    .type_index ||
+            initializer->type_index >= program->type_count ||
+            program->types[initializer->type_index].kind !=
+                W_SEED_HIR0_TYPE_I64)
+          return false;
+        initialized[initializer->field_ordinal] = true;
+      }
+      if (!initialized[0] || !initialized[1]) return false;
+    } else if (item->kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT) {
+      if (typed_throw_root || item->left_value >= value ||
+          item->left_value >= program->value_count ||
+          item->projection_ordinal >= 2u ||
+          item->type_index >= program->type_count ||
+          program->types[item->type_index].kind != W_SEED_HIR0_TYPE_I64)
+        return false;
+      const w_seed_hir0_value *receiver =
+          &program->values[item->left_value];
+      if (receiver->type_index >= program->type_count ||
+          program->types[receiver->type_index].kind !=
+              W_SEED_HIR0_TYPE_TUPLE ||
+          !product_flat_aggregate_type_supported(program,
+                                                 receiver->type_index) ||
+          program->tuple_components[
+              (size_t)program->types[receiver->type_index]
+                      .first_tuple_component + item->projection_ordinal]
+                  .type_index != item->type_index)
+        return false;
+    } else if (item->kind == W_SEED_HIR0_VALUE_VALUE_STRUCT_FIELD) {
+      if (typed_throw_root || item->left_value >= value ||
+          item->left_value >= program->value_count ||
+          item->projection_ordinal >= 2u ||
+          item->type_index >= program->type_count ||
+          program->types[item->type_index].kind != W_SEED_HIR0_TYPE_I64)
+        return false;
+      const w_seed_hir0_value *receiver =
+          &program->values[item->left_value];
+      if (receiver->type_index >= program->type_count ||
+          program->types[receiver->type_index].kind !=
+              W_SEED_HIR0_TYPE_VALUE_STRUCT ||
+          !product_flat_aggregate_type_supported(program,
+                                                 receiver->type_index))
+        return false;
+      const w_seed_hir0_value_struct *decl = &program->value_structs[
+          program->types[receiver->type_index].value_struct_index];
+      if (program->value_struct_fields[(size_t)decl->first_field +
+                                       item->projection_ordinal]
+              .type_index != item->type_index)
+        return false;
+    }
     if (item->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON) {
       if (item->binary_operator < W_SEED_HIR0_BINARY_EQUAL ||
           item->binary_operator > W_SEED_HIR0_BINARY_GREATER_EQUAL ||
@@ -1845,7 +2015,30 @@ static bool mark_type(closure0_plan *plan,
   if (plan->types[type_index]) return true;
   const w_seed_hir0_type *type = &program->types[type_index];
   plan->types[type_index] = true;
-  if (type->kind == W_SEED_HIR0_TYPE_NOMINAL) {
+  if (type->kind == W_SEED_HIR0_TYPE_TUPLE ||
+      type->kind == W_SEED_HIR0_TYPE_VALUE_STRUCT) {
+    if (plan->outcome.kind == W_SEED_PRODUCT_CLOSURE0_OUTCOME_TYPED_THROW ||
+        !product_flat_aggregate_type_supported(program, type_index))
+      return false;
+    if (type->kind == W_SEED_HIR0_TYPE_TUPLE) {
+      for (size_t ordinal = 0u; ordinal < type->tuple_component_count;
+           ordinal += 1u)
+        if (!mark_type(plan, program,
+                       program->tuple_components[
+                           (size_t)type->first_tuple_component + ordinal]
+                           .type_index))
+          return false;
+    } else {
+      const w_seed_hir0_value_struct *decl =
+          &program->value_structs[type->value_struct_index];
+      for (size_t ordinal = 0u; ordinal < decl->field_count; ordinal += 1u)
+        if (!mark_type(plan, program,
+                       program->value_struct_fields[
+                           (size_t)decl->first_field + ordinal]
+                           .type_index))
+          return false;
+    }
+  } else if (type->kind == W_SEED_HIR0_TYPE_NOMINAL) {
     if (type->external_module_index >= program->external_module_count ||
         type->external_symbol_index >= program->external_symbol_count ||
         type->external_module_index >=
@@ -1962,6 +2155,43 @@ static bool mark_value(closure0_plan *plan,
                           .value_index,
                       depth + 1u))
         return false;
+  } else if (value->kind == W_SEED_HIR0_VALUE_TUPLE) {
+    if (!product_flat_aggregate_type_supported(program, value->type_index) ||
+        value->first_tuple_element > program->tuple_element_count ||
+        value->tuple_element_count != 2u ||
+        value->tuple_element_count >
+            program->tuple_element_count - value->first_tuple_element)
+      return false;
+    for (size_t ordinal = 0u; ordinal < value->tuple_element_count;
+         ordinal += 1u)
+      if (!mark_value(plan, program,
+                      program->tuple_elements[
+                          (size_t)value->first_tuple_element + ordinal]
+                          .value_index,
+                      depth + 1u))
+        return false;
+  } else if (value->kind == W_SEED_HIR0_VALUE_VALUE_STRUCT) {
+    if (!product_flat_aggregate_type_supported(program, value->type_index) ||
+        value->first_value_struct_initializer >
+            program->value_struct_initializer_count ||
+        value->value_struct_initializer_count != 2u ||
+        value->value_struct_initializer_count >
+            program->value_struct_initializer_count -
+                value->first_value_struct_initializer)
+      return false;
+    for (size_t ordinal = 0u; ordinal <
+         value->value_struct_initializer_count; ordinal += 1u)
+      if (!mark_value(plan, program,
+                      program->value_struct_initializers[
+                          (size_t)value->first_value_struct_initializer + ordinal]
+                          .value_index,
+                      depth + 1u))
+        return false;
+  } else if (value->kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT ||
+             value->kind == W_SEED_HIR0_VALUE_VALUE_STRUCT_FIELD) {
+    if (value->left_value >= program->value_count ||
+        !mark_value(plan, program, value->left_value, depth + 1u))
+      return false;
   } else if (value->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER ||
              value->kind == W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE) {
     if (value->external_module_index >= program->external_module_count ||
@@ -2712,6 +2942,31 @@ static void digest_type(w_seed_sha256_state *state,
       digest_text(state, program, item->name);
       digest_u32(state, item->payload_count);
     }
+  } else if (type->kind == W_SEED_HIR0_TYPE_TUPLE) {
+    digest_u32(state, type->tuple_component_count);
+    for (size_t ordinal = 0u; ordinal < type->tuple_component_count; ordinal += 1u) {
+      const w_seed_hir0_tuple_component *component =
+          &program->tuple_components[(size_t)type->first_tuple_component +
+                                     ordinal];
+      digest_u32(state, component->ordinal);
+      digest_type(state, program, component->type_index, plan);
+    }
+  } else if (type->kind == W_SEED_HIR0_TYPE_VALUE_STRUCT) {
+    const w_seed_hir0_value_struct *decl =
+        &program->value_structs[type->value_struct_index];
+    digest_u32(state, decl->module_index);
+    digest_text(state, program,
+                program->modules[decl->module_index].module_id);
+    digest_u32(state, decl->declaration_index);
+    digest_text(state, program, decl->name);
+    digest_u32(state, decl->field_count);
+    for (size_t ordinal = 0u; ordinal < decl->field_count; ordinal += 1u) {
+      const w_seed_hir0_value_struct_field *field =
+          &program->value_struct_fields[(size_t)decl->first_field + ordinal];
+      digest_u32(state, field->ordinal);
+      digest_text(state, program, field->name);
+      digest_type(state, program, field->type_index, plan);
+    }
   }
 }
 
@@ -3037,6 +3292,38 @@ static void digest_value(w_seed_sha256_state *state,
     case W_SEED_HIR0_VALUE_CONST_BOOL:
       digest_bool(state, value->bool_value);
       break;
+    case W_SEED_HIR0_VALUE_TUPLE:
+      digest_u32(state, value->tuple_element_count);
+      for (size_t ordinal = 0u; ordinal < value->tuple_element_count; ordinal += 1u) {
+        const w_seed_hir0_tuple_element *element =
+            &program->tuple_elements[(size_t)value->first_tuple_element +
+                                     ordinal];
+        digest_u32(state, element->ordinal);
+        digest_type(state, program, element->type_index, plan);
+        digest_u32(state, plan->value_remap[element->value_index]);
+      }
+      break;
+    case W_SEED_HIR0_VALUE_VALUE_STRUCT:
+      digest_u32(state, value->value_struct_initializer_count);
+      for (size_t ordinal = 0u; ordinal <
+           value->value_struct_initializer_count; ordinal += 1u) {
+        const w_seed_hir0_value_struct_initializer *initializer =
+            &program->value_struct_initializers[
+                (size_t)value->first_value_struct_initializer + ordinal];
+        /* ordinal preserves source evaluation order; field_ordinal is layout. */
+        digest_u32(state, initializer->ordinal);
+        digest_u32(state, initializer->field_ordinal);
+        digest_type(state, program, initializer->type_index, plan);
+        digest_u32(state, plan->value_remap[initializer->value_index]);
+      }
+      break;
+    case W_SEED_HIR0_VALUE_TUPLE_ELEMENT:
+    case W_SEED_HIR0_VALUE_VALUE_STRUCT_FIELD:
+      digest_u32(state, value->projection_ordinal);
+      digest_u32(state, value->left_value < program->value_count
+                             ? plan->value_remap[value->left_value]
+                             : W_SEED_PRODUCT_CLOSURE0_NONE);
+      break;
     case W_SEED_HIR0_VALUE_ENUM_CASE:
       if (value->enum_index < program->enum_count &&
           value->enum_case_index < program->enum_case_count) {
@@ -3062,7 +3349,7 @@ static void compute_digest(const w_seed_hir0_program *program,
                            uint8_t digest[W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES]) {
   w_seed_sha256_state state;
   w_seed_sha256_init(&state);
-  static const uint8_t tag[] = "w-seed-product-closure0-semantic-v4\0";
+  static const uint8_t tag[] = "w-seed-product-closure0-semantic-v5\0";
   w_seed_sha256_update(&state, tag, sizeof(tag) - 1u);
   const w_seed_hir0_entry *root_entry = &program->entries[plan->root.entry_index];
   digest_text(&state, program,
@@ -3382,6 +3669,18 @@ static bool input_ranges_build(const w_seed_product_closure0_input *input,
                sizeof(*program->enum_case_parameters)) &&
       !ADD_HIR(program->enum_subset_members, program->enum_subset_member_capacity,
                sizeof(*program->enum_subset_members)) &&
+      !ADD_HIR(program->tuple_components, program->tuple_component_capacity,
+               sizeof(*program->tuple_components)) &&
+      !ADD_HIR(program->value_structs, program->value_struct_capacity,
+               sizeof(*program->value_structs)) &&
+      !ADD_HIR(program->value_struct_fields,
+               program->value_struct_field_capacity,
+               sizeof(*program->value_struct_fields)) &&
+      !ADD_HIR(program->tuple_elements, program->tuple_element_capacity,
+               sizeof(*program->tuple_elements)) &&
+      !ADD_HIR(program->value_struct_initializers,
+               program->value_struct_initializer_capacity,
+               sizeof(*program->value_struct_initializers)) &&
       !ADD_HIR(program->text_bytes, program->text_byte_capacity, sizeof(uint8_t)) &&
       !ADD_HIR(program->value_bytes, program->value_byte_capacity, sizeof(uint8_t)) &&
       !ADD_HIR(program->receipt, program->receipt_capacity, sizeof(uint8_t));

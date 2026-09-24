@@ -329,13 +329,13 @@ int main(int argc, char **argv) {
 #if defined(_WIN32)
   if (_setmode(_fileno(stdout), _O_BINARY) == -1) return 3;
 #endif
-  w_seed_native0_storage storage;
+  static w_seed_native0_storage storage;
   const w_seed_native0_input input = {
       .path = argv[1],
       .path_length = path_length,
       .logical_source_id = source_id,
       .target = (w_seed_mlir0_target){target_kind}};
-  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  static uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   const w_seed_native0_output output = {artifact, sizeof(artifact)};
   w_seed_native0_result result;
   const w_seed_native0_status status =

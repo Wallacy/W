@@ -455,6 +455,18 @@ static w_seed_native0_status lower_hir(
       .requirement_capacity = W_SEED_NATIVE0_HIR_REQUIREMENTS,
       .values = storage->hir_values,
       .value_capacity = W_SEED_NATIVE0_HIR_VALUE_RECORDS,
+      .tuple_components = storage->hir_tuple_components,
+      .tuple_component_capacity = W_SEED_NATIVE0_HIR_TUPLE_COMPONENTS,
+      .value_structs = storage->hir_value_structs,
+      .value_struct_capacity = W_SEED_NATIVE0_HIR_VALUE_STRUCTS,
+      .value_struct_fields = storage->hir_value_struct_fields,
+      .value_struct_field_capacity =
+          W_SEED_NATIVE0_HIR_VALUE_STRUCT_FIELDS,
+      .tuple_elements = storage->hir_tuple_elements,
+      .tuple_element_capacity = W_SEED_NATIVE0_HIR_TUPLE_ELEMENTS,
+      .value_struct_initializers = storage->hir_value_struct_initializers,
+      .value_struct_initializer_capacity =
+          W_SEED_NATIVE0_HIR_VALUE_STRUCT_INITIALIZERS,
       .interpolation_segments = storage->hir_interpolation_segments,
       .interpolation_segment_capacity = W_SEED_NATIVE0_HIR_INTERPOLATION_SEGMENTS,
       .terminators = storage->hir_terminators,

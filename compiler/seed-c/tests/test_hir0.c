@@ -1112,7 +1112,7 @@ enum {
   TEST_ENUM_CASES = 32,
   TEST_ENUM_CASE_PARAMETERS = 16,
   TEST_SWITCH_ARMS = 32,
-  TEST_TYPES = 80,
+  TEST_TYPES = 112,
   TEST_FUNCTIONS = 24,
   TEST_PARAMETERS = 48,
   TEST_ENTRIES = 4,
@@ -11626,6 +11626,49 @@ static bool test_flat_product_value_hir(void) {
   return true;
 }
 
+static bool test_flat_tuple_element_capacity_over_64(void) {
+  static char source[TEST_SOURCE];
+  size_t source_length = 0u;
+  CHECK(append_test_source(source, sizeof(source), &source_length,
+                           "type Pair = (i64, i64)\n"));
+  CHECK(append_test_source(source, sizeof(source), &source_length,
+                           "fn makeMany(left: i64, right: i64): Pair {\n"));
+  for (uint32_t pair = 0u; pair < 33u; pair += 1u) {
+    CHECK(append_test_source(source, sizeof(source), &source_length,
+                             "let pair%u: Pair = (left, right)\n",
+                             (unsigned)pair));
+  }
+  CHECK(append_test_source(source, sizeof(source), &source_length,
+                           "return pair32 }\n"
+                           "entry { let pair = makeMany(left: 7, right: 5) "
+                           "print(\"${pair.0}\") }\n"));
+  CHECK(lower_flat_product(source));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  size_t tuple_constructors = 0u;
+  for (size_t value = 0u; value < program->value_count; value += 1u)
+    if (program->values[value].kind == W_SEED_HIR0_VALUE_TUPLE) {
+      CHECK(program->values[value].tuple_element_count == 2u);
+      tuple_constructors += 1u;
+    }
+  CHECK(tuple_constructors == 33u && program->tuple_element_count == 66u &&
+        program->tuple_element_count > 64u &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_product_closure0_input closure_input =
+      {program, &fixture.hir_result};
+  w_seed_product_closure0_counts closure_counts;
+  w_seed_product_closure0_result closure_result;
+  (void)memset(&closure_counts, 0, sizeof(closure_counts));
+  (void)memset(&closure_result, 0, sizeof(closure_result));
+  CHECK(w_seed_product_closure0_measure(&closure_input, &closure_counts,
+                                        &closure_result) ==
+        W_SEED_PRODUCT_CLOSURE0_OK);
+  CHECK(closure_counts.reachable_functions == 2u &&
+        closure_counts.reachable_values > 0u &&
+        closure_result.status == W_SEED_PRODUCT_CLOSURE0_OK);
+  return true;
+}
+
 static bool test_local_enum_hir(void) {
   static const char SOURCE[] =
       "enum Stage { cold ready done }\n"
@@ -22058,6 +22101,7 @@ int main(int argc, char **argv) {
   if (!test_enum_subset_hir()) return 1;
   if (!test_enum_payload_captures()) return 1;
   if (!test_flat_product_value_hir()) return 1;
+  if (!test_flat_tuple_element_capacity_over_64()) return 1;
   if (!test_enum_switch_local_calls()) return 1;
   if (!test_enum_switch_cfg_composition_barrier()) return 1;
   if (!test_capacity_and_alias_barriers()) return 1;

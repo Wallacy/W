@@ -20,7 +20,7 @@ extern "C" {
 /* Native0 is the bounded source-to-MLIR0 adapter used by the seed gate. It
  * reads one explicit file path, retains no heap state, and uses only storage
  * supplied by its caller. */
-#define W_SEED_NATIVE0_SCHEMA_VERSION "w-seed-native0-10"
+#define W_SEED_NATIVE0_SCHEMA_VERSION "w-seed-native0-11"
 #define W_SEED_NATIVE0_MAX_SOURCE_BYTES 4096u
 #define W_SEED_NATIVE0_MAX_PATH_BYTES 4096u
 #define W_SEED_NATIVE0_MAX_SOURCE_ID_BYTES 4096u
@@ -93,6 +93,14 @@ enum {
   W_SEED_NATIVE0_HIR_ARGUMENTS = 256,
   W_SEED_NATIVE0_HIR_REQUIREMENTS = 16,
   W_SEED_NATIVE0_HIR_VALUE_RECORDS = 512,
+  /* This slice carries one flat tuple type and one two-field immutable value
+   * struct; constructor child records retain the existing frontend bounds. */
+  W_SEED_NATIVE0_HIR_TUPLE_COMPONENTS = 2,
+  W_SEED_NATIVE0_HIR_VALUE_STRUCTS = 1,
+  W_SEED_NATIVE0_HIR_VALUE_STRUCT_FIELDS = 2,
+  W_SEED_NATIVE0_HIR_TUPLE_ELEMENTS = W_SEED_NATIVE0_TUPLE_ELEMENTS,
+  W_SEED_NATIVE0_HIR_VALUE_STRUCT_INITIALIZERS =
+      W_SEED_NATIVE0_ARGUMENTS,
   W_SEED_NATIVE0_HIR_INTERPOLATION_SEGMENTS = 128,
   W_SEED_NATIVE0_HIR_ENTRIES = W_SEED_NATIVE0_ENTRIES,
   W_SEED_NATIVE0_HIR_EXTERNAL_MODULES = 2,
@@ -319,6 +327,17 @@ typedef struct {
   w_seed_hir0_argument hir_arguments[W_SEED_NATIVE0_HIR_ARGUMENTS];
   w_seed_hir0_requirement hir_requirements[W_SEED_NATIVE0_HIR_REQUIREMENTS];
   w_seed_hir0_value hir_values[W_SEED_NATIVE0_HIR_VALUE_RECORDS];
+  w_seed_hir0_tuple_component
+      hir_tuple_components[W_SEED_NATIVE0_HIR_TUPLE_COMPONENTS];
+  w_seed_hir0_value_struct
+      hir_value_structs[W_SEED_NATIVE0_HIR_VALUE_STRUCTS];
+  w_seed_hir0_value_struct_field
+      hir_value_struct_fields[W_SEED_NATIVE0_HIR_VALUE_STRUCT_FIELDS];
+  w_seed_hir0_tuple_element
+      hir_tuple_elements[W_SEED_NATIVE0_HIR_TUPLE_ELEMENTS];
+  w_seed_hir0_value_struct_initializer
+      hir_value_struct_initializers[
+          W_SEED_NATIVE0_HIR_VALUE_STRUCT_INITIALIZERS];
   w_seed_hir0_interpolation_segment
       hir_interpolation_segments[W_SEED_NATIVE0_HIR_INTERPOLATION_SEGMENTS];
   w_seed_hir0_terminator hir_terminators[W_SEED_NATIVE0_HIR_TERMINATORS];
@@ -338,7 +357,7 @@ typedef struct {
   w_seed_runtime_requirements runtime_requirements;
 } w_seed_native0_storage;
 
-_Static_assert(sizeof(w_seed_native0_storage) <= 896u * 1024u,
+_Static_assert(sizeof(w_seed_native0_storage) <= 928u * 1024u,
                "Native0 storage remains within the fixed local ceiling");
 
 /* Run source acquisition, parsing, frontend normalization, verified HIR0

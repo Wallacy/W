@@ -49,7 +49,10 @@ typedef struct {
 
 /* This private selector is the single boundary for the native print subset.
  * It consumes only a verified HIR0 program and exposes borrowed record and
- * payload views. It does not perform textual lookup or copy caller storage. */
+ * payload views. It does not perform textual lookup or copy caller storage.
+ * The writable selection must not overlap the program, HIR result, or any HIR
+ * storage range borrowed by `program`; the selector does not support in-place
+ * replacement of its verified input. */
 typedef struct {
   const w_seed_hir0_instruction *instruction;
   const w_seed_hir0_call *call;
