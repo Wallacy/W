@@ -164,6 +164,23 @@ literal call-site values, so equivalent runtime comparison work is not
 established. The catalog keeps this as one correctness-only family row with no
 performance ranking.
 
+The `flat-value-aggregates` witness is one compiler-lifecycle family row, not
+separate tuple and struct performance entries. Its one W source exercises a
+structural `(i64, i64)` tuple and a local immutable nominal two-`i64` value
+struct through labelled helper calls, return values, and projections; the
+struct initializer reverses source field order. The exact oracle is exit `0`,
+stdout `7,5,26\n`, and empty stderr. The public gates run development `w run`
+and Release `w build` on Windows x64 and Linux/WSL x64. Linux audit inspection
+reports the post-opt external `write` (with the scanner's partial-coverage
+label), exact object undefined symbols `write` and `main`, and no final ELF
+interpreter or `DT_NEEDED` dependencies; the Windows gate checks the exact PE
+Kernel32 imports. Neither route claims a stable layout or C ABI. C23 and Rust
+2024 are output references; the fixed W inputs are not equivalent runtime
+work, so no performance result or ranking is published. The catalog runtime
+class remains unverified until a durable, product-bound dependency receipt is
+recorded. Reproduce the gates with
+`bun check --target w-run` and `bun check --target w-run-windows`.
+
 The public catalog keeps one dense benchmark per semantic family. Focused W
 fixtures still gate individual operations, widths, and failure paths, but they
 do not create separate C/Rust comparison rows. Each family witness should cover

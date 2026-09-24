@@ -113,6 +113,12 @@ The timer covers lane runs, result validation, catalog update, and catalog/docum
 | [unsigned (W)](../compiler/seed-c/fixtures/unsigned.w) | Windows · no CRT (recipe-derived) | W | 2048 B (2.0 KiB) | 198.1933 ms | 14.9365 ms | 21.0251 ms | 15.006 ms | 3158016 B (3.01 MiB) |
 | [fixed-integer-runtime-arithmetic (W)](../compiler/seed-c/fixtures/process-fixed-integer-arithmetic.w), [fixed-integer-runtime-arithmetic (C)](./executable/process_fixed_integer_arithmetic.c), [fixed-integer-runtime-arithmetic (Rust)](./executable/process_fixed_integer_arithmetic.rs) | Not measured | — | — | — | — | — | — | — |
 
+### value-aggregates
+
+| Example | System / lane | Language | Binary | Compile p50 | Execution p50 | Execution p95 | CPU mean | Peak memory |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| [flat-value-aggregates (W)](../compiler/seed-c/fixtures/flat-value-aggregates.w), [flat-value-aggregates (C)](./executable/flat_value_aggregates.c), [flat-value-aggregates (Rust)](./executable/flat_value_aggregates.rs) | Not measured | — | — | — | — | — | — | — |
+
 ### Floating-point semantics
 
 | Example | System / lane | Language | Binary | Compile p50 | Execution p50 | Execution p95 | CPU mean | Peak memory |

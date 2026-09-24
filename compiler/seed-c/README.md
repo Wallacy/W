@@ -1175,7 +1175,7 @@ requirement, terminator, entry ou digest inconsistente falha sem alterar os
 buffers do caller. HLO0 chama o verifier na entrada e não acessa source,
 frontend, CST ou host scope.
 
-### Flat product values: verified HIR only
+### Flat product values: bounded public native family
 
 HIR0 schema `w-seed-hir0-98` adds caller-owned component, field, construction,
 initializer, and projection relations for exactly two flat value shapes already
@@ -1206,12 +1206,30 @@ declaration ordinals, duplicate or missing fields, projection errors, output
 capacity, aliases, result counts, and digests. Measure and run remain
 transactional and caller-owned.
 
-This is HIR-only support, not an executable product. The added product kinds
-remain rejected by ProductClosure0; this slice makes no HLO0, MLIR, Native0,
-layout, ABI/FFI, runtime, or performance claim. Payload enums, arrays, mutable
-aggregates, nested or arbitrary aggregate shapes, and target layout/ABI work
-remain blockers. The benchmark disposition is compiler-lifecycle; the C23 and
-Rust witnesses are correctness oracles only.
+[`flat-value-aggregates.w`](fixtures/flat-value-aggregates.w) is the single
+family-level public witness. It combines one structural `(i64, i64)` tuple
+with one local immutable nominal value struct whose two fields are initialized
+in reversed source order. Both shapes cross labelled helper calls, returns,
+and projections and produce exit 0, stdout `7,5,26\n`, and empty stderr.
+`w run` compiles through the development profile; `w build` compiles through
+the optimized Release profile. The Windows x64 and Linux/WSL x64 public gates
+run both products and compare their exact observable output.
+
+The Linux Release audit binds the source and verified MLIR, pre/post-opt IR,
+product and WRT0 objects, and final artifact. The post-opt text scan reports
+`write` and labels its declaration-parser coverage partial. The two objects'
+complete undefined-symbol inventories are exactly `write` and `main`, supplied
+by the linked WRT0/product pair; the final ELF has no interpreter,
+`DT_NEEDED` entry, or executable stack. The Windows Release route checks the
+final PE import table against the exact Kernel32 output/exit allowlist. This is
+bounded CRT-free product evidence, not a stable aggregate layout or C ABI
+claim.
+
+Payload enums, arrays, mutable or nested/arbitrary aggregates, aggregate
+ownership, stable layout, and ABI/FFI remain gaps. The benchmark disposition is
+`compiler-lifecycle`: C23 and Rust 2024 are independent output references, but
+W's closed literal inputs do not establish equivalent runtime work or a
+performance result.
 
 ## HLO0 verified-HIR-backed de print-literal
 

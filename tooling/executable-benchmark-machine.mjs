@@ -67,6 +67,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "integer-truncating-bits",
   "integer-saturating-conversion",
   "integer-comparison",
+  "flat-value-aggregates",
   "uint-overflowing-family",
   "uint-saturating-policy",
   "fixed-integer-bit-primitives",
@@ -112,6 +113,7 @@ const WORKLOAD_FAMILY_ROWS = Object.freeze({
     "fixed-integer-bit-primitives", "uint-bitwise", "uint-compound",
     "unsigned", "fixed-integer-runtime-arithmetic",
   ]),
+  "value-aggregates": Object.freeze(["flat-value-aggregates"]),
   "floating-point": Object.freeze([
     "float-strict", "float-bit-representation", "float-integer-rounding",
   ]),

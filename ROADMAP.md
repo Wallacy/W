@@ -658,13 +658,14 @@ label was written; source equivalence remains owned by the pre-emission lexical
 plan, while the independent HIR verifier owns graph and carrier validity. The
 next promotion must preserve both proofs.
 
-The next bounded product-value slice now reaches verified HIR0, not native
-output. `flat-aggregate-pair.w` covers an unlabeled structural `(i64, i64)`:
-HIR records both component types, a virtual tuple constructor with explicit
-element ownership, projections with their own ordinals, immutable locals,
-local arguments and return. Tuple identity is structural. The existing
-`(u64, Bool)` tuple remains in its isolated legacy representation because it
-is a different typed shape; the same source shape is not represented twice.
+W-1654 promotes the bounded product-value slice from verified HIR0 through
+public native execution. `flat-aggregate-pair.w` covers an unlabeled structural
+`(i64, i64)`: HIR records both component types, a virtual tuple constructor
+with explicit element ownership, projections with their own ordinals,
+immutable locals, local arguments and return. Tuple identity is structural.
+The existing `(u64, Bool)` tuple remains in its isolated legacy representation
+because it is a different typed shape; the same source shape is not
+represented twice.
 `flat-value-struct-pair.w` covers one local nominal value struct with two
 `i64` fields: HIR identity is the module/declaration pair, field declarations
 retain canonical order, and initializers preserve both source evaluation order
@@ -673,14 +674,31 @@ call or materialized object. Both fixtures pass source→frontend→HIR0
 measure/run→program bridge→independent verification, with resealed mutations
 for ownership, ranges, types, identities, ordinals, projections, completeness,
 capacity, aliasing, result, and digests. The benchmark disposition is
-compiler-lifecycle; there is no native execution or performance result.
+compiler-lifecycle; W-1654 adds exact, correctness-only native execution, with
+no performance result.
 
-This HIR-only slice does not implement layout, ABI/FFI, payload enums, arrays,
-mutable aggregates, nested/arbitrary aggregates, or a native consumer. The
-ProductClosure0 selection path explicitly fails closed for the new value
-kinds. The C23/Rust files remain correctness oracles only; no parser acceptance,
-HIR verification, or oracle establishes a W native product until the later
-native and target-specific witnesses exist.
+The public family witness
+[`flat-value-aggregates.w`](compiler/seed-c/fixtures/flat-value-aggregates.w)
+exercises one structural tuple and one local immutable value struct with the
+same helper-call/return/projection shape. The exact oracle is exit 0, stdout
+`7,5,26\n`, and empty stderr on Windows x64 and Linux/WSL x64 through both
+development `w run` and Release `w build`. The public route consumes verified
+HIR rather than recognizing source text. The Windows Release import table is
+exactly the Kernel32 output/exit route. The Linux audit's post-opt text scan
+reports `write` with explicitly partial parser coverage; the complete
+undefined-symbol inventories are exactly `write` in the product object and
+`main` in WRT0, and the final ELF has no interpreter, `DT_NEEDED` entry, or
+executable stack. This remains bounded compiler-lifecycle evidence, not a
+performance result or stable aggregate layout/ABI claim.
+
+The slice still does not implement stable layout or ABI/FFI, payload enums,
+arrays, mutable or nested/arbitrary aggregates, or aggregate ownership.
+ProductClosure0 promotes only these exact flat shapes and remains fail-closed
+for the other forms. C23/Rust sources are independent output references only. The standalone
+[`flat-aggregate-pair.w`](compiler/seed-c/fixtures/flat-aggregate-pair.w) and
+[`flat-value-struct-pair.w`](compiler/seed-c/fixtures/flat-value-struct-pair.w)
+continue as focused verified-HIR witnesses; labeled tuple type syntax remains
+a separate seed-parser gap.
 The [flat-pair witness](compiler/seed-c/fixtures/flat-aggregate-pair.w) pins a
 positional two-`i64` tuple, construction, projection, labelled calls, return,
 and body entry. The bounded frontend records its unlabeled tuple types,

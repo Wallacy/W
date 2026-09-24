@@ -3,6 +3,7 @@ import { chmod, lstat, mkdir, mkdtemp, readdir, readFile, rm, symlink, unlink, w
 import { createHash } from "node:crypto"
 import { tmpdir } from "node:os"
 import { isAbsolute, join, resolve } from "node:path"
+import { createArtifactInspectionReceipt } from "./artifact-inspection-receipt.mjs"
 
 const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
@@ -23,6 +24,9 @@ const enumBoolPayloadFixture = resolve(seedDirectory,
 const comparisonCompositionFixture = resolve(seedDirectory, "fixtures", "comparison-composition.w")
 const integerComparisonFixture = resolve(seedDirectory,
   "fixtures", "integer-comparison.w")
+const flatValueAggregatesFixture = resolve(seedDirectory,
+  "fixtures", "flat-value-aggregates.w")
+const flatValueAggregatesOutput = Buffer.from("7,5,26\n", "utf8")
 const boolShortCircuitFixture = resolve(seedDirectory, "fixtures", "bool-short-circuit.w")
 const nestedIfFixture = resolve(seedDirectory, "fixtures", "nested-if.w")
 const whileFixture = resolve(seedDirectory, "fixtures", "while.w")
@@ -715,6 +719,90 @@ async function verifyAuditTrace(directory, finalArtifact,
   "audit final artifact is not byte-identical to the published product")
 }
 
+async function inspectFlatAggregateAudit(directory, fixtureRoot,
+                                         toolchainRoot) {
+  const inspectionDirectory = join(fixtureRoot,
+    "flat-value-aggregates-inspection")
+  await mkdir(inspectionDirectory)
+  const inputNames = ["optimized.ll", "output.o", "wrt0.o", "final-artifact"]
+  const localPaths = new Map()
+  for (const name of inputNames) {
+    const path = join(inspectionDirectory, name)
+    await writeFile(path, await readBuildAuditFile(directory, name))
+    localPaths.set(path, isWindows ? wslPath(path) : path)
+  }
+  const toolPath = (name) => {
+    if (toolchainRoot !== undefined)
+      return `${toolchainRoot}/bin/${name}`
+    return findHostExecutable(name)
+  }
+  const runInspectionTool = (executable, args) => {
+    const toolArgs = isWindows
+      ? args.map((argument) => localPaths.get(argument) ?? argument)
+      : args
+    const result = isWindows
+      ? spawn("wsl.exe", ["-d", "Ubuntu", "--", executable, ...toolArgs])
+      : spawn(executable, toolArgs)
+    if (result.exitCode !== 0) {
+      const detail = shortOutput(result.stderrBytes) ||
+        shortOutput(result.stdoutBytes)
+      throw new Error(`artifact inspection tool failed${detail
+        ? `: ${detail}` : ""}`)
+    }
+    return {
+      stdout: result.stdoutBytes.toString(),
+      stderr: result.stderrBytes.toString(),
+    }
+  }
+  const pathFor = (name) => join(inspectionDirectory, name)
+  const receipt = await createArtifactInspectionReceipt({
+    artifactPath: pathFor("final-artifact"),
+    postOptIrPath: pathFor("optimized.ll"),
+    objectPaths: [pathFor("output.o"), pathFor("wrt0.o")],
+    allowlists: {
+      schema: "w-artifact-inspection-allowlists-1",
+      objectUndefinedSymbols: ["main", "write"],
+      finalDependencies: [],
+    },
+    findTool: toolPath,
+    runTool: runInspectionTool,
+  })
+  assert(receipt.artifact.format === "ELF" &&
+    receipt.postOptIr.externals.coverage === "partial" &&
+    JSON.stringify(receipt.postOptIr.externals.externalFunctions) ===
+      JSON.stringify(["write"]) &&
+    receipt.postOptIr.externals.externalGlobals.length === 0,
+  `flat aggregate post-opt external declarations changed: ${JSON.stringify(
+    receipt.postOptIr.externals)}`)
+  assert(JSON.stringify(receipt.objectUndefinedSymbols.items.map(
+    (object) => object.undefinedSymbols)) === JSON.stringify([[
+      "write",
+    ], [
+      "main",
+    ]]),
+  `flat aggregate object undefined symbols changed: ${JSON.stringify(
+    receipt.objectUndefinedSymbols.items)}`)
+  assert(receipt.checks.requestedClosureValidation.status === "passed" &&
+    receipt.checks.suppliedObjectUndefinedSymbolClosure.status === "passed" &&
+    receipt.checks.finalDependencyClosure.status === "passed" &&
+    receipt.dependencies.status === "observed" &&
+    receipt.dependencies.items.length === 0,
+  `flat aggregate Linux runtime closure was not exact: ${JSON.stringify({
+    requested: receipt.checks.requestedClosureValidation,
+    objects: receipt.checks.suppliedObjectUndefinedSymbolClosure,
+    dependencies: receipt.dependencies,
+  })}`)
+  console.log(`W RUN: flat aggregate Release audit ${JSON.stringify({
+    postOptExternalFunctions:
+      receipt.postOptIr.externals.externalFunctions,
+    postOptParserCoverage: receipt.postOptIr.externals.coverage,
+    objectUndefinedSymbols: receipt.objectUndefinedSymbols.items.map(
+      (object) => object.undefinedSymbols),
+    elfDependencies: receipt.dependencies.items,
+    interpreter: "absent (ELF program-header check)",
+  })}`)
+}
+
 export function assertCrtFreeElf(bytes) {
   return assertCrtFreeElfType(bytes, 3, "static PIE")
 }
@@ -1205,6 +1293,9 @@ try {
     "w build --help")
   expectSuccess(binary, ["run", toWsl(helloFixture)], expectedHello,
     "Hello fixture")
+  expectSuccess(binary, ["run", toWsl(flatValueAggregatesFixture)],
+    flatValueAggregatesOutput,
+    "flat tuple and immutable value-struct source through development w run")
   expectSuccess(binary, ["run", toWsl(localGraphFixture)],
     Buffer.from("answer 42\n", "utf8"), "resolved local-module graph")
   expectSourceFailure(binary, toWsl(privateGraphRoot),
@@ -1708,6 +1799,9 @@ try {
   const buildProcessArgumentsOrdering = buildOutput(
     "process-arguments-ordering-build")
   const buildProcessEnumPayload = buildOutput("process-enum-payload-build")
+  const buildFlatValueAggregates = buildOutput("flat-value-aggregates-build")
+  const flatValueAggregatesAudit = buildOutput(
+    "flat-value-aggregates-audit")
   const buildMounted = join(fixtureDirectory, "mounted-build")
   const buildWrongTarget = buildOutput("wrong-target-build")
   const buildMissingParent = buildOutput("missing/artifact")
@@ -1726,6 +1820,21 @@ try {
   assertCrtFreeElf(await readBuildArtifact(buildHelloAudit))
   await verifyAuditTrace(helloAuditTrace, buildHelloAudit,
     buildArtifactDirectory)
+
+  expectSuccess(binary, ["build", toWsl(flatValueAggregatesFixture),
+    "--target", targetTriple, "--output", buildFlatValueAggregates,
+    "--audit-dir", flatValueAggregatesAudit], Buffer.alloc(0),
+  "build flat tuple and immutable value-struct family in Release with audit")
+  const flatValueAggregatesBytes = await readBuildArtifact(
+    buildFlatValueAggregates)
+  assertCrtFreeElf(flatValueAggregatesBytes)
+  assertElfNoExecutableStack(flatValueAggregatesBytes)
+  expectExact(buildFlatValueAggregates, [], 0, flatValueAggregatesOutput,
+    "execute Release flat tuple and immutable value-struct product")
+  await verifyAuditTrace(flatValueAggregatesAudit,
+    buildFlatValueAggregates, buildArtifactDirectory)
+  await inspectFlatAggregateAudit(flatValueAggregatesAudit, fixtureDirectory,
+    externalToolchainRoot)
 
   if (isWindows) {
     runRequired("WSL existing audit target directory", "wsl.exe", [

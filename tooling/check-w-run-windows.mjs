@@ -58,6 +58,9 @@ const comparisonsFixture = resolve(seedDirectory, "fixtures", "comparisons.w")
 const comparisonCompositionFixture = resolve(seedDirectory, "fixtures", "comparison-composition.w")
 const integerComparisonFixture = resolve(seedDirectory,
   "fixtures", "integer-comparison.w")
+const flatValueAggregatesFixture = resolve(seedDirectory,
+  "fixtures", "flat-value-aggregates.w")
+const flatValueAggregatesOutput = Buffer.from("7,5,26\n", "utf8")
 const boolShortCircuitFixture = resolve(seedDirectory, "fixtures", "bool-short-circuit.w")
 const scalarIfFixture = resolve(seedDirectory, "fixtures", "scalar-if.w")
 const terminalReturnsFixture = resolve(seedDirectory, "fixtures", "terminal-returns.w")
@@ -1071,6 +1074,9 @@ try {
     "w build --help")
   expectExact(binary, ["run", helloFixture], 0,
     Buffer.from("Hello, world!\n", "utf8"), "Hello fixture")
+  expectExact(binary, ["run", flatValueAggregatesFixture], 0,
+    flatValueAggregatesOutput,
+    "flat tuple and immutable value-struct source through development w run")
   expectExact(binary, ["run", localGraphFixture], 0,
     Buffer.from("answer 42\n", "utf8"),
     "resolved local-module graph fixture")
@@ -1535,6 +1541,12 @@ try {
     "ordered process count input with three arguments")
 
   const buildHello = join(fixtureDirectory, "hello-build.exe")
+  const buildFlatValueAggregates = join(fixtureDirectory,
+    "flat-value-aggregates-build.exe")
+  const flatValueAggregatesWindowsRoute = {
+    usesProcessArgumentAdapter: false,
+    writesStdout: true,
+  }
   const buildWindowsTargetPie = join(fixtureDirectory,
     "pie-on-windows-target-build.exe")
   const buildWindowsTargetNoPie = join(fixtureDirectory,
@@ -1581,6 +1593,10 @@ try {
   const buildLinuxHelloNoPie = join(fixtureDirectory, "hello-linux-no-pie")
   const buildLinuxHelloAudit = join(fixtureDirectory, "hello-linux-audit")
   const linuxHelloAuditTrace = join(fixtureDirectory, "hello-linux-audit-trace")
+  const buildLinuxFlatValueAggregates = join(fixtureDirectory,
+    "flat-value-aggregates-linux")
+  const linuxFlatValueAggregatesAuditTrace = join(fixtureDirectory,
+    "flat-value-aggregates-linux-audit")
   const failedLinuxAuditProduct = join(fixtureDirectory,
     "failed-linux-audit-product")
   const failedLinuxAuditTrace = join(fixtureDirectory,
@@ -1604,6 +1620,19 @@ try {
     "build Hello did not produce a regular artifact")
   expectExact(buildHello, [], 0, Buffer.from("Hello, world!\n", "utf8"),
     "execute built Hello artifact")
+  expectExact(binary, ["build", flatValueAggregatesFixture, "--target",
+    targetTriple, "--output", buildFlatValueAggregates], 0,
+  Buffer.alloc(0),
+  "build flat tuple and immutable value-struct family in Windows Release")
+  const flatValueAggregatesWindowsBytes = await readFile(
+    buildFlatValueAggregates)
+  assertPeX64(flatValueAggregatesWindowsBytes,
+    "built flat tuple and immutable value-struct Windows artifact")
+  assertKernel32OnlyImports(flatValueAggregatesWindowsBytes,
+    "built flat tuple and immutable value-struct Windows artifact",
+    flatValueAggregatesWindowsRoute)
+  expectExact(buildFlatValueAggregates, [], 0, flatValueAggregatesOutput,
+    "execute Windows Release flat tuple and immutable value-struct product")
   expectExact(binary, ["build", localGraphFixture, "--target", targetTriple,
     "--output", buildLocalGraph], 0, Buffer.alloc(0),
     "build resolved local-module graph")
@@ -1898,6 +1927,21 @@ try {
   expectExact(wsl, ["-d", "Ubuntu", "--", wslPath(buildLinuxHelloAudit)], 0,
     Buffer.from("Hello, world!\n", "utf8"),
   "execute cross-built audited Linux Hello through WSL2")
+  expectExact(binary, ["build", flatValueAggregatesFixture, "--target",
+    linuxTargetTriple, "--output", buildLinuxFlatValueAggregates,
+    "--audit-dir", linuxFlatValueAggregatesAuditTrace], 0,
+  Buffer.alloc(0),
+  "cross-build flat tuple and immutable value-struct family with audit")
+  const linuxFlatValueAggregatesBytes = await readFile(
+    buildLinuxFlatValueAggregates)
+  assertCrtFreeElf(linuxFlatValueAggregatesBytes)
+  assertElfNoExecutableStack(linuxFlatValueAggregatesBytes)
+  await verifyLinuxAuditTrace(linuxFlatValueAggregatesAuditTrace,
+    buildLinuxFlatValueAggregates)
+  expectExact(wsl, ["-d", "Ubuntu", "--",
+    wslPath(buildLinuxFlatValueAggregates)], 0,
+  flatValueAggregatesOutput,
+  "execute cross-built Release flat tuple and immutable value-struct product through WSL2")
 
   await mkdir(existingLinuxAuditTrace)
   await writeFile(existingLinuxAuditMarker, "preserve existing audit data\n")

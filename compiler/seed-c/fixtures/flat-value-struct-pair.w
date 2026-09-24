@@ -1,4 +1,5 @@
-// Frontend-only witness; this slice does not claim executable W lowering.
+// Focused verified-HIR witness; public native coverage is provided by the
+// flat-value-aggregates.w family fixture.
 // Expected: exit 0; stdout: "7,5,26\n"; stderr: ""
 struct Pair { let left: i64 let right: i64 }
 
