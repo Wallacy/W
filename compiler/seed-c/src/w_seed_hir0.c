@@ -8730,8 +8730,7 @@ static bool hir0_nested_cfg_walk_chain(
               active_frame_count + 1u, depth + 1u))
         return false;
     } else if (statement->kind == W_SEED_FRONTEND_STMT_IF) {
-      if (active_frame_count == 0u ||
-          statement->condition_expression == W_SEED_FRONTEND_NONE ||
+      if (statement->condition_expression == W_SEED_FRONTEND_NONE ||
           statement->condition_expression != statement->expression_index ||
           (size_t)statement->condition_expression >=
               walk->result->written.expressions ||
@@ -8741,10 +8740,26 @@ static bool hir0_nested_cfg_walk_chain(
         return false;
       uint32_t roots[HIR0_MAX_BRANCH_ASSIGNMENTS] = {0u};
       size_t root_count = 0u;
-      for (size_t active = 0u; active < active_frame_count; active += 1u) {
-        const size_t frame_index = active_frames[active];
+      /* A post-loop branch still reads the roots whose current versions came
+       * through the planned loop exits. Keep those reads in the same bounded
+       * scalar predicate domain instead of rejecting the branch merely
+       * because its lexical loop stack is empty. */
+      const size_t root_frame_count = active_frame_count == 0u
+                                          ? plan->frame_count
+                                          : active_frame_count;
+      for (size_t active = 0u; active < root_frame_count; active += 1u) {
+        const size_t frame_index = active_frame_count == 0u
+                                       ? active
+                                       : active_frames[active];
         if (frame_index >= plan->frame_count) return false;
         const hir0_cfg_loop_frame *frame = &plan->frames[frame_index];
+        /* Empty-stack IFs may consume only carrier roots from loops already
+         * encountered in this source chain. A later sequential loop must
+         * not lend its carrier identity to an earlier condition. Statement
+         * IDs are the frontend's normalized lexical order within this walk. */
+        if (active_frame_count == 0u &&
+            frame->source_statement >= cursor)
+          continue;
         for (size_t lane = 0u; lane < frame->root_count; lane += 1u) {
           const uint32_t root = frame->root_statements[lane];
           bool seen = false;
@@ -25720,8 +25735,12 @@ static bool verify_cfg_multiple_natural_loops(
         return false;
   }
 
-  /* Outside natural-loop members, only the validated preheaders/adapters,
-   * forward sequencing jumps, and the final value return are admitted. */
+  /* Outside natural-loop members, admit the validated preheaders/adapters,
+   * forward-only scalar branches and sequencing jumps, and terminal returns.
+   * This lets a bounded loop graph carry a source-level return ladder without
+   * mistaking those forward exits for loop structure. */
+  size_t return_count = 0u;
+  bool has_final_return = false;
   for (size_t block_index = first_block; block_index < block_end;
        block_index += 1u) {
     const w_seed_hir0_block *block = &program->blocks[block_index];
@@ -25735,7 +25754,20 @@ static bool verify_cfg_multiple_natural_loops(
     if (in_loop) continue;
     if (term->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
         term->kind == W_SEED_HIR0_TERMINATOR_RETURN_UNIT) {
-      if (block_index + 1u != block_end) return false;
+      return_count += 1u;
+      if (block_index + 1u == block_end) has_final_return = true;
+      continue;
+    }
+    if (term->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
+      if (term->target_block <= block_index ||
+          term->target_block >= block_end ||
+          term->else_block <= block_index || term->else_block >= block_end ||
+          term->target_block == term->else_block ||
+          term->first_edge_argument != W_SEED_HIR0_NONE ||
+          term->edge_argument_count != 0u ||
+          program->blocks[term->target_block].block_argument_count != 0u ||
+          program->blocks[term->else_block].block_argument_count != 0u)
+        return false;
       continue;
     }
     if (term->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
@@ -25770,7 +25802,7 @@ static bool verify_cfg_multiple_natural_loops(
     }
     if (!authorized && term->edge_argument_count != 0u) return false;
   }
-  return true;
+  return return_count != 0u && has_final_return;
 }
 
 /* The exit-side continuation is intentionally narrower than the ordinary HIR

@@ -1854,6 +1854,29 @@ The public executable catalog registers this family with
 remain correctness references only. General mixed CFG, other carrier types,
 optimizer quality, and performance equivalence remain open.
 
+### Nested loops with post-loop terminal returns
+
+[`fixtures/nested-loop-terminal-returns.w`](fixtures/nested-loop-terminal-returns.w)
+extends the nested labeled/unlabeled transfer witness with a post-loop scalar
+return ladder. The source returns `-1`, `1`, or the accumulated total, producing
+exactly `-1,1,3\n` with exit 0 and empty stderr. C23 and Rust 2024 versions are
+correctness oracles only. HIR0 retains the two verified natural loops and
+three distinct return terminators; NativeSubset0 admits this generic bounded
+loop CFG, ProductClosure0 cross-checks reachable functions, and MLIR0 emits the
+verified branches directly as LLVM-dialect blocks. The empty-loop-stack source
+walk may read only carrier roots from loops preceding that predicate, so a
+future sequential loop cannot lend its root backward. Returns inside a loop
+member remain unsupported. This is a bounded mixed-CFG/multi-block-return
+witness, not arbitrary CFG or a language-level loop limit.
+
+The focused HIR0, Native0, ProductClosure0 and MLIR0 units, the MLIR/LLVM
+execution gate, and the public Windows plus Linux/WSL `w run`/`w build` gates
+check exact exit/output/stderr. Windows verifies the exact Kernel32 import
+allowlist; Linux/WSL requires a static CRT-free ELF without an interpreter or
+`DT_NEEDED`. The catalog records `benchmarkDisposition: required` and
+`benchmarkStatus: not-performance-ready`; no performance result is recorded
+because equivalent runtime work has not been measured.
+
 ### Multi-carrier structured natural loop (W-1569)
 
 HIR0 and NativeSubset0 now admit a nonempty tuple of mutable signed-`i64`

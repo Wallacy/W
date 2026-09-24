@@ -10564,6 +10564,136 @@ static bool test_nested_labeled_while_hir_boundary(void) {
   return true;
 }
 
+static bool test_nested_loop_terminal_returns_hir(void) {
+  static const char SOURCE[] =
+      "// Expected: exit 0; stdout: \"-1,1,3\\n\"; stderr: \"\"\n"
+      "fn walk(limit: i64): i64 {\n"
+      "  var outer = 0\n"
+      "  var inner = 0\n"
+      "  var total = 0\n"
+      "  outerLoop: while outer < limit {\n"
+      "    outer = outer + 1\n"
+      "    inner = 0\n"
+      "    while inner < limit {\n"
+      "      inner = inner + 1\n"
+      "      if inner == 2 { continue }\n"
+      "      if inner == 3 { break }\n"
+      "      if outer == 4 { continue outerLoop }\n"
+      "      if outer == 5 { break outerLoop }\n"
+      "      total = total + 1\n"
+      "    }\n"
+      "  }\n"
+      "  if total == 0 { return -1 } else if total == 1 { return 1 }\n"
+      "  return total\n"
+      "}\n"
+      "\n"
+      "entry {\n"
+      "  let zero = walk(limit: 0)\n"
+      "  let one = walk(limit: 1)\n"
+      "  let six = walk(limit: 6)\n"
+      "  print(\"${zero},${one},${six}\")\n"
+      "}\n";
+  CHECK(lower_single_print_host(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count != 0u &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+  w_seed_hir0_cfg_analysis analysis;
+  CHECK(w_seed_hir0_cfg_analyze(program, 0u, &analysis) &&
+        analysis.loop_count == 2u);
+  const w_seed_hir0_function *walk = &program->functions[0];
+  size_t return_count = 0u;
+  for (size_t block_index = walk->first_block;
+       block_index < (size_t)walk->first_block + walk->block_count;
+       block_index += 1u) {
+    const uint32_t terminator_index =
+        program->blocks[block_index].terminator_index;
+    CHECK(terminator_index < program->terminator_count);
+    if (program->terminators[terminator_index].kind ==
+        W_SEED_HIR0_TERMINATOR_RETURN_VALUE)
+      return_count += 1u;
+  }
+  CHECK(return_count == 3u);
+  return true;
+}
+
+static bool test_post_loop_if_cannot_read_future_loop_roots(void) {
+  static const char SOURCE[] =
+      "fn inspect(): i64 {\n"
+      "  var first = 0\n"
+      "  var later = 0\n"
+      "  while first < 0 { first = first + 1 }\n"
+      "  if later == 0 { }\n"
+      "  while later < 1 { later = later + 1 }\n"
+      "  return later\n"
+      "}\n"
+      "entry(inspect)\n";
+  CHECK(fixture_frontend(SOURCE));
+  setup_hir_output();
+  const w_seed_hir0_input input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
+  hir0_function_cfg_plan plan;
+  CHECK(hir0_function_cfg_plan_build(&input, 0u, &plan) &&
+        plan.frame_count == 2u);
+  uint32_t intervening_if = W_SEED_FRONTEND_NONE;
+  for (size_t statement = 0u; statement < fixture.result.written.statements;
+       statement += 1u)
+    if (fixture.statements[statement].owner_function == 0u &&
+        fixture.statements[statement].kind == W_SEED_FRONTEND_STMT_IF)
+      intervening_if = (uint32_t)statement;
+  CHECK(intervening_if != W_SEED_FRONTEND_NONE &&
+        plan.frames[0].source_statement < intervening_if &&
+        intervening_if < plan.frames[1].source_statement &&
+        plan.frames[1].root_count == 1u);
+  const uint32_t future_root = plan.frames[1].root_statements[0];
+  const w_seed_frontend_statement *branch =
+      &fixture.statements[intervening_if];
+  CHECK(future_root < fixture.result.written.statements &&
+        fixture.statements[future_root].kind == W_SEED_FRONTEND_STMT_VAR &&
+        text_is(fixture.statements[future_root].binding_name, "later") &&
+        branch->condition_expression < fixture.result.written.expressions);
+  const uint32_t condition_left =
+      fixture.expressions[branch->condition_expression].left;
+  CHECK(condition_left < fixture.result.written.expressions &&
+        fixture.expressions[condition_left].resolved_binding_statement ==
+            future_root);
+  w_seed_hir0_counts counts;
+  w_seed_hir0_result result;
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) != W_SEED_HIR0_OK);
+  return true;
+}
+
+static bool test_nested_loop_member_returns_remain_rejected(void) {
+  static const char SOURCE[] =
+      "fn walk(limit: i64): i64 {\n"
+      "  var outer = 0\n"
+      "  var inner = 0\n"
+      "  while outer < limit {\n"
+      "    outer = outer + 1\n"
+      "    while inner < limit {\n"
+      "      if inner == 2 { return -1 }\n"
+      "      inner = inner + 1\n"
+      "    }\n"
+      "  }\n"
+      "  return outer\n"
+      "}\n"
+      "fn main() { let value = walk(limit: 2) }\n"
+      "entry(main)\n";
+  CHECK(fixture_frontend(SOURCE));
+  setup_hir_output();
+  const w_seed_hir0_input input = {
+      .frontend_input = &fixture.input,
+      .frontend_output = &fixture.output,
+      .frontend_result = &fixture.result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
+  w_seed_hir0_counts counts;
+  w_seed_hir0_result result;
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) != W_SEED_HIR0_OK);
+  return true;
+}
+
 static bool test_nested_post_child_update_lineage(void) {
   static const char SOURCE[] =
       "fn lineage(limit: i64): i64 {\n"
@@ -21900,6 +22030,9 @@ int main(int argc, char **argv) {
   if (!test_while_post_loop_continuation_ssa()) return 1;
   if (!test_while_break_continue_shared_exit()) return 1;
   if (!test_nested_labeled_while_hir_boundary()) return 1;
+  if (!test_nested_loop_terminal_returns_hir()) return 1;
+  if (!test_post_loop_if_cannot_read_future_loop_roots()) return 1;
+  if (!test_nested_loop_member_returns_remain_rejected()) return 1;
   if (!test_nested_post_child_update_lineage()) return 1;
   if (!test_nested_child_exit_carrier_on_outer_break()) return 1;
   if (!test_cfg_plan_carrier_overflow_rejected()) return 1;

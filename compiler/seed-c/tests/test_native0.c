@@ -1,4 +1,5 @@
 #include "w_seed_native0.h"
+#include "w_seed_product_closure0.h"
 #include "w_seed_parallel_selection0.h"
 #include "w_seed_scalar_evaluator0.h"
 #include "../src/w_seed_native_subset0.h"
@@ -2439,6 +2440,73 @@ static bool test_nested_labeled_while_native_subset(void) {
   CHECK(walk_index < storage.hir_program.function_count &&
         selection.verified_i64_loop_cfg_functions[walk_index] &&
         !selection.natural_loop_functions[walk_index]);
+
+  static const uint8_t terminal_returns_source[] =
+      "// Expected: exit 0; stdout: \"-1,1,3\\n\"; stderr: \"\"\n"
+      "fn walk(limit: i64): i64 {\n"
+      "  var outer = 0\n"
+      "  var inner = 0\n"
+      "  var total = 0\n"
+      "  outerLoop: while outer < limit {\n"
+      "    outer = outer + 1\n"
+      "    inner = 0\n"
+      "    while inner < limit {\n"
+      "      inner = inner + 1\n"
+      "      if inner == 2 { continue }\n"
+      "      if inner == 3 { break }\n"
+      "      if outer == 4 { continue outerLoop }\n"
+      "      if outer == 5 { break outerLoop }\n"
+      "      total = total + 1\n"
+      "    }\n"
+      "  }\n"
+      "  if total == 0 { return -1 } else if total == 1 { return 1 }\n"
+      "  return total\n"
+      "}\n"
+      "\n"
+      "entry {\n"
+      "  let zero = walk(limit: 0)\n"
+      "  let one = walk(limit: 1)\n"
+      "  let six = walk(limit: 6)\n"
+      "  print(\"${zero},${one},${six}\")\n"
+      "}\n";
+  CHECK(run_source(terminal_returns_source,
+                   sizeof(terminal_returns_source) - 1u,
+                   "nested-loop-terminal-returns",
+                   sizeof("nested-loop-terminal-returns") - 1u, output,
+                   sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  CHECK(result.status == W_SEED_NATIVE0_OK &&
+        w_seed_hir0_verify(&storage.hir_program, &storage.hir_result) &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.cond_br") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes, "llvm.br") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes, "scf.while"));
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  walk_index = SIZE_MAX;
+  for (size_t function = 0u; function < storage.hir_program.function_count;
+       function += 1u)
+    if (hir_text_equals(&storage.hir_program,
+                        storage.hir_program.functions[function].name,
+                        "walk"))
+      walk_index = function;
+  const size_t walk_start = find_bytes(
+      output, result.mlir.written.mlir_bytes,
+      "llvm.func internal @w_fn_0(", 0u);
+  const size_t entry_start = find_bytes(
+      output, result.mlir.written.mlir_bytes,
+      "llvm.func internal @w_fn_1(", walk_start == SIZE_MAX ? 0u
+                                                               : walk_start + 1u);
+  CHECK(storage.hir_program.function_count == 2u &&
+        walk_index < storage.hir_program.function_count &&
+        selection.verified_i64_loop_cfg_functions[walk_index] &&
+        walk_start != SIZE_MAX && entry_start > walk_start &&
+        count_bytes(output + walk_start, entry_start - walk_start,
+                    "llvm.return ") == 3u &&
+        w_seed_product_closure0_cross_check_functions(
+            &storage.hir_program, &storage.hir_result,
+            (const bool[]){true, true},
+            storage.hir_program.function_count));
   return true;
 }
 

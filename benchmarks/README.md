@@ -208,6 +208,16 @@ result has been added. Refresh measurements only after integration, and do not
 rank this witness until runtime closure and equivalence are independently
 receipted.
 
+`nested-loop-terminal-returns` extends that correctness family with a
+post-loop scalar predicate ladder and three terminal return blocks. The exact
+oracle is exit 0, stdout `-1,1,3\n`, and empty stderr; the Windows and
+Linux/WSL public gates exercise both `w run` and `w build`, checking their
+target-specific import/runtime closure. Existing C23 and Rust 2024 sources are
+correctness references only. The catalog sets `benchmarkDisposition:
+required` and leaves `benchmarkStatus` at `not-performance-ready`; there is no
+timing or ranking result without equivalent runtime work. This is a bounded
+mixed-CFG witness, not arbitrary CFG.
+
 `hello-platform-minimal` is registered and runner-supported for contextual,
 non-ranking measurement; the catalog status does not make it an idiomatic
 comparison or a language ranking. Source/oracle registration alone is not

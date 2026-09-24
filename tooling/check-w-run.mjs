@@ -34,6 +34,8 @@ const whileBreakContinueFixture = resolve(seedDirectory,
   "fixtures", "while-break-continue.w")
 const nestedLabeledWhileFixture = resolve(seedDirectory,
   "fixtures", "nested-labeled-while.w")
+const nestedLoopTerminalReturnsFixture = resolve(seedDirectory,
+  "fixtures", "nested-loop-terminal-returns.w")
 const repeatFixture = resolve(seedDirectory,
   "fixtures", "repeat.w")
 const wmoFixture = resolve(seedDirectory, "fixtures", "wmo.w")
@@ -1246,6 +1248,9 @@ try {
   expectSuccess(binary, ["run", toWsl(nestedLabeledWhileFixture)],
     Buffer.from("0,1,3\n", "utf8"),
     "verified nested labeled loop CFG")
+  expectSuccess(binary, ["run", toWsl(nestedLoopTerminalReturnsFixture)],
+    Buffer.from("-1,1,3\n", "utf8"),
+    "verified nested loop CFG with terminal return branches")
   expectSuccess(binary, ["run", toWsl(repeatFixture)],
     Buffer.from("Receipt digits 1/5\n", "utf8"),
     "Restaurant post-test repeat lowered through structured MLIR")
@@ -1634,6 +1639,8 @@ try {
   const buildRestaurantRepeat = buildOutput("repeat-build")
   const buildWhileBreakContinue = buildOutput("while-break-continue-build")
   const buildNestedLabeledWhile = buildOutput("nested-labeled-while-build")
+  const buildNestedLoopTerminalReturns = buildOutput(
+    "nested-loop-terminal-returns-build")
   const buildRestaurantMainDispatch = buildOutput(
     "main-dispatch-build")
   const buildRestaurantMainCardinality = buildOutput(
@@ -1796,6 +1803,13 @@ try {
     Buffer.from("0,1,3\n", "utf8"),
     "execute built verified nested labeled loop CFG artifact")
   assertCrtFreeElf(await readBuildArtifact(buildNestedLabeledWhile))
+  expectSuccess(binary, ["build", toWsl(nestedLoopTerminalReturnsFixture),
+    "--target", targetTriple, "--output", buildNestedLoopTerminalReturns],
+    Buffer.alloc(0), "build verified nested loop terminal-return CFG fixture")
+  expectSuccess(buildNestedLoopTerminalReturns, [],
+    Buffer.from("-1,1,3\n", "utf8"),
+    "execute built verified nested loop terminal-return CFG artifact")
+  assertCrtFreeElf(await readBuildArtifact(buildNestedLoopTerminalReturns))
   expectSuccess(binary, ["build", toWsl(mainDispatchFixture),
     "--target", targetTriple, "--output", buildRestaurantMainDispatch],
   Buffer.alloc(0), "build restaurant main-domain dispatch fixture")

@@ -256,6 +256,11 @@ candidate only with evidence of a material general benefit and equivalent
 closure/correctness receipts; do not substitute a Hello-specific syscall
 rewrite.
 
+The combined W+WRT0 bitcode/LTO candidate remains a CRT-free, freestanding
+option. It was not promoted from the audited Hello-minimal and process-enum
+cases, whose results were small and mixed; keep it eligible for periodic
+re-evaluation on larger multi-function/runtime families.
+
 The count-only process-arguments candidate is implemented for the exact
 verified-reachability case where the selected entry observes only
 `Arguments.count` and no argument bytes or descriptors. Windows retains a
@@ -633,13 +638,23 @@ Windows and Linux/WSL `w run` and `w build` gates also pass that exact output,
 empty stderr and zero exit; Windows import checks and Linux/WSL static-ELF
 closure checks remain target-specific. `benchmarks/executable-catalog.json`
 registers `nested-labeled-while` with `benchmarkDisposition: required` and no
-performance results. Continue the rank-3 queue with mixed CFG and multi-block
-returns. Do not add a second source-shape recognizer. General CFG, arbitrary
-payload types, optimizer quality, and cross-target performance remain open.
-A standalone, well-typed HIR graph still cannot prove which source label was
-written; source equivalence remains owned by the pre-emission lexical plan,
-while the independent HIR verifier owns graph and carrier validity. The next
-promotion must preserve both proofs.
+performance results. Its bounded
+[`nested-loop-terminal-returns.w`](compiler/seed-c/fixtures/nested-loop-terminal-returns.w)
+successor carries that mixed nested-loop graph through post-loop scalar
+predicates to three terminal return blocks, with C23 and Rust 2024 correctness
+oracles. It uses the existing generic CFG planner, verified-HIR selector,
+ProductClosure0 cross-check, and LLVM CFG emitter; public Windows and Linux/WSL
+`w run`/`w build` gates preserve exact `-1,1,3\n`, exit 0, and empty stderr,
+with the platform-specific import and CRT-free ELF checks. The catalog records
+`benchmarkDisposition: required` and no performance result. This remains a
+bounded mixed-CFG witness, not arbitrary CFG; future-loop roots cannot flow
+backward into earlier predicates, and returns inside loop members remain
+rejected. General CFG, arbitrary payload types, optimizer quality, and
+cross-target performance remain open. Do not add a second source-shape
+recognizer. A standalone, well-typed HIR graph still cannot prove which source
+label was written; source equivalence remains owned by the pre-emission lexical
+plan, while the independent HIR verifier owns graph and carrier validity. The
+next promotion must preserve both proofs.
 
 The next bounded product-value slice now reaches verified HIR0, not native
 output. `flat-aggregate-pair.w` covers an unlabeled structural `(i64, i64)`:
@@ -895,10 +910,12 @@ section headers and non-loaded section data from the exact Hello yields 784
 bytes, preserves PIE/RELRO and exact execution, but removes section-level
 information useful to analysis. An opt-in size route needs a self-contained
 implementation and an auditability check before promotion. For this loader-free
-Hello, `-z norelro` additionally saves 64 bytes after stripping, but requires
-final-artifact proof of no interpreter, imports, or relocations; it is not a
-blanket default. `--no-rosegment` broadens executable mappings and is not a
-size-only substitute.
+Hello, the roughly 720-byte stripped `-z norelro` variant additionally saves
+64 bytes, but requires final-artifact proof of no interpreter, imports, or
+relocations; it is not a blanket default. These 784-byte PIE/RELRO and
+roughly 720-byte `-z norelro` experiments are distinct from the W+WRT0
+bitcode/LTO candidate above. `--no-rosegment` broadens executable mappings
+and is not a size-only substitute.
 
 The maintained native route is `W source → verified HIR → MLIR → LLVM IR →
 object → link`. It never lowers W source through C. The C23 oracle remains an

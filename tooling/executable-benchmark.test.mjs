@@ -134,6 +134,13 @@ test("catalog stores compact live best cells and no immutable history", () => {
     item.id === "nested-labeled-while");
   assert.equal(nestedLoop?.benchmarkDisposition, "required");
   assert.equal(nestedLoop?.benchmarkStatus, "not-performance-ready");
+  const terminalReturnLoop = documents.catalog.workloads.find((item) =>
+    item.id === "nested-loop-terminal-returns");
+  assert.equal(terminalReturnLoop?.benchmarkDisposition, "required");
+  assert.equal(terminalReturnLoop?.benchmarkStatus, "not-performance-ready");
+  assert.equal(terminalReturnLoop?.oracle.exitCode, 0);
+  assert.equal(terminalReturnLoop?.oracle.stdout, "-1,1,3\n");
+  assert.equal(terminalReturnLoop?.oracle.stderr, "");
   assert.equal(documents.schema.$defs.workload.properties.benchmarkDisposition.enum.join(","),
     "required,compiler-lifecycle,deferred,not-applicable");
   const invalidDisposition = clone(documents.catalog);

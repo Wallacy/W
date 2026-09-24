@@ -4540,8 +4540,8 @@ static bool program_natural_loop_is_supported(
  * screen checks only the bounded generic CFG surface needed by the
  * LLVM-dialect block emitter: at least two nonempty i64 carrier tuples with
  * bounded aggregate arity, i64 scalar bindings, Bool branches, typed jump
- * edges, and no calls/effects.  A cycle is detected from the graph itself
- * instead of assuming a block count, layout, or source spelling. */
+ * edges, terminal i64 returns, and no calls/effects. A cycle is detected from
+ * the graph itself instead of assuming a block count, layout, or spelling. */
 static bool program_verified_i64_loop_cfg_is_supported(
     const w_seed_hir0_program *program, size_t function_index) {
   if (program == NULL || function_index >= program->function_count)
@@ -4718,7 +4718,7 @@ static bool program_verified_i64_loop_cfg_is_supported(
   /* Keep this a verified loop-CFG lane, not a general block-argument route.
    * The verified graph supplies each target tuple's arity and the edge checks
    * above bind every operand to that tuple. */
-  if (argument_blocks < 2u || branch_count == 0u || return_count != 1u)
+  if (argument_blocks < 2u || branch_count == 0u || return_count == 0u)
     return false;
 
   for (size_t local = 0u; local < function->block_count; local += 1u)

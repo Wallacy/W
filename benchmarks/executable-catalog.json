@@ -1130,6 +1130,107 @@
       ]
     },
     {
+      "id": "nested-loop-terminal-returns",
+      "family": "control-flow",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "benchmarkDisposition": "required",
+      "lane": "equivalent",
+      "scope": "Exercise nested natural loops with labeled outer and unlabeled inner break/continue, then route post-loop scalar predicates to multiple terminal returns. Preserve exact output -1,1,3\\n. C23 and Rust 2024 are correctness oracles only; record no performance results until equivalent runtime work is measured.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "-1,1,3\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/nested-loop-terminal-returns.w",
+          "digest": "sha256:833eb61851d22eab198621b11a28c21f95b32d7a66489092dc4fbda858a97b49",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "nested-loop-terminal-returns-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b",
+          "runtimeClosure": {
+            "class": "freestanding",
+            "status": "unverified"
+          }
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/nested-loop-terminal-returns.w",
+          "digest": "sha256:833eb61851d22eab198621b11a28c21f95b32d7a66489092dc4fbda858a97b49",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "nested-loop-terminal-returns-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only",
+          "runtimeClosure": {
+            "class": "freestanding",
+            "status": "unverified"
+          }
+        },
+        {
+          "language": "c",
+          "path": "compiler/seed-c/fixtures/nested-loop-terminal-returns.c",
+          "digest": "sha256:2493414407bc316c904f3e6f3f631bc9a32dc295b3901ee89565f37e4cb8b837",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "nested-loop-terminal-returns-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b",
+          "runtimeClosure": {
+            "class": "hosted-crt",
+            "status": "unverified"
+          }
+        },
+        {
+          "language": "rust",
+          "path": "compiler/seed-c/fixtures/nested-loop-terminal-returns.rs",
+          "digest": "sha256:6b0f7e77deda44df1c4d079de76336b41baecc64d07d42094e3d2cb483666512",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "nested-loop-terminal-returns-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b",
+          "runtimeClosure": {
+            "class": "hosted-crt",
+            "status": "unverified"
+          }
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": [
+        "equivalent-runtime-work-not-measured"
+      ]
+    },
+    {
       "id": "repeat",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",
