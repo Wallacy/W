@@ -614,12 +614,19 @@ has C23/Rust correctness references. Its functions, three local calls, nested
 transfers, interpolation, and entry are already represented by the frontend.
 A bare frontend probe correctly leaves `print` unresolved because it supplies
 no host scope; the Native0 product route supplies the explicit
-`native-process@1`/`Console` prelude. NativeSubset0, MLIR/codegen and public
-Windows/Linux execution of that nested witness remain the product blockers.
-Next, make those stages consume this verified graph without adding another
-source-shape recognizer, then continue with mixed CFG and multi-block returns.
-Do not add a second source-shape recognizer. General CFG, arbitrary payload
-types, optimizer quality, and cross-target performance remain open.
+`native-process@1`/`Console` prelude. NativeSubset0 now selects the admitted
+verified `i64` CFG generically, and MLIR0 emits that HIR graph as LLVM-dialect
+blocks and typed carrier edges without reparsing W source or adding a second
+source-shape recognizer. ProductClosure0 cross-checks exact reachability. The
+focused HIR0/Native0/ProductClosure0/MLIR0 units pass; `check-mlir0.mjs`
+verifies, translates, compiles and runs the exact `0,1,3\n` oracle. The public
+Windows and Linux/WSL `w run` and `w build` gates also pass that exact output,
+empty stderr and zero exit; Windows import checks and Linux/WSL static-ELF
+closure checks remain target-specific. `benchmarks/executable-catalog.json`
+registers `nested-labeled-while` with `benchmarkDisposition: required` and no
+performance results. Continue the rank-3 queue with mixed CFG and multi-block
+returns. Do not add a second source-shape recognizer. General CFG, arbitrary
+payload types, optimizer quality, and cross-target performance remain open.
 A standalone, well-typed HIR graph still cannot prove which source label was
 written; source equivalence remains owned by the pre-emission lexical plan,
 while the independent HIR verifier owns graph and carrier validity. The next

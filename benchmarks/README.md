@@ -197,6 +197,17 @@ established, so the row makes no timing or ranking claim. Reproduce the W gates
 with `bun run tooling/check-w-run-windows.mjs` and
 `bun run tooling/check-w-run.mjs`.
 
+`nested-labeled-while` promotes the pinned nested labeled/unlabeled transfer
+witness through verified HIR, the typed LLVM CFG, and public W `run`/`build` on
+Windows and Linux/WSL. The exact oracle is exit 0, stdout `0,1,3\n`, empty
+stderr; the target gates check the Windows Kernel32 allowlist and Linux/WSL
+CRT-free static ELF. The C23 and Rust 2024 fixtures are independent correctness
+references only. The catalog records `benchmarkDisposition: required`, while
+`benchmarkStatus` remains `not-performance-ready`; no timing or performance
+result has been added. Refresh measurements only after integration, and do not
+rank this witness until runtime closure and equivalence are independently
+receipted.
+
 `hello-platform-minimal` is registered and runner-supported for contextual,
 non-ranking measurement; the catalog status does not make it an idiomatic
 comparison or a language ranking. Source/oracle registration alone is not

@@ -181,6 +181,7 @@
         "sourceReadiness": { "enum": ["source-and-oracle-ready", "not-materialized"] },
         "demoEvidence": { "enum": ["bounded-w-demo", "not-run"] },
         "benchmarkStatus": { "enum": ["not-performance-ready", "contextual-measurement-ready", "deferred-to-M3b", "partial-exploratory-ready", "exploratory-ready", "planned"] },
+        "benchmarkDisposition": { "enum": ["required", "compiler-lifecycle", "deferred", "not-applicable"] },
         "lane": { "const": "equivalent" },
         "scope": { "type": "string" },
         "oracle": {

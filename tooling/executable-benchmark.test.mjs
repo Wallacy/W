@@ -130,6 +130,18 @@ test("catalog stores compact live best cells and no immutable history", () => {
     assert.equal(documents.catalog.workloads.find((workload) => workload.id === workloadId).demoEvidence,
       "bounded-w-demo", `${workloadId} has successful public W suite evidence`);
   }
+  const nestedLoop = documents.catalog.workloads.find((item) =>
+    item.id === "nested-labeled-while");
+  assert.equal(nestedLoop?.benchmarkDisposition, "required");
+  assert.equal(nestedLoop?.benchmarkStatus, "not-performance-ready");
+  assert.equal(documents.schema.$defs.workload.properties.benchmarkDisposition.enum.join(","),
+    "required,compiler-lifecycle,deferred,not-applicable");
+  const invalidDisposition = clone(documents.catalog);
+  invalidDisposition.workloads.find((item) => item.id === "nested-labeled-while")
+    .benchmarkDisposition = "measured";
+  assert.match(validateExecutableCatalog(invalidDisposition,
+    { ...documents, catalog: invalidDisposition }).join("\n"),
+  /benchmarkDisposition is invalid/u);
   assert.equal(documents.schema.$id, "w-executable-benchmark/7");
   assert.deepEqual(documents.schema.oneOf.map((entry) => entry.$ref), [
     "#/$defs/catalog", "#/$defs/result", "#/$defs/bestMetric", "#/$defs/bestMetrics", "#/$defs/executableSuiteCurrent",

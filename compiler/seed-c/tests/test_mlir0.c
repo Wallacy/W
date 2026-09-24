@@ -1,5 +1,6 @@
 #include "w_seed_mlir0.h"
 
+#include "w_seed_product_closure0.h"
 #include "../src/w_seed_native_subset0.h"
 
 #include <stdbool.h>
@@ -8793,6 +8794,245 @@ static bool test_conditional_exit_loop_uses_typed_cfg_mlir(void) {
   return true;
 }
 
+static bool nested_hir_is_rejected_without_publication(void) {
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  const w_seed_mlir0_input input = mlir_input();
+  w_seed_mlir0_counts counts = {0x3bu};
+  w_seed_mlir0_result result;
+  (void)memset(&result, 0x4du, sizeof(result));
+  const w_seed_mlir0_counts counts_snapshot = counts;
+  const w_seed_mlir0_result result_snapshot = result;
+  CHECK(w_seed_mlir0_measure(&input, &TARGET, &counts, &result) ==
+        W_SEED_MLIR0_INVALID_HIR);
+  CHECK(memcmp(&counts, &counts_snapshot, sizeof(counts)) == 0 &&
+        memcmp(&result, &result_snapshot, sizeof(result)) == 0);
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  (void)memset(output, 0xa7u, sizeof(output));
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET,
+            &(w_seed_mlir0_output){output, sizeof(output)}, &result) ==
+        W_SEED_MLIR0_INVALID_HIR);
+  for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+    CHECK(output[byte] == 0xa7u);
+  CHECK(memcmp(&result, &result_snapshot, sizeof(result)) == 0);
+  return true;
+}
+
+static bool test_nested_labeled_while_uses_verified_cfg_mlir(void) {
+  /* Mirrors fixtures/nested-labeled-while.w: exit 0; stdout "0,1,3\n". */
+  static const uint8_t source[] =
+      "fn walk(limit: i64): i64 {\n"
+      "  var outer = 0\n"
+      "  var inner = 0\n"
+      "  var total = 0\n"
+      "  outerLoop: while outer < limit {\n"
+      "    outer = outer + 1\n"
+      "    inner = 0\n"
+      "    while inner < limit {\n"
+      "      inner = inner + 1\n"
+      "      if inner == 2 { continue }\n"
+      "      if inner == 3 { break }\n"
+      "      if outer == 4 { continue outerLoop }\n"
+      "      if outer == 5 { break outerLoop }\n"
+      "      total = total + 1\n"
+      "    }\n"
+      "  }\n"
+      "  return total\n"
+      "}\n"
+      "\n"
+      "entry {\n"
+      "  let zero = walk(limit: 0)\n"
+      "  let one = walk(limit: 1)\n"
+      "  let six = walk(limit: 6)\n"
+      "  print(\"${zero},${one},${six}\")\n"
+      "}\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  CHECK(fixture.hir_program.function_count == 2u);
+  const w_seed_hir0_function *function = &fixture.hir_program.functions[0];
+  CHECK(function->block_count >= 2u &&
+        fixture.hir_program.types[function->return_type].kind ==
+            W_SEED_HIR0_TYPE_I64);
+
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.verified_i64_loop_cfg_functions[0] &&
+        !selection.natural_loop_functions[0] &&
+        selection.has_cfg && !selection.has_enum_switch);
+  CHECK(w_seed_product_closure0_cross_check_functions(
+      &fixture.hir_program, &fixture.hir_result, (const bool[]){true, true},
+      fixture.hir_program.function_count));
+
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        memcmp(measured.mlir_sha256, emitted.mlir_sha256,
+               sizeof(measured.mlir_sha256)) == 0);
+  const size_t function_start =
+      find_bytes(artifact, emitted.written.mlir_bytes,
+                 "llvm.func internal @w_fn_0", 0u);
+  const size_t entry_start =
+      find_bytes(artifact, emitted.written.mlir_bytes,
+                 "llvm.func internal @w_fn_1", function_start);
+  CHECK(function_start != SIZE_MAX && entry_start > function_start);
+  const size_t function_bytes = entry_start - function_start;
+  size_t block_arguments = 0u;
+  size_t branches = 0u;
+  size_t jumps = 0u;
+  size_t backedges = 0u;
+  const size_t block_end = (size_t)function->first_block + function->block_count;
+  CHECK(block_end <= fixture.hir_program.block_count);
+  for (size_t block_index = function->first_block; block_index < block_end;
+       block_index += 1u) {
+    const w_seed_hir0_block *block = &fixture.hir_program.blocks[block_index];
+    CHECK(block->owner_function == 0u &&
+          block->terminator_index < fixture.hir_program.terminator_count);
+    block_arguments += block->block_argument_count;
+    const w_seed_hir0_terminator *term =
+        &fixture.hir_program.terminators[block->terminator_index];
+    if (term->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
+      char expected[192];
+      const int length = snprintf(
+          expected, sizeof(expected),
+          "llvm.cond_br %%v%u, ^w_fn_0_b_%u, ^w_fn_0_b_%u", term->value_index,
+          term->target_block, term->else_block);
+      CHECK(length > 0 && (size_t)length < sizeof(expected) &&
+            contains_bytes(artifact + function_start, function_bytes,
+                           expected));
+      branches += 1u;
+    } else if (term->kind == W_SEED_HIR0_TERMINATOR_JUMP) {
+      char expected[96];
+      const int length = snprintf(expected, sizeof(expected),
+                                  "llvm.br ^w_fn_0_b_%u", term->target_block);
+      CHECK(length > 0 && (size_t)length < sizeof(expected) &&
+            contains_bytes(artifact + function_start, function_bytes,
+                           expected));
+      if (term->target_block < block_index) backedges += 1u;
+      jumps += 1u;
+    }
+  }
+  CHECK(block_arguments >= 4u && branches >= 4u && jumps >= 4u &&
+        backedges >= 2u &&
+        count_bytes(artifact + function_start, function_bytes,
+                    "llvm.cond_br ") == branches &&
+        count_bytes(artifact + function_start, function_bytes,
+                    "llvm.br ^w_fn_0_b_") == jumps &&
+        contains_bytes(artifact + function_start, function_bytes,
+                       "llvm.return ") &&
+        !contains_bytes(artifact + function_start, function_bytes,
+                        "scf.while") &&
+        !contains_bytes(artifact + function_start, function_bytes,
+                        "llvm.alloca"));
+
+  /* Every downstream consumer re-verifies the HIR graph and exact carrier
+   * records; these mutations cannot be normalized into a source-shape case. */
+  uint32_t branch_term_index = W_SEED_HIR0_NONE;
+  uint32_t jump_term_index = W_SEED_HIR0_NONE;
+  uint32_t argument_index = W_SEED_HIR0_NONE;
+  uint32_t edge_index = W_SEED_HIR0_NONE;
+  uint32_t bool_type_index = W_SEED_HIR0_NONE;
+  for (size_t type = 0u; type < fixture.hir_program.type_count; type += 1u)
+    if (fixture.hir_program.types[type].kind == W_SEED_HIR0_TYPE_BOOL)
+      bool_type_index = (uint32_t)type;
+  for (size_t block_index = function->first_block; block_index < block_end;
+       block_index += 1u) {
+    const w_seed_hir0_block *block = &fixture.hir_program.blocks[block_index];
+    if (argument_index == W_SEED_HIR0_NONE &&
+        block->block_argument_count >= 2u)
+      argument_index = block->first_block_argument;
+    const w_seed_hir0_terminator *term =
+        &fixture.hir_program.terminators[block->terminator_index];
+    if (term->kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        branch_term_index == W_SEED_HIR0_NONE)
+      branch_term_index = block->terminator_index;
+    if (term->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        term->edge_argument_count != 0u) {
+      jump_term_index = block->terminator_index;
+      edge_index = term->first_edge_argument;
+    }
+  }
+  CHECK(branch_term_index != W_SEED_HIR0_NONE &&
+        jump_term_index != W_SEED_HIR0_NONE &&
+        argument_index != W_SEED_HIR0_NONE &&
+        edge_index != W_SEED_HIR0_NONE && bool_type_index != W_SEED_HIR0_NONE);
+
+  w_seed_hir0_terminator saved_term =
+      fixture.hir_terminators[branch_term_index];
+  fixture.hir_terminators[branch_term_index].target_block =
+      W_SEED_HIR0_NONE;
+  CHECK(nested_hir_is_rejected_without_publication());
+  fixture.hir_terminators[branch_term_index] = saved_term;
+
+  w_seed_hir0_edge_argument saved_edge =
+      fixture.hir_edge_arguments[edge_index];
+  fixture.hir_edge_arguments[edge_index].value_index = W_SEED_HIR0_NONE;
+  CHECK(nested_hir_is_rejected_without_publication());
+  fixture.hir_edge_arguments[edge_index] = saved_edge;
+
+  w_seed_hir0_block_argument saved_argument =
+      fixture.hir_block_arguments[argument_index];
+  fixture.hir_block_arguments[argument_index].ordinal = UINT32_MAX;
+  CHECK(nested_hir_is_rejected_without_publication());
+  fixture.hir_block_arguments[argument_index] = saved_argument;
+
+  fixture.hir_block_arguments[argument_index].type_index = bool_type_index;
+  CHECK(nested_hir_is_rejected_without_publication());
+  fixture.hir_block_arguments[argument_index] = saved_argument;
+
+  w_seed_hir0_block saved_block =
+      fixture.hir_blocks[fixture.hir_terminators[jump_term_index].owner_block];
+  const uint32_t owner_block = fixture.hir_terminators[jump_term_index].owner_block;
+  fixture.hir_blocks[owner_block].owner_function = 1u;
+  CHECK(nested_hir_is_rejected_without_publication());
+  fixture.hir_blocks[owner_block] = saved_block;
+
+  fixture.hir_result.semantic_digest[0] ^= 1u;
+  CHECK(nested_hir_is_rejected_without_publication());
+  fixture.hir_result.semantic_digest[0] ^= 1u;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  /* Capacity and output/input alias failures preserve both buffers. */
+  uint8_t limited[W_SEED_MLIR0_MAX_BYTES];
+  (void)memset(limited, 0xc9u, sizeof(limited));
+  w_seed_mlir0_result failed_result;
+  (void)memset(&failed_result, 0x6du, sizeof(failed_result));
+  const w_seed_mlir0_result failed_result_snapshot = failed_result;
+  CHECK(w_seed_mlir0_emit(
+            &(w_seed_mlir0_input){&fixture.hir_program, &fixture.hir_result,
+                                  W_SEED_MLIR0_ARTIFACT_EXECUTABLE},
+            &TARGET,
+            &(w_seed_mlir0_output){limited, counts.mlir_bytes - 1u},
+            &failed_result) == W_SEED_MLIR0_CAPACITY);
+  for (size_t byte = 0u; byte < sizeof(limited); byte += 1u)
+    CHECK(limited[byte] == 0xc9u);
+  CHECK(memcmp(&failed_result, &failed_result_snapshot,
+               sizeof(failed_result)) == 0);
+
+  uint8_t blocks_snapshot[sizeof(fixture.hir_blocks)];
+  (void)memcpy(blocks_snapshot, fixture.hir_blocks, sizeof(blocks_snapshot));
+  CHECK(w_seed_mlir0_emit(
+            &(w_seed_mlir0_input){&fixture.hir_program, &fixture.hir_result,
+                                  W_SEED_MLIR0_ARTIFACT_EXECUTABLE},
+            &TARGET,
+            &(w_seed_mlir0_output){(uint8_t *)(void *)fixture.hir_blocks,
+                                   sizeof(fixture.hir_blocks)},
+            &failed_result) == W_SEED_MLIR0_ALIAS);
+  CHECK(memcmp(blocks_snapshot, fixture.hir_blocks, sizeof(blocks_snapshot)) ==
+            0 &&
+        memcmp(&failed_result, &failed_result_snapshot,
+               sizeof(failed_result)) == 0);
+  return true;
+}
+
 static bool test_natural_loop_post_loop_continuation_mlir(void) {
   static const uint8_t source[] =
       "fn settle(limit: i64): i64 {\n"
@@ -8967,6 +9207,7 @@ int main(int argc, char **argv) {
   if (!test_natural_loop_preserves_structured_mlir()) return 1;
   if (!test_natural_loop_multi_carrier_projection_mlir()) return 1;
   if (!test_conditional_exit_loop_uses_typed_cfg_mlir()) return 1;
+  if (!test_nested_labeled_while_uses_verified_cfg_mlir()) return 1;
   if (!test_natural_loop_post_loop_continuation_mlir()) return 1;
   if (!test_post_test_repeat_structured_mlir()) return 1;
   if (!test_direct_products()) return 1;

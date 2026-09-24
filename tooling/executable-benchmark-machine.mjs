@@ -39,6 +39,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "terminal-returns",
   "while-post",
   "while-break-continue",
+  "nested-labeled-while",
   "repeat",
   "wmo",
   "async-join",
@@ -91,7 +92,7 @@ const WORKLOAD_FAMILY_ROWS = Object.freeze({
   "control-flow": Object.freeze([
     "branch", "nested-branch", "bool-short-circuit",
     "interpolation", "scalar-if", "nested-scalar-if", "terminal-returns",
-    "while-post", "while-break-continue", "repeat", "wmo",
+    "while-post", "while-break-continue", "nested-labeled-while", "repeat", "wmo",
   ]),
   async: Object.freeze(["async-join", "async-yield"]),
   composition: Object.freeze([
@@ -1416,6 +1417,7 @@ export function validateExecutableCatalog(catalog, documents = undefined, root =
   for (const [index, workload] of workloads.entries()) {
     const location = "executable catalog.workloads[" + index + "]";
     const workloadKeys = ["id", "family", "structureClass", "status", "sourceReadiness", "demoEvidence", "benchmarkStatus", "lane", "scope", "oracle", "sources", "blockedLanguages", "blockers"];
+    if (Object.hasOwn(workload ?? {}, "benchmarkDisposition")) workloadKeys.push("benchmarkDisposition");
     if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) workloadKeys.push("execution");
     if (!exactKeys(workload, location, workloadKeys, errors)) continue;
     if (workloadIds.has(workload.id)) push(errors, location + ".id must be unique.");
@@ -1434,6 +1436,10 @@ export function validateExecutableCatalog(catalog, documents = undefined, root =
     if (!["source-and-oracle-ready", "not-materialized"].includes(workload.sourceReadiness)) push(errors, location + ".sourceReadiness is invalid.");
     if (!["bounded-w-demo", "not-run"].includes(workload.demoEvidence)) push(errors, location + ".demoEvidence is invalid.");
     if (!EXECUTABLE_BENCHMARK_STATUSES.includes(workload.benchmarkStatus)) push(errors, location + ".benchmarkStatus is invalid.");
+    if (workload.benchmarkDisposition !== undefined &&
+        !["required", "compiler-lifecycle", "deferred", "not-applicable"].includes(workload.benchmarkDisposition)) {
+      push(errors, location + ".benchmarkDisposition is invalid.");
+    }
     if (workload.benchmarkStatus === "contextual-measurement-ready" &&
         ![HELLO_PLATFORM_MINIMAL_WORKLOAD_ID, HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID].includes(workload.id)) {
       push(errors, location + ".contextual-measurement-ready is reserved for the platform-minimal Hello lanes.");
@@ -1617,7 +1623,8 @@ function executableHostSlugSupportsPlatform(host, platformTarget) {
 function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PLATFORM_TARGET_WINDOWS) {
   if (platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) return SOURCE_ELIGIBILITY.wslDiagnostic;
   if (workload?.id === "terminal-returns" ||
-      workload?.id === "while-break-continue") return SOURCE_ELIGIBILITY.correctnessOnly;
+      workload?.id === "while-break-continue" ||
+      workload?.id === "nested-labeled-while") return SOURCE_ELIGIBILITY.correctnessOnly;
   if (workload?.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID) return SOURCE_ELIGIBILITY.platformMinimal;
   if (workload?.id === FLOAT_STRICT_WORKLOAD_ID ||
       workload?.id === FLOAT_BIT_REPRESENTATION_WORKLOAD_ID ||

@@ -2383,6 +2383,65 @@ static bool test_labeled_break_continue_native_subset(void) {
   return true;
 }
 
+static bool test_nested_labeled_while_native_subset(void) {
+  /* Mirrors fixtures/nested-labeled-while.w, including its exact public
+   * result, so Native0 consumes only the independently verified HIR graph. */
+  static const uint8_t source[] =
+      "fn walk(limit: i64): i64 {\n"
+      "  var outer = 0\n"
+      "  var inner = 0\n"
+      "  var total = 0\n"
+      "  outerLoop: while outer < limit {\n"
+      "    outer = outer + 1\n"
+      "    inner = 0\n"
+      "    while inner < limit {\n"
+      "      inner = inner + 1\n"
+      "      if inner == 2 { continue }\n"
+      "      if inner == 3 { break }\n"
+      "      if outer == 4 { continue outerLoop }\n"
+      "      if outer == 5 { break outerLoop }\n"
+      "      total = total + 1\n"
+      "    }\n"
+      "  }\n"
+      "  return total\n"
+      "}\n"
+      "\n"
+      "entry {\n"
+      "  let zero = walk(limit: 0)\n"
+      "  let one = walk(limit: 1)\n"
+      "  let six = walk(limit: 6)\n"
+      "  print(\"${zero},${one},${six}\")\n"
+      "}\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(source, sizeof(source) - 1u, "nested-labeled-while",
+                   sizeof("nested-labeled-while") - 1u, output,
+                   sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  CHECK(result.status == W_SEED_NATIVE0_OK &&
+        result.mlir.written.mlir_bytes == result.mlir.required.mlir_bytes &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.cond_br") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes, "llvm.br") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes, "scf.while"));
+  CHECK(w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  size_t walk_index = SIZE_MAX;
+  for (size_t function = 0u; function < storage.hir_program.function_count;
+       function += 1u)
+    if (hir_text_equals(&storage.hir_program,
+                        storage.hir_program.functions[function].name,
+                        "walk"))
+      walk_index = function;
+  CHECK(walk_index < storage.hir_program.function_count &&
+        selection.verified_i64_loop_cfg_functions[walk_index] &&
+        !selection.natural_loop_functions[walk_index]);
+  return true;
+}
+
 static bool test_post_loop_continuation_native_subset(void) {
   static const uint8_t source[] =
       "fn settle(limit: i64): i64 {\n"
@@ -7159,6 +7218,7 @@ int main(void) {
                        test_multi_carrier_native_subset_selector() &&
                        test_break_continue_multi_carrier_native_subset_selector() &&
                        test_labeled_break_continue_native_subset() &&
+                       test_nested_labeled_while_native_subset() &&
                        test_post_loop_continuation_native_subset() &&
                        test_unary_i64_native_selector() &&
                        test_integer_prefix_native_matrix() &&

@@ -1797,11 +1797,24 @@ Rust 2024 correctness references that print `0,1,3\n`; its current W parser
 and frontend represent the functions, three local calls, nested transfers,
 interpolation, and entry. A bare frontend probe has no host scope and therefore
 correctly reports `print` unresolved; Native0 supplies the explicit
-`native-process@1`/`Console` prelude. NativeSubset0 and MLIR0 have not yet been
-promoted for this nested graph, so no W native nested-loop result is claimed.
-The bounded HIR change has `compiler-lifecycle` benchmark disposition; it adds
-no executable performance row. General mixed CFG, other carrier types, native
-nested execution and performance equivalence remain open.
+`native-process@1`/`Console` prelude. NativeSubset0 selects the independently
+verified typed `i64` loop CFG, and MLIR0 emits its verified HIR blocks and
+typed carrier edges directly as LLVM-dialect branches; no second source-shape
+recognizer is involved. ProductClosure0 independently cross-checks that both
+the `walk` function and entry are reachable. Adversarial downstream tests
+reject corrupted branch targets, edge operands, carrier lanes and types,
+record ownership, and semantic digests without publishing partial output;
+capacity and alias failures are also all-or-nothing. The focused HIR0,
+Native0, ProductClosure0 and MLIR0 units pass. The MLIR/LLVM gate translates,
+verifies and executes the exact fixture, and the public Windows plus Linux/WSL
+`w run` and `w build` routes require exit 0, stdout `0,1,3\n`, and empty
+stderr. Windows allows only its exact Kernel32 console/exit imports; Linux/WSL
+requires a static CRT-free ELF with no interpreter or `DT_NEEDED` entry.
+The public executable catalog registers this family with
+`benchmarkDisposition: required`, but `benchmarkStatus` remains
+`not-performance-ready`; no performance result is recorded. C23 and Rust 2024
+remain correctness references only. General mixed CFG, other carrier types,
+optimizer quality, and performance equivalence remain open.
 
 ### Multi-carrier structured natural loop (W-1569)
 

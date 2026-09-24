@@ -131,6 +131,8 @@ const branchMutationFixture = resolve(seedDirectory,
 const multiBranchMutationFixture = resolve(seedDirectory,
   "fixtures", "branch-mutation-multi.w")
 const whileFixture = resolve(seedDirectory, "fixtures", "while.w")
+const nestedLabeledWhileFixture = resolve(seedDirectory, "fixtures",
+  "nested-labeled-while.w")
 const wmoFixture = resolve(seedDirectory, "fixtures", "wmo.w")
 const asyncJoinFixture = resolve(seedDirectory,
   "fixtures", "async-join.w")
@@ -864,6 +866,8 @@ try {
       expected: Buffer.from("Open 18; closed -4\n", "utf8") },
     { name: "while", source: whileFixture,
       expected: Buffer.from("Served 3\n", "utf8") },
+    { name: "nested-labeled-while", source: nestedLabeledWhileFixture,
+      expected: Buffer.from("0,1,3\n", "utf8") },
     { name: "wmo", source: wmoFixture,
       expected: Buffer.from("Bill 42\n", "utf8") },
     { name: "async-join", source: asyncJoinFixture,
@@ -1059,11 +1063,12 @@ try {
     invokeTool(tool("mlirOpt"), [inputForTool, "-o", verifiedForTool,
       "--convert-scf-to-cf", "--convert-cf-to-llvm", "--verify-each"],
     `${product.name} mlir-opt`)
-    if (product.name === "while") {
+    if (product.name === "while" ||
+        product.name === "nested-labeled-while") {
       const lowered = await readFile(verified)
       assert(!lowered.includes("scf.") && lowered.includes("llvm.cond_br") &&
         lowered.includes("llvm.br"),
-      "natural loop was not lowered from SCF to the LLVM dialect CFG")
+      `${product.name} was not lowered to the LLVM dialect CFG`)
     }
     invokeTool(tool("mlirTranslate"), ["--mlir-to-llvmir", verifiedForTool,
       "-o", llvmForTool], `${product.name} mlir-translate`)
