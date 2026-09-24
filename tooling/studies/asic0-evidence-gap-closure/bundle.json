@@ -35,7 +35,7 @@
     {
       "path": "../../../reference/last-light/build.w",
       "symbol": "targetVariants: [\"native-terminal::posix\"]",
-      "digest": "sha256:3f2c504a2d139ac24a44dd58892436f7d1ff608b5f3edf11913c445006548c75"
+      "digest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c"
     },
     {
       "path": "../../../reference/last-light/capability_security_oracle.w",

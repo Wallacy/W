@@ -2338,34 +2338,82 @@ package {
   build: {
     profiles: [
       {
-        name: "release"
-        optimize: .speed
-        checks: .safe
-        debug: .sidecar
+        name: "debug"
+        optimize: .none
+        checks: .full
         cpuPolicy: .portable
       },
       {
-        name: "compat-x86-v2"
+        name: "release"
         optimize: .speed
         checks: .safe
-        debug: .sidecar
+        cpuPolicy: .portable
+      },
+    ]
+    recipes: [
+      {
+        name: "benchmark-x86-v3"
+        baseProfile: "release"
+        kind: .benchmark
         cpuPolicy: .explicit
+        cpu: "x86-64-v3"
+        features: ["+avx2", "+fma"]
+      },
+      {
+        name: "compat-x86-v2"
+        baseProfile: "release"
+        cpuPolicy: .explicit
+        cpu: "x86-64-v2"
+        features: []
       },
     ]
   }
 }
 ```
 
-For W 1.0, the selected x86_64 `.portable` design baseline is x86-64-v3.
-Older hardware is selected as a separate compatibility product or explicit
-profile; it never weakens the primary artifact. Future ISA levels and exact
-microarchitectures remain explicit until measurements justify promotion:
+There are exactly two W program base profiles: `debug` and `release`, with
+`release` as the default. Benchmark is a recipe; `size` is an orthogonal preset;
+proof and distribution are assurance/admission policies; sanitizer and PGO are
+instrumentation lanes. Debug defaults to no optimization and full checks;
+release defaults to speed optimization and safe checks. Release strips its
+primary by default for efficient execution. A separate debug sidecar is not
+requested by default and can be selected independently for either profile;
+distribution requires the stronger audit package and receipt. Required safety
+checks apply to both profiles. Build configuration is authored in `build.w`; a
+recipe pins CPU/features rather than inferring them from the compiler host.
 
-```text
-w build last-light-native --profile release --target x86_64-unknown-linux-gnu
-w build last-light-native --profile compat-x86-v2 --target x86_64-unknown-linux-gnu --cpu x86-64-v2
-w build last-light-native --profile benchmark --target x86_64-unknown-linux-gnu --cpu znver5 --features +avx2,+fma
+`size` defaults to `.performance`. The opt-in `.compact` preset overlays its
+size-oriented defaults only where individual fields are not set; explicit
+`build.w` fields win, and no preset weakens target hardening or runtime closure.
+
+For W 1.0, the selected x86_64 `.portable` design baseline is x86-64-v3.
+Older hardware is selected as a separate compatibility recipe/product; it
+never weakens the primary artifact. Future ISA levels and exact
+microarchitectures remain explicit until measurements justify promotion.
+
+The artifact selection below composes the release base profile with a pinned
+benchmark recipe:
+
+```w
+// excerpt-kind: manifest-fragment
+source: .product(
+  "last-light-native",
+  target: "x86_64-unknown-linux-gnu",
+  profile: "release",
+  recipe: "benchmark-x86-v3",
+  size: .compact,
+  debug: .sidecar,
+  packing: "single-process",
+)
 ```
+
+This is `build.w` data, not a compiler CLI spelling. Here a compact size preset
+and a separately selected sidecar compose with the release base profile. A
+host-tuned benchmark recipe must record its exact target CPU and feature set;
+that recipe is local-only and is not a distributable portable target.
+`pie` and RELRO are ELF-specific target settings: Windows PE uses its
+ASLR/DEP-oriented target hardening contract. Reproducibility is required by the
+future product contract, but is not yet implemented or evidenced.
 
 An aggregate manifest may contain only a `workspace` root. A member can also be
 the root package by using `"."`:

@@ -4,6 +4,33 @@ package {
   authority: .registry("w")
   name: "atlas/syntax"
   edition: "2026"
+  products: [{
+    name: "atlas-syntax"
+    kind: .executable
+    module: "app"
+  }]
+  build: {
+    profiles: [
+      {
+        name: "debug"
+        optimize: .none
+        checks: .full
+      },
+      {
+        name: "release"
+        optimize: .speed
+        checks: .safe
+      },
+    ]
+    recipes: [
+      {
+        name: "benchmark"
+        baseProfile: "release"
+        kind: .benchmark
+        cpuPolicy: .portable
+      },
+    ]
+  }
   dependencies: [
     {
       alias: "city"
@@ -30,7 +57,14 @@ workspace {
     {
       schema: "w.deployment/1"
       name: "local"
-      artifacts: [.product("atlas-syntax", target: "host", profile: "parse")]
+      artifacts: [.product(
+        "atlas-syntax",
+        target: "x86_64-unknown-linux-gnu",
+        profile: "release",
+        recipe: "benchmark",
+        size: .compact,
+        debug: .sidecar,
+      )]
     },
   ]
 }

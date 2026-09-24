@@ -13,19 +13,23 @@
       {
         "id": "debug",
         "purpose": "iteration-and-diagnostics",
-        "status": "existing-design-profile"
+        "status": "selected-base-profile",
+        "defaults": {
+          "optimize": "none",
+          "checks": "full"
+        }
       },
       {
         "id": "release",
         "purpose": "performance-first",
-        "status": "existing-design-profile"
-      },
-      {
-        "id": "benchmark",
-        "purpose": "reproducible-pinned",
-        "status": "existing-design-profile"
+        "status": "selected-base-profile",
+        "defaults": {
+          "optimize": "speed",
+          "checks": "safe"
+        }
       }
     ],
+    "wProgramDefault": "release",
     "toolchain": [
       {
         "id": "development",
@@ -53,7 +57,147 @@
       }
     ],
     "namespaceRule": "W program profiles and toolchain build/distribution profiles are separate; no implicit inheritance.",
-    "harmonization": "debug is the canonical W profile; dev is an informal naming opportunity only, not an alias or syntax."
+    "harmonization": "debug names the iteration-and-diagnostics base profile; dev is an informal naming opportunity only, not an alias or syntax.",
+    "configurationSource": "build.w-only",
+    "fieldDefaults": {
+      "size": "performance",
+      "debug": "not-requested-and-selected-independently",
+      "pie": "target-aware-elf-static-pie-when-supported-platform-equivalent-elsewhere",
+      "relro": "full-when-supported",
+      "hardening": "target-required",
+      "strip": "debug-profile-preserves-primary-symbols-release-primary-is-stripped",
+      "auditability": "ordinary-local-output-not-a-full-audit-package",
+      "wrt": "static-reachable-only-from-signed-target-pack",
+      "crt": "auto-declared-requirements",
+      "target": "explicit-product-target-no-host-inference",
+      "cpuPolicy": "portable-versioned-target-baseline",
+      "deterministicBuild": "required-contract-not-yet-implemented"
+    },
+    "orthogonalAxes": [
+      {
+        "id": "benchmark",
+        "kind": "recipe",
+        "default": "off",
+        "rule": "pinned-reproducible-recipe-over-debug-or-release-base"
+      },
+      {
+        "id": "size",
+        "kind": "preset",
+        "default": "performance",
+        "values": ["performance", "compact"],
+        "rule": "compact-changes-unspecified-optimize-strip-and-link-defaults-explicit-fields-win"
+      },
+      {
+        "id": "proof",
+        "kind": "assurance",
+        "default": "not-requested",
+        "rule": "adds-proof-obligations-and-cannot-weaken-checks"
+      },
+      {
+        "id": "distribution",
+        "kind": "admission",
+        "default": "local-only",
+        "rule": "requires-proof-policy-closed-dependencies-signed-target-provenance-audit-package-and-receipt"
+      },
+      {
+        "id": "sanitizer",
+        "kind": "instrumentation",
+        "default": "off",
+        "rule": "instrumentation-only-with-explicit-training-runtime"
+      },
+      {
+        "id": "pgo",
+        "kind": "instrumentation",
+        "default": "off",
+        "rule": "explicit-generate-and-use-recipes-final-use-reproves-closure"
+      }
+    ],
+    "resolutionPrecedence": [
+      "explicit-product-target-abi-and-platform-contract-bound-by-compatible-signed-target-pack",
+      "selected-debug-or-release-base-profile-establishes-optimize-and-check-defaults",
+      "selected-size-preset-overlays-only-unspecified-defaults-owned-by-that-preset",
+      "explicit-build.w-field-values-override-profile-and-preset-defaults-within-target-constraints",
+      "remaining-platform-recipe-assurance-and-instrumentation-defaults-fill-unspecified-fields",
+      "required-safety-target-hardening-runtime-closure-and-admission-gates-are-non-overridable-and-conflicts-fail-closed"
+    ],
+    "fieldRules": {
+      "optimize": "debug defaults to none and release to speed; size compact may choose a smaller default, while an explicit optimize value wins",
+      "checks": "debug defaults to full and release to safe; proof may add obligations, never remove required safety checks",
+      "debug": "not requested by default and independently selectable for either base profile; distribution admission requires a complete audit package with separately inventoried debug information",
+      "size": "performance by default; compact overlays size-oriented defaults only where fields are unspecified; explicit fields win and safety, hardening, and runtime closure cannot be weakened",
+      "pie": "ELF-specific: static PIE where the selected ELF target supports it; PE/Windows resolves target hardening such as ASLR and DEP rather than ELF PIE",
+      "relro": "full RELRO by default on supporting ELF targets; other formats use their target hardening contract; disabling RELRO is a named non-default ELF size/hardening experiment",
+      "hardening": "target-required hardening is a floor, not an optimization preference",
+      "strip": "debug keeps symbols in the primary by default; release strips the primary by default; debug sidecars are independently selectable",
+      "auditability": "ordinary local outputs do not require a full audit bundle; distribution admission requires an audit package and receipt, which may inventory a stripped primary and separate sidecar",
+      "wrt": "static and reachability-closed from the selected signed target pack by default; shared providers require exact target, ABI, version, linkage, and digest",
+      "crt": "auto resolves none without a declared transitive requirement, otherwise one exact target/ABI-compatible offer or failure; C ABI and unsafe do not imply CRT",
+      "target": "selected explicitly from build.w and never inferred from the compiler host",
+      "cpuPolicy": "portable uses the versioned target baseline; explicit CPU/features are pinned recipe inputs and do not create a native-host default",
+      "deterministicBuild": "required as a product contract, but deterministic output and receipt generation are not implemented or evidenced yet",
+      "proof": "no proof claim unless an assurance policy requests one; requested proofs add obligations and cannot alter program semantics or weaken required checks",
+      "distribution": "local-only by default; admission requires proof policy, closed dependencies, signed target provenance, a complete audit package and receipt, and explicit release policy"
+    }
+  },
+  "buildReceiptContract": {
+    "schema": "w.build-receipt/1",
+    "encoding": "canonical-deterministic-cbor",
+    "humanAuthoredConfiguration": "build.w-only",
+    "recipeIdentity": {
+      "digest": "sha256-of-canonical-normalized-recipe-inputs",
+      "includes": [
+        "build.w-and-resolution-digests",
+        "source-and-generated-input-digests",
+        "debug-or-release-base-profile-and-orthogonal-axis-selections",
+        "exact-target-cpu-features-abi-and-platform-contract",
+        "compiler-toolchain-sdk-and-provider-identities-and-digests",
+        "runtime-closure-and-deterministic-environment"
+      ],
+      "excludes": ["output-identity", "external-signature"]
+    },
+    "outputIdentity": {
+      "digest": "sha256-of-canonical-output-inventory-and-exact-output-bytes",
+      "includes": ["sorted-relative-output-paths", "output-roles", "per-output-sha256"],
+      "excludes": ["build-receipt-itself", "external-signature"]
+    },
+    "payload": "recipe-identity-and-output-identity-remain-distinct",
+    "signing": "external-dsse-signs-exact-canonical-cbor-payload",
+    "json": "display-projection-only-never-authoritative-or-identity-bearing",
+    "status": "future-contract-not-implemented"
+  },
+  "sizeHardeningExperiments": {
+    "status": "exact-reconstruction-non-ranking-not-productized",
+    "defaultAction": "none",
+    "gate": "public-recipe-and-product-identity-before-ranking-plus-independent-audit-package-and-dependency-closure-review",
+    "experiments": [
+      {
+        "id": "linux-hello-784-pie-relro",
+        "outputBytes": 784,
+        "pie": true,
+        "relro": "full",
+        "change": "strip-elf-section-headers-and-nonloaded-section-data",
+        "classification": "exact-reconstruction-non-ranking-size-hardening-experiment",
+        "artifactEvidence": "ET_DYN-no-PT_INTERP-no-relocations-no-DT_NEEDED-no-undefined-dynamic-symbols-NX-stack-PT_GNU_RELRO",
+        "sourceToolchainAndOutputHashes": "pinned-in-reconstruction-evidence",
+        "publicProductRecipeIdentity": "not-defined-in-build.w",
+        "wBuildReceipt": "not-implemented",
+        "promotion": "not-a-product-recipe-or-ranking-cell-until-public-recipe-and-output-identity-exist"
+      },
+      {
+        "id": "linux-hello-720-pie-no-relro",
+        "outputBytes": 720,
+        "pie": true,
+        "relro": "disabled",
+        "change": "strip-elf-section-headers-and-nonloaded-section-data",
+        "additionalRequirement": "final-artifact-proves-no-interpreter-imports-or-relocations",
+        "classification": "exact-reconstruction-non-ranking-size-hardening-experiment",
+        "artifactEvidence": "ET_DYN-no-PT_INTERP-no-relocations-no-DT_NEEDED-no-undefined-dynamic-symbols-NX-stack-no-PT_GNU_RELRO",
+        "sourceToolchainAndOutputHashes": "pinned-in-reconstruction-evidence",
+        "publicProductRecipeIdentity": "not-defined-in-build.w",
+        "wBuildReceipt": "not-implemented",
+        "promotion": "not-a-product-recipe-or-ranking-cell-until-public-recipe-and-output-identity-exist"
+      }
+    ]
   },
   "runtimeClosureContract": {
     "default": "freestanding",
@@ -91,7 +235,7 @@
         "receiptFields": ["target", "abi", "provider", "version", "link-mode", "imports", "digest"]
       }
     ],
-    "profileOrthogonality": "program, toolchain, size, sanitizer and PGO modes never widen runtime closure implicitly",
+    "profileOrthogonality": "program and toolchain profiles, recipes, size presets, sanitizer and PGO lanes never widen runtime closure implicitly",
     "optimizerBoundary": {
       "postOptIr": "external-declaration-allowlist",
       "object": "undefined-symbol-allowlist-after-codegen",

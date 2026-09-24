@@ -375,10 +375,11 @@ allocation ownership, retention or fault-boundary rules.
 `crt: .auto` is limited to declared requirements. It does not authorize a
 libc/CRT symbol newly synthesized by LLVM or code generation. Each post-opt IR
 external, object undefined symbol, and final import must match an exact selected
-WRT, CRT or target-provider offer and appears in the closure receipt. Debug,
-release, benchmark, size, sanitizer and PGO profiles never change these
-selections; an instrumentation runtime is a separate build-only lane, and the
-final PGO-use artifact proves its own closure.
+WRT, CRT or target-provider offer and appears in the closure receipt. The
+`debug` and `release` base profiles, plus the orthogonal benchmark, size,
+sanitizer, and PGO axes, never change these selections; an instrumentation
+runtime is a separate build-only lane, and the final PGO-use artifact proves
+its own closure.
 
 ```w
 {
@@ -561,57 +562,50 @@ x86_64-unknown-linux-gnu
 Uma release registra o record expandido na toolchain plan e na recipe. O target
 triple não escolhe um SDK.
 
-O profile `benchmark` usa `cpuPolicy: .explicit`. Por isso, ele exige uma CPU e
-uma lista de features:
+The `benchmark` recipe composes the `release` base profile and records
+`cpuPolicy: .explicit`, CPU `x86-64-v3`, and features `+avx2,+fma` in
+[`build.w`](build.w). The workspace's benchmark artifact selects
+`profile: "release", recipe: "benchmark"`. It does not query the runner CPU;
+another CPU or feature list is a different recipe identity. This manifest
+selection is the contract; no compiler CLI spelling is selected here.
 
-```text
-w build last-light-benchmark \
-  --target x86_64-unknown-linux-gnu \
-  --cpu x86-64-v3 \
-  --features +avx2,+fma \
-  --profile benchmark \
-  --locked
-```
+### 4.8 Memory profiles and recipes
 
-O comando não consulta a CPU do runner. Outra CPU ou outra lista de features
-produz outra recipe.
+There are only two W build base profiles. Each fixes the general allocator and
+representation policy:
 
-### 4.8 Profiles de memória
-
-Cada build profile fixa o allocator geral e a policy de representação:
-
-| Profile | Allocator geral | Representação | Uso |
+| Base profile | General allocator | Representation | Use |
 |---|---|---|---|
-| `debug` | `.system` | `.portable` | fallback e diagnóstico |
-| `release` | `.system` | `.optimized` | payload normal |
-| `benchmark` | `.system` | `.optimized` | baseline de medição |
-| `benchmark-mimalloc` | runtime contract mimalloc@3 | `.optimized` | comparação do provider |
+| `debug` | `.system` | `.portable` | fallback and diagnostics |
+| `release` | `.system` | `.optimized` | ordinary product |
 
-O último profile adiciona uma runtime requirement. A toolchain plan seleciona e
-fixa o provider que oferece o contrato. Ele não usa `PATH`, preload ou override
-global de `malloc`.
+`benchmark` and `benchmark-mimalloc` are orthogonal recipes over `release`, not
+base profiles. The latter explicitly adds the mimalloc@3 runtime requirement;
+the toolchain plan must select and pin one exact compatible provider. It does
+not use `PATH`, preload, or a global `malloc` override.
 
-```text
-w toolchain resolve \
-  --product last-light-benchmark \
-  --target x86_64-unknown-linux-gnu \
-  --execution-platform linux-x64 \
-  --cpu x86-64-v3 \
-  --features +avx2,+fma \
-  --profile benchmark-mimalloc \
-  --output build/benchmark-mimalloc.wplan
+The `size` preset is `.performance` by default; opt-in `.compact` overlays its
+optimize/strip/link defaults only where individual fields are unspecified.
+Release strips its primary by default, while debug information is a separately
+selected sidecar, not a mandatory output for every internal build. Distribution
+admission requires the stronger audit package and future product receipt. PIE
+and RELRO defaults apply only to supporting ELF targets; PE/Windows resolves its
+ASLR/DEP target contract.
 
-w build last-light-benchmark \
-  --target x86_64-unknown-linux-gnu \
-  --cpu x86-64-v3 \
-  --features +avx2,+fma \
-  --profile benchmark-mimalloc \
-  --toolchains build/benchmark-mimalloc.wplan \
-  --locked
+```w
+// excerpt-kind: manifest-fragment
+source: .product(
+  "last-light-benchmark",
+  target: "x86_64-unknown-linux-gnu",
+  profile: "release",
+  recipe: "benchmark-mimalloc",
+  packing: "entry-only",
+)
 ```
 
-System e mimalloc podem produzir o mesmo `RepresentationMap`. A recipe,
-`RuntimeClosureKey` e measurements continuam diferentes.
+System and mimalloc may produce the same `RepresentationMap`; their recipe,
+`RuntimeClosureKey`, and measurements remain distinct. This is a manifest
+example, not implemented compiler or CLI behavior.
 
 ## 5. Comandos previstos
 
@@ -714,10 +708,8 @@ w audit effects last-light-native
 ```text
 w build last-light-benchmark \
   --target x86_64-unknown-linux-gnu \
-  --cpu x86-64-v3 \
-  --features +avx2,+fma \
   --packing entry-only \
-  --profile benchmark \
+  --profile release \
   --locked
 
 w bench validate last-light-benchmark \
@@ -732,6 +724,9 @@ w bench run last-light-benchmark \
 
 `validate` verifica semântica e configuração. `run` mede somente a combinação
 validada e grava a evidence com os digests do artifact, deployment e harness.
+`build.w` selects the `benchmark` recipe separately from the `release` base
+profile and records its exact CPU/features; the command does not provide a new
+recipe CLI option.
 
 ### 5.7 Interface e ABI
 
@@ -1027,7 +1022,7 @@ O oracle de toolchain executa estes casos:
 - instala um SDK mais novo ao lado do SDK importado;
 - executa a mesma plan em dois runners compatíveis;
 - muda um header dentro de um provider system-backed;
-- tenta usar a CPU do runner no profile `benchmark`;
+- tenta usar a CPU do runner no recipe `benchmark`;
 - fornece duas provider lineages na mesma prioridade, inclusive sob a mesma
   authority;
 - remove uma role necessária ao target;

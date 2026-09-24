@@ -38,14 +38,75 @@ Clang only as a temporary link-driver bridge for generated LLVM IR.
 
 ## Profile boundary
 
-W program profiles are `debug, release, benchmark`.
-`debug` is for iteration and diagnostics, `release` is performance-first,
-and `benchmark` is reproducible and pinned. Toolchain
-profiles are `development, release, benchmark, size-experimental`;
-they are separate from W program profiles and do not inherit them. The size
-profile is opt-in and experimental only. `dev` is an informal naming
-opportunity only, not an alias or syntax; the canonical W profile is
-`debug`. This manifest adds no CLI syntax.
+W programs have exactly two base profiles: `debug, release`.
+`release` is the default. Benchmark is a recipe;
+`size` is a defaults preset; proof is an assurance policy; distribution is an
+admission policy; sanitizer and PGO are instrumentation lanes. None is another
+base profile. Toolchain profiles are
+`development, release, benchmark, size-experimental`; they belong to the
+toolchain builder and do not inherit from W program profiles. `debug`
+names the iteration-and-diagnostics base profile; `dev` is only an informal naming
+opportunity, not an alias or syntax. The only human-authored build configuration is `build.w`.
+This policy does not add compiler CLI syntax.
+
+| W base profile | Purpose | Optimize | Checks |
+| --- | --- | --- | --- |
+| `debug` | iteration-and-diagnostics | `none` | `full` |
+| `release` | performance-first | `speed` | `safe` |
+
+The `size` preset defaults to `performance`. `compact` overlays only the
+defaults it owns, such as optimize/strip/link choices; explicit per-field values
+in `build.w` take precedence. Required language checks, target hardening, and
+runtime closure cannot be weakened by the preset.
+
+Output defaults and orthogonal-axis rules:
+
+| Field | Default | Rule |
+| --- | --- | --- |
+| `size` | `performance` | performance by default; compact overlays size-oriented defaults only where fields are unspecified; explicit fields win and safety, hardening, and runtime closure cannot be weakened |
+| `debug` | `not-requested-and-selected-independently` | not requested by default and independently selectable for either base profile; distribution admission requires a complete audit package with separately inventoried debug information |
+| `pie` | `target-aware-elf-static-pie-when-supported-platform-equivalent-elsewhere` | ELF-specific: static PIE where the selected ELF target supports it; PE/Windows resolves target hardening such as ASLR and DEP rather than ELF PIE |
+| `relro` | `full-when-supported` | full RELRO by default on supporting ELF targets; other formats use their target hardening contract; disabling RELRO is a named non-default ELF size/hardening experiment |
+| `hardening` | `target-required` | target-required hardening is a floor, not an optimization preference |
+| `strip` | `debug-profile-preserves-primary-symbols-release-primary-is-stripped` | debug keeps symbols in the primary by default; release strips the primary by default; debug sidecars are independently selectable |
+| `auditability` | `ordinary-local-output-not-a-full-audit-package` | ordinary local outputs do not require a full audit bundle; distribution admission requires an audit package and receipt, which may inventory a stripped primary and separate sidecar |
+| `wrt` | `static-reachable-only-from-signed-target-pack` | static and reachability-closed from the selected signed target pack by default; shared providers require exact target, ABI, version, linkage, and digest |
+| `crt` | `auto-declared-requirements` | auto resolves none without a declared transitive requirement, otherwise one exact target/ABI-compatible offer or failure; C ABI and unsafe do not imply CRT |
+| `target` | `explicit-product-target-no-host-inference` | selected explicitly from build.w and never inferred from the compiler host |
+| `cpuPolicy` | `portable-versioned-target-baseline` | portable uses the versioned target baseline; explicit CPU/features are pinned recipe inputs and do not create a native-host default |
+| `deterministicBuild` | `required-contract-not-yet-implemented` | required as a product contract, but deterministic output and receipt generation are not implemented or evidenced yet |
+
+| Orthogonal axis | Class | Default | Rule |
+| --- | --- | --- | --- |
+| `benchmark` | recipe | `off` | pinned-reproducible-recipe-over-debug-or-release-base |
+| `size` | preset | `performance` | compact-changes-unspecified-optimize-strip-and-link-defaults-explicit-fields-win |
+| `proof` | assurance | `not-requested` | adds-proof-obligations-and-cannot-weaken-checks |
+| `distribution` | admission | `local-only` | requires-proof-policy-closed-dependencies-signed-target-provenance-audit-package-and-receipt |
+| `sanitizer` | instrumentation | `off` | instrumentation-only-with-explicit-training-runtime |
+| `pgo` | instrumentation | `off` | explicit-generate-and-use-recipes-final-use-reproves-closure |
+
+Resolution precedence is fixed:
+
+- explicit-product-target-abi-and-platform-contract-bound-by-compatible-signed-target-pack
+- selected-debug-or-release-base-profile-establishes-optimize-and-check-defaults
+- selected-size-preset-overlays-only-unspecified-defaults-owned-by-that-preset
+- explicit-build.w-field-values-override-profile-and-preset-defaults-within-target-constraints
+- remaining-platform-recipe-assurance-and-instrumentation-defaults-fill-unspecified-fields
+- required-safety-target-hardening-runtime-closure-and-admission-gates-are-non-overridable-and-conflicts-fail-closed
+
+The release primary is stripped for efficient execution; debug information is
+an independently selected sidecar rather than a universal release dependency.
+Ordinary local builds do not require the distribution audit package. Distribution
+admission requires a stronger audit package and receipt. A proof policy may add
+checks but never remove required language safety checks. Contradictory target,
+hardening, runtime-closure, or admission requirements fail closed instead of
+silently falling back.
+
+`pie` is ELF-specific: static PIE applies only where the selected ELF target
+supports it. PE/Windows uses its target hardening contract (for example ASLR and
+DEP), not ELF PIE. Full RELRO is likewise an ELF target default where supported.
+Deterministic output is required by the future product contract, but no current
+compiler/build/receipt path proves it.
 
 ## Runtime closure boundary
 
@@ -74,6 +135,18 @@ runtimes are explicit build-only
 dependencies; the final PGO-use product revalidates its own closure and cannot
 inherit hosted authority. Freestanding, hosted-CRT, and instrumentation-only
 measurements remain separate benchmark lanes.
+
+## Canonical build receipt
+
+The future target-product receipt uses schema `w.build-receipt/1`
+and canonical-deterministic-cbor encoding. Its recipe identity is a digest of
+normalized `build.w`, source, target/CPU/ABI, toolchain/provider, and closure inputs;
+its output identity is a separate digest of the sorted output inventory and
+exact bytes. Each identity excludes the other, and output identity excludes
+the receipt itself. External DSSE signs the exact canonical CBOR payload.
+JSON is a display projection only, never the authoritative configuration,
+receipt encoding, or identity input. This future product receipt does not
+replace W-1534's existing local `receipt.json`.
 
 Current implementation evidence is bounded to the freestanding seed and final
 PE/ELF dependency checks. Post-opt and object-level allowlists, a target-product
@@ -195,6 +268,16 @@ performance result, or package-size proof.
 The optimization backlog records the Hello PE target below 1 KiB as an
 `opportunity-only` opportunity. It is not a gate or a
 default action; any size change requires the performance benchmark gate.
+
+The exact reconstructed 784-byte PIE+RELRO Hello and
+720-byte no-RELRO Hello are separate, non-default
+size/hardening experiments, not product recipes or ranking cells. Source,
+toolchain, and output hashes are pinned in the reconstruction evidence, but no
+public `build.w` recipe or product receipt binds those outputs yet. Both omit ELF
+section headers and non-loaded section data; the latter additionally requires
+final-artifact proof of no interpreter, imports, or relocations. Neither
+changes the default hardening or auditability policy or provides current
+product reproducibility evidence.
 
 For context only, the official [Zig 0.16 download page](https://ziglang.org/download/0.16.0/)
 records the comparison snapshot used by this ledger: Linux/macOS about 49–55 MiB and

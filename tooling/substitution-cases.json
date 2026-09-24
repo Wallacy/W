@@ -3164,7 +3164,15 @@
           "development cache: heavy MLIR/LLVM/LLD tools, external and not distributed",
           "release builder: verified HIR -> in-process MLIR APIs -> LLVM target machine/object -> LLD library",
           "end-user package: w executable plus W-signed versioned target packs",
-          "matrix: X86/AArch64 across Windows/Linux/macOS; no silent cross-toolchain download"
+          "exactly two W program base profiles: debug=none/full and default release=speed/safe; target/security/dependency constraints fail closed",
+          "size defaults to performance; compact is an orthogonal preset overlaying only unspecified defaults, with explicit build.w fields taking precedence",
+          "release strips the primary by default; debug sidecars are independently selectable; distribution admission requires the stronger audit package and receipt",
+          "benchmark is a recipe; proof is an assurance policy; distribution is an admission policy; sanitizer and PGO are instrumentation lanes",
+          "PIE/RELRO are target-aware ELF settings; Windows uses its target ASLR/DEP hardening contract",
+          "build.w is the only human-authored build configuration; target/CPU are explicit, portable CPU is versioned, runtime closure is independent, and deterministic output is required by a future contract but not yet implemented",
+          "future receipt w.build-receipt/1 uses canonical deterministic CBOR with separate recipe/output identities and external DSSE; JSON is display only",
+          "matrix: X86/AArch64 across Windows/Linux/macOS; no silent cross-toolchain download",
+          "exact 784-byte PIE+RELRO and 720-byte no-RELRO reconstructions have pinned source/toolchain/output evidence but no public build.w product recipe or receipt; they remain non-ranking experiments"
         ]
       },
       "alternatives": [
@@ -3185,13 +3193,41 @@
           "language": "w-rejected",
           "source": ["Remove target packs silently when the package exceeds the provisional size gate"],
           "expectedDifference": "Compressed artifact, footprint, executable, packs, startup, dependencies, and SBOM metrics are required; failure is visible."
+        },
+        {
+          "name": "third-program-base-profile",
+          "language": "w-rejected",
+          "source": ["Define benchmark, size, proof, distribution, sanitizer, or PGO as additional W program base profiles"],
+          "expectedDifference": "The program has only debug and release base profiles; benchmark is a recipe, size a defaults preset, proof assurance, distribution admission, and sanitizer/PGO instrumentation."
+        },
+        {
+          "name": "profile-forced-sidecar",
+          "language": "w-rejected",
+          "source": ["Require a debug sidecar from every ordinary release profile"],
+          "expectedDifference": "A sidecar is independently selected per product output; distribution admission, not every internal release, requires the full audit package."
+        },
+        {
+          "name": "elf-pie-on-pe-target",
+          "language": "w-rejected",
+          "source": ["Set ELF PIE as the hardening mode for an x86_64-pc-windows-msvc PE product"],
+          "expectedDifference": "PIE and RELRO are ELF-specific; PE/Windows resolves target hardening such as ASLR and DEP."
         }
       ],
       "sourceRefs": [
         {
           "path": "tooling/toolchain-distribution.json",
-          "symbol": "layers",
-          "claim": "The machine-readable policy separates development cache, release builder, and end-user package."
+          "symbol": "profileContract",
+          "claim": "The machine-readable policy records the two base profiles, size preset, independent output settings, and orthogonal assurance/instrumentation axes."
+        },
+        {
+          "path": "tooling/toolchain-distribution.json",
+          "symbol": "buildReceiptContract",
+          "claim": "The future product receipt separates recipe and output identities, uses deterministic CBOR, and is externally signed without making JSON authoritative."
+        },
+        {
+          "path": "tooling/toolchain-distribution.json",
+          "symbol": "sizeHardeningExperiments",
+          "claim": "The 784-byte and 720-byte ELF experiments have exact pinned reconstruction evidence but remain non-ranking and unproductized."
         },
         {
           "path": "tooling/toolchain-distribution.mjs",
@@ -3205,9 +3241,10 @@
         }
       ],
       "checks": [
-        "bun run check:toolchain-distribution — offline manifest and projection validation",
-        "bun run design:index:check — W-1533 source and projection index integrity",
-        "bun run check:links — documentation links remain valid"
+        "bun tooling/command-runner.mjs --command check:toolchain-distribution — offline manifest and projection validation",
+        "bun tooling/syntax-atlas.mjs --check — accepted build.w snippet, companions, and generated syntax projection",
+        "bun tooling/command-runner.mjs --command design:index:check — W-1533 source and projection index integrity",
+        "bun tooling/command-runner.mjs --command check:links — documentation links remain valid"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     },

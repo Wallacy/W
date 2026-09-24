@@ -29158,17 +29158,20 @@ essa capacidade. SDK version e runtime minimum continuam separados.
 
 Uma string de target no manifest é sugar para os defaults fixados pela
 distribuição W. A recipe sempre contém o record expandido. O profile usa
-`cpuPolicy: .portable` ou `cpuPolicy: .explicit`. `.portable` exige o baseline
-da distribuição; `.explicit` exige `cpu` e `features` explícitos no comando ou
-no target spec. The field is mandatory in every profile. Neither policy
-consults the executor CPU:
+`cpuPolicy` is a recipe axis, not a base-profile field: `.portable` requires
+the baseline of the distribution, while `.explicit` requires exact `cpu` and
+`features` in the recipe or target spec. The field is mandatory in every target
+recipe. Neither policy consults the executor CPU. For example, a `build.w`
+artifact selection can compose a pinned target recipe with the `release` base
+profile:
 
-```text
-w build last-light-benchmark \
-  --target x86_64-unknown-linux-gnu \
-  --cpu x86-64-v3 \
-  --features +avx2,+fma \
-  --profile benchmark
+```w
+source: .product(
+  "last-light-benchmark",
+  target: "x86_64-unknown-linux-gnu",
+  profile: "release",
+  recipe: "benchmark-x86-v3",
+)
 ```
 
 For W 1.0, `.portable` resolves through a versioned hardware-profile table.
@@ -29176,7 +29179,7 @@ A hardware row resolves only the minimum ISA and its enabled and disabled
 features. The same row can be reused by every platform contract whose ABI and
 code generator support it; it is not keyed by an operating-system release.
 `TargetSpec` remains `{ id, cpu, features, platformContract }`, so the product
-profile joins the independently selected hardware row with its target/ABI and
+recipe joins the independently selected hardware row with its target/ABI and
 platform contract. The expanded product recipe/receipt binds that TargetSpec
 separately from the tuning CPU, exact toolchain, sysroot/SDK/linker, and runtime
 closure. Toolchain, operating-system, and runtime facts do not substitute for
@@ -37833,30 +37836,98 @@ planned for the standard package; a separately signed install option requires a
 measured budget failure and explicit review, and silent download is forbidden.
 Performance has priority over bundle or executable size. The standard build is
 `Release`; LTO, section garbage collection, and dead stripping are allowed only
-after a benchmark gate shows no regression. `MinSizeRel` is experimental
-comparison only. Required metrics are compressed artifact, installed footprint,
-main executable, per-target packs, toolchain startup, cold Hello build, cold and
-warm compilation, artifact runtime, file/container bytes, section bytes, code
-bytes/imports, benchmark versus baseline, unexpected dynamic dependencies, and
-SBOM. The initial goal is about 50 MiB compressed with a visible provisional
-64 MiB host gate; size is never a license for a performance regression.
+after a benchmark gate shows no regression. `MinSizeRel` remains experimental
+toolchain-builder comparison only. Required metrics are compressed artifact,
+installed footprint, main executable, per-target packs, toolchain startup, cold
+Hello build, cold and warm compilation, artifact runtime, file/container bytes,
+section bytes, code bytes/imports, benchmark versus baseline, unexpected dynamic
+dependencies, and SBOM. The initial goal is about 50 MiB compressed with a
+visible provisional 64 MiB host gate; size is never a license for a performance
+regression.
 
-**Exemplo:** the W program selects `debug`, `release`, or `benchmark`; the
-toolchain builder selects its separate `development`, `release`, `benchmark`,
-or opt-in `size-experimental` profile. A Hello PE reduction below 1 KiB is an
-`opportunity` backlog item and does not change the default performance-first
-recipe.
+#### W program base profiles and orthogonal axes
 
-The W program profile names are `debug` for iteration and diagnostics, `release`
-for performance-first output, and `benchmark` for reproducible pinned work.
-These names are separate from toolchain build/distribution profiles: toolchain
-`development` is for toolchain iteration, `release` is the performance-first
-default, `benchmark` is reproducible and pinned, and `size-experimental` is
-opt-in only. The informal `dev` name is recorded only as a naming opportunity,
-not an alias or syntax; the canonical W profile is `debug`. This direction adds
-no W CLI syntax. W-1534 implements these profiles only in the native Windows
-tooling builder. A size opportunity is backlog state only and never an automatic
-gate.
+W has exactly two program base profiles. `release` is the default for product
+builds; `debug` is selected for iteration and diagnostics. Benchmark recipes,
+the `size` preset, proof and distribution policies, sanitizer, and PGO are
+orthogonal axes, not additional base profiles. The profile namespace of the
+tooling builder remains separate: W-1534's
+`development`/`release`/`benchmark`/`size-experimental` values describe its
+CMake/toolchain recipe and are unchanged by this decision. `dev` remains an
+informal naming opportunity, not an alias or syntax.
+
+| Base profile | `optimize` | `checks` |
+| --- | --- | --- |
+| `debug` | `.none` | `.full` |
+| `release` | `.speed` | `.safe` |
+
+`checks: .safe` retains every required language safety check; release is not a
+different semantics mode. The orthogonal `size` preset defaults to
+`.performance`; `.compact` overlays size-oriented defaults such as optimization,
+stripping, and link choices. A field explicitly set in `build.w` overrides the
+selected preset. Neither preset nor field overrides required language safety,
+target hardening, runtime closure, or admission constraints.
+
+| Field | Default | Constraint |
+| --- | --- | --- |
+| `size` | `.performance` preset | `.compact` changes only unspecified defaults; explicit fields take precedence. |
+| `pie` | target-appropriate | ELF targets use static PIE where supported; PE/Windows uses its target contract such as ASLR/DEP, not ELF PIE. |
+| `relro` | full on supporting ELF targets | Other formats use their own target-hardening contract; disabling RELRO is a separate non-default ELF experiment. |
+| `hardening` | target-required baseline | Security hardening is a floor, not an optimization preference. |
+| `strip` | debug primary preserves symbols; release primary is stripped | A debug sidecar is separately selectable and does not restore removed ELF section metadata. |
+| `debug` | not selected | Select a separate debug sidecar independently for either base profile; distribution admission requires it in the complete audit package. |
+| `auditability` | ordinary local output | Distribution admission requires the stronger audit package and receipt; the efficient primary may remain stripped. |
+| `wrt` | `.static(.auto)` | Select only reachable operations from the signed target pack; shared WRT needs an exact provider and ABI. |
+| `crt` | `.auto` | No CRT without a declared transitive requirement; otherwise require one exact target/ABI-compatible offer or fail. |
+| `target` | explicit product target | Bind target, ABI, platform contract, and target pack; never infer them from the compiler host. |
+| `cpuPolicy` | `.portable` | Use a versioned portable baseline; `.explicit` pins CPU and feature facts in the recipe and never means host-native. |
+| `deterministicBuild` | required contract | Reproducibility is a requirement, not implemented or evidenced by the current compiler/build/receipt path. |
+
+All human-authored build configuration is in `build.w`. Resolution precedence is:
+
+1. The explicit product target, ABI, platform contract, and compatible signed
+   target-pack offers establish the admissible target facts.
+2. The selected `debug` or `release` base profile establishes the optimize and
+   checks defaults.
+3. The selected `size` preset overlays only its own unspecified defaults.
+4. Individually explicit `build.w` fields override profile and preset defaults,
+   but only within target constraints.
+5. Remaining platform, recipe, assurance, and instrumentation defaults fill
+   unspecified fields.
+6. Safety, hardening, dependency closure, determinism, and admission constraints
+   cannot be overridden; contradictions fail closed rather than silently
+   falling back.
+
+The `benchmark` recipe pins source/resolution, target and CPU/features, compiler,
+toolchain, providers, and environment; it does not create another base profile.
+The `.compact` size preset is opt-in and cannot silently lower hardening or
+enlarge runtime authority; promotion to a shared/default route needs its own
+benchmark and audit review. `proof` is an assurance policy, not a profile flag:
+it may add admission gates but never weakens required checks or changes program
+semantics. `distribution` is an admission policy, local-only by default; it
+requires the selected proof policy, closed dependencies, signed target
+provenance, a complete audit package and receipt, and explicit release policy.
+Sanitizer and PGO runtimes are explicit instrumentation-only dependencies.
+PGO-generate is training-only; PGO-use creates a new recipe identity and must
+re-establish its own final runtime closure.
+
+The exact reconstructed 784-byte Linux Hello PIE with full RELRO and 720-byte
+PIE with RELRO disabled are separate non-default size/hardening experiments,
+not product recipes or ranking cells. Source, toolchain, and output hashes and
+ELF audit facts are pinned in the reconstruction evidence, but no public
+`build.w` recipe or product receipt binds those outputs yet. Both strip ELF
+section headers and non-loaded section data, reducing analysis information;
+the no-RELRO experiment additionally requires final-artifact proof of no
+interpreter, imports, or relocations. These reconstructions provide no current
+product reproducibility evidence. The sub-1-KiB Hello remains an opportunity,
+not a release target.
+
+This policy does not select any compiler CLI spelling. The seed's existing
+`--pie on|off` remains a temporary control and is not removed in this bundle.
+Retire it only after an implemented target-aware `build.w` field drives ELF PIE
+selection, the resolved target and receipt bind that choice, and focused native
+Windows ASLR/DEP and Linux/WSL ELF execution gates pass. W-1534 continues to
+describe only the native Windows tooling builder.
 
 Target environment, WRT linkage, and CRT selection are separate axes. Native
 products remain CRT-free unless their declared dependency graph requires a CRT
@@ -37866,8 +37937,8 @@ dependency declares one; it never authorizes optimizer-synthesized imports.
 `wrt: .static(.auto)` is the default and links only reachable operations from
 the signed target pack. A separately distributed dynamic WRT requires an
 explicit provider, exact WRT ABI, target, version and digest. Neither target
-triple nor C calling convention implies CRT linkage. Debug, release, benchmark,
-size-experimental, sanitizer and PGO modes never widen either dependency axis.
+triple nor C calling convention implies CRT linkage. Program base profiles and
+benchmark, size, sanitizer, and PGO axes never widen either dependency axis.
 Any command-line spelling remains future design, not implemented CLI.
 
 The optimizer cannot grant authority by synthesizing a symbol. Every native
@@ -37899,6 +37970,18 @@ benchmark records expose the same `runtimeClosure` identity independently of
 profile, recipe and toolchain; ranking and best-cell replacement require equal
 closure identities. Until that catalog axis is implemented, cross-runtime rows
 are contextual or correctness evidence only.
+
+The future product build receipt uses schema `w.build-receipt/1` and canonical,
+deterministic CBOR. `build.w` is the only human-authored build configuration.
+The recipe identity hashes normalized `build.w`, resolution, source and
+generated inputs, selected base profile and orthogonal axes, exact target/CPU/
+ABI/platform contract, toolchain/provider identities, and runtime closure. The
+output identity separately hashes the sorted output inventory and exact output
+bytes; it excludes the receipt itself. Neither identity contains the other.
+External DSSE signs the exact CBOR payload. JSON is only a display projection,
+not configuration, receipt encoding, or identity input. This is a future
+contract, not an implemented receipt or signing path, and does not replace
+W-1534's local JSON toolchain receipt.
 
 This is a policy direction backed by `tooling/toolchain-distribution.json` and its
 offline checker. The release builder, end-user package, cross-compilation, and

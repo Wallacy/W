@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:057ca87475485311013017e0df234181b984f79409b07fea4b594e24de1bc4aa",
+  "corpusDigest": "sha256:f909e4307e7e27fb084f6f7d85c187871aceb1c3b34aa35215b32b43f0bbb289",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -4696,13 +4696,13 @@
       "selected": {
         "name": "selected",
         "language": "w-policy",
-        "sourceDigest": "sha256:25678c0832f4ff4b8e2bab4e50c22f9a1c0a2c892ca05f8cb2d939c6507c1035",
+        "sourceDigest": "sha256:075327bc81123d93bf4e4ff6973e6fa2a3d3ba5234947fc955a9a339b80975bf",
         "metrics": {
-          "utf8Bytes": 324,
-          "codePoints": 324,
-          "nonWhitespaceCodePoints": 284,
-          "lines": 4,
-          "surfaceLexemes": 70
+          "utf8Bytes": 1550,
+          "codePoints": 1550,
+          "nonWhitespaceCodePoints": 1353,
+          "lines": 12,
+          "surfaceLexemes": 293
         }
       },
       "alternatives": [
@@ -4740,6 +4740,42 @@
             "nonWhitespaceCodePoints": 68,
             "lines": 1,
             "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "third-program-base-profile",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:cbcb15d9b0d2297e9b0389f4c12a8e8fbc1267099d827fba2c3ab2ba789e8410",
+          "metrics": {
+            "utf8Bytes": 100,
+            "codePoints": 100,
+            "nonWhitespaceCodePoints": 87,
+            "lines": 1,
+            "surfaceLexemes": 19
+          }
+        },
+        {
+          "name": "profile-forced-sidecar",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:768af162907525a0fb777b52022af5acaa2e5adb758bce01de7ec0a68382de09",
+          "metrics": {
+            "utf8Bytes": 59,
+            "codePoints": 59,
+            "nonWhitespaceCodePoints": 51,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        },
+        {
+          "name": "elf-pie-on-pe-target",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:e34101fc43e55bc6676f29387fce48303a6b2689d6cb4d7f5a59145938bc3895",
+          "metrics": {
+            "utf8Bytes": 74,
+            "codePoints": 74,
+            "nonWhitespaceCodePoints": 63,
+            "lines": 1,
+            "surfaceLexemes": 18
           }
         }
       ]

@@ -36,7 +36,7 @@ describe("cheatsheet snippet checker", () => {
     expect(result.counts.source).toBe(0)
     expect(result.counts.composed).toBe(0)
     expect(result.counts.contrafactual).toBe(0)
-    expect(result.counts["manifest-fragment"]).toBe(3)
+    expect(result.counts["manifest-fragment"]).toBe(4)
   })
 
   test("rejects an unclosed fence", () => {

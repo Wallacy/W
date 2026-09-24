@@ -43,22 +43,77 @@ function validate() {
 
   const profiles = manifest.profileContract
   exact(profiles?.wProgram?.map((profile) => profile.id),
-    ["debug", "release", "benchmark"], "W program profile ids")
+    ["debug", "release"], "W program base profile ids")
   exact(profiles?.toolchain?.map((profile) => profile.id),
     ["development", "release", "benchmark", "size-experimental"], "toolchain profile ids")
-  if ((profiles?.wProgram ?? []).some((profile) => Object.hasOwn(profile, "default")))
-    error("W program profiles must not invent a default selection")
+  if (profiles?.wProgramDefault !== "release")
+    error("release must be the default W program base profile")
   const wProgramProfiles = new Map((profiles?.wProgram ?? []).map((profile) => [profile.id, profile]))
   const toolchainProfiles = new Map((profiles?.toolchain ?? []).map((profile) => [profile.id, profile]))
   if (wProgramProfiles.get("debug")?.purpose !== "iteration-and-diagnostics" ||
-      wProgramProfiles.get("debug")?.status !== "existing-design-profile")
+      wProgramProfiles.get("debug")?.status !== "selected-base-profile")
     error("W program debug profile must remain iteration-and-diagnostics")
+  exact(wProgramProfiles.get("debug")?.defaults, {
+    optimize: "none",
+    checks: "full",
+  }, "debug base-profile defaults")
   if (wProgramProfiles.get("release")?.purpose !== "performance-first" ||
-      wProgramProfiles.get("release")?.status !== "existing-design-profile")
+      wProgramProfiles.get("release")?.status !== "selected-base-profile")
     error("W program release profile must remain the performance-first existing profile")
-  if (wProgramProfiles.get("benchmark")?.purpose !== "reproducible-pinned" ||
-      wProgramProfiles.get("benchmark")?.status !== "existing-design-profile")
-    error("W program benchmark profile must remain reproducible and pinned")
+  exact(wProgramProfiles.get("release")?.defaults, {
+    optimize: "speed",
+    checks: "safe",
+  }, "release base-profile defaults")
+  exact(profiles?.fieldDefaults, {
+    size: "performance",
+    debug: "not-requested-and-selected-independently",
+    pie: "target-aware-elf-static-pie-when-supported-platform-equivalent-elsewhere",
+    relro: "full-when-supported",
+    hardening: "target-required",
+    strip: "debug-profile-preserves-primary-symbols-release-primary-is-stripped",
+    auditability: "ordinary-local-output-not-a-full-audit-package",
+    wrt: "static-reachable-only-from-signed-target-pack",
+    crt: "auto-declared-requirements",
+    target: "explicit-product-target-no-host-inference",
+    cpuPolicy: "portable-versioned-target-baseline",
+    deterministicBuild: "required-contract-not-yet-implemented",
+  }, "W program field defaults")
+  exact(profiles?.orthogonalAxes, [
+    { id: "benchmark", kind: "recipe", default: "off", rule: "pinned-reproducible-recipe-over-debug-or-release-base" },
+    { id: "size", kind: "preset", default: "performance", values: ["performance", "compact"], rule: "compact-changes-unspecified-optimize-strip-and-link-defaults-explicit-fields-win" },
+    { id: "proof", kind: "assurance", default: "not-requested", rule: "adds-proof-obligations-and-cannot-weaken-checks" },
+    { id: "distribution", kind: "admission", default: "local-only", rule: "requires-proof-policy-closed-dependencies-signed-target-provenance-audit-package-and-receipt" },
+    { id: "sanitizer", kind: "instrumentation", default: "off", rule: "instrumentation-only-with-explicit-training-runtime" },
+    { id: "pgo", kind: "instrumentation", default: "off", rule: "explicit-generate-and-use-recipes-final-use-reproves-closure" },
+  ], "orthogonal recipe and assurance axes")
+  exact(profiles?.resolutionPrecedence, [
+    "explicit-product-target-abi-and-platform-contract-bound-by-compatible-signed-target-pack",
+    "selected-debug-or-release-base-profile-establishes-optimize-and-check-defaults",
+    "selected-size-preset-overlays-only-unspecified-defaults-owned-by-that-preset",
+    "explicit-build.w-field-values-override-profile-and-preset-defaults-within-target-constraints",
+    "remaining-platform-recipe-assurance-and-instrumentation-defaults-fill-unspecified-fields",
+    "required-safety-target-hardening-runtime-closure-and-admission-gates-are-non-overridable-and-conflicts-fail-closed",
+  ], "profile and axis resolution precedence")
+  exact(profiles?.fieldRules, {
+    optimize: "debug defaults to none and release to speed; size compact may choose a smaller default, while an explicit optimize value wins",
+    checks: "debug defaults to full and release to safe; proof may add obligations, never remove required safety checks",
+    debug: "not requested by default and independently selectable for either base profile; distribution admission requires a complete audit package with separately inventoried debug information",
+    size: "performance by default; compact overlays size-oriented defaults only where fields are unspecified; explicit fields win and safety, hardening, and runtime closure cannot be weakened",
+    pie: "ELF-specific: static PIE where the selected ELF target supports it; PE/Windows resolves target hardening such as ASLR and DEP rather than ELF PIE",
+    relro: "full RELRO by default on supporting ELF targets; other formats use their target hardening contract; disabling RELRO is a named non-default ELF size/hardening experiment",
+    hardening: "target-required hardening is a floor, not an optimization preference",
+    strip: "debug keeps symbols in the primary by default; release strips the primary by default; debug sidecars are independently selectable",
+    auditability: "ordinary local outputs do not require a full audit bundle; distribution admission requires an audit package and receipt, which may inventory a stripped primary and separate sidecar",
+    wrt: "static and reachability-closed from the selected signed target pack by default; shared providers require exact target, ABI, version, linkage, and digest",
+    crt: "auto resolves none without a declared transitive requirement, otherwise one exact target/ABI-compatible offer or failure; C ABI and unsafe do not imply CRT",
+    target: "selected explicitly from build.w and never inferred from the compiler host",
+    cpuPolicy: "portable uses the versioned target baseline; explicit CPU/features are pinned recipe inputs and do not create a native-host default",
+    deterministicBuild: "required as a product contract, but deterministic output and receipt generation are not implemented or evidenced yet",
+    proof: "no proof claim unless an assurance policy requests one; requested proofs add obligations and cannot alter program semantics or weaken required checks",
+    distribution: "local-only by default; admission requires proof policy, closed dependencies, signed target provenance, a complete audit package and receipt, and explicit release policy",
+  }, "W program field precedence rules")
+  if (profiles?.configurationSource !== "build.w-only")
+    error("build.w must remain the only human-authored build configuration")
   if (toolchainProfiles.get("development")?.purpose !== "toolchain-iteration-speed" ||
       toolchainProfiles.get("development")?.default !== false ||
       toolchainProfiles.get("development")?.status !== "contract-only" ||
@@ -76,8 +131,69 @@ function validate() {
       "W program profiles and toolchain build/distribution profiles are separate; no implicit inheritance.")
     error("profile namespaces must remain separate")
   if (profiles?.harmonization !==
-      "debug is the canonical W profile; dev is an informal naming opportunity only, not an alias or syntax.")
+      "debug names the iteration-and-diagnostics base profile; dev is an informal naming opportunity only, not an alias or syntax.")
     error("profile harmonization must remain explicit and syntax-free")
+
+  exact(manifest.buildReceiptContract, {
+    schema: "w.build-receipt/1",
+    encoding: "canonical-deterministic-cbor",
+    humanAuthoredConfiguration: "build.w-only",
+    recipeIdentity: {
+      digest: "sha256-of-canonical-normalized-recipe-inputs",
+      includes: [
+        "build.w-and-resolution-digests",
+        "source-and-generated-input-digests",
+        "debug-or-release-base-profile-and-orthogonal-axis-selections",
+        "exact-target-cpu-features-abi-and-platform-contract",
+        "compiler-toolchain-sdk-and-provider-identities-and-digests",
+        "runtime-closure-and-deterministic-environment",
+      ],
+      excludes: ["output-identity", "external-signature"],
+    },
+    outputIdentity: {
+      digest: "sha256-of-canonical-output-inventory-and-exact-output-bytes",
+      includes: ["sorted-relative-output-paths", "output-roles", "per-output-sha256"],
+      excludes: ["build-receipt-itself", "external-signature"],
+    },
+    payload: "recipe-identity-and-output-identity-remain-distinct",
+    signing: "external-dsse-signs-exact-canonical-cbor-payload",
+    json: "display-projection-only-never-authoritative-or-identity-bearing",
+    status: "future-contract-not-implemented",
+  }, "W build receipt contract")
+  exact(manifest.sizeHardeningExperiments, {
+    status: "exact-reconstruction-non-ranking-not-productized",
+    defaultAction: "none",
+    gate: "public-recipe-and-product-identity-before-ranking-plus-independent-audit-package-and-dependency-closure-review",
+    experiments: [
+      {
+        id: "linux-hello-784-pie-relro",
+        outputBytes: 784,
+        pie: true,
+        relro: "full",
+        change: "strip-elf-section-headers-and-nonloaded-section-data",
+        classification: "exact-reconstruction-non-ranking-size-hardening-experiment",
+        artifactEvidence: "ET_DYN-no-PT_INTERP-no-relocations-no-DT_NEEDED-no-undefined-dynamic-symbols-NX-stack-PT_GNU_RELRO",
+        sourceToolchainAndOutputHashes: "pinned-in-reconstruction-evidence",
+        publicProductRecipeIdentity: "not-defined-in-build.w",
+        wBuildReceipt: "not-implemented",
+        promotion: "not-a-product-recipe-or-ranking-cell-until-public-recipe-and-output-identity-exist",
+      },
+      {
+        id: "linux-hello-720-pie-no-relro",
+        outputBytes: 720,
+        pie: true,
+        relro: "disabled",
+        change: "strip-elf-section-headers-and-nonloaded-section-data",
+        additionalRequirement: "final-artifact-proves-no-interpreter-imports-or-relocations",
+        classification: "exact-reconstruction-non-ranking-size-hardening-experiment",
+        artifactEvidence: "ET_DYN-no-PT_INTERP-no-relocations-no-DT_NEEDED-no-undefined-dynamic-symbols-NX-stack-no-PT_GNU_RELRO",
+        sourceToolchainAndOutputHashes: "pinned-in-reconstruction-evidence",
+        publicProductRecipeIdentity: "not-defined-in-build.w",
+        wBuildReceipt: "not-implemented",
+        promotion: "not-a-product-recipe-or-ranking-cell-until-public-recipe-and-output-identity-exist",
+      },
+    ],
+  }, "size and hardening experiments")
 
   const closure = manifest.runtimeClosureContract
   if (closure?.default !== "freestanding")
@@ -118,7 +234,7 @@ function validate() {
     receiptFields: ["target", "abi", "provider", "version", "link-mode", "imports", "digest"],
   }, "hosted CRT runtime closure")
   if (closure?.profileOrthogonality !==
-      "program, toolchain, size, sanitizer and PGO modes never widen runtime closure implicitly")
+      "program and toolchain profiles, recipes, size presets, sanitizer and PGO lanes never widen runtime closure implicitly")
     error("runtime closure must remain orthogonal to optimization and instrumentation")
   exact(closure?.optimizerBoundary, {
     postOptIr: "external-declaration-allowlist",
@@ -357,9 +473,17 @@ function validate() {
 function render() {
   const matrix = manifest.primaryCrossMatrix
   const windowsBuilder = manifest.windowsBuilder
+  const profiles = manifest.profileContract
   const tick = String.fromCharCode(96)
   const edges = matrix.edges.map((edge) =>
     `| ${edge.host} | ${edge.target} | ${edge.status} |`).join("\n")
+  const baseProfileRows = profiles.wProgram.map((profile) =>
+    `| ${tick}${profile.id}${tick} | ${profile.purpose} | ${tick}${profile.defaults.optimize}${tick} | ${tick}${profile.defaults.checks}${tick} |`).join("\n")
+  const fieldRows = Object.entries(profiles.fieldDefaults).map(([field, value]) =>
+    `| ${tick}${field}${tick} | ${tick}${value}${tick} | ${profiles.fieldRules[field]} |`).join("\n")
+  const axisRows = profiles.orthogonalAxes.map((axis) =>
+    `| ${tick}${axis.id}${tick} | ${axis.kind} | ${tick}${axis.default}${tick} | ${axis.rule} |`).join("\n")
+  const precedenceRows = profiles.resolutionPrecedence.map((rule) => `- ${rule}`).join("\n")
   return `# Toolchain and distribution
 
 <!-- Generated by tooling/toolchain-distribution.mjs. Edit tooling/toolchain-distribution.json. -->
@@ -400,14 +524,53 @@ Clang only as a temporary link-driver bridge for generated LLVM IR.
 
 ## Profile boundary
 
-W program profiles are ${tick}${manifest.profileContract.wProgram.map((profile) => profile.id).join(", ")}${tick}.
-${tick}debug${tick} is for iteration and diagnostics, ${tick}release${tick} is performance-first,
-and ${tick}benchmark${tick} is reproducible and pinned. Toolchain
-profiles are ${tick}${manifest.profileContract.toolchain.map((profile) => profile.id).join(", ")}${tick};
-they are separate from W program profiles and do not inherit them. The size
-profile is opt-in and experimental only. ${tick}dev${tick} is an informal naming
-opportunity only, not an alias or syntax; the canonical W profile is
-${tick}debug${tick}. This manifest adds no CLI syntax.
+W programs have exactly two base profiles: ${tick}${profiles.wProgram.map((profile) => profile.id).join(", ")}${tick}.
+${tick}${profiles.wProgramDefault}${tick} is the default. Benchmark is a recipe;
+${tick}size${tick} is a defaults preset; proof is an assurance policy; distribution is an
+admission policy; sanitizer and PGO are instrumentation lanes. None is another
+base profile. Toolchain profiles are
+${tick}${profiles.toolchain.map((profile) => profile.id).join(", ")}${tick}; they belong to the
+toolchain builder and do not inherit from W program profiles. ${tick}debug${tick}
+names the iteration-and-diagnostics base profile; ${tick}dev${tick} is only an informal naming
+opportunity, not an alias or syntax. The only human-authored build configuration is ${tick}build.w${tick}.
+This policy does not add compiler CLI syntax.
+
+| W base profile | Purpose | Optimize | Checks |
+| --- | --- | --- | --- |
+${baseProfileRows}
+
+The ${tick}size${tick} preset defaults to ${tick}performance${tick}. ${tick}compact${tick} overlays only the
+defaults it owns, such as optimize/strip/link choices; explicit per-field values
+in ${tick}build.w${tick} take precedence. Required language checks, target hardening, and
+runtime closure cannot be weakened by the preset.
+
+Output defaults and orthogonal-axis rules:
+
+| Field | Default | Rule |
+| --- | --- | --- |
+${fieldRows}
+
+| Orthogonal axis | Class | Default | Rule |
+| --- | --- | --- | --- |
+${axisRows}
+
+Resolution precedence is fixed:
+
+${precedenceRows}
+
+The release primary is stripped for efficient execution; debug information is
+an independently selected sidecar rather than a universal release dependency.
+Ordinary local builds do not require the distribution audit package. Distribution
+admission requires a stronger audit package and receipt. A proof policy may add
+checks but never remove required language safety checks. Contradictory target,
+hardening, runtime-closure, or admission requirements fail closed instead of
+silently falling back.
+
+${tick}pie${tick} is ELF-specific: static PIE applies only where the selected ELF target
+supports it. PE/Windows uses its target hardening contract (for example ASLR and
+DEP), not ELF PIE. Full RELRO is likewise an ELF target default where supported.
+Deterministic output is required by the future product contract, but no current
+compiler/build/receipt path proves it.
 
 ## Runtime closure boundary
 
@@ -436,6 +599,18 @@ runtimes are explicit build-only
 dependencies; the final PGO-use product revalidates its own closure and cannot
 inherit hosted authority. Freestanding, hosted-CRT, and instrumentation-only
 measurements remain separate benchmark lanes.
+
+## Canonical build receipt
+
+The future target-product receipt uses schema ${tick}${manifest.buildReceiptContract.schema}${tick}
+and ${manifest.buildReceiptContract.encoding} encoding. Its recipe identity is a digest of
+normalized ${tick}build.w${tick}, source, target/CPU/ABI, toolchain/provider, and closure inputs;
+its output identity is a separate digest of the sorted output inventory and
+exact bytes. Each identity excludes the other, and output identity excludes
+the receipt itself. External DSSE signs the exact canonical CBOR payload.
+JSON is a display projection only, never the authoritative configuration,
+receipt encoding, or identity input. This future product receipt does not
+replace W-1534's existing local ${tick}receipt.json${tick}.
 
 Current implementation evidence is bounded to the freestanding seed and final
 PE/ELF dependency checks. Post-opt and object-level allowlists, a target-product
@@ -547,6 +722,16 @@ performance result, or package-size proof.
 The optimization backlog records the Hello PE target below 1 KiB as an
 ${tick}${manifest.optimizationBacklog.status}${tick} opportunity. It is not a gate or a
 default action; any size change requires the performance benchmark gate.
+
+The exact reconstructed ${manifest.sizeHardeningExperiments.experiments[0].outputBytes}-byte PIE+RELRO Hello and
+${manifest.sizeHardeningExperiments.experiments[1].outputBytes}-byte no-RELRO Hello are separate, non-default
+size/hardening experiments, not product recipes or ranking cells. Source,
+toolchain, and output hashes are pinned in the reconstruction evidence, but no
+public ${tick}build.w${tick} recipe or product receipt binds those outputs yet. Both omit ELF
+section headers and non-loaded section data; the latter additionally requires
+final-artifact proof of no interpreter, imports, or relocations. Neither
+changes the default hardening or auditability policy or provides current
+product reproducibility evidence.
 
 For context only, the official [Zig 0.16 download page](https://ziglang.org/download/0.16.0/)
 records the comparison snapshot used by this ledger: Linux/macOS about 49–55 MiB and

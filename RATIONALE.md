@@ -7911,7 +7911,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 
 | W-1531 | bounded top-level `if` diamonds through native MLIR | HIR0 schema `w-seed-hir0-7` adds explicit `BRANCH`/`JUMP` terminators with same-function `target_block`/`else_block` edges and terminator-owned Bool conditions. Sequential nonnested Unit conditionals lower to dense entry/then/else/join diamonds; absent `else` uses an empty arm. The frontend relation walk and HIR verifier prove exact statement reachability, monotonic ranges, ownership, spans, digests, reachability, topology, and acyclicity. MLIR0 schema `w-seed-mlir0-10` emits labeled blocks, `llvm.cond_br`, `llvm.br`, and one join continuation. Native selection computes prefix + max arm + join, while Native0 remains v6 because its public artifact contract is unchanged. The compiler witness and separate minimal/no-else microproofs plus equivalent learner, idiomatic, and frontier source-style candidates execute the same exact stdout correctness-only on Linux x86_64 GNU through WSL; frontier is an exploration role only. | `source-backed-current` for the bounded top-level Unit diamond subset; W-1535 replaces the nonnested restriction and advances the HIR0/MLIR0 schemas for bounded nested structured Unit CFG, while the W-1531 subset remains current. General CFG beyond that bounded form, conditional values, loops, branch-carried bindings, other targets, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing, result, or ranking |
 | W-1532 | bounded native Windows x86_64 seed route through MLIR/LLVM/LLD | Native Windows evidence runs `w run <explicit-path.w>` with target `x86_64-pc-windows-msvc` and the direct `mlir-opt.exe` → `mlir-translate.exe` → `llc.exe` → `lld-link.exe` + `kernel32.lib` pipeline. The emitted runtime uses `GetStdHandle`, `WriteFile`, and `ExitProcess`, with `mainCRTStartup`, console subsystem, and `nodefaultlib`; the external development cache is validated and never bundled with W. The gate proves Hello, Restaurant/if, interpolation, linear output, empty forwarded argument, invalid-source silence, and an x64 PE. | Candidate evidence only, not general Windows support. General W ABI/runtime, Unicode source paths, packaging, CI, cross-compilation, other targets, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
-| W-1533 | compact hermetic cross-target distribution contract | Three layers separate the heavy external development/release cache, a future in-process hermetic release builder, and a compact end-user package. The future route is verified HIR → MLIR APIs/pass subset → LLVM target machine/object → LLD library → executable, with X86/AArch64 packs across Windows/Linux/macOS, explicit SDK/import/runtime/signing/provenance, no silent downloads, and visible measured budget review. Performance has priority over bundle or executable size: Release is the default, size optimizations require benchmark no-regression evidence, and MinSizeRel is experimental only. W program profiles are debug for iteration and diagnostics, release for performance-first output, and benchmark for reproducible pinned work; toolchain profiles are a separate namespace with development, release, benchmark, and opt-in size-experimental. Target environment, WRT linkage, and CRT provider selection are independent: reachability-closed static WRT from the signed target pack is default; CRT auto resolves only declared transitive requirements to one exact target/ABI-compatible offer, and resolves to none otherwise; dynamic WRT and explicit CRT provider selection require exact target, ABI, version, linkage, and digest. C ABI alone does not imply CRT, and optimizer-synthesized imports cannot enlarge the declared offer set. Optimization, size, sanitizer, and PGO modes never widen either dependency axis. Native validation binds post-opt externals, object undefined symbols, and final imports/dependencies. The informal dev name is only a naming opportunity, not an alias. The Hello PE below 1 KiB is an opportunity backlog item, not a gate. Required metrics include compressed artifact, footprint, main executable, target packs, cold Hello build, cold and warm compilation/throughput, toolchain startup, artifact runtime, file/container/section/code/import bytes, benchmark versus baseline, unexpected dependencies, and SBOM; Zig 0.16 is context only. | `source-backed-current` for the manifest policy and offline checker only. Release builder, end-user package, CRT-enabled product route, cross-compilation, performance evidence, and budget evidence remain gaps; Apple SDK/license is a blocker. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
+| W-1533 | compact hermetic cross-target distribution contract | Three layers separate the heavy development cache, future in-process release builder, and end-user package. W has exactly two base profiles: `debug` (`none`/`full`) and default `release` (`speed`/`safe`). `size` defaults to `.performance`; opt-in `.compact` overlays only defaults it owns, and explicit build fields win. Benchmark is a recipe; proof is an assurance policy; distribution is an admission policy; sanitizer and PGO are instrumentation lanes. Release strips its primary by default; debug sidecars are independently selectable and distribution requires a stronger audit package and receipt. Hardening and PIE are target-aware: ELF targets use supported static PIE/full RELRO, while PE/Windows uses its ASLR/DEP target contract. Explicit target and portable CPU defaults bind recipes; WRT is reachability-closed static by default and CRT auto resolves declared requirements only. Identical-input determinism is a required future contract, not current implementation evidence. `build.w` is the only authored product config. Runtime checks still bind post-opt externals, object undefined symbols, and final imports. The future `w.build-receipt/1` is canonical deterministic CBOR, separates recipe/output identity, uses external DSSE, and treats JSON as display only. The exact 784-byte PIE+RELRO and 720-byte no-RELRO outputs are reconstructed non-ranking experiments; source/toolchain/output hashes and ELF audit facts are pinned, but no public `build.w` recipe or product receipt binds them. The seed `--pie` stays until target-aware config, receipt binding, and native target gates exist. W-1534 toolchain profiles remain separate; Zig 0.16 is context only. | `source-backed-current` for the manifest policy and offline checker only. Release builder, end-user package, CRT-enabled product route, cross-compilation, performance evidence, and budget evidence remain gaps; Apple SDK/license is a blocker. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
 | W-1534 | bounded native Windows builder profiles and local receipt | The tooling-only Windows builder accepts one strict `--profile` value. `development` maps to CMake Debug, `release` maps to Release and is the default, `benchmark` maps to a constrained, probed Release recipe with a clean Git worktree and recorded HEAD, and `size-experimental` maps to MinSizeRel for size comparison only. C23 remains the requested standard. MSVC `/std:clatest` is recorded as the `c23-msvc-preview` lane, correctness-only and not a final C23 result. C11 remains the distinct explicit `c11-recovery` lane. The builder reads fixture bytes before execution, records their SHA-256 identities, runs exact Hello and Restaurant smokes from a staged `w.exe`, writes deterministic `receipt.json`, and atomically swaps a dedicated output directory containing only `w.exe` and the receipt. | `source-backed-current` for the script, focused tests, machine manifests, and one real release C11-recovery build on the current Windows host. The four-profile execution matrix, package/release claims, cross-compilation, Unicode source paths, and performance remain gaps. The receipt is local evidence only and not package, budget, or performance proof. Benchmark recipe evidence is constrained/probed only; no reproducible-binary or double-build claim is made. `benchmarkDisposition: compiler-lifecycle`, correctness and recipe evidence only, no timing or result |
 | W-1535 | nested structured `if` through verified HIR0 and linear native maximum analysis | HIR0 schema `w-seed-hir0-8` keeps the existing `if` syntax and admits nested IF records only in Unit-returning ordinary functions. A single bound of 64 IF depth is checked before recursion or emission. Each IF contributes exactly three blocks; layout is branch, complete true subregion, complete false subregion, join, then sibling continuation. `next_block` stays reserved and BRANCH keeps only generic true/false successors. The verifier proves dense ownership/ranges, structural reachability exactly once, arm regions, common join/postdominator, forward acyclicity, condition ownership/type, and no forged or orphan records. Native selection uses one reverse-topological DP over verified blocks and edges, with checked `max(then, else)` and cached shared continuations; call-cycle and binding-read checks remain. | `source-backed-current` for the bounded nested Unit route and exact compiler fixture on Linux/WSL plus native Windows Release C11 recovery. The Native0 unit accepts depth 64 and emits it as MLIR; its depth-65 case returns `UNSUPPORTED` with unchanged output/result snapshots. The HIR unit proves only acceptance of depth 64 and rejection of depth 65. Real LLVM/native execution is the Restaurant four-case witness on Linux/WSL and Windows. Full binary depth-7 is a structural stress witness, not timing evidence. HIR/Native0 capacity expansion is private: the local `w_seed_native0_storage` observation is 458448 bytes before and 570576 bytes after, with a 768 KiB ceiling; these are recipe-local layout observations, not ABI, stack, package, or performance claims. MLIR0 advances to `w-seed-mlir0-11` (Windows `w-seed-mlir0-windows-2`); Native0 remains v6 because public bytes and receipt semantics do not change. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing, result, ranking, or measured-performance claim |
 | W-1536 | direct observer application with synthesized plain storage | A behavior with no `get`/`set`, beyond its zero-slot `init()`, declares only metadata, facets and hooks and is an observer. Explicit `var Versioned p: T = rhs` is current and synthesizes one plain logical storage slot; `Versioned<Value>` infers `Value` from `T`. The RHS initializes that plain storage once and is never passed to the observer's zero-slot `init()`. A direct observer requires that zero-slot initializer, has unqualified facet paths and no main storage or accessor; a storage behavior keeps its one-slot initializer. Two or more behaviors or reusable aliases remain a nominal composition. Synthesized storage and the direct observer identity enter ABI and fingerprint; `TypeInfo.Property` exposes only the logical property name/type/mutability/accessMode/hasSetter, not observer or backing identity; `w explain property` shows observer, storage, hooks and cost; mut read hooks retain mutable/exclusive receiver authority. | `implementation-evidence-gap` for the DESIGN contract, fixtures, syntax-atlas and substitution parse/provenance only; these sources do not prove checker, lowering, runtime ownership or native behavior. Existing blockers remain checker/lowering, property access lowering, runtime ownership, native backend and language benchmark runner. `benchmarkDisposition: deferred`, task `property-access-ownership-benchmark`; no timing or result. W-1536 revises only the direct-observer subrule recorded in W-1501, W-1512 and W-1516; it does not supersede those decisions. Rejected alternatives are a mandatory nominal wrapper, passing the RHS to observer init, synthetic `#version` aliases, RHS-based inference instead of logical type, and an observer that declares storage/accessors. |
@@ -9599,15 +9599,65 @@ Windows are comparison context only. Minimal LLVM and a fast native backend
 remain the release direction and research-only direction respectively; the
 builder, package, cross compilation, and budget evidence are implementation gaps.
 
-The W program profile names are `debug` for iteration and diagnostics, `release`
-for performance-first output, and `benchmark` for reproducible pinned work.
-These are separate from toolchain build/distribution profiles: toolchain
-`development` is for toolchain iteration, `release` is the performance-first
-default, `benchmark` is reproducible and pinned, and `size-experimental` is
-opt-in only. The informal `dev` name is recorded only as a naming opportunity,
-not an alias; the canonical W profile is `debug`, and this policy adds no CLI
-syntax. The Hello PE reduction below 1 KiB is an `opportunity` backlog item,
-not an automatic gate.
+W programs have exactly two base profiles: `debug` (`optimize: .none`,
+`checks: .full`) for iteration and diagnostics, and `release` (`optimize: .speed`,
+`checks: .safe`) for performance-first execution. `release` is the default.
+Benchmark is a recipe, `size` is a preset, proof is an assurance policy,
+distribution is an admission policy, and sanitizer/PGO are instrumentation
+lanes. Toolchain-builder profiles remain separate: `development`, `release`,
+`benchmark`, and opt-in `size-experimental`. `dev` remains only a naming
+opportunity. `build.w` is the only human-authored product configuration; this
+contract selects no compiler CLI spelling.
+
+The `size` preset defaults to `.performance`; opt-in `.compact` overlays only
+the optimize/strip/link defaults it owns, while individually explicit
+`build.w` fields take precedence. Required checks, target hardening, and runtime
+closure are not weakened by size selection. The release primary is stripped by
+default for efficient execution. Debug builds retain primary symbols by
+default, while a separate debug sidecar is independently selectable for either
+profile. Ordinary internal outputs need not include a full audit package or
+sidecar. Distribution admission, local-only by default, requires its selected
+proof policy, closed dependencies, signed target provenance, a complete audit
+package and receipt, and explicit release policy; a stripped primary can be
+inventoried alongside its sidecar and provenance.
+
+PIE and hardening are target-aware. Static PIE and full RELRO apply to ELF
+targets where supported; Windows PE uses its target hardening contract such as
+ASLR and DEP, not ELF PIE. Hardening is a target-required floor. WRT defaults to
+reachability-closed static linkage from the signed target pack. CRT defaults to
+declared-requirements-only `.auto`: it resolves to none without a declared
+transitive requirement, otherwise one exact target/ABI-compatible provider or
+an error. Target and ABI are explicit; CPU defaults to the versioned portable
+baseline. Deterministic outputs are required by the future product contract,
+but current compiler/build/receipt paths do not implement or evidence that
+requirement.
+
+Resolution binds target and ABI constraints first. The selected base profile
+establishes optimize/check defaults; the selected `size` preset overlays its
+own unspecified defaults; individual explicit `build.w` field values override
+both. Remaining recipe, platform, assurance, and instrumentation defaults
+apply afterward. Required safety, target hardening, runtime closure,
+determinism, and admission constraints cannot be overridden; contradictions
+fail closed. Benchmark pins inputs but is not a base profile. Promotion of a
+shared compact route needs its own benchmark and audit review. Proof may add
+obligations but does not change program semantics or weaken checks. Sanitizer
+and PGO-generate runtimes are explicit instrumentation-only dependencies; the
+final PGO-use output is a new recipe and re-establishes its own dependency
+closure.
+
+The exact reconstructed 784-byte Linux Hello PIE with full RELRO and 720-byte
+PIE with RELRO disabled are separate non-default size/hardening experiments,
+not product recipes or ranking cells. Source, toolchain, output hashes, and ELF
+audit facts are pinned in reconstruction evidence, but no public `build.w`
+recipe or product receipt binds those outputs yet. Both strip ELF section
+headers and non-loaded section data and reduce analysis information; the
+no-RELRO experiment also requires final-artifact proof of no interpreter,
+imports, or relocations. These reconstructions are not current product
+reproducibility evidence. The sub-1-KiB Hello remains an `opportunity` backlog
+item, not a gate. The seed's `--pie on|off` remains a temporary ELF control;
+retire it only after implemented target-aware `build.w` selection, receipt
+binding, and focused Windows ASLR/DEP and Linux/WSL ELF execution gates. This
+policy does not remove or implement the flag.
 
 The review after the first process-level LLVM optimization exposed another
 independent axis: runtime dependency closure. LLVM recognized a generated
@@ -9642,6 +9692,17 @@ receipt, binding mode, runtime implementation/version, target/ABI, link mode,
 provider manifest, allowed and observed dependencies, and a closure digest.
 The executable catalog will carry that digest-bound `runtimeClosure` axis;
 until it does, freestanding and hosted rows cannot share ranking or best cells.
+
+The future product build receipt is canonical deterministic CBOR under schema
+`w.build-receipt/1`. Its recipe identity binds normalized `build.w`, resolution,
+source/generated inputs, the base profile and orthogonal axes, target/CPU/ABI,
+toolchain and provider identities, deterministic environment, and runtime
+closure. Its output identity separately binds sorted relative paths, roles, and
+exact emitted bytes while excluding the receipt itself. Recipe and output
+identities do not include one another. A detached external DSSE envelope signs
+the exact CBOR payload. JSON is a non-authoritative display projection only.
+This future product receipt does not replace W-1534's current local JSON
+toolchain receipt.
 
 The dependency receipt spans post-opt IR externals, object-level undefined
 symbols, and final imports or dynamic dependencies. This is necessary because

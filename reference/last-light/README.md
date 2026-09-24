@@ -2423,9 +2423,9 @@ Antes de `rehome`, toda falha limpa os valores pelo allocator local. Durante `re
 toda falha limpa source e destino parcial uma vez. Um batch que reutiliza a
 capacity reentra em um bloco depois de `rehome`; `reset` continua interno e não
 é uma call source comum. O teste repete com allocator
-do sistema, buffer fixo e os profiles `benchmark` e `benchmark-mimalloc`. Os
-valores, errors e drops são os mesmos. Cada allocation mantém a origem
-declarada; provider measurements podem mudar.
+do sistema, buffer fixo e as recipes `benchmark` e `benchmark-mimalloc` sobre
+o base profile `release`. Os valores, errors e drops são os mesmos. Cada
+allocation mantém a origem declarada; provider measurements podem mudar.
 
 ### 3.34 As Três Últimas Noites
 

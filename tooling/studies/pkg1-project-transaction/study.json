@@ -12,25 +12,25 @@
     {
       "path": "../../../reference/last-light/build.w",
       "symbol": "workspace {",
-      "digest": "sha256:3f2c504a2d139ac24a44dd58892436f7d1ff608b5f3edf11913c445006548c75",
+      "digest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
       "claim": "Unified physical workspace root with nested resolution and deployments."
     },
     {
       "path": "../../../reference/last-light/build.w",
       "symbol": "package {",
-      "digest": "sha256:3f2c504a2d139ac24a44dd58892436f7d1ff608b5f3edf11913c445006548c75",
+      "digest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
       "claim": "Isolated package root remains a data-only manifest."
     },
     {
       "path": "../../../reference/last-light/BUILD.md",
       "symbol": "deployment",
-      "digest": "sha256:87927474ba1f0f06f5fa1af5bd417e5d01655a8820ec701a2914e24b496e72af",
+      "digest": "sha256:c23db7139c9efedf2c2a365a3625d603490830f8ce6b42644e9bb63fb5c0ac04",
       "claim": "Reference build documents named deployment records."
     },
     {
       "path": "../../../reference/last-light/build.w",
       "symbol": "resolution: {",
-      "digest": "sha256:3f2c504a2d139ac24a44dd58892436f7d1ff608b5f3edf11913c445006548c75",
+      "digest": "sha256:0ec9e184f850e3bd896a937c9875b725c51b4744c863070b82e55416fbf4950c",
       "claim": "Resolution is a nested logical record."
     }
   ],
@@ -118,7 +118,7 @@
     },
     {
       "path": "bundle.json",
-      "digest": "sha256:05ccffe7c99858d96636c8d222a74cd94ce73f55ef6fb3fa962b6db933bfe506",
+      "digest": "sha256:2f076f6a606c3f00ea7d9853a96348d28637299b88f638c8eae704cdc5d607d4",
       "role": "study-bundle"
     },
     {

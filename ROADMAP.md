@@ -73,13 +73,17 @@ argument accessors must not retain argc/argv capture, while an unknown receipt
 selects the complete closure. Do not infer this from filenames, imports, or a
 host-specific ELF parser; the same target product must be selected from any
 supported compiler host. Keep static PIE and CRT-free linkage as the default
-Hello product policy. An explicit non-PIE build is a separate, target-bound
-experiment for platform limits and later kernel/firmware work, not a silent
-replacement for the default. Compare size, compile latency, and runtime only
-within equivalent link and dependency policies. The seed CLI's `--pie on|off`
-is a temporary way to exercise this axis; a future target-aware build/profile
-policy should own the durable setting without conflating it with optimization
-or runtime closure.
+Linux/ELF Hello policy where supported. PE/Windows uses its target hardening
+contract, including ASLR/DEP, rather than ELF PIE. An explicit ELF non-PIE build
+is a separate, target-bound experiment for platform limits and later
+kernel/firmware work, not a silent replacement for the default. Compare size,
+compile latency, and runtime only within equivalent link and dependency
+policies. The seed CLI's `--pie on|off` remains a temporary ELF control. Do not
+remove it in this bundle; retire it only after an implemented target-aware
+`build.w` field drives ELF PIE selection, the resolved target and
+`w.build-receipt/1` bind the choice, and focused native Windows ASLR/DEP and
+Linux/WSL ELF execution gates pass. The durable setting is independent of
+optimization and runtime closure.
 
 The runtime-closure axis is independent from target environment and W program
 or toolchain profiles:
@@ -283,6 +287,22 @@ benchmarks retain their cleanup behavior. The W/WRT0 audit above verified this
 surface against both separate-object and combined-bitcode builds. Keep future
 inspection separate from ranked benchmark samples, remove raw traces at the
 next safe checkpoint, and retain only compact conclusions here.
+
+### Bounded package-centric build-root follow-up (W-1451 owner replacement)
+
+After the active compiler slice reaches a safe boundary, replace W-1451's
+workspace ownership of resolution and deployments with a package-centric
+build-root model. Keep `build.w` as the sole human-authored configuration, but
+make each package's root the authority for its package identity, target/recipe
+selection, dependency resolution, and deployment identity; a workspace serves
+only as an aggregate of package roots. First produce one compact source-backed
+model and fixture matrix for standalone packages, a package at the workspace
+root, package members, and duplicate or missing owners. The acceptance oracle
+must show each package is resolved once and that member order cannot change its
+recipe or output identity. Stop at that model plus focused host-oracle gate.
+Selecting concrete root syntax, changing the current W-1451 contract, or
+implementing resolver/compiler/CLI behavior is out of scope for this follow-up
+until its acceptance evidence is reviewed.
 
 ### Evidence promotion and safety closure
 
@@ -925,17 +945,18 @@ the rows must not be pooled. A portable native-Linux LLD lane remains an
 opt-in toolchain task, not a default switch.
 The Windows reduction folds unwind metadata into the existing
 read-only section while preserving separate executable and writable sections.
-Sub-1-KiB is feasible but not yet a `w build` product: stripping only ELF
-section headers and non-loaded section data from the exact Hello yields 784
-bytes, preserves PIE/RELRO and exact execution, but removes section-level
-information useful to analysis. An opt-in size route needs a self-contained
-implementation and an auditability check before promotion. For this loader-free
-Hello, the roughly 720-byte stripped `-z norelro` variant additionally saves
-64 bytes, but requires final-artifact proof of no interpreter, imports, or
-relocations; it is not a blanket default. These 784-byte PIE/RELRO and
-roughly 720-byte `-z norelro` experiments are distinct from the W+WRT0
-bitcode/LTO candidate above. `--no-rosegment` broadens executable mappings
-and is not a size-only substitute.
+Sub-1-KiB is feasible but not yet a `w build` product. The exact reconstructed
+784-byte PIE+RELRO and 720-byte PIE/no-RELRO Hello outputs omit ELF section
+headers and non-loaded section data, reducing information useful to analysis.
+They are distinct non-default size/hardening experiments, not product recipes
+or ranking cells. Source/toolchain/output hashes and ELF audit facts are pinned
+in their reconstruction evidence, but no public product recipe or receipt binds
+them. A promotable size route needs a public target/recipe/output identity,
+audit-package review, and its applicable benchmark gate. The no-RELRO variant
+additionally requires final-artifact proof of no interpreter, imports, or
+relocations. These reconstructions are distinct from the W+WRT0 bitcode/LTO
+candidate above.
+`--no-rosegment` broadens executable mappings and is not a size-only substitute.
 
 The maintained native route is `W source → verified HIR → MLIR → LLVM IR →
 object → link`. It never lowers W source through C. The C23 oracle remains an

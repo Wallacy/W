@@ -960,7 +960,6 @@ package {
         name: "debug"
         optimize: .none
         checks: .full
-        debug: .sidecar
         cpuPolicy: .portable
         memory: {
           generalAllocator: .system
@@ -973,7 +972,6 @@ package {
         name: "release"
         optimize: .speed
         checks: .safe
-        debug: .sidecar
         cpuPolicy: .portable
         memory: {
           generalAllocator: .system
@@ -982,33 +980,28 @@ package {
           automaticStorage: .infer
         }
       },
+    ]
+    recipes: [
       {
         name: "benchmark"
-        optimize: .speed
-        checks: .safe
-        debug: .none
+        baseProfile: "release"
+        kind: .benchmark
         cpuPolicy: .explicit
-        memory: {
-          generalAllocator: .system
-          representation: .optimized
-          dynamicAllocation: .allow
-          automaticStorage: .infer
-        }
+        cpu: "x86-64-v3"
+        features: ["+avx2", "+fma"]
       },
       {
         name: "benchmark-mimalloc"
-        optimize: .speed
-        checks: .safe
-        debug: .none
+        baseProfile: "release"
+        kind: .benchmark
         cpuPolicy: .explicit
+        cpu: "x86-64-v3"
+        features: ["+avx2", "+fma"]
         memory: {
           generalAllocator: .runtime(
             contract: "w.runtime/allocator.mimalloc@3",
             mode: .default,
           )
-          representation: .optimized
-          dynamicAllocation: .allow
-          automaticStorage: .infer
         }
       },
     ]
@@ -1493,7 +1486,8 @@ workspace {
           source: .product(
             "last-light-benchmark",
             target: "x86_64-unknown-linux-gnu",
-            profile: "benchmark",
+            profile: "release",
+            recipe: "benchmark",
             packing: "entry-only",
           )
         },

@@ -8,3 +8,12 @@ Reserved:
 - capture(...) is replaced by the contextual <[...]> capture prefix.
 - named type arguments and binding modifiers are not grammar forms.
 - URL, stdin, shebang, and ambient package discovery are reserved.
+- W compiler `--profile benchmark` and `--recipe ...` CLI spellings are not
+  selected. Persist build configuration in `build.w`; benchmark is a recipe over
+  `debug` or `release`, not a third base profile.
+- The `size` preset is `build.w` configuration, not a base profile. Compiler
+  `--size`, `--proof`, and `--distribution` CLI spellings are not selected.
+- The seed's `--pie on|off` remains a temporary ELF control. It is not a
+  permanent `build.w` spelling and is retired only after target-aware ELF PIE
+  implementation, receipt binding, and focused native Windows ASLR/DEP and
+  Linux/WSL ELF execution gates pass.
