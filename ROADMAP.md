@@ -511,9 +511,9 @@ verification cost when integrated, without adding a separate executable
 performance row for an internal analysis.
 The verifier now caches that analysis once per function while checking values:
 dominance can justify a binding read across branches, and analyzed loop headers
-can justify their carrier reads. This is preparatory only; general CFG
-acceptance, typed nested-loop carriers, and a source-backed native nested-loop
-witness remain open.
+can justify their carrier reads. Bounded HIR emission and verification now
+cover at most two natural loops with typed `i64` carriers; general CFG and the
+source-backed native nested-loop witness remain open.
 
 Ranks order the next integration proof, not a prohibition on parallel work. The
 fundamental `i8`–`u64` and `f32`/`f64` scalar path must feed ranks 2–3, but
@@ -594,49 +594,45 @@ retire each at its finite gate; parallel occupancy is not itself progress.
 The next rank-3 cut has three distinct gates. The parser and frontend now
 represent nested `while` loops and resolve labeled or unlabeled transfers to
 an explicit lexical loop statement; malformed, shadowed, or unresolved labels
-fail closed. Verified HIR now admits a label on its one bounded loop only when
-every labeled transfer resolves to that exact loop and matches its spelling;
-nested loops remain rejected. NativeSubset0 selects the resulting verified HIR
-and MLIR0 emits its CFG, but public executable evidence is still pending. HIR0
+fail closed. Verified HIR admits a label only when every labeled transfer
+resolves to its exact lexical loop and matches its spelling. NativeSubset0
+still selects only the earlier single-loop subset and MLIR0 emits that CFG;
+public executable evidence for nested loops is still pending. HIR0
 now preflights a bounded per-function source CFG plan: it records lexical loop
 parentage and frontend-resolved transfer targets, and its emission passes use
 the same deterministic planner. The plan now derives canonical per-frame
 signed-`i64` carried-root sets, including descendant writes and empty sets.
 A two-loop source proves these planning facts and a forged wrong-loop target
-fails closed, but nested HIR emission remains unsupported. The pinned
+fails closed. HIR0 now emits and independently verifies at most two natural
+loops, nested or sequential, with signed-`i64` carrier tuples. The verifier
+reconstructs each header, preheader, adapter and exit; proves dominance,
+lexical transfers, dense typed lanes and binding lineage; and distinguishes a
+loop header carrier from the exit carrier required after an adapted `break`
+path. Same-root sibling loops and an adapted child followed by a parent write
+have resealed adversarial mutations. Capacity and alias failures remain
+all-or-nothing. This is bounded HIR evidence, not a language-level loop limit.
+The pinned
 [`nested-labeled-while.w`](compiler/seed-c/fixtures/nested-labeled-while.w)
 has C23/Rust correctness references. Its functions, three local calls, nested
 transfers, interpolation, and entry are already represented by the frontend.
 A bare frontend probe correctly leaves `print` unresolved because it supplies
 no host scope; the Native0 product route supplies the explicit
-`native-process@1`/`Console` prelude. Nested HIR emission, not frontend
-representation, is the remaining product blocker.
-Next, extend that plan into the count/layout/value/terminator emission contract
-and independently verify the emitted graph;
-prove typed edge/carrier mapping and failure atomicity on a source-backed
-two-loop witness. NativeSubset0's broader i64-carrier screen is preparatory,
-not evidence for that witness. Only then extend MLIR/codegen and public
-Windows/Linux execution, followed by mixed CFG with multi-block returns.
+`native-process@1`/`Console` prelude. NativeSubset0, MLIR/codegen and public
+Windows/Linux execution of that nested witness remain the product blockers.
+Next, make those stages consume this verified graph without adding another
+source-shape recognizer, then continue with mixed CFG and multi-block returns.
 Do not add a second source-shape recognizer. General CFG, arbitrary payload
 types, optimizer quality, and cross-target performance remain open.
-The active blocker is HIR0's one-loop, flat-IF CFG verifier: source-backed
-nested lowering can form a multi-block graph, but no complete per-header
-dominance, carrier-tuple, and wrong-loop transfer proof is implemented. Do
-not promote that graph or a public nested-loop demo until the verifier proves
-both loops and the source-to-HIR gate rejects an adversarial wrong lexical
-target before writing output. A standalone, well-typed HIR graph cannot prove
-which source label was written; its verifier proves graph and carrier validity,
-not source equivalence. The next coherent HIR package needs one per-function
-plan shared by count/layout/value/terminator emission, with the already
-recorded bounded nested frames and frontend-resolved transfer targets, plus
-per-header typed-carrier verification. Do not ship a special two-loop
-source-shape recognizer.
+A standalone, well-typed HIR graph still cannot prove which source label was
+written; source equivalence remains owned by the pre-emission lexical plan,
+while the independent HIR verifier owns graph and carrier validity. The next
+promotion must preserve both proofs.
 
 The next disjoint family can be prepared beside the rank-3 CFG proof work:
 flat copyable tuple and value-struct construction, projection, local argument,
 and return semantics. Pin a source witness and independent C23/Rust correctness
-oracles, then assign frontend and native research separate ownership. Do not
-start its HIR writer until the nested-loop HIR change is integrated. This
+oracles, then assign frontend and native research separate ownership. Its HIR
+writer may start after this bounded nested-loop HIR package is committed. This
 bounded product-value slice would not close payload enums, fixed arrays,
 general aggregate layout, or the C ABI boundary; those need later exact
 witnesses. A parser-accepted aggregate form is not yet an executable product.

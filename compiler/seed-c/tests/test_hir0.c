@@ -1719,6 +1719,43 @@ static void setup_hir_output(void) {
       .cleanup_capacity = TEST_HIR_RECORDS};
 }
 
+static void set_hir_output_exact_capacities(
+    const w_seed_hir0_counts *counts) {
+  fixture.hir_output.module_capacity = counts->modules;
+  fixture.hir_output.identity_capacity = counts->identities;
+  fixture.hir_output.type_capacity = counts->types;
+  fixture.hir_output.enum_capacity = counts->enums;
+  fixture.hir_output.enum_case_capacity = counts->enum_cases;
+  fixture.hir_output.enum_case_parameter_capacity =
+      counts->enum_case_parameters;
+  fixture.hir_output.enum_subset_member_capacity = counts->enum_subset_members;
+  fixture.hir_output.function_capacity = counts->functions;
+  fixture.hir_output.parameter_capacity = counts->parameters;
+  fixture.hir_output.block_capacity = counts->blocks;
+  fixture.hir_output.block_argument_capacity = counts->block_arguments;
+  fixture.hir_output.edge_argument_capacity = counts->edge_arguments;
+  fixture.hir_output.switch_edge_capacity = counts->switch_edges;
+  fixture.hir_output.switch_capture_capacity = counts->switch_captures;
+  fixture.hir_output.instruction_capacity = counts->instructions;
+  fixture.hir_output.binding_capacity = counts->bindings;
+  fixture.hir_output.call_capacity = counts->calls;
+  fixture.hir_output.host_parameter_capacity = counts->host_parameters;
+  fixture.hir_output.argument_capacity = counts->arguments;
+  fixture.hir_output.enum_payload_capacity = counts->enum_payloads;
+  fixture.hir_output.requirement_capacity = counts->requirements;
+  fixture.hir_output.value_capacity = counts->values;
+  fixture.hir_output.interpolation_segment_capacity =
+      counts->interpolation_segments;
+  fixture.hir_output.terminator_capacity = counts->terminators;
+  fixture.hir_output.entry_capacity = counts->entries;
+  fixture.hir_output.text_byte_capacity = counts->text_bytes;
+  fixture.hir_output.value_byte_capacity = counts->value_bytes;
+  fixture.hir_output.receipt_capacity = counts->receipt_bytes;
+  fixture.hir_output.external_module_capacity = counts->external_modules;
+  fixture.hir_output.external_symbol_capacity = counts->external_symbols;
+  fixture.hir_output.cleanup_capacity = counts->cleanups;
+}
+
 static bool lower(const char *source) {
   CHECK(fixture_frontend(source));
   setup_hir_output();
@@ -9905,6 +9942,41 @@ static bool append_test_source(char *buffer, size_t capacity, size_t *used,
 }
 
 static bool test_nested_labeled_while_hir_boundary(void) {
+  static const char PINNED_FIXTURE_SOURCE[] =
+      "// Expected: exit 0; stdout: \"0,1,3\\n\"; stderr: \"\"\n"
+      "fn walk(limit: i64): i64 {\n"
+      "  var outer = 0\n"
+      "  var inner = 0\n"
+      "  var total = 0\n"
+      "  outerLoop: while outer < limit {\n"
+      "    outer = outer + 1\n"
+      "    inner = 0\n"
+      "    while inner < limit {\n"
+      "      inner = inner + 1\n"
+      "      if inner == 2 { continue }\n"
+      "      if inner == 3 { break }\n"
+      "      if outer == 4 { continue outerLoop }\n"
+      "      if outer == 5 { break outerLoop }\n"
+      "      total = total + 1\n"
+      "    }\n"
+      "  }\n"
+      "  return total\n"
+      "}\n"
+      "\n"
+      "entry {\n"
+      "  let zero = walk(limit: 0)\n"
+      "  let one = walk(limit: 1)\n"
+      "  let six = walk(limit: 6)\n"
+      "  print(\"${zero},${one},${six}\")\n"
+      "}\n";
+  /* Exercise the exact pinned source, including its local calls, interpolation,
+   * process prelude, and anonymous entry, through public measure/run/verify. */
+  CHECK(lower_single_print_host(PINNED_FIXTURE_SOURCE));
+  w_seed_hir0_cfg_analysis pinned_cfg;
+  CHECK(fixture.hir_program.function_count >= 1u &&
+        w_seed_hir0_cfg_analyze(&fixture.hir_program, 0u, &pinned_cfg) &&
+        pinned_cfg.loop_count == 2u);
+
   static const char NESTED_SOURCE[] =
       "fn walk(limit: i64): i64 {\n"
       "  var outer = 0\n"
@@ -10027,13 +10099,8 @@ static bool test_nested_labeled_while_hir_boundary(void) {
   nested_plan.frames[0].root_statements[1] = saved_lane_root;
   fill_hir_output(sentinel);
   CHECK(!hir0_cfg_plan_emission_verify(&nested_input, &nested_plan));
-  /* A forged same-typed header tuple is rejected by the private verifier
-   * before any public output/result state can be published. Public run also
-   * remains closed for this nested source shape. */
-  CHECK(hir_output_is_byte(sentinel) &&
-        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
-  CHECK(w_seed_hir0_run(&nested_input, &fixture.hir_output, &rejected) ==
-        W_SEED_HIR0_UNSUPPORTED);
+  /* A forged same-typed private header tuple is rejected before public output
+   * state can be published. */
   CHECK(hir_output_is_byte(sentinel) &&
         memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
   nested_plan.frames[0].root_statements[1] =
@@ -10160,24 +10227,146 @@ static bool test_nested_labeled_while_hir_boundary(void) {
         memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
   fixture.statements[outer_break_statement].transfer_target_statement =
       outer_break_target;
+  CHECK(hir0_function_cfg_plan_build(&nested_input, 0u, &nested_plan));
 
   w_seed_hir0_counts nested_counts;
   w_seed_hir0_result nested_measure;
   CHECK(w_seed_hir0_measure(&nested_input, &nested_counts, &nested_measure) ==
-        W_SEED_HIR0_UNSUPPORTED);
+        W_SEED_HIR0_OK);
   fill_hir_output(sentinel);
+  set_hir_output_exact_capacities(&nested_counts);
+  CHECK(w_seed_hir0_run(&nested_input, &fixture.hir_output,
+                        &fixture.hir_result) ==
+        W_SEED_HIR0_OK);
+  fixture.hir_counts = nested_counts;
+  CHECK(w_seed_hir0_program_from_output(&fixture.hir_output,
+                                       &fixture.hir_result,
+                                       &fixture.hir_program));
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  CHECK(fixture.hir_program.function_count == 1u &&
+        fixture.hir_program.functions[0].block_count == 21u &&
+        fixture.hir_program.block_argument_count == 10u &&
+        fixture.hir_program.edge_argument_count == 25u);
+  w_seed_hir0_cfg_analysis emitted_nested_cfg;
+  CHECK(w_seed_hir0_cfg_analyze(&fixture.hir_program, 0u,
+                                &emitted_nested_cfg) &&
+        emitted_nested_cfg.loop_count == 2u &&
+        emitted_nested_cfg.loops[0].header_block == outer_frame->header_block &&
+        emitted_nested_cfg.loops[1].header_block == inner_frame->header_block);
+
+  /* Resealed graph mutations must fail structural proof, not only the digest
+   * check: the outer break cannot target the inner header or swap equal-typed
+   * carrier lanes, and block-argument owner/ordinal records stay exact. */
+  uint32_t outer_exit_adapter =
+      fixture.hir_program.terminators[outer_frame->header_block].else_block;
+  uint32_t outer_exit = fixture.hir_program.terminators[outer_exit_adapter]
+                            .target_block;
+  uint32_t outer_break_block = W_SEED_HIR0_NONE;
+  size_t outer_break_candidate_count = 0u;
+  for (size_t block = 0u; block < fixture.hir_program.block_count; block += 1u) {
+    const w_seed_hir0_terminator *term =
+        &fixture.hir_program.terminators[
+            fixture.hir_program.blocks[block].terminator_index];
+    bool direct_loop_branch_arm = false;
+    for (size_t predecessor = 0u;
+         predecessor < fixture.hir_program.block_count; predecessor += 1u) {
+      const w_seed_hir0_terminator *predecessor_term =
+          &fixture.hir_program.terminators[
+              fixture.hir_program.blocks[predecessor].terminator_index];
+      if (predecessor_term->kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+          (predecessor_term->target_block == block ||
+           predecessor_term->else_block == block) &&
+          w_seed_hir0_cfg_is_in_loop(
+              &emitted_nested_cfg, (uint32_t)outer_frame->header_block,
+              (uint32_t)predecessor))
+        direct_loop_branch_arm = true;
+    }
+    if (term->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        term->target_block == outer_exit && block != outer_exit_adapter &&
+        direct_loop_branch_arm) {
+      outer_break_block = (uint32_t)block;
+      outer_break_candidate_count += 1u;
+    }
+  }
+  CHECK(outer_break_block != W_SEED_HIR0_NONE &&
+        outer_break_candidate_count == 1u);
+  const uint32_t outer_break_term =
+      fixture.hir_program.blocks[outer_break_block].terminator_index;
+  const uint32_t outer_break_first_edge =
+      fixture.hir_program.terminators[outer_break_term].first_edge_argument;
+  const uint32_t saved_outer_break_target =
+      fixture.hir_terminators[outer_break_term].target_block;
+  fixture.hir_terminators[outer_break_term].target_block =
+      (uint32_t)inner_frame->header_block;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_terminators[outer_break_term].target_block =
+      saved_outer_break_target;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  const w_seed_hir0_edge_argument saved_outer_lane_one =
+      fixture.hir_edge_arguments[outer_break_first_edge + 1u];
+  const w_seed_hir0_edge_argument saved_outer_lane_two =
+      fixture.hir_edge_arguments[outer_break_first_edge + 2u];
+  fixture.hir_edge_arguments[outer_break_first_edge + 1u].value_index =
+      saved_outer_lane_two.value_index;
+  fixture.hir_edge_arguments[outer_break_first_edge + 2u].value_index =
+      saved_outer_lane_one.value_index;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_edge_arguments[outer_break_first_edge + 1u] =
+      saved_outer_lane_one;
+  fixture.hir_edge_arguments[outer_break_first_edge + 2u] =
+      saved_outer_lane_two;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  const uint32_t inner_first_argument =
+      fixture.hir_blocks[inner_frame->header_block].first_block_argument;
+  const w_seed_hir0_block_argument saved_inner_owner =
+      fixture.hir_block_arguments[inner_first_argument];
+  fixture.hir_block_arguments[inner_first_argument].owner_block =
+      (uint32_t)outer_frame->header_block;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_block_arguments[inner_first_argument] = saved_inner_owner;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_block_arguments[inner_first_argument].ordinal = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_block_arguments[inner_first_argument] = saved_inner_owner;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  setup_hir_output();
+  fill_hir_output(sentinel);
+  fixture.hir_output.block_capacity = nested_counts.blocks - 1u;
+  rejected = rejected_before;
   CHECK(w_seed_hir0_run(&nested_input, &fixture.hir_output, &rejected) ==
-        W_SEED_HIR0_UNSUPPORTED);
+        W_SEED_HIR0_CAPACITY);
+  CHECK(hir_output_is_byte(sentinel) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+  setup_hir_output();
+  fill_hir_output(sentinel);
+  w_seed_hir0_output nested_alias = fixture.hir_output;
+  nested_alias.values = (w_seed_hir0_value *)(void *)nested_alias.types;
+  rejected = rejected_before;
+  CHECK(w_seed_hir0_run(&nested_input, &nested_alias, &rejected) ==
+        W_SEED_HIR0_INVALID);
   CHECK(hir_output_is_byte(sentinel) &&
         memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
 
   static const char SIBLING_SOURCE[] =
       "fn siblings(limit: i64): i64 {\n"
-      "  var first = 0\n"
-      "  var second = 0\n"
-      "  while first < limit { first = first + 1 }\n"
-      "  while second < limit { second = second + 1 }\n"
-      "  return first + second\n"
+      "  var count = 0\n"
+      "  while count < limit {\n"
+      "    count = count + 1\n"
+      "    if count == 2 { break }\n"
+      "  }\n"
+      "  while count < limit { count = count + 1 }\n"
+      "  return count\n"
       "}\nentry(siblings)\n";
   CHECK(fixture_frontend(SIBLING_SOURCE));
   CHECK(fixture.result.status == W_SEED_FRONTEND_OK);
@@ -10195,7 +10384,10 @@ static bool test_nested_labeled_while_hir_boundary(void) {
         first_sibling->exit_block == second_sibling->preheader_block &&
         first_sibling->exit_block < second_sibling->header_block &&
         first_sibling->exit_block < second_sibling->exit_block &&
-        first_sibling->root_count == 1u && second_sibling->root_count == 1u);
+        first_sibling->root_count == 1u && second_sibling->root_count == 1u &&
+        first_sibling->root_statements[0] ==
+            second_sibling->root_statements[0] &&
+        first_sibling->exit_adapter_block != SIZE_MAX);
   fill_hir_output(sentinel);
   const size_t saved_sibling_preheader = second_sibling->preheader_block;
   sibling_plan.frames[1].preheader_block = first_sibling->header_block;
@@ -10208,6 +10400,68 @@ static bool test_nested_labeled_while_hir_boundary(void) {
                sizeof(sibling_rejected)) == 0);
   sibling_plan.frames[1].preheader_block = saved_sibling_preheader;
   CHECK(hir0_cfg_plan_emission_verify(&sibling_input, &sibling_plan));
+
+  w_seed_hir0_counts sibling_counts;
+  w_seed_hir0_result sibling_measure;
+  CHECK(w_seed_hir0_measure(&sibling_input, &sibling_counts,
+                            &sibling_measure) == W_SEED_HIR0_OK);
+  setup_hir_output();
+  fill_hir_output(sentinel);
+  set_hir_output_exact_capacities(&sibling_counts);
+  CHECK(w_seed_hir0_run(&sibling_input, &fixture.hir_output,
+                        &fixture.hir_result) == W_SEED_HIR0_OK);
+  fixture.hir_counts = sibling_counts;
+  CHECK(w_seed_hir0_program_from_output(&fixture.hir_output,
+                                       &fixture.hir_result,
+                                       &fixture.hir_program));
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  w_seed_hir0_cfg_analysis emitted_sibling_cfg;
+  CHECK(w_seed_hir0_cfg_analyze(&fixture.hir_program, 0u,
+                                &emitted_sibling_cfg) &&
+        emitted_sibling_cfg.loop_count == 2u &&
+        (emitted_sibling_cfg.loops[0].member_blocks &
+         emitted_sibling_cfg.loops[1].member_blocks) == 0u);
+  const w_seed_hir0_block *first_sibling_header =
+      &fixture.hir_blocks[first_sibling->header_block];
+  const w_seed_hir0_block *first_sibling_exit =
+      &fixture.hir_blocks[first_sibling->exit_block];
+  const w_seed_hir0_block *second_sibling_preheader =
+      &fixture.hir_blocks[second_sibling->preheader_block];
+  const w_seed_hir0_terminator *second_sibling_preheader_term =
+      &fixture.hir_terminators[second_sibling_preheader->terminator_index];
+  CHECK(first_sibling_header->block_argument_count == 1u &&
+        first_sibling_exit->block_argument_count == 1u &&
+        second_sibling_preheader_term->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        second_sibling_preheader_term->target_block ==
+            second_sibling->header_block &&
+        second_sibling_preheader_term->edge_argument_count == 1u);
+  w_seed_hir0_edge_argument *second_sibling_edge =
+      &fixture.hir_edge_arguments[
+          second_sibling_preheader_term->first_edge_argument];
+  CHECK(second_sibling_edge->value_index < fixture.hir_program.value_count);
+  w_seed_hir0_value *second_sibling_carrier =
+      &fixture.hir_values[second_sibling_edge->value_index];
+  const w_seed_hir0_value saved_second_sibling_carrier =
+      *second_sibling_carrier;
+  CHECK(second_sibling_carrier->kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        second_sibling_carrier->block_argument_index ==
+            first_sibling_exit->first_block_argument);
+  second_sibling_carrier->block_argument_index =
+      first_sibling_header->first_block_argument;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  *second_sibling_carrier = saved_second_sibling_carrier;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  setup_hir_output();
+  fill_hir_output(sentinel);
+  fixture.hir_output.block_capacity = sibling_counts.blocks - 1u;
+  rejected = rejected_before;
+  CHECK(w_seed_hir0_run(&sibling_input, &fixture.hir_output, &rejected) ==
+        W_SEED_HIR0_CAPACITY);
+  CHECK(hir_output_is_byte(sentinel) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
 
   static const char LABELED_SOURCE[] =
       "fn scan(limit: i64): i64 {\n"
@@ -10283,6 +10537,328 @@ static bool test_nested_labeled_while_hir_boundary(void) {
   CHECK(hir_output_is_byte(sentinel) &&
         memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
   fixture.statements[break_statement].transfer_target_statement = saved_target;
+  return true;
+}
+
+static bool test_nested_post_child_update_lineage(void) {
+  static const char SOURCE[] =
+      "fn lineage(limit: i64): i64 {\n"
+      "  var count = 0\n"
+      "  while count < limit {\n"
+      "    while count < limit {\n"
+      "      count = count + 1\n"
+      "      if count == 2 { break }\n"
+      "    }\n"
+      "    count = count + 1\n"
+      "    count = count + 1\n"
+      "  }\n"
+      "  return count\n"
+      "}\nentry(lineage)\n";
+  CHECK(lower(SOURCE));
+  uint32_t root_statement = W_SEED_FRONTEND_NONE;
+  uint32_t loop_statements[2] = {W_SEED_FRONTEND_NONE,
+                                 W_SEED_FRONTEND_NONE};
+  size_t loop_count = 0u;
+  for (size_t index = 0u; index < fixture.result.written.statements;
+       index += 1u) {
+    const w_seed_frontend_statement *statement = &fixture.statements[index];
+    if (statement->kind == W_SEED_FRONTEND_STMT_VAR &&
+        text_is(statement->binding_name, "count"))
+      root_statement = (uint32_t)index;
+    if (statement->kind == W_SEED_FRONTEND_STMT_WHILE && loop_count < 2u)
+      loop_statements[loop_count++] = (uint32_t)index;
+  }
+  CHECK(root_statement != W_SEED_FRONTEND_NONE && loop_count == 2u);
+  uint32_t root_binding = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < fixture.hir_program.binding_count;
+       index += 1u) {
+    const w_seed_hir0_binding *binding = &fixture.hir_bindings[index];
+    if (binding->previous_version == W_SEED_HIR0_NONE &&
+        span_equal(binding->source_span,
+                   fixture.statements[root_statement].span)) {
+      root_binding = (uint32_t)index;
+      break;
+    }
+  }
+  CHECK(root_binding != W_SEED_HIR0_NONE);
+  uint32_t assignment_statements[3] = {W_SEED_FRONTEND_NONE,
+                                       W_SEED_FRONTEND_NONE,
+                                       W_SEED_FRONTEND_NONE};
+  size_t assignment_count = 0u;
+  for (size_t index = 0u; index < fixture.result.written.statements;
+       index += 1u) {
+    const w_seed_frontend_statement *statement = &fixture.statements[index];
+    if (statement->kind != W_SEED_FRONTEND_STMT_EXPRESSION ||
+        statement->expression_index == W_SEED_FRONTEND_NONE)
+      continue;
+    const w_seed_frontend_expression *expression =
+        &fixture.expressions[statement->expression_index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_ASSIGNMENT ||
+        expression->left == W_SEED_FRONTEND_NONE ||
+        fixture.expressions[expression->left]
+                .resolved_binding_statement != root_statement)
+      continue;
+    CHECK(assignment_count < 3u);
+    assignment_statements[assignment_count++] = (uint32_t)index;
+  }
+  CHECK(assignment_count == 3u);
+  uint32_t versions[3] = {W_SEED_HIR0_NONE, W_SEED_HIR0_NONE,
+                          W_SEED_HIR0_NONE};
+  for (size_t version = 0u; version < 3u; version += 1u) {
+    for (size_t index = 0u; index < fixture.hir_program.binding_count;
+         index += 1u) {
+      const w_seed_hir0_binding *binding = &fixture.hir_bindings[index];
+      if (binding->source_binding == root_binding &&
+          span_equal(binding->source_span,
+                     fixture.statements[assignment_statements[version]].span))
+        versions[version] = (uint32_t)index;
+    }
+    CHECK(versions[version] != W_SEED_HIR0_NONE);
+  }
+  CHECK(fixture.hir_bindings[versions[0]].next_version == versions[1] &&
+        fixture.hir_bindings[versions[1]].next_version == versions[2]);
+
+  size_t outer_loop = loop_statements[0];
+  size_t inner_loop = loop_statements[1];
+  if (fixture.statements[inner_loop].span.start_byte <
+      fixture.statements[outer_loop].span.start_byte) {
+    const size_t swap = outer_loop;
+    outer_loop = inner_loop;
+    inner_loop = swap;
+  }
+  CHECK(fixture.statements[outer_loop].span.start_byte <
+            fixture.statements[inner_loop].span.start_byte &&
+        fixture.statements[outer_loop].span.end_byte >
+            fixture.statements[inner_loop].span.end_byte);
+  uint32_t loop_headers[2] = {W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
+  const uint32_t ordered_loops[2] = {(uint32_t)outer_loop,
+                                     (uint32_t)inner_loop};
+  for (size_t loop = 0u; loop < 2u; loop += 1u)
+    for (size_t block = fixture.hir_program.functions[0].first_block;
+         block < (size_t)fixture.hir_program.functions[0].first_block +
+                     fixture.hir_program.functions[0].block_count;
+         block += 1u) {
+      const w_seed_hir0_block *record = &fixture.hir_blocks[block];
+      const w_seed_hir0_terminator *term =
+          &fixture.hir_terminators[record->terminator_index];
+      if (term->kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+          span_equal(term->source_span,
+                     fixture.statements[ordered_loops[loop]].span))
+        loop_headers[loop] = (uint32_t)block;
+    }
+  CHECK(loop_headers[0] != W_SEED_HIR0_NONE &&
+        loop_headers[1] != W_SEED_HIR0_NONE);
+  w_seed_hir0_cfg_analysis lineage_cfg;
+  CHECK(w_seed_hir0_cfg_analyze(&fixture.hir_program, 0u, &lineage_cfg) &&
+        w_seed_hir0_cfg_dominates(
+            &lineage_cfg, loop_headers[1],
+            fixture.hir_bindings[versions[1]].owner_block));
+  const w_seed_hir0_block *outer_header =
+      &fixture.hir_blocks[loop_headers[0]];
+  const w_seed_hir0_block *inner_header =
+      &fixture.hir_blocks[loop_headers[1]];
+  const w_seed_hir0_terminator *inner_header_term =
+      &fixture.hir_terminators[inner_header->terminator_index];
+  CHECK(inner_header_term->kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        inner_header_term->else_block < fixture.hir_program.block_count);
+  const w_seed_hir0_block *inner_adapter =
+      &fixture.hir_blocks[inner_header_term->else_block];
+  const w_seed_hir0_terminator *inner_adapter_term =
+      &fixture.hir_terminators[inner_adapter->terminator_index];
+  CHECK(inner_adapter->block_argument_count == 0u &&
+        inner_adapter_term->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        inner_adapter_term->target_block < fixture.hir_program.block_count);
+  const w_seed_hir0_block *inner_exit =
+      &fixture.hir_blocks[inner_adapter_term->target_block];
+  CHECK(outer_header->block_argument_count == 1u &&
+        inner_header->block_argument_count == 1u &&
+        inner_exit->block_argument_count == 1u);
+
+  const w_seed_hir0_value *first_parent_update =
+      &fixture.hir_values[fixture.hir_bindings[versions[1]].initializer_value];
+  const w_seed_hir0_value *second_parent_update =
+      &fixture.hir_values[fixture.hir_bindings[versions[2]].initializer_value];
+  CHECK(first_parent_update->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        first_parent_update->left_value < fixture.hir_program.value_count &&
+        fixture.hir_values[first_parent_update->left_value].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        fixture.hir_values[first_parent_update->left_value]
+                .block_argument_index == inner_exit->first_block_argument);
+  const uint32_t first_parent_read_index = first_parent_update->left_value;
+  w_seed_hir0_value *first_parent_read =
+      &fixture.hir_values[first_parent_read_index];
+  const w_seed_hir0_value saved_first_parent_read = *first_parent_read;
+  CHECK(fixture.hir_bindings[versions[0]].source_binding == root_binding &&
+        fixture.hir_bindings[versions[0]].type_index ==
+            saved_first_parent_read.type_index);
+  first_parent_read->kind = W_SEED_HIR0_VALUE_BINDING_READ;
+  first_parent_read->binding_index = versions[0];
+  first_parent_read->block_argument_index = W_SEED_HIR0_NONE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  *first_parent_read = saved_first_parent_read;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  first_parent_read->block_argument_index =
+      inner_header->first_block_argument;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  *first_parent_read = saved_first_parent_read;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  CHECK(second_parent_update->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        second_parent_update->left_value < fixture.hir_program.value_count &&
+        fixture.hir_values[second_parent_update->left_value].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ &&
+        fixture.hir_values[second_parent_update->left_value].binding_index ==
+            versions[1]);
+
+  uint32_t outer_backedge = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < fixture.hir_program.terminator_count;
+       index += 1u) {
+    const w_seed_hir0_terminator *term = &fixture.hir_terminators[index];
+    if (term->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        term->target_block == loop_headers[0] &&
+        term->owner_block > loop_headers[0])
+      outer_backedge = (uint32_t)index;
+  }
+  CHECK(outer_backedge != W_SEED_HIR0_NONE);
+  const w_seed_hir0_terminator *backedge =
+      &fixture.hir_terminators[outer_backedge];
+  CHECK(backedge->edge_argument_count == 1u &&
+        backedge->first_edge_argument < fixture.hir_program.edge_argument_count);
+  const uint32_t backedge_index = backedge->first_edge_argument;
+  const w_seed_hir0_edge_argument saved_backedge =
+      fixture.hir_edge_arguments[backedge_index];
+  const w_seed_hir0_value *backedge_value =
+      &fixture.hir_values[saved_backedge.value_index];
+  CHECK(backedge_value->kind == W_SEED_HIR0_VALUE_BINDING_READ &&
+        backedge_value->binding_index == versions[2]);
+
+  const w_seed_hir0_terminator *outer_condition =
+      &fixture.hir_terminators[outer_header->terminator_index];
+  CHECK(outer_condition->value_index < fixture.hir_program.value_count);
+  const uint32_t condition_value = outer_condition->value_index;
+  CHECK(fixture.hir_values[condition_value].kind ==
+            W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON &&
+        fixture.hir_values[condition_value].left_value <
+            fixture.hir_program.value_count);
+  const uint32_t condition_read =
+      fixture.hir_values[condition_value].left_value;
+  CHECK(fixture.hir_values[condition_read].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        fixture.hir_values[condition_read].block_argument_index ==
+            outer_header->first_block_argument);
+  const uint32_t saved_condition_argument =
+      fixture.hir_values[condition_read].block_argument_index;
+  fixture.hir_values[condition_read].block_argument_index =
+      inner_header->first_block_argument;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[condition_read].block_argument_index =
+      saved_condition_argument;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  w_seed_hir0_value *backedge_value_record =
+      &fixture.hir_values[saved_backedge.value_index];
+  const w_seed_hir0_value saved_backedge_value = *backedge_value_record;
+  backedge_value_record->kind = W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ;
+  backedge_value_record->binding_index = W_SEED_HIR0_NONE;
+  backedge_value_record->block_argument_index =
+      inner_header->first_block_argument;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  *backedge_value_record = saved_backedge_value;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_nested_child_exit_carrier_on_outer_break(void) {
+  static const char SOURCE[] =
+      "fn outerBreak(limit: i64): i64 {\n"
+      "  var outer = 0\n"
+      "  var count = 0\n"
+      "  while outer < limit {\n"
+      "    outer = outer + 1\n"
+      "    while count < limit {\n"
+      "      count = count + 1\n"
+      "      if count == 2 { break }\n"
+      "    }\n"
+      "    if outer == 2 { break }\n"
+      "  }\n"
+      "  return count\n"
+      "}\nentry(outerBreak)\n";
+  CHECK(lower(SOURCE));
+  w_seed_hir0_input input = hir_input();
+  hir0_function_cfg_plan plan;
+  CHECK(hir0_function_cfg_plan_build(&input, 0u, &plan) &&
+        plan.frame_count == 2u && plan.frames[0].parent_frame ==
+                                      W_SEED_FRONTEND_NONE &&
+        plan.frames[1].parent_frame == 0u &&
+        plan.frames[0].root_count == 2u &&
+        plan.frames[1].root_count == 1u &&
+        plan.frames[0].transfer_count == 1u &&
+        plan.frames[1].transfer_count == 1u);
+
+  const hir0_cfg_loop_frame *outer = &plan.frames[0];
+  const hir0_cfg_loop_frame *inner = &plan.frames[1];
+  size_t outer_count_lane = outer->root_count;
+  for (size_t lane = 0u; lane < outer->root_count; lane += 1u)
+    if (outer->root_statements[lane] == inner->root_statements[0])
+      outer_count_lane = lane;
+  CHECK(outer_count_lane < outer->root_count);
+  const w_seed_hir0_block *outer_header =
+      &fixture.hir_blocks[outer->header_block];
+  const w_seed_hir0_block *inner_exit =
+      &fixture.hir_blocks[inner->exit_block];
+  CHECK(outer_header->block_argument_count == outer->root_count &&
+        outer_header->first_block_argument != W_SEED_HIR0_NONE &&
+        inner_exit->block_argument_count == 1u &&
+        inner_exit->first_block_argument != W_SEED_HIR0_NONE);
+
+  uint32_t outer_break_terminator = W_SEED_HIR0_NONE;
+  size_t outer_break_count = 0u;
+  for (size_t block = fixture.hir_program.functions[0].first_block;
+       block < (size_t)fixture.hir_program.functions[0].first_block +
+                   fixture.hir_program.functions[0].block_count;
+       block += 1u) {
+    const w_seed_hir0_terminator *term =
+        &fixture.hir_terminators[fixture.hir_blocks[block].terminator_index];
+    if (term->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        term->target_block == outer->exit_block &&
+        block != outer->exit_adapter_block) {
+      outer_break_terminator = fixture.hir_blocks[block].terminator_index;
+      outer_break_count += 1u;
+    }
+  }
+  CHECK(outer_break_terminator != W_SEED_HIR0_NONE &&
+        outer_break_count == 1u);
+  w_seed_hir0_terminator *outer_break =
+      &fixture.hir_terminators[outer_break_terminator];
+  CHECK(outer_break->edge_argument_count == outer->root_count &&
+        outer_break->first_edge_argument != W_SEED_HIR0_NONE);
+  w_seed_hir0_edge_argument *outer_break_edge =
+      &fixture.hir_edge_arguments[outer_break->first_edge_argument +
+                                  outer_count_lane];
+  CHECK(outer_break_edge->value_index < fixture.hir_program.value_count);
+  w_seed_hir0_value *outer_break_value =
+      &fixture.hir_values[outer_break_edge->value_index];
+  CHECK(outer_break_value->kind ==
+        W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        outer_break_value->block_argument_index ==
+            inner_exit->first_block_argument);
+
+  const uint32_t saved_child_exit_argument =
+      outer_break_value->block_argument_index;
+  outer_break_value->block_argument_index =
+      outer_header->first_block_argument + (uint32_t)outer_count_lane;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  outer_break_value->block_argument_index = saved_child_exit_argument;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   return true;
 }
 
@@ -10405,6 +10981,25 @@ static bool expect_branch_mutation_unsupported(const char *source) {
   return true;
 }
 
+static bool expect_nested_loop_supported(const char *source) {
+  CHECK(fixture_frontend(source));
+  setup_hir_output();
+  const w_seed_hir0_input input = hir_input();
+  w_seed_hir0_counts counts;
+  w_seed_hir0_result result;
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) == W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &fixture.hir_result) ==
+        W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_program_from_output(&fixture.hir_output,
+                                       &fixture.hir_result,
+                                       &fixture.hir_program));
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  w_seed_hir0_cfg_analysis analysis;
+  CHECK(w_seed_hir0_cfg_analyze(&fixture.hir_program, 0u, &analysis) &&
+        analysis.loop_count == 2u);
+  return true;
+}
+
 static bool test_while_mutation_barriers(void) {
   CHECK(expect_branch_mutation_unsupported(
       "fn countTo(limit: i64): i64 {\n"
@@ -10431,7 +11026,7 @@ static bool test_while_mutation_barriers(void) {
       "  while count < limit { count = adjust(value: count) }\n"
       "  return count\n"
       "}\nentry(countTo)\n"));
-  CHECK(expect_branch_mutation_unsupported(
+  CHECK(expect_nested_loop_supported(
       "fn countTo(limit: i64): i64 {\n"
       "  var count = 0\n"
       "  while count < limit { while count < limit { count = count + 1 } }\n"
@@ -20946,6 +21541,8 @@ int main(int argc, char **argv) {
   if (!test_while_post_loop_continuation_ssa()) return 1;
   if (!test_while_break_continue_shared_exit()) return 1;
   if (!test_nested_labeled_while_hir_boundary()) return 1;
+  if (!test_nested_post_child_update_lineage()) return 1;
+  if (!test_nested_child_exit_carrier_on_outer_break()) return 1;
   if (!test_cfg_plan_carrier_overflow_rejected()) return 1;
   if (!test_cfg_plan_nested_empty_carriers()) return 1;
   if (!test_while_multi_carrier_general_values()) return 1;

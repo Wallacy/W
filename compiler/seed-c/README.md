@@ -1775,32 +1775,33 @@ the corresponding loop-header and shared-exit phi values.
 Public Windows and Linux/WSL `w run` and `w build` gates execute the same
 source. Its three calls cover a false initial condition, the continue path,
 and the break path, printing exactly `0,4,8\n` with exit 0 and empty stderr.
-The Linux build gate checks CRT-free ELF closure. The parser/frontend now
-represent nested `while` loops and bind `break`/`continue` (with or without a
-label) to an explicit enclosing loop statement. HIR0 admits a label on its
-single bounded loop when each labeled transfer names and targets that loop;
-forged labels or targets fail before output. The source-to-HIR preflight now
-plans bounded lexical loop frames, their parentage and transfer targets; a
-two-loop planning witness rejects a forged outer-to-inner target. The plan
-also derives canonical signed-`i64` carried-root sets per frame, including
-descendant writes in ancestor sets, deduplicated roots and empty sets. These
-are private planning facts, not emitted HIR: per-header SSA edges, dominance
-and independent carrier-provenance verification remain open. Nested loops
-still fail closed. The pinned
+The Linux build gate checks CRT-free ELF closure. The parser/frontend represent
+nested `while` loops and bind `break`/`continue` (with or without a label) to an
+explicit enclosing loop statement. The source-to-HIR preflight plans at most
+two lexical loop frames, their parentage, resolved transfer targets and
+canonical signed-`i64` carried-root sets, including descendant writes in
+ancestor sets, deduplicated roots and empty sets. Count, layout, value and
+terminator emission consume that same plan.
+
+HIR0 now emits and independently verifies the bounded graph for nested or
+sequential loops. It reconstructs each natural loop from HIR, verifies typed
+header and exit lanes, dominance, dense ownership, lexical transfer routing and
+binding-version lineage. A loop with a `break` adapter has distinct header and
+exit carriers: code after the loop must use the exit carrier. Resealed tests
+reject a stale child-header read after the child and the same forgery feeding a
+same-root sibling loop. Wrong owner, lane, target, capacity and alias mutations
+also fail closed without publishing partial output. This bound is an HIR0 seed
+envelope, not a language or ABI limit. The pinned
 [`nested-labeled-while.w`](fixtures/nested-labeled-while.w) source has C23 and
 Rust 2024 correctness references that print `0,1,3\n`; its current W parser
 and frontend represent the functions, three local calls, nested transfers,
 interpolation, and entry. A bare frontend probe has no host scope and therefore
 correctly reports `print` unresolved; Native0 supplies the explicit
-`native-process@1`/`Console` prelude. Nested HIR emission remains unsupported,
-so no W native result is claimed. A source-backed NativeSubset0/MLIR0 test
-selects and emits the same-loop labeled CFG. No public executable labeled-loop
-witness is claimed. The plan-only change has
-`compiler-lifecycle` benchmark disposition; it adds no executable performance
-row.
-NativeSubset0's broader bounded i64-carrier CFG screen is only a preparatory
-selection change. General mixed CFG, other carrier types, and performance
-equivalence remain open.
+`native-process@1`/`Console` prelude. NativeSubset0 and MLIR0 have not yet been
+promoted for this nested graph, so no W native nested-loop result is claimed.
+The bounded HIR change has `compiler-lifecycle` benchmark disposition; it adds
+no executable performance row. General mixed CFG, other carrier types, native
+nested execution and performance equivalence remain open.
 
 ### Multi-carrier structured natural loop (W-1569)
 
