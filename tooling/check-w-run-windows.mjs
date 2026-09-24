@@ -207,6 +207,9 @@ const processFloatRoundingErrorFixture = resolve(seedDirectory, "fixtures",
   "process-float-rounding-error.w")
 const processIntegerExactRuntimeFixture = resolve(seedDirectory, "fixtures",
   "process-fixed-integer-arithmetic.w")
+const u64MixRoundFixture = resolve(seedDirectory, "fixtures",
+  "u64_mix_round.w")
+const u64MixRoundOutput = Buffer.from("Mix 5608831001354178255\n", "utf8")
 const localGraphFixture = resolve(seedDirectory, "fixtures", "local-graph",
   "app.w")
 const targetTriple = "x86_64-pc-windows-msvc"
@@ -1517,6 +1520,9 @@ try {
   expectExact(binary, ["run", processIntegerExactRuntimeFixture, "--",
     ...Array.from({ length: 128 }, () => "x")], 1, Buffer.alloc(0),
   "public runtime exact integer conversion out of range")
+  expectExact(binary, ["run", u64MixRoundFixture, "--",
+    "alpha", "beta", "gamma"], 0, u64MixRoundOutput,
+  "Windows public runtime u64 mix-round with three user arguments")
   expectExact(binary, ["run", processEnumPayloadFixture], 7,
     Buffer.from("arguments-missing count=0 amount=17 over-limit=false\n", "utf8"),
     "public enum payload process input without arguments")
@@ -1586,6 +1592,8 @@ try {
     "process-float-rounding-error-build.exe")
   const buildProcessIntegerExactRuntime = join(fixtureDirectory,
     "process-fixed-integer-arithmetic-build.exe")
+  const buildU64MixRound = join(fixtureDirectory,
+    "u64-mix-round-build.exe")
   const buildProcessArgumentsCount = join(fixtureDirectory,
     "process-arguments-count-build.exe")
   const buildProcessArgumentsOrdering = join(fixtureDirectory,
@@ -1814,6 +1822,17 @@ try {
   expectExact(buildProcessIntegerExactRuntime,
     Array.from({ length: 128 }, () => "x"), 1, Buffer.alloc(0),
   "execute built runtime exact integer conversion out of range")
+  expectExact(binary, ["build", u64MixRoundFixture, "--target",
+    targetTriple, "--output", buildU64MixRound], 0, Buffer.alloc(0),
+  "build Windows runtime u64 mix-round fixture")
+  const u64MixRoundBytes = await readFile(buildU64MixRound)
+  assertPeX64(u64MixRoundBytes, "built runtime u64 mix-round artifact")
+  assertKernel32OnlyImports(u64MixRoundBytes,
+    "built runtime u64 mix-round artifact",
+    { usesProcessArgumentAdapter: true, writesStdout: true })
+  expectExact(buildU64MixRound, ["alpha", "beta", "gamma"], 0,
+    u64MixRoundOutput,
+    "execute built Windows runtime u64 mix-round with three user arguments")
   expectExact(binary, ["build", processArgumentsCountFixture, "--target",
     targetTriple, "--output", buildProcessArgumentsCount], 0,
     Buffer.alloc(0), "build public process-arguments-count fixture")

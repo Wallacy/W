@@ -113,6 +113,7 @@ The timer covers lane runs, result validation, catalog update, and catalog/docum
 | [uint-compound (W)](../compiler/seed-c/fixtures/uint-compound.w), [uint-compound (C)](./executable/uint_compound.c), [uint-compound (Rust)](./executable/uint_compound.rs) | Not measured | — | — | — | — | — | — | — |
 | [unsigned (W)](../compiler/seed-c/fixtures/unsigned.w) | Windows · no CRT (recipe-derived) | W | 2048 B (2.0 KiB) | 198.1933 ms | 14.9365 ms | 21.0251 ms | 15.006 ms | 3158016 B (3.01 MiB) |
 | [fixed-integer-runtime-arithmetic (W)](../compiler/seed-c/fixtures/process-fixed-integer-arithmetic.w), [fixed-integer-runtime-arithmetic (C)](./executable/process_fixed_integer_arithmetic.c), [fixed-integer-runtime-arithmetic (Rust)](./executable/process_fixed_integer_arithmetic.rs) | Not measured | — | — | — | — | — | — | — |
+| [u64-mix-round (W)](../compiler/seed-c/fixtures/u64_mix_round.w), [u64-mix-round (C)](./executable/u64_mix_round.c), [u64-mix-round (Rust)](./executable/u64_mix_round.rs) | Not measured | — | — | — | — | — | — | — |
 
 ### value-aggregates
 

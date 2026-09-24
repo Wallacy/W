@@ -5672,11 +5672,11 @@ static bool frontend_value_tree_ok_impl(
         if (segment->const_byte_offset != W_SEED_FRONTEND_NONE ||
             segment->const_byte_count != 0u ||
             !frontend_value_tree_ok(
-                input, module_index, function_index, document_index,
-                use_statement,
-                segment->expression_index, depth + 1u, expression_cursor,
-                segment_cursor, const_byte_cursor, value_total, segment_total,
-                value_bytes, call_total, argument_total, logical_total))
+            input, module_index, function_index, document_index,
+            use_statement, segment->expression_index, depth + 1u,
+            expression_cursor, segment_cursor, const_byte_cursor, value_total,
+            segment_total, value_bytes, call_total, argument_total,
+            logical_total))
           return false;
       } else {
         return false;
@@ -6103,6 +6103,7 @@ static bool frontend_call_expression_ok(
       (size_t)root_index >= result->written.expressions)
     return false;
   const w_seed_frontend_expression *call = &output->expressions[root_index];
+  const size_t argument_cursor_start = *argument_total;
   const bool host_call =
       call->resolved_callee_kind ==
       W_SEED_FRONTEND_CALLEE_HOST_PRELUDE_SYMBOL;
@@ -6117,6 +6118,7 @@ static bool frontend_call_expression_ok(
       !range_valid(call->first_argument, call->argument_count,
                    result->written.arguments) ||
       (call->builtin_operation == W_SEED_FRONTEND_BUILTIN_NONE &&
+       call->argument_count == 0u &&
        call->first_argument != *argument_total) ||
       !frontend_span_ok(&input->frontend_input->documents[document_index],
                         call->span))
@@ -6640,7 +6642,11 @@ static bool frontend_call_expression_ok(
         !add_size(*argument_total, 1u, argument_total))
       return false;
   }
-  if ((size_t)root_index != *expression_cursor ||
+  if ((call->argument_count != 0u &&
+       (call->first_argument < argument_cursor_start ||
+        call->first_argument > *argument_total ||
+        call->argument_count != *argument_total - call->first_argument)) ||
+      (size_t)root_index != *expression_cursor ||
       !add_size(*expression_cursor, 1u, expression_cursor) ||
       !add_size(*call_total, 1u, call_total) ||
       (result_value && materialize_result &&
@@ -9333,9 +9339,10 @@ static bool frontend_statement_and_expression_cfg_ok(
         (return_kind == W_SEED_FRONTEND_TYPE_UNIT && walk.has_value_return) ||
         incomplete_return)
       return false;
+    const size_t function_call_count = calls - function_calls_before;
     const bool observable_process_exact =
         walk.has_integer_exactly_binding &&
-        calls == function_calls_before + 1u &&
+        (function_call_count == 1u || function_call_count == 2u) &&
         invokes == function_invokes_before &&
         frontend_process_numeric_conversion_body_ok(
             input, (uint32_t)function_index, function);
@@ -10216,6 +10223,83 @@ static bool frontend_exact_observation_value_ok(
     *saw_binding = true;
     return true;
   }
+  if (expression->kind == W_SEED_FRONTEND_EXPR_CALL && expression->supported &&
+      expression->left != W_SEED_FRONTEND_NONE &&
+      (size_t)expression->left < input->frontend_result->written.expressions &&
+      expression->argument_count <= 32u &&
+      range_valid(expression->first_argument, expression->argument_count,
+                  input->frontend_result->written.arguments)) {
+    const w_seed_frontend_expression *callee =
+        &input->frontend_output->expressions[expression->left];
+    if (callee->resolved_callee_kind !=
+            W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION ||
+        callee->resolved_function_index == W_SEED_FRONTEND_NONE ||
+        (size_t)callee->resolved_function_index >=
+            input->frontend_result->written.functions)
+      return false;
+    const w_seed_frontend_function *target =
+        &input->frontend_output->functions[callee->resolved_function_index];
+    if (target->module_index != expression->module_index || target->is_async ||
+        target->is_throws || target->is_unsafe ||
+        target->return_type == W_SEED_FRONTEND_NONE ||
+        (size_t)target->return_type >= input->frontend_result->written.types ||
+        !frontend_supported_types_equal_for_input(
+            input, &input->frontend_output->types[target->return_type],
+            &input->frontend_output->types[binding_type]) ||
+        target->parameter_count != expression->argument_count ||
+        target->parameter_count > 32u ||
+        !range_valid(target->first_parameter, target->parameter_count,
+                     input->frontend_result->written.parameters))
+      return false;
+    uint32_t seen_parameters = 0u;
+    for (uint32_t ordinal = 0u; ordinal < expression->argument_count;
+         ordinal += 1u) {
+      const uint32_t argument_index = expression->first_argument + ordinal;
+      const w_seed_frontend_argument *argument =
+          &input->frontend_output->arguments[argument_index];
+      if (argument->owner_expression != expression->left ||
+          argument->resolved_parameter_ordinal >= target->parameter_count ||
+          argument->expression_index == W_SEED_FRONTEND_NONE ||
+          (size_t)argument->expression_index >=
+              input->frontend_result->written.expressions ||
+          input->frontend_output->expressions[argument->expression_index]
+                  .inferred_type == W_SEED_FRONTEND_NONE ||
+          (size_t)input->frontend_output->expressions[
+                      argument->expression_index]
+                  .inferred_type >= input->frontend_result->written.types)
+        return false;
+      const uint32_t parameter_ordinal =
+          argument->resolved_parameter_ordinal;
+      const uint32_t parameter_bit = UINT32_C(1) << parameter_ordinal;
+      const w_seed_frontend_parameter *parameter =
+          &input->frontend_output->parameters[target->first_parameter +
+                                              parameter_ordinal];
+      if ((seen_parameters & parameter_bit) != 0u ||
+          parameter->owner_function != callee->resolved_function_index ||
+          parameter->type_index == W_SEED_FRONTEND_NONE ||
+          (size_t)parameter->type_index >=
+              input->frontend_result->written.types ||
+          !frontend_supported_types_equal_for_input(
+              input, &input->frontend_output->types[parameter->type_index],
+              &input->frontend_output->types[binding_type]) ||
+          !frontend_supported_types_equal_for_input(
+              input,
+              &input->frontend_output->types[
+                  input->frontend_output->expressions[argument->expression_index]
+                      .inferred_type],
+              &input->frontend_output->types[parameter->type_index]) ||
+          !frontend_exact_observation_value_ok(
+              input, binding_statement, binding_type,
+              argument->expression_index, depth + 1u, saw_binding))
+        return false;
+      seen_parameters |= parameter_bit;
+    }
+    const uint32_t all_parameters =
+        target->parameter_count == 32u
+            ? UINT32_MAX
+            : (UINT32_C(1) << target->parameter_count) - 1u;
+    return seen_parameters == all_parameters;
+  }
   if (expression->kind == W_SEED_FRONTEND_EXPR_INTEGER)
     return expression->has_integer_value;
   if (expression->kind == W_SEED_FRONTEND_EXPR_PARENTHESIS)
@@ -10336,12 +10420,12 @@ static bool frontend_process_numeric_conversion_body_ok(
         return false;
       if (segment->kind == W_SEED_FRONTEND_INTERPOLATION_TEXT) continue;
       bool expression_saw_binding = false;
-      if (segment->kind != W_SEED_FRONTEND_INTERPOLATION_EXPRESSION ||
-          !frontend_exact_observation_value_ok(
+      const bool observation_value_ok =
+          segment->kind == W_SEED_FRONTEND_INTERPOLATION_EXPRESSION &&
+          frontend_exact_observation_value_ok(
               input, function->first_statement, binding->effective_type,
-              segment->expression_index, 0u, &expression_saw_binding) ||
-          !expression_saw_binding)
-        return false;
+              segment->expression_index, 0u, &expression_saw_binding);
+      if (!observation_value_ok || !expression_saw_binding) return false;
       saw_value = true;
     }
     if (!saw_value) return false;
@@ -10461,10 +10545,12 @@ static bool frontend_process_entry_abi_ok(const w_seed_hir0_input *input) {
                                    (uint32_t)ordinal))
       return false;
   }
-  return function->is_throws
-             ? frontend_process_typed_error_body_ok(
-                   input, (uint32_t)function_index, function)
-             : function->error_type == W_SEED_FRONTEND_NONE;
+  const bool process_body_ok =
+      function->is_throws
+          ? frontend_process_typed_error_body_ok(
+                input, (uint32_t)function_index, function)
+          : function->error_type == W_SEED_FRONTEND_NONE;
+  return process_body_ok;
 }
 
 /* This is the complete HIR16 process-handler contract. It is a bounded
@@ -11193,7 +11279,6 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
     return HIR0_PREPARE_UNSUPPORTED;
   return HIR0_PREPARE_READY;
 }
-
 static bool output_capacity_ok(const w_seed_hir0_output *output,
                                const w_seed_hir0_counts *counts) {
   if (output == NULL || counts == NULL) return false;
@@ -27358,9 +27443,11 @@ static bool verify_cfg_invoke(const w_seed_hir0_program *program,
 
 static bool hir_exact_observation_value_ok(
     const w_seed_hir0_program *program, uint32_t value_index,
-    uint32_t binding_index, uint32_t expected_type, size_t depth,
-    bool *saw_binding) {
-  if (program == NULL || saw_binding == NULL || depth > 32u ||
+    uint32_t binding_index, uint32_t expected_type, size_t function_index,
+    size_t normal_block, size_t print_instruction, size_t depth,
+    bool *saw_binding, bool *saw_helper_call) {
+  if (program == NULL || saw_binding == NULL || saw_helper_call == NULL ||
+      depth > 32u ||
       value_index == W_SEED_HIR0_NONE || value_index >= program->value_count)
     return false;
   const w_seed_hir0_value *value = &program->values[value_index];
@@ -27370,7 +27457,90 @@ static bool hir_exact_observation_value_ok(
     *saw_binding = true;
     return true;
   }
-  if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) return true;
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_I64 ||
+      value->kind == W_SEED_HIR0_VALUE_CONST_U64)
+    return true;
+  if (value->kind == W_SEED_HIR0_VALUE_CALL_RESULT) {
+    if (function_index >= program->function_count ||
+        normal_block >= program->block_count ||
+        print_instruction >= program->instruction_count ||
+        value->call_index == W_SEED_HIR0_NONE ||
+        value->call_index >= program->call_count)
+      return false;
+    const w_seed_hir0_call *call = &program->calls[value->call_index];
+    if (call->owner_block != normal_block || call->ordinal != 1u ||
+        call->owner_instruction >= print_instruction ||
+        call->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
+        call->placement != W_SEED_HIR0_CALL_PLACEMENT_NONE ||
+        call->callee_identity >= program->identity_count ||
+        call->result_type != expected_type ||
+        program->identities[call->callee_identity].kind !=
+            W_SEED_HIR0_IDENTITY_FUNCTION ||
+        program->identities[call->callee_identity].target_index >=
+            program->function_count)
+      return false;
+    const w_seed_hir0_identity *identity =
+        &program->identities[call->callee_identity];
+    const w_seed_hir0_function *target =
+        &program->functions[identity->target_index];
+    if (target->module_index != program->functions[function_index].module_index ||
+        target->is_async || target->is_throws || target->is_unsafe ||
+        target->return_type != expected_type ||
+        identity->return_type != expected_type ||
+        identity->first_parameter != target->first_parameter ||
+        identity->parameter_count != target->parameter_count ||
+        target->parameter_count != call->argument_count ||
+        target->parameter_count > 32u ||
+        (call->argument_count == 0u
+             ? call->first_argument != W_SEED_HIR0_NONE
+             : call->first_argument == W_SEED_HIR0_NONE ||
+                   call->first_argument >= program->argument_count ||
+                   call->argument_count >
+                       program->argument_count - call->first_argument) ||
+        target->first_parameter > program->parameter_count ||
+        target->parameter_count >
+            program->parameter_count - target->first_parameter)
+      return false;
+    uint32_t seen_parameters = 0u;
+    for (uint32_t ordinal = 0u; ordinal < call->argument_count; ordinal += 1u) {
+      const uint32_t argument_index = call->first_argument + ordinal;
+      const w_seed_hir0_argument *argument =
+          &program->arguments[argument_index];
+      if (argument->owner_call != value->call_index ||
+          argument->ordinal != ordinal ||
+          argument->parameter_ordinal >= target->parameter_count ||
+          argument->value_index == W_SEED_HIR0_NONE ||
+          argument->value_index >= program->value_count)
+        return false;
+      const uint32_t parameter_ordinal = argument->parameter_ordinal;
+      const uint32_t parameter_bit = UINT32_C(1) << parameter_ordinal;
+      const w_seed_hir0_parameter *parameter =
+          &program->parameters[target->first_parameter + parameter_ordinal];
+      if ((seen_parameters & parameter_bit) != 0u ||
+          parameter->owner_function != identity->target_index ||
+          parameter->ordinal != parameter_ordinal ||
+          parameter->type_index != expected_type ||
+          argument->type_index != parameter->type_index ||
+          !hir_exact_observation_value_ok(
+              program, argument->value_index, binding_index, expected_type,
+              function_index, normal_block, print_instruction, depth + 1u,
+              saw_binding, saw_helper_call))
+        return false;
+      seen_parameters |= parameter_bit;
+    }
+    const uint32_t all_parameters =
+        target->parameter_count == 32u
+            ? UINT32_MAX
+            : (UINT32_C(1) << target->parameter_count) - 1u;
+    const w_seed_hir0_instruction *local_call_instruction =
+        &program->instructions[call->owner_instruction];
+    *saw_helper_call = true;
+    return seen_parameters == all_parameters &&
+           local_call_instruction->kind == W_SEED_HIR0_INSTRUCTION_CALL &&
+           local_call_instruction->call_index == value->call_index &&
+           local_call_instruction->owner_block == normal_block &&
+           local_call_instruction->ordinal == call->ordinal;
+  }
   if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64 ||
       value->binary_operator > W_SEED_HIR0_BINARY_REMAINDER ||
       value->left_value == W_SEED_HIR0_NONE ||
@@ -27378,10 +27548,12 @@ static bool hir_exact_observation_value_ok(
     return false;
   return hir_exact_observation_value_ok(
              program, value->left_value, binding_index, expected_type,
-             depth + 1u, saw_binding) &&
+             function_index, normal_block, print_instruction, depth + 1u,
+             saw_binding, saw_helper_call) &&
          hir_exact_observation_value_ok(
              program, value->right_value, binding_index, expected_type,
-             depth + 1u, saw_binding);
+             function_index, normal_block, print_instruction, depth + 1u,
+             saw_binding, saw_helper_call);
 }
 
 static bool verify_integer_exactly_observation(
@@ -27390,7 +27562,8 @@ static bool verify_integer_exactly_observation(
     const w_seed_hir0_instruction *instruction) {
   if (program == NULL || instruction == NULL ||
       instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
-      instruction->owner_block != normal_block || instruction->ordinal != 1u ||
+      instruction->owner_block != normal_block ||
+      (instruction->ordinal != 1u && instruction->ordinal != 2u) ||
       instruction->call_index == W_SEED_HIR0_NONE ||
       instruction->call_index >= program->call_count)
     return false;
@@ -27398,7 +27571,7 @@ static bool verify_integer_exactly_observation(
   if (call->owner_instruction !=
           (uint32_t)(instruction - program->instructions) ||
       call->owner_terminator != W_SEED_HIR0_NONE ||
-      call->owner_block != normal_block || call->ordinal != 1u ||
+      call->owner_block != normal_block || call->ordinal != instruction->ordinal ||
       call->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
       call->placement != W_SEED_HIR0_CALL_PLACEMENT_NONE ||
       call->callee_identity >= program->identity_count ||
@@ -27429,6 +27602,7 @@ static bool verify_integer_exactly_observation(
       program->blocks[normal_block].owner_function != function_index)
     return false;
   bool saw_value = false;
+  bool saw_helper_call = false;
   for (uint32_t ordinal = 0u;
        ordinal < message->interpolation_segment_count; ordinal += 1u) {
     const w_seed_hir0_interpolation_segment *segment =
@@ -27442,13 +27616,16 @@ static bool verify_integer_exactly_observation(
     if (segment->kind != W_SEED_HIR0_INTERPOLATION_VALUE ||
         !hir_exact_observation_value_ok(
             program, segment->value_index, binding_index,
-            program->bindings[binding_index].type_index, 0u,
-            &expression_saw_binding) ||
+            program->bindings[binding_index].type_index, function_index,
+            normal_block, call->owner_instruction, 0u,
+            &expression_saw_binding, &saw_helper_call) ||
         !expression_saw_binding)
       return false;
     saw_value = true;
   }
-  return saw_value;
+  return saw_value &&
+         (instruction->ordinal != 2u || saw_helper_call) &&
+         (instruction->ordinal != 1u || !saw_helper_call);
 }
 
 static bool verify_cfg_integer_exactly(const w_seed_hir0_program *program,
@@ -27490,14 +27667,14 @@ static bool verify_cfg_integer_exactly(const w_seed_hir0_program *program,
   for (size_t call_index = 0u; call_index < program->call_count;
        call_index += 1u) {
     const w_seed_hir0_call *call = &program->calls[call_index];
-    if (call->owner_block < program->block_count &&
-        program->blocks[call->owner_block].owner_function == function_index) {
+    if (call->owner_block >= program->block_count) return false;
+    if (program->blocks[call->owner_block].owner_function == function_index) {
       if (call->owner_block != normal_block || function_call_count == SIZE_MAX)
         return false;
       function_call_count += 1u;
     }
   }
-  if (function_call_count > 1u) return false;
+  if (function_call_count > 2u) return false;
   bool source_signed = false;
   bool result_signed = false;
   uint16_t source_width = 0u;
@@ -27600,6 +27777,8 @@ static bool verify_cfg_integer_exactly(const w_seed_hir0_program *program,
         normal_value->block_argument_index == normal->first_block_argument &&
         function->return_type == split_term->result_type;
   } else {
+    if (normal->instruction_count != 1u + function_call_count)
+      return false;
     bool normal_binding_found = false;
     bool normal_observation_found = false;
     uint32_t exact_binding_index = W_SEED_HIR0_NONE;
@@ -27614,8 +27793,28 @@ static bool verify_cfg_integer_exactly(const w_seed_hir0_program *program,
           instruction->ordinal != ordinal)
         return false;
       if (instruction->kind == W_SEED_HIR0_INSTRUCTION_CALL) {
-        if (ordinal != 1u || !normal_binding_found ||
-            normal_observation_found ||
+        if (!normal_binding_found || normal_observation_found)
+          return false;
+        if (function_call_count == 2u && ordinal == 1u) {
+          if (instruction->call_index == W_SEED_HIR0_NONE ||
+              instruction->call_index >= program->call_count ||
+              program->calls[instruction->call_index].owner_block !=
+                  normal_block ||
+              program->calls[instruction->call_index].ordinal != 1u ||
+              program->calls[instruction->call_index].execution_kind !=
+                  W_SEED_HIR0_CALL_DIRECT ||
+              program->calls[instruction->call_index].placement !=
+                  W_SEED_HIR0_CALL_PLACEMENT_NONE ||
+              program->calls[instruction->call_index].callee_identity >=
+                  program->identity_count ||
+              program->identities[
+                  program->calls[instruction->call_index].callee_identity]
+                      .kind != W_SEED_HIR0_IDENTITY_FUNCTION)
+            return false;
+          continue;
+        }
+        if (!((function_call_count == 1u && ordinal == 1u) ||
+              (function_call_count == 2u && ordinal == 2u)) ||
             !verify_integer_exactly_observation(
                 program, function_index, normal_block, exact_binding_index,
                 instruction))
@@ -27645,8 +27844,8 @@ static bool verify_cfg_integer_exactly(const w_seed_hir0_program *program,
         exact_binding_index = instruction->binding_index;
       }
     }
-    if (!normal_binding_found || normal_observation_found !=
-                                     (function_call_count == 1u))
+    if (!normal_binding_found ||
+        normal_observation_found != (function_call_count != 0u))
       return false;
   }
   return normal_value_valid &&
@@ -29762,8 +29961,14 @@ static bool verify_records(const w_seed_hir0_program *program) {
       verify_product_type_records(program);
   const bool product_value_records_valid =
       verify_product_value_records(program);
+  const bool cleanup_records_valid = verify_cleanup_records(program);
+  const bool external_records_valid = verify_external_records(program);
+  const bool enum_records_valid = verify_enum_records(program);
+  const bool enum_subset_records_valid = verify_enum_subset_records(program);
+  const bool identity_records_valid = verify_identity_records(program);
+  const bool process_handler_valid = verify_process_handler(program);
   if (program->module_count == 0u || program->function_count == 0u ||
-      !verify_cleanup_records(program) ||
+      !cleanup_records_valid ||
       program->entry_count != 1u ||
       program->type_count < (has_external_process ? 7u : 4u) +
                                 program->enum_count +
@@ -29812,11 +30017,10 @@ static bool verify_records(const w_seed_hir0_program *program) {
       program->types[2].integer_bit_width != 64u ||
       program->types[3].integer_is_signed ||
       program->types[3].integer_bit_width != 0u ||
-      !verify_external_records(program) || !verify_enum_records(program) ||
-      !verify_enum_subset_records(program) ||
+      !external_records_valid || !enum_records_valid ||
+      !enum_subset_records_valid ||
       !product_type_records_valid || !product_value_records_valid ||
-      !verify_identity_records(program) ||
-      !verify_process_handler(program))
+      !identity_records_valid || !process_handler_valid)
   {
     return false;
   }
@@ -30171,7 +30375,7 @@ static bool verify_records(const w_seed_hir0_program *program) {
     return false;
   const size_t host_base = program->module_count + program->function_count +
                            program->entry_count;
-  size_t call_argument_cursor = 0u;
+  size_t call_argument_total = 0u;
   for (size_t call = 0u; call < program->call_count; call += 1u) {
     const w_seed_hir0_call *value = &program->calls[call];
     const bool invoke_call = value->owner_instruction == W_SEED_HIR0_NONE;
@@ -30186,7 +30390,6 @@ static bool verify_records(const w_seed_hir0_program *program) {
             value->result_type != 3u))) ||
          !hir0_call_execution_kind_is_closed(value->execution_kind) ||
          !hir0_call_placement_ok(program, value) ||
-         value->first_argument != call_argument_cursor ||
          !range_valid(value->first_argument, value->argument_count,
                      program->argument_count) ||
         !span_valid(value->source_span,
@@ -30196,6 +30399,10 @@ static bool verify_records(const w_seed_hir0_program *program) {
                                          .module_index]
                         .source_length))
       return false;
+    if (call_argument_total > program->argument_count ||
+        value->argument_count > program->argument_count - call_argument_total)
+      return false;
+    call_argument_total += value->argument_count;
     const w_seed_hir0_instruction *instruction = NULL;
     if (invoke_call) {
       const w_seed_hir0_terminator *terminator =
@@ -30371,7 +30578,6 @@ static bool verify_records(const w_seed_hir0_program *program) {
             !hir_text_equal(program, item->label, parameter->label))
           return false;
       }
-      call_argument_cursor += 1u;
     }
     for (size_t requirement = 0u; requirement < value->requirement_count;
          requirement += 1u) {
@@ -30383,8 +30589,17 @@ static bool verify_records(const w_seed_hir0_program *program) {
         return false;
     }
   }
-  if (call_argument_cursor != program->argument_count)
+  if (call_argument_total != program->argument_count)
     return false;
+  for (size_t argument = 0u; argument < program->argument_count; argument += 1u) {
+    const w_seed_hir0_argument *item = &program->arguments[argument];
+    if (item->owner_call >= program->call_count) return false;
+    const w_seed_hir0_call *owner = &program->calls[item->owner_call];
+    if (item->ordinal >= owner->argument_count ||
+        argument < owner->first_argument ||
+        argument - owner->first_argument != item->ordinal)
+      return false;
+  }
   for (size_t payload_index = 0u;
        payload_index < program->enum_payload_count; payload_index += 1u) {
     const w_seed_hir0_enum_payload *payload =
@@ -31310,12 +31525,9 @@ bool w_seed_hir0_verify(const w_seed_hir0_program *program,
       result->written.tuple_elements != counts.tuple_elements ||
       result->written.value_struct_initializers != counts.value_struct_initializers)
     return false;
-  if (!verify_records(program))
-    return false;
-  if (!verify_process_lifecycle_facts(program))
-    return false;
-  if (!verify_direct_entry_facts(program))
-    return false;
+  if (!verify_records(program)) return false;
+  if (!verify_process_lifecycle_facts(program)) return false;
+  if (!verify_direct_entry_facts(program)) return false;
   uint8_t semantic_digest[32];
   uint8_t provenance_digest[32];
   digest_program(program, &counts, semantic_digest);

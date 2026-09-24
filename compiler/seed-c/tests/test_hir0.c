@@ -15543,6 +15543,16 @@ static bool test_local_unit_call_and_parameter_reads(void) {
             W_SEED_HIR0_VALUE_BINARY_I64);
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
 
+  const w_seed_hir0_call saved_call1 = fixture.hir_calls[1];
+  fixture.hir_calls[1].first_argument =
+      fixture.hir_calls[0].first_argument + 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_calls[1] = saved_call1;
+  const w_seed_hir0_argument saved_argument3 = fixture.hir_arguments[3];
+  fixture.hir_arguments[3].value_index = fixture.hir_arguments[0].value_index;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_arguments[3] = saved_argument3;
+
   const w_seed_hir0_argument saved_argument = fixture.hir_arguments[2];
   fixture.hir_arguments[2].parameter_ordinal = 0u;
   CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));

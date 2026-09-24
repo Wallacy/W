@@ -75,6 +75,9 @@ const processFloatRoundingErrorFixture = resolve(seedDirectory, "fixtures",
   "process-float-rounding-error.w")
 const processIntegerExactRuntimeFixture = resolve(seedDirectory, "fixtures",
   "process-fixed-integer-arithmetic.w")
+const u64MixRoundFixture = resolve(seedDirectory, "fixtures",
+  "u64_mix_round.w")
+const u64MixRoundOutput = Buffer.from("Mix 5608831001354178255\n", "utf8")
 const localGraphFixture = resolve(seedDirectory, "fixtures", "local-graph",
   "app.w")
 const unaryNegateFixture = resolve(seedDirectory,
@@ -506,11 +509,12 @@ async function snapshotRunResidue() {
   if (isWindows) {
     const result = runRequired("WSL /tmp residue snapshot", "wsl.exe", [
       "-d", "Ubuntu", "--", "find", "/tmp", "-mindepth", "1",
-      "-maxdepth", "1", "-type", "d", "-name", "w-run-*", "-printf",
-      "%f\\n",
+      "-maxdepth", "1", "-type", "d", "-name", "w-run-*", "-print0",
     ])
     assert(result.stderrBytes.length === 0, "residue snapshot wrote stderr")
-    return new Set(result.stdoutBytes.toString().split(/\r?\n/u).filter(Boolean))
+    return new Set(result.stdoutBytes.toString().split("\0")
+      .filter(Boolean)
+      .map((path) => path.slice(path.lastIndexOf("/") + 1)))
   }
   const entries = await readdir("/tmp", { withFileTypes: true })
   return new Set(entries.filter((entry) => entry.isDirectory() &&
@@ -1728,6 +1732,9 @@ try {
   expectExact(binary, ["run", toWsl(processIntegerExactRuntimeFixture), "--",
     ...Array.from({ length: 128 }, () => "x")], 1, Buffer.alloc(0),
   "Linux public runtime exact integer conversion out of range")
+  expectExact(binary, ["run", toWsl(u64MixRoundFixture), "--",
+    "alpha", "beta", "gamma"], 0, u64MixRoundOutput,
+  "Linux public runtime u64 mix-round with three user arguments")
   expectExact(binary, ["run", toWsl(processEnumPayloadFixture)], 7,
     Buffer.from("arguments-missing count=0 amount=17 over-limit=false\n", "utf8"),
     "Linux public enum payload process input without arguments")
@@ -1802,6 +1809,8 @@ try {
     "process-float-rounding-error-build")
   const buildProcessIntegerExactRuntime = buildOutput(
     "process-fixed-integer-arithmetic-build")
+  const buildU64MixRound = buildOutput("u64-mix-round-build")
+  const u64MixRoundAudit = buildOutput("u64-mix-round-audit")
   const buildProcessArgumentsCount = buildOutput("process-arguments-count-build")
   const buildProcessArgumentsOrdering = buildOutput(
     "process-arguments-ordering-build")
@@ -2065,6 +2074,18 @@ try {
   expectExact(buildProcessIntegerExactRuntime,
     Array.from({ length: 128 }, () => "x"), 1, Buffer.alloc(0),
   "execute built Linux runtime exact integer conversion out of range")
+  expectSuccess(binary, ["build", toWsl(u64MixRoundFixture), "--target",
+    targetTriple, "--output", buildU64MixRound, "--audit-dir",
+    u64MixRoundAudit], Buffer.alloc(0),
+  "build Linux runtime u64 mix-round with dependency audit")
+  const u64MixRoundBytes = await readBuildArtifact(buildU64MixRound)
+  assertCrtFreeElf(u64MixRoundBytes)
+  assertElfNoExecutableStack(u64MixRoundBytes)
+  expectExact(buildU64MixRound, ["alpha", "beta", "gamma"], 0,
+    u64MixRoundOutput,
+    "execute built Linux runtime u64 mix-round with three user arguments")
+  await verifyAuditTrace(u64MixRoundAudit, buildU64MixRound,
+    buildArtifactDirectory)
   expectSuccess(binary, ["build", toWsl(processArgumentsCountFixture), "--target",
     targetTriple, "--output", buildProcessArgumentsCount], Buffer.alloc(0),
   "build Linux public process-arguments-count fixture")

@@ -503,10 +503,11 @@ static w_seed_native0_status lower_hir(
     return W_SEED_NATIVE0_UNSUPPORTED;
   if (run_status == W_SEED_HIR0_CAPACITY)
     return W_SEED_NATIVE0_CAPACITY;
-  if (run_status != W_SEED_HIR0_OK ||
-      !w_seed_hir0_program_from_output(&storage->hir_output,
-                                        &storage->hir_result,
-                                        &storage->hir_program) ||
+  if (run_status != W_SEED_HIR0_OK)
+    return W_SEED_NATIVE0_HIR;
+  if (!w_seed_hir0_program_from_output(&storage->hir_output,
+                                      &storage->hir_result,
+                                      &storage->hir_program) ||
       !w_seed_hir0_verify(&storage->hir_program, &storage->hir_result))
     return W_SEED_NATIVE0_HIR;
   return W_SEED_NATIVE0_OK;

@@ -5513,9 +5513,16 @@ static bool append_program_block_argument_name(
       argument->type_index ==
           (process->has_integer_exactly ? process->exact_error_type_index
                                         : process->rounding_error_type_index);
+  bool exact_destination_ok = false;
+  if (process != NULL && process->has_integer_exactly &&
+      argument_kind == W_SEED_HIR0_TYPE_U64 &&
+      process->exact_destination_bit_width == 64u &&
+      !process->exact_destination_is_signed)
+    exact_destination_ok = true;
   if (argument_kind != W_SEED_HIR0_TYPE_I64 &&
       argument_kind != W_SEED_HIR0_TYPE_BOOL && !integer_ok &&
-      !typed_error_ok && !rounding_source_join_argument_ok && !local_enum_ok)
+      !typed_error_ok && !exact_destination_ok &&
+      !rounding_source_join_argument_ok && !local_enum_ok)
     return false;
   const w_seed_hir0_block *block = &program->blocks[argument->owner_block];
   if (block->owner_function != function_index ||
@@ -9936,8 +9943,10 @@ static bool append_program_function(
       function->block_count > program->block_count - function->first_block ||
       (verified_i64_loop_cfg && (natural_loop || post_test_loop)))
     return false;
+  const bool has_unary_u64 =
+      reachable_values_have_unary_u64(program, plan->reachable_values);
   if ((function->block_count > 1u || natural_loop || post_test_loop) &&
-      reachable_values_have_unary_u64(program, plan->reachable_values))
+      has_unary_u64)
     return false;
   if (!append_literal(artifact, capacity, offset,
                       "  llvm.func internal @w_fn_") ||
@@ -11341,8 +11350,7 @@ static bool build_process_executable_artifact(
             program, &plan, function, selection->natural_loop_functions[function],
             selection->post_test_loop_functions[function],
             false, function == selection->function_index ? &process : NULL,
-            artifact,
-            capacity, &offset))
+            artifact, capacity, &offset))
       return false;
   if (count_only_arguments) {
     if (!append_output_capacity_template(

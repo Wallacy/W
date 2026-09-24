@@ -739,10 +739,11 @@ unknown, positional, or wrongly typed fields fail closed; field projections,
 local bindings, labelled arguments, and returns retain exact nominal and
 ordinal identities. The representation reuses kind-discriminated record
 fields and does not increase the fixed Native0 storage footprint. Verified
-HIR and native lowering still reject both aggregate witnesses. Labeled tuple
-type syntax remains a separate seed-parser gap. Their C23/Rust fixtures are
-correctness oracles only; no W native output or performance result exists for
-this family.
+HIR and native lowering now accept and execute exactly these two flat shapes,
+as recorded by the W-1654 public native promotion above. Labeled tuple type
+syntax remains a separate seed-parser gap. Their C23/Rust fixtures are
+independent output references; native execution does not establish stable
+aggregate layout or C ABI, and no performance result exists for this family.
 
 ### Active rank 1 closure order
 
@@ -1279,6 +1280,18 @@ gaps.
 W-1597 remains a legality certificate only; target policy must still combine it
 with observability and cost facts and compare any direct-call artifact with the
 W-1600 physical reference.
+
+The neutral [`u64-mix-round` witness](compiler/seed-c/fixtures/u64_mix_round.w)
+now composes the count-only process ingress with exact conversion to `u64`,
+local helper calls, XOR, rotate-left, logical-right-shift, wrapping multiply,
+and wrapping add. Its three-user-argument case prints exactly
+`Mix 5608831001354178255\n`; zero- and one-argument cases remain distinct and
+are checked against independent C23 and Rust 2024 references. The exact source
+passes verified-HIR/MLIR-backed Windows x64 and Linux/WSL x64 `w run` and
+`w build` gates with CRT-free product audits. Argument text access and other
+targets remain outside this process subset. Its disposition is
+`compiler-lifecycle`, with no performance row or result; this is one bounded
+computation witness, not closure of the scalar operator matrix.
 
 The current fixed task counts and worker capacities are seed evidence limits.
 They must not become language, public ABI, or final runtime limits.

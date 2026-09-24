@@ -3187,6 +3187,27 @@ operations, shifts, power, local-call propagation, general CFG, user cleanup,
 public panic ABI, and performance remain unsupported or unclaimed.
 `benchmarkDisposition: compiler-lifecycle`.
 
+### Runtime u64 mix-round composition
+
+[`fixtures/u64_mix_round.w`](fixtures/u64_mix_round.w) composes the existing
+runtime `Arguments.count` exact conversion into fixed `u64`, two local helper
+calls, XOR, rotate-left, logical-right-shift, wrapping multiply, and wrapping
+add. The process subset exposes only argument count here; it does not read
+argument text. The exact output cases are pinned beside the W source and in
+`benchmarks/executable-catalog.json`. With three user arguments, both public
+`w run` and Release `w build` print `Mix 5608831001354178255\n`, exit 0, and
+write nothing to stderr on Windows x64 and Linux/WSL x64. The Windows artifact
+is audited against the exact Kernel32 process/output/exit route; the Linux
+Release artifact is audited for its CRT-free link/import closure and executable
+stack policy. Independent C23 and Rust 2024 references receive the same runtime
+argument count and match the catalog's zero-, one-, and three-argument cases.
+
+This is bounded compiler-lifecycle correctness evidence, not a performance
+row. It proves only count-derived runtime input; accessing or parsing user
+argument contents, other targets, and the complete scalar operator matrix
+remain outside this slice. The fixture remains fail-closed at exact conversion
+and retains the ordinary process cleanup/publication boundary.
+
 ### Float-to-integer rounding preservation (W-389, bounded)
 
 Frontend73 and verified HIR97 now preserve the selected

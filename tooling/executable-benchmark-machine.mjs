@@ -84,6 +84,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "composition",
   "process-entry",
   "fixed-integer-runtime-arithmetic",
+  "u64-mix-round",
   "float-integer-rounding",
   "process-enum-payload",
   "process-arguments-count",
@@ -114,7 +115,7 @@ const WORKLOAD_FAMILY_ROWS = Object.freeze({
     "integer-saturating-conversion", "integer-comparison",
     "uint-overflowing-family", "uint-saturating-policy",
     "fixed-integer-bit-primitives", "uint-bitwise", "uint-compound",
-    "unsigned", "fixed-integer-runtime-arithmetic",
+    "unsigned", "fixed-integer-runtime-arithmetic", "u64-mix-round",
   ]),
   "value-aggregates": Object.freeze(["flat-value-aggregates"]),
   "floating-point": Object.freeze([
@@ -334,6 +335,7 @@ const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
   "compiler/seed-c/fixtures/uint-trailing-zeros.w": "uint-bitwise",
   "compiler/seed-c/fixtures/uint-reversed-bits.w": "uint-bitwise",
   "compiler/seed-c/fixtures/uint-reversed-bytes.w": "uint-bitwise",
+  "compiler/seed-c/fixtures/u64_mix_round.w": "u64-mix-round",
   "compiler/seed-c/fixtures/uint-overflowing-add.w": "uint-overflowing-family",
   "compiler/seed-c/fixtures/uint-overflowing-power.w": "uint-overflowing-family",
   "compiler/seed-c/fixtures/uint-saturating-add.w": "uint-saturating-policy",
@@ -433,6 +435,20 @@ export const FIXED_INTEGER_RUNTIME_ARITHMETIC_ORACLE_CASES = Object.freeze([
   Object.freeze({ arguments: FIXED_INTEGER_RUNTIME_ARITHMETIC_CORRECTNESS_INPUTS[1], exitCode: 2, stdout: "", stderr: "" }),
   Object.freeze({ arguments: FIXED_INTEGER_RUNTIME_ARITHMETIC_CORRECTNESS_INPUTS[2], exitCode: 1, stdout: "", stderr: "" }),
 ]);
+export const U64_MIX_ROUND_WORKLOAD_ID = "u64-mix-round";
+export const U64_MIX_ROUND_ORACLE_KIND = PROCESS_ENTRY_ORACLE_KIND;
+export const U64_MIX_ROUND_RECIPE_CLASS = "u64-mix-round-release";
+export const U64_MIX_ROUND_TIMED_INPUT = Object.freeze(["alpha", "beta", "gamma"]);
+export const U64_MIX_ROUND_CORRECTNESS_INPUTS = Object.freeze([
+  Object.freeze([]),
+  Object.freeze(["x"]),
+  U64_MIX_ROUND_TIMED_INPUT,
+]);
+export const U64_MIX_ROUND_ORACLE_CASES = Object.freeze([
+  Object.freeze({ arguments: U64_MIX_ROUND_CORRECTNESS_INPUTS[0], exitCode: 0, stdout: "Mix 16743387770561346575\n", stderr: "" }),
+  Object.freeze({ arguments: U64_MIX_ROUND_CORRECTNESS_INPUTS[1], exitCode: 0, stdout: "Mix 553619412775969103\n", stderr: "" }),
+  Object.freeze({ arguments: U64_MIX_ROUND_CORRECTNESS_INPUTS[2], exitCode: 0, stdout: "Mix 5608831001354178255\n", stderr: "" }),
+]);
 const PROCESS_ARGUMENT_ORACLE_CONTRACTS = Object.freeze({
   [PROCESS_ENTRY_WORKLOAD_ID]: Object.freeze({
     kind: PROCESS_ENTRY_ORACLE_KIND,
@@ -464,6 +480,12 @@ const PROCESS_ARGUMENT_ORACLE_CONTRACTS = Object.freeze({
     correctnessInputs: FIXED_INTEGER_RUNTIME_ARITHMETIC_CORRECTNESS_INPUTS,
     cases: FIXED_INTEGER_RUNTIME_ARITHMETIC_ORACLE_CASES,
   }),
+  [U64_MIX_ROUND_WORKLOAD_ID]: Object.freeze({
+    kind: U64_MIX_ROUND_ORACLE_KIND,
+    timedInput: U64_MIX_ROUND_TIMED_INPUT,
+    correctnessInputs: U64_MIX_ROUND_CORRECTNESS_INPUTS,
+    cases: U64_MIX_ROUND_ORACLE_CASES,
+  }),
 });
 export const PROCESS_ARGUMENT_WORKLOAD_IDS = Object.freeze([
   PROCESS_ENTRY_WORKLOAD_ID,
@@ -471,6 +493,7 @@ export const PROCESS_ARGUMENT_WORKLOAD_IDS = Object.freeze([
   PROCESS_ARGUMENTS_COUNT_WORKLOAD_ID,
   PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID,
   FIXED_INTEGER_RUNTIME_ARITHMETIC_WORKLOAD_ID,
+  U64_MIX_ROUND_WORKLOAD_ID,
 ]);
 export const FLOAT_STRICT_WORKLOAD_ID = "float-strict";
 export const CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID = "checked-integer-arithmetic";

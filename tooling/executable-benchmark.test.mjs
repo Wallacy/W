@@ -35,6 +35,12 @@ import {
   PROCESS_ARGUMENTS_ORDERING_RECIPE_CLASS,
   PROCESS_ARGUMENTS_ORDERING_TIMED_INPUT,
   PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID,
+  U64_MIX_ROUND_CORRECTNESS_INPUTS,
+  U64_MIX_ROUND_ORACLE_CASES,
+  U64_MIX_ROUND_ORACLE_KIND,
+  U64_MIX_ROUND_RECIPE_CLASS,
+  U64_MIX_ROUND_TIMED_INPUT,
+  U64_MIX_ROUND_WORKLOAD_ID,
   PROCESS_ENTRY0_CORRECTNESS_INPUTS,
   PROCESS_ENTRY0_EXECUTION_KIND,
   PROCESS_ENTRY0_FAULT_CASES,
@@ -2246,6 +2252,48 @@ test("process-arguments-ordering catalog pins the count-dependent argument-mode 
   assertCurrentMetricLanes(workload,
     documents.catalog.bestMetrics.entries.filter((entry) => entry.workloadId === PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID),
     "process-arguments-ordering");
+});
+
+test("u64-mix-round catalog pins equivalent runtime count-only computation", () => {
+  const workload = documents.catalog.workloads.find((item) => item.id === U64_MIX_ROUND_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.structureClass, "public-end-to-end");
+  assert.equal(workload.status, "source-oracle-ready");
+  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.equal(workload.benchmarkDisposition, "compiler-lifecycle");
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.blockers, ["compiler-lifecycle-only"]);
+  assert.equal(workload.oracle.kind, U64_MIX_ROUND_ORACLE_KIND);
+  assert.deepEqual(workload.oracle.timedInput, U64_MIX_ROUND_TIMED_INPUT);
+  assert.deepEqual(workload.oracle.cases, U64_MIX_ROUND_ORACLE_CASES);
+  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.arguments), U64_MIX_ROUND_CORRECTNESS_INPUTS);
+  assert.ok(workload.sources.every((source) => source.recipeClass === U64_MIX_ROUND_RECIPE_CLASS));
+  assert.deepEqual(workload.sources.map((source) => source.language), ["w", "w", "c", "rust"]);
+  assert.deepEqual(workload.sources.filter((source) => source.language === "w").map((source) => source.platformTarget), [EXECUTABLE_PLATFORM_TARGET, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL]);
+  assert.equal(workload.sources.find((source) => source.language === "w").entry, "run");
+  assert.equal(workload.sources.find((source) => source.language === "c").entry, "main");
+  assert.equal(workload.sources.find((source) => source.language === "rust").entry, "main");
+  assert.equal(documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === U64_MIX_ROUND_WORKLOAD_ID), false);
+
+  const w = readFileSync(`${ROOT}/compiler/seed-c/fixtures/u64_mix_round.w`, "utf8");
+  const c = readFileSync(`${ROOT}/benchmarks/executable/u64_mix_round.c`, "utf8");
+  const rust = readFileSync(`${ROOT}/benchmarks/executable/u64_mix_round.rs`, "utf8");
+  for (const source of [w, c, rust]) {
+    assert.match(source, /rotate_and_fold|rotateAndFold/u);
+    assert.match(source, /logicalShiftRight|>> 17/u);
+    assert.match(source, /rotatedLeft|rotate_left\(23\)|<< 23/u);
+  }
+  assert.match(w, /try u64\(exactly: args\.count\)/u);
+  assert.match(w, /u64\.wrappingAdd/u);
+  assert.match(w, /u64\.wrappingMultiply/u);
+  assert.match(w, /return rotated \^ shifted/u);
+  assert.match(c, /const uint64_t lane = argc > 0 \? \(uint64_t\)\(argc - 1\)/u);
+  assert.match(c, /state \+ lane/u);
+  assert.match(c, /folded \* UINT64_C/u);
+  assert.match(rust, /args_os\(\)\.skip\(1\)\.count\(\)/u);
+  assert.match(rust, /state\.wrapping_add\(lane\)/u);
+  assert.match(rust, /folded\.wrapping_mul/u);
 });
 
 test("process-arguments-ordering C and Rust variants retain independent count branches", () => {
