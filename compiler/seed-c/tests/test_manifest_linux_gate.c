@@ -41,7 +41,7 @@ typedef struct {
   char b[GATE_PATH_CAPACITY];
   char source[GATE_PATH_CAPACITY];
   char nested[GATE_PATH_CAPACITY];
-  char workspace[GATE_PATH_CAPACITY];
+  char coordinator[GATE_PATH_CAPACITY];
   char replacement[GATE_PATH_CAPACITY];
   char anchor[GATE_PATH_CAPACITY];
   int base_fd;
@@ -164,7 +164,7 @@ static bool gate_fixture_paths(gate_fixture *fixture, const char *root) {
       !gate_path_join(fixture->b, fixture->a, "b") ||
       !gate_path_join(fixture->source, fixture->b, "source.w") ||
       !gate_path_join(fixture->nested, fixture->b, "build.w") ||
-      !gate_path_join(fixture->workspace, root, "build.w") ||
+      !gate_path_join(fixture->coordinator, root, "build.w") ||
       !gate_path_join(fixture->replacement, fixture->b, "replacement.w") ||
       !gate_path_join(fixture->anchor, fixture->b, "build.w.anchor"))
     return false;
@@ -175,12 +175,14 @@ static bool gate_fixture_paths(gate_fixture *fixture, const char *root) {
 static bool gate_fixture_stable(gate_fixture *fixture) {
   static const uint8_t source[] = "source\n";
   static const uint8_t nested[] = "package { value: 1 }\n";
-  static const uint8_t workspace[] = "workspace { value: 2 }\n";
+  static const uint8_t coordinator[] =
+      "build { schema: \"w.build/1\" }\npackage { value: 2 }\n";
   if (fixture == NULL || !gate_make_directory(fixture->root) ||
       !gate_make_directory(fixture->a) || !gate_make_directory(fixture->b) ||
       !gate_write_file(fixture->source, source, sizeof(source) - 1u) ||
       !gate_write_file(fixture->nested, nested, sizeof(nested) - 1u) ||
-      !gate_write_file(fixture->workspace, workspace, sizeof(workspace) - 1u) ||
+      !gate_write_file(fixture->coordinator, coordinator,
+                       sizeof(coordinator) - 1u) ||
       !gate_unlink_if_present(fixture->replacement) ||
       !gate_unlink_if_present(fixture->anchor) ||
       link(fixture->nested, fixture->anchor) != 0)

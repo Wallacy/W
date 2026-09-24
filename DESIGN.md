@@ -34330,16 +34330,16 @@ limites de evidência estão em
 [§24.3.7](#2437-own0-observação-guarded-de-candidatos-buildw).
 
 **W-1498 — MAN0 guarded structural data-only manifest reader (Forma vigente):**
-MAN0 é uma fronteira C23 interna, bounded e caller-owned, cuja implementação
-seed ainda usa um modelo estrutural de duas roots que não é o manifest atual.
-A lane C11 é somente recovery explícita. Ela lê todos os candidatos de um
-guard OWN0 `LIVE_OBSERVED`, reconfirma o guard uma vez, compara uma segunda
-leitura byte-exact e só então publica records estruturais canônicos. Esse
-subset não lê nem valida os atuais records `package`/`build` ou seus schemas,
-não seleciona package, não deriva package identity e não compõe o compiler. A
-grammar selecionada permanece a de §21.1; o compiler manifest reader e sua
-integração com resolver/CLI/lock seguem implementation gaps. Os limites,
-receipts e lacunas de composição do seed estão em
+MAN0 é uma fronteira C23 interna, bounded e caller-owned. A lane C11 é somente
+recovery explícita. Ele lê todos os candidatos de um guard OWN0
+`LIVE_OBSERVED`, reconfirma o guard uma vez, compara uma segunda leitura
+byte-exact e só então publica records estruturais canônicos. O reader aplica
+os roots package-centric, sua cardinalidade, a exigência de coordinator para
+múltiplos packages e o schema exato `w.build/1`; ainda não decodifica os fields
+de package/build, não seleciona package, não deriva package identity e não
+compõe o compiler. A grammar selecionada permanece a de §21.1; o schema
+completo e a integração com resolver/CLI/lock seguem implementation gaps. Os
+limites, receipts e lacunas de composição do seed estão em
 [§24.3.8](#2438-man0-guarded-structural-data-only-manifest-reader).
 
 CHK7 acrescenta a composição interna caller-owned CHK6 → frontend seed → D0.
@@ -35313,14 +35313,15 @@ once, repeats reads against the same identities, and publishes structural
 documents. It does not choose which document is the owner. This bounded seed
 path is not the selected compiler's package/build-root discovery policy.
 
-**W-1498 — MAN0 scope (implementation evidence missing):** `w_seed_manifest`
-is an internal C23 structural prototype. It does not call `w_seed_parser`, the
-seed frontend, Tree-sitter, JavaScript, or host tooling. It may reuse only seed
+**W-1498 — MAN0 scope (partial implementation evidence):** `w_seed_manifest`
+is an internal C23 structural reader. It does not call `w_seed_parser`, the seed
+frontend, Tree-sitter, JavaScript, or host tooling. It may reuse only seed
 primitives for bytes, UTF-8, Unicode classification, and SHA-256. Its output
-is caller-owned, bounded, and heapless. The prototype has not been migrated to
-the selected §21.1 grammar/schema. Compiler manifest reading, cardinality and
-schema validation, and integration with package resolution, CLI selection, and
-lock persistence remain implementation gaps.
+is caller-owned, bounded, and heapless. The current reader enforces direct
+package/build roots, at least one package, at most one build coordinator, the
+multi-package coordinator requirement, and the exact decoded `w.build/1`
+coordinator schema. Full package-field/schema validation and integration with
+package resolution, CLI selection, and lock persistence remain gaps.
 
 The selected document occupies the entire file and contains one or more direct
 `package` records and at most one local `build` coordinator, in any order. At
@@ -35330,8 +35331,8 @@ package identities and roots, one `w.package/1` schema per package, and
 `w.build/1` on the optional coordinator. The local root, resolution, and
 deployment are never inferred from candidate order. A guarded batch includes
 all supplied candidates in leaf-to-root order; no candidate is omitted or
-promoted based on its contents. MAN0 does not prove that the selected compiler
-accepts this shape.
+promoted based on its contents. MAN0 does not decode package identity/root
+fields or prove that the selected compiler accepts every package/build field.
 
 MAN0 aceita somente estes values:
 
@@ -35359,10 +35360,13 @@ CRLF, no source view e no source digest; a forma semântica não inclui trivia.
 
 Record fields and list items follow the current EBNF; a trailing comma after
 each item is optional. Constructor arguments require commas between arguments
-and allow a trailing comma. The selected root contract permits multiple
-package records and at most one build coordinator; exact root uniqueness and
-the single-package ambiguity rule require schema validation beyond syntax
-parsing. Fields are unique within a record. Labels within one constructor are
+and allow a trailing comma. MAN0 enforces the structural root rules: one or
+more direct package records, at most one direct build coordinator, and a build
+coordinator whenever there are multiple packages. It requires the coordinator's
+direct `schema` field to decode to `w.build/1` and rejects the legacy
+`workspace` root. Package schema, identity/root uniqueness, and the remaining
+single-package selection ambiguity rule require later schema/CLI validation.
+Fields are unique within a record. Labels within one constructor are
 unique; positional arguments may repeat. Comparisons use identifier UTF-8
 bytes. A schema decoder must reject unknown fields, invalid extensions, and
 incompatible shapes. MAN0 preserves unknown fields and includes them in its
@@ -35466,7 +35470,7 @@ O limite seed é:
 | bytes no batch | 16 MiB |
 | nesting | 256 |
 | structural nodes no batch | 262.144 |
-| roots por documento | 2 |
+| roots por documento | 262.144 |
 | documentos | 256 |
 | bytes de source por scalar | 1 MiB |
 | digits por number | 1.048.576 |
@@ -35513,16 +35517,16 @@ MAN0 não usa `w.owner/1`. Cada digest possui um tag externo distinto:
 
 | Digest | Tag ASCII exato |
 |---|---|
-| document source | `w.seed.man0.document.source/1` |
-| document semantic | `w.seed.man0.document.semantic/1` |
-| document provenance | `w.seed.man0.document.provenance/1` |
-| document receipt | `w.seed.man0.document.receipt/1` |
-| batch semantic | `w.seed.man0.batch.semantic/1` |
-| batch provenance | `w.seed.man0.batch.provenance/1` |
-| batch receipt | `w.seed.man0.batch.receipt/1` |
+| document source | `w.seed.man0.document.source/2` |
+| document semantic | `w.seed.man0.document.semantic/2` |
+| document provenance | `w.seed.man0.document.provenance/2` |
+| document receipt | `w.seed.man0.document.receipt/2` |
+| batch semantic | `w.seed.man0.batch.semantic/2` |
+| batch provenance | `w.seed.man0.batch.provenance/2` |
+| batch receipt | `w.seed.man0.batch.receipt/2` |
 
-Bindings Linux usam `w.seed.man0.context/1` e
-`w.seed.man0.candidate/1`. O codec usa estas productions byte-exact:
+Bindings Linux usam `w.seed.man0.context/2` e
+`w.seed.man0.candidate/2`. O codec usa estas productions byte-exact:
 
 ```text
 U8(x)        = x em 1 byte
@@ -35598,25 +35602,25 @@ descartado.
 Os quatro digests de documento são exatamente:
 
 ```text
-DocumentSourceDigest = Digest("w.seed.man0.document.source/1", sourceBytes)
+DocumentSourceDigest = Digest("w.seed.man0.document.source/2", sourceBytes)
 DocumentSemanticPayload =
-  Frame("schema", "w-seed-man0-1") || Seq("roots", SemanticRoot*)
+  Frame("schema", "w-seed-man0-2") || Seq("roots", SemanticRoot*)
 DocumentSemanticDigest =
-  Digest("w.seed.man0.document.semantic/1", DocumentSemanticPayload)
+  Digest("w.seed.man0.document.semantic/2", DocumentSemanticPayload)
 DocumentProvenancePayload =
-  Frame("schema", "w-seed-man0-1") ||
+  Frame("schema", "w-seed-man0-2") ||
   Frame("candidate-ordinal", U32(candidateOrdinal)) || Binding ||
   Frame("source-digest", DocumentSourceDigest)
 DocumentProvenanceDigest =
-  Digest("w.seed.man0.document.provenance/1", DocumentProvenancePayload)
+  Digest("w.seed.man0.document.provenance/2", DocumentProvenancePayload)
 DocumentReceiptPayload =
-  Frame("schema", "w-seed-man0-1") || Frame("limits", Limits) ||
+  Frame("schema", "w-seed-man0-2") || Frame("limits", Limits) ||
   Frame("counts", DocCounts) || Frame("binding", Binding) ||
   Frame("source-digest", DocumentSourceDigest) ||
   Frame("semantic-digest", DocumentSemanticDigest) ||
   Frame("provenance-digest", DocumentProvenanceDigest)
 DocumentReceiptDigest =
-  Digest("w.seed.man0.document.receipt/1", DocumentReceiptPayload)
+  Digest("w.seed.man0.document.receipt/2", DocumentReceiptPayload)
 ```
 
 Indices, ordinals, parent relations, spans e canonical arena ranges são
@@ -35631,22 +35635,22 @@ document correspondente. `BatchCounts` usa os counts globais publicados.
 Os três result digests pertencem ao batch e são exatamente:
 
 ```text
-BatchSemanticPayload = Frame("schema", "w-seed-man0-1") ||
+BatchSemanticPayload = Frame("schema", "w-seed-man0-2") ||
   Seq("documents", DocumentSemanticDigest*)
 BatchSemanticDigest =
-  Digest("w.seed.man0.batch.semantic/1", BatchSemanticPayload)
-BatchProvenancePayload = Frame("schema", "w-seed-man0-1") ||
+  Digest("w.seed.man0.batch.semantic/2", BatchSemanticPayload)
+BatchProvenancePayload = Frame("schema", "w-seed-man0-2") ||
   Seq("documents", DocumentProvenanceDigest*)
 BatchProvenanceDigest =
-  Digest("w.seed.man0.batch.provenance/1", BatchProvenancePayload)
+  Digest("w.seed.man0.batch.provenance/2", BatchProvenancePayload)
 BatchReceiptPayload =
-  Frame("schema", "w-seed-man0-1") || Frame("limits", Limits) ||
+  Frame("schema", "w-seed-man0-2") || Frame("limits", Limits) ||
   Frame("counts", BatchCounts) ||
   Frame("semantic-digest", BatchSemanticDigest) ||
   Frame("provenance-digest", BatchProvenanceDigest) ||
   Seq("documents", DocumentReceiptDigest*)
 BatchReceiptDigest =
-  Digest("w.seed.man0.batch.receipt/1", BatchReceiptPayload)
+  Digest("w.seed.man0.batch.receipt/2", BatchReceiptPayload)
 ```
 
 A ordem dos documents é sempre o candidate ordinal. Não existe batch source
@@ -35675,19 +35679,19 @@ LinuxLevelPresent(d, directoryIdentity, c, candidateIdentity) = Frame("level",
   Frame("candidate-present", U8(1)) || Frame("candidate-index", U32(c)) ||
   Frame("candidate-identity", candidateIdentity))
 LinuxContextPayload =
-  Frame("schema", "w-seed-man0-1") || Frame("generation", U64(generation)) ||
+  Frame("schema", "w-seed-man0-2") || Frame("generation", U64(generation)) ||
   Frame("base-identity", baseIdentity) ||
   Frame("source-identity", sourceIdentity) ||
   Seq("levels", LinuxLevelAbsent | LinuxLevelPresent)
-ContextBinding = Digest("w.seed.man0.context/1", LinuxContextPayload)
+ContextBinding = Digest("w.seed.man0.context/2", LinuxContextPayload)
 LinuxCandidatePayload =
-  Frame("schema", "w-seed-man0-1") || Frame("literal", "build.w") ||
+  Frame("schema", "w-seed-man0-2") || Frame("literal", "build.w") ||
   Frame("context-binding", ContextBinding) ||
   CandidateRef(candidateGeneration, directoryOrdinal, candidateIndex) ||
   Frame("directory-identity", directoryIdentity) ||
   Frame("candidate-identity", candidateIdentity)
 CandidateBinding =
-  Digest("w.seed.man0.candidate/1", LinuxCandidatePayload)
+  Digest("w.seed.man0.candidate/2", LinuxCandidatePayload)
 ```
 
 `baseIdentity` vem de `context.base_identity`; `sourceIdentity`, do source slot
@@ -35718,7 +35722,7 @@ staged sources e staged records podem mudar. `measure` preserva o `counts`
 separado em failure.
 
 Todo result começa em um envelope canônico. `schema` contém sempre os bytes
-exatos de `w-seed-man0-1`, inclusive NUL final no array C. Error, required byte,
+exatos de `w-seed-man0-2`, inclusive NUL final no array C. Error, required byte,
 counts e digests começam zero; document/candidate usam `UINT32_MAX`; byte offset
 usa `SIZE_MAX`; backend usa `NOT_CALLED/NONE`; owner-guard status contém seu
 valor zero e só é significativo quando `owner_guard_revalidate_called = true`.
@@ -43474,8 +43478,9 @@ integrado para não repetir OWN0 dentro de MAN0.
 
 The C23 core tests cover bounded internal record/value parsing, comments, CRLF,
 canonical field order, preserved unknown fields, duplicate fields, comma rules,
-forbidden expression forms, limits, capacity, aliasing, and forgery. Those
-prototype tests do not prove the selected `package`/`build` grammar or schema.
+forbidden expression forms, limits, capacity, aliasing, forgery, and the
+package/build root-cardinality subset including exact `w.build/1` validation.
+Those tests do not prove full package/build field schemas or resolution.
 The host-oracle bundle at W-1451 supplies current valid/rejected manifest
 fixtures, exact-root checks, package/set/plan identity checks, and publication
 patch rejection. The MAN0 composition gate covers all observed candidates,
@@ -43486,12 +43491,12 @@ host Windows, e cada execução deve produzir o mesmo output exato duas vezes.
 No Windows, a factory MAN0 é somente um stub direto `UNSUPPORTED` fail-closed;
 não há evidência de adapter operacional.
 
-A evidência corrente não promove MAN0 a schema validator ou owner selector.
-Mesmo após os gates, a classificação geral permanece
-`implementation-evidence-gap`: Windows operacional, vínculo ACQ0, decoder de
-schema, WSP0 e produto público permanecem gaps. O `benchmarkDisposition` fica
-em `compiler-lifecycle`; o gate não é oracle BMD1 e não publica stage, timing
-ou result.
+A evidência corrente não promove MAN0 a full schema validator ou owner
+selector. Mesmo após os gates, a classificação geral permanece
+`implementation-evidence-gap`: Windows operacional, vínculo ACQ0, decoder
+completo de schema, WSP0 e produto público permanecem gaps. O
+`benchmarkDisposition` fica em `compiler-lifecycle`; o gate não é oracle BMD1 e
+não publica stage, timing ou result.
 
 #### 26.4.6 Composição BND0 de aquisição, owner guard e manifest
 

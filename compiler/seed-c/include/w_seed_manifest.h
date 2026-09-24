@@ -13,32 +13,34 @@ extern "C" {
 #endif
 
 /* MAN0 is an internal structural reader for data-only build.w documents. It
- * does not select an owner or workspace, validate a manifest schema, resolve
- * imports, acquire modules, or authorize execution. */
-#define W_SEED_MANIFEST_SCHEMA_VERSION "w-seed-man0-1"
+ * validates package/build root cardinality and the build coordinator schema,
+ * but does not select an owner, decode package fields, resolve imports, acquire
+ * modules, or authorize execution. */
+#define W_SEED_MANIFEST_SCHEMA_VERSION "w-seed-man0-2"
 #define W_SEED_MANIFEST_DOCUMENT_SOURCE_TAG \
-  "w.seed.man0.document.source/1"
+  "w.seed.man0.document.source/2"
 #define W_SEED_MANIFEST_DOCUMENT_SEMANTIC_TAG \
-  "w.seed.man0.document.semantic/1"
+  "w.seed.man0.document.semantic/2"
 #define W_SEED_MANIFEST_DOCUMENT_PROVENANCE_TAG \
-  "w.seed.man0.document.provenance/1"
+  "w.seed.man0.document.provenance/2"
 #define W_SEED_MANIFEST_DOCUMENT_RECEIPT_TAG \
-  "w.seed.man0.document.receipt/1"
+  "w.seed.man0.document.receipt/2"
 #define W_SEED_MANIFEST_BATCH_SEMANTIC_TAG \
-  "w.seed.man0.batch.semantic/1"
+  "w.seed.man0.batch.semantic/2"
 #define W_SEED_MANIFEST_BATCH_PROVENANCE_TAG \
-  "w.seed.man0.batch.provenance/1"
+  "w.seed.man0.batch.provenance/2"
 #define W_SEED_MANIFEST_BATCH_RECEIPT_TAG \
-  "w.seed.man0.batch.receipt/1"
-#define W_SEED_MANIFEST_CONTEXT_TAG "w.seed.man0.context/1"
-#define W_SEED_MANIFEST_CANDIDATE_TAG "w.seed.man0.candidate/1"
+  "w.seed.man0.batch.receipt/2"
+#define W_SEED_MANIFEST_CONTEXT_TAG "w.seed.man0.context/2"
+#define W_SEED_MANIFEST_CANDIDATE_TAG "w.seed.man0.candidate/2"
 #define W_SEED_MANIFEST_DIGEST_BYTES 32u
 #define W_SEED_MANIFEST_NONE UINT32_MAX
 #define W_SEED_MANIFEST_MAX_DOCUMENT_BYTES (1u * 1024u * 1024u)
 #define W_SEED_MANIFEST_MAX_AGGREGATE_BYTES (16u * 1024u * 1024u)
 #define W_SEED_MANIFEST_MAX_NESTING 256u
 #define W_SEED_MANIFEST_MAX_STRUCTURAL_NODES 262144u
-#define W_SEED_MANIFEST_MAX_ROOTS_PER_DOCUMENT 2u
+#define W_SEED_MANIFEST_MAX_ROOTS_PER_DOCUMENT \
+  W_SEED_MANIFEST_MAX_STRUCTURAL_NODES
 #define W_SEED_MANIFEST_MAX_DOCUMENTS W_SEED_OWNER_GUARD_MAX_LEVELS
 #define W_SEED_MANIFEST_MAX_SCALAR_SOURCE_BYTES (1u * 1024u * 1024u)
 #define W_SEED_MANIFEST_MAX_NUMBER_DIGITS (1u * 1024u * 1024u)
@@ -95,9 +97,12 @@ typedef enum {
   W_SEED_MANIFEST_ERROR_INTERPOLATION,
   W_SEED_MANIFEST_ERROR_EXECUTABLE_FORM,
   W_SEED_MANIFEST_ERROR_ROOT_REQUIRED,
+  W_SEED_MANIFEST_ERROR_BUILD_REQUIRED,
   W_SEED_MANIFEST_ERROR_ROOT_INVALID,
   W_SEED_MANIFEST_ERROR_ROOT_DUPLICATE,
   W_SEED_MANIFEST_ERROR_ROOT_LIMIT,
+  W_SEED_MANIFEST_ERROR_BUILD_SCHEMA_REQUIRED,
+  W_SEED_MANIFEST_ERROR_BUILD_SCHEMA_INVALID,
   W_SEED_MANIFEST_ERROR_FIELD_REQUIRED,
   W_SEED_MANIFEST_ERROR_FIELD_DUPLICATE,
   W_SEED_MANIFEST_ERROR_COLON_REQUIRED,
@@ -186,7 +191,7 @@ typedef struct {
 
 typedef enum {
   W_SEED_MANIFEST_ROOT_PACKAGE = 0,
-  W_SEED_MANIFEST_ROOT_WORKSPACE,
+  W_SEED_MANIFEST_ROOT_BUILD,
 } w_seed_manifest_root_kind;
 
 typedef enum {
@@ -209,7 +214,8 @@ typedef enum {
 /* Source spans are exact half-open byte ranges in document.source. Optional
  * commas and surrounding trivia are not part of field or edge spans. An absent
  * span is {NO_BYTE, NO_BYTE}; an empty present span has equal in-range ends.
- * Roots are grouped by document and ordered PACKAGE then WORKSPACE. */
+ * Roots are grouped by document and ordered PACKAGE then BUILD; package roots
+ * retain their source order within the package group. */
 typedef struct {
   uint32_t document_index;
   uint32_t ordinal;

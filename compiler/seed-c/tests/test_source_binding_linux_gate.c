@@ -292,7 +292,7 @@ static bool gate_fixture_create(gate_fixture *fixture) {
       "module restaurant;\n"
       "fn lastLight(): i64 { return 42 }\n";
   static const uint8_t nested_build[] = "package { value: 1 }\n";
-  static const uint8_t root_build[] = "workspace { value: 2 }\n";
+  static const uint8_t root_build[] = "package { value: 2 }\n";
   if (fixture == NULL || !gate_directory(fixture->root) ||
       !gate_directory(fixture->a) || !gate_directory(fixture->b) ||
       !gate_directory(fixture->other_root) ||

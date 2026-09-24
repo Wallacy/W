@@ -109,7 +109,8 @@ typedef struct {
 static const char s0_source[] = "package { alpha: 1 beta: \"A\" }\n";
 static const char s1_source[] =
     "package {\n  // same semantics\n  beta: \"\\u{41}\",\n  alpha: 1.0e0,\n}\n";
-static const char s2_source[] = "workspace {}\npackage {}\n";
+static const char s2_source[] =
+    "build { schema: \"w.build/1\" }\npackage {}\n";
 static const char s3_source[] = "package { value: [1, 2] }\n";
 static const char s4_source[] = "package { value: [2, 1] }\n";
 static const char s5_source[] =
@@ -126,95 +127,95 @@ static const char *const s0_s2_sources[] = {s0_source, s2_source};
 static const golden_document s0_documents[] = {
     GOLDEN_DOCUMENT(
         1u, 1u, 3u, 2u, 0u, 83u, 6u,
-        "2f44e64c86b98866777b0b559195b2662a753ff3787aa2fa460ed38b216d3c65",
-        "794fb70a3a6c6b67981431ba97602c183071d0f0a3b661e9f744dd7f950dafe8",
-        "1d8ea6e2b4f239b0c4a3e6d4f33378b3a2077804bfe07a436ab6d5c36fb3a5e2",
-        "77d7817c026699591dc0f95085c8148a47fc817902e598ebdec5e2e2e16b267f")};
+        "dd8f2091d1d16564ce3d7512bbebbb2bfc8c3a4b5428095f63a14d4a1428b2db",
+        "097813a3a02b43766e52ad9a10dbe9644702401161aa11ac2e9ce3838a311c32",
+        "238b6943b7658790678abe8c5fd28c56444462c79a3894930bbc6b0276bbd175",
+        "1b8cb7d2a1688f4cd63cf8bdcdae1e5f5caef7ac359b691932fa97efa1945b14")};
 static const golden_document s1_documents[] = {
     GOLDEN_DOCUMENT(
         1u, 1u, 3u, 2u, 0u, 83u, 6u,
-        "19ae808cc6125fdd950b8d7c2e21718b45dfc45967f630188ade71b453d3960f",
-        "794fb70a3a6c6b67981431ba97602c183071d0f0a3b661e9f744dd7f950dafe8",
-        "70f368a8b423bf89373704b5089a423d0b555f9aa67621caf7bdf639feb24890",
-        "ebd7200cfb8415df2a5ca100fbb32ae978160c09945f551d61a0b7195756bdf9")};
+        "87b647cf239df727c3577315dd18571ec0f729398ba9143cb1b88264bf94b85e",
+        "097813a3a02b43766e52ad9a10dbe9644702401161aa11ac2e9ce3838a311c32",
+        "5a18bbe924d7a43e3b5cfcae338d2da5a9ac7ca099450d911ea360d55f575f43",
+        "9eabfd525cef285a482ef6d20d5563e282da33954ef7f99f52bdc70cd3c7d1d0")};
 static const golden_document s2_documents[] = {
     GOLDEN_DOCUMENT(
-        1u, 2u, 2u, 0u, 0u, 0u, 4u,
-        "b9f315ca23902dd7b05ca6403cbcd59d75c247faeb8401a19bcfc30e573a41df",
-        "4687b3fcc2441603c4e8c5f1f4b7eaccb28dc7471eadde3fa53b3f3e702108f3",
-        "9e734d08c7dc79397dd80e37b1179fc80edf544348272d0300f51cb3fe8a9c4b",
-        "42490fc9fe98a33a091806c0d33a9c7e0641d2946bd75488cb6f5b0084c8e8bb")};
+        1u, 2u, 3u, 1u, 0u, 9u, 6u,
+        "e30bab1bb290af8c4ff76810787ba585f1e2fb4c8eadb432393f81fe4048ff26",
+        "277c96523e1e4d5f8b83d638d05c02d0ce0bb97a0fcdcc76996f8cd9e3b46a91",
+        "5198fc25f4ddcf6df27776b61a45dbbfab4dffffb8f16a6d270d40ee4b788e7f",
+        "42c96d5216f2504c23091c45c6733f6e4fefccb0627edc0f3a57d892f7445e78")};
 static const golden_document s3_documents[] = {
     GOLDEN_DOCUMENT(
         1u, 1u, 4u, 1u, 2u, 164u, 8u,
-        "8dd1b489e2cbd9b8f121c233893550d27568e9733da2b03bf62df5bcb49b7365",
-        "76cbe9c7f37bc7651838412766b9c434d5ad47de2f3eac0591665fb2b45fc13b",
-        "31887b27010a9f3bc650c90c2658a8bebf6ee8b8e4c32f848c21dce9da7fab0c",
-        "fcc173c43b45dee44962fae0263c85736ae52ab78f65988426e362a28cc2bd5e")};
+        "bcda07eec3a4e18bfda26f71f5cdb87b4cd405585719c558f55fb53bea844582",
+        "1af0c00cc5409cae6e671ad03b6a53f37f0320e146fe022f200938b13546beb6",
+        "e7701cd040b2fcc0a8063a8e53f31232bb8c9739e8425920730ae4ccee0cd68f",
+        "cc776c9c06b13f9397dd5370ac4419e08030f4a99526e86e8acecaeb3dfe49a9")};
 static const golden_document s4_documents[] = {
     GOLDEN_DOCUMENT(
         1u, 1u, 4u, 1u, 2u, 164u, 8u,
-        "b1be81c1f0dee36adb4a8c811eac24039191daea0b5feee913535780e53f257b",
-        "c276161e074c8e13e3b041a707277267383ac13f016e084129232631b6650369",
-        "8d58ad7103e8162092c5a973ffb15f281d0db56fb42f8d4b5962c9c6897eb936",
-        "90d8fe47d40e6ce7dd70b0dcfe15b5c4b01523c3db7e387de715454f80bde0b1")};
+        "f4577b606b589a4eb10798ffcdf7428d211495370a3b247c6852094132cc7832",
+        "9a865e4c80f46a040a2abcc1ae52f0ee1449c7378decad200e6a2cb42cb4afbc",
+        "75266ae1be48c10bf68e2566d7811d81d62aad810df602b1aa1a2b696d8cec12",
+        "e80dc86806ebbea66d825fb37859837c5e223bdca5ae7e3db57ffb21e70f43c3")};
 static const golden_document s5_documents[] = {
     GOLDEN_DOCUMENT(
         1u, 1u, 4u, 3u, 0u, 167u, 8u,
-        "b1e9677b41597272e2d2c1be41a56dfc3e564a5d8fa94fc0d9ba48a1d5ab1566",
-        "1b165953f56bca327d0a5f6f869f29e21342f972b9610a0eba9374733042532b",
-        "587dacd5b2cab5af18710f844e482128724f7d54470770504dc8bee8036d9863",
-        "7707f85ae159071d502561532cb58b5ec81b0eb4a2c83b419fb05925cbeb49e7")};
+        "aa906dfa92c528251baea1b572a81356474b5f1d6966dae93db4868b759ed458",
+        "03e17cb6580a4367b52bbc7a96fb080d5f52260ce9195c77eea4287ffe68c5d2",
+        "6c7ae3968f08cce4d2ae6dea23558e3ea4dfb6e69512bd18179cadd974d1ece3",
+        "b96f24907405caed74322e9714ada7312b63520b38e8edb673cc8b9dcd8a0015")};
 static const golden_document s0_s2_documents[] = {
     GOLDEN_DOCUMENT(
         1u, 1u, 3u, 2u, 0u, 83u, 6u,
-        "2f44e64c86b98866777b0b559195b2662a753ff3787aa2fa460ed38b216d3c65",
-        "794fb70a3a6c6b67981431ba97602c183071d0f0a3b661e9f744dd7f950dafe8",
-        "1d8ea6e2b4f239b0c4a3e6d4f33378b3a2077804bfe07a436ab6d5c36fb3a5e2",
-        "77d7817c026699591dc0f95085c8148a47fc817902e598ebdec5e2e2e16b267f"),
+        "dd8f2091d1d16564ce3d7512bbebbb2bfc8c3a4b5428095f63a14d4a1428b2db",
+        "097813a3a02b43766e52ad9a10dbe9644702401161aa11ac2e9ce3838a311c32",
+        "238b6943b7658790678abe8c5fd28c56444462c79a3894930bbc6b0276bbd175",
+        "1b8cb7d2a1688f4cd63cf8bdcdae1e5f5caef7ac359b691932fa97efa1945b14"),
     GOLDEN_DOCUMENT(
-        1u, 2u, 2u, 0u, 0u, 0u, 4u,
-        "b9f315ca23902dd7b05ca6403cbcd59d75c247faeb8401a19bcfc30e573a41df",
-        "4687b3fcc2441603c4e8c5f1f4b7eaccb28dc7471eadde3fa53b3f3e702108f3",
-        "51f93588d10a443993a74b09ac47ef54b9403a751cd1a263f114530a0cd68bae",
-        "96496b00b45715baadc1a46306518266ea66f8f059f8c6de2435560f8edeba33")};
+        1u, 2u, 3u, 1u, 0u, 9u, 6u,
+        "e30bab1bb290af8c4ff76810787ba585f1e2fb4c8eadb432393f81fe4048ff26",
+        "277c96523e1e4d5f8b83d638d05c02d0ce0bb97a0fcdcc76996f8cd9e3b46a91",
+        "0045ba0d46e0e5b3e55294505b8b87d7810b4857d3774c7356a0ddce8e6a169e",
+        "c6e9089c199b97c8edc04a59ba574b8bca966b300eac8877474b91da5207a3f0")};
 
 static const golden_case golden_cases[] = {
     {"S0", s0_sources, 1u, s0_documents, 1u, {1u, 1u, 3u, 2u, 0u, 83u, 6u},
-     "0e5d2fb4aa0a26251911f7f85f7b38220086196b9dc333368cc78dbdf004a158",
-     "727d3e8f832a58e93f3c9162423b9a743a501a6cf610683828c93a85a930ea69",
-     "e919595832fed9265bb1711b6f160f160ec28453873008ab34ed7c2bbcdf9f8b",
+     "be4ddc0a720523b16921c8e28b0da554a5fd59383f705ec41fa255c85daf17a8",
+     "315c18341cd5fcfc1bed211848a711178a9e31854ab3beecd4c206d4e7a0ead7",
+     "86483c6506d2537fa689c38d180e6de8dadabb826def622dcd646c09464aded6",
      false, false},
     {"S1", s1_sources, 1u, s1_documents, 1u, {1u, 1u, 3u, 2u, 0u, 83u, 6u},
-     "0e5d2fb4aa0a26251911f7f85f7b38220086196b9dc333368cc78dbdf004a158",
-     "f2d44c482d3e96ebd292124704c040efa4f824bb32c4fcb87464c5590c55a493",
-     "eb3ebc846ce3e1780a35da2108ecb446e867dfd3d03c233646b52d2f59660b5d",
+     "be4ddc0a720523b16921c8e28b0da554a5fd59383f705ec41fa255c85daf17a8",
+     "1faa7b53939a268b44d2bbdbc36dfd69eae3a2bafbb51210bd16d828541f5743",
+     "7163066c07de8b1cc8590bcd8e8c87710052a6e037658f9f1d524aed92f6e768",
      false, false},
-    {"S2", s2_sources, 1u, s2_documents, 1u, {1u, 2u, 2u, 0u, 0u, 0u, 4u},
-     "5f0d26525af8630fcec1e3bf5c28d2fb44c63c4ad9e374612bf5565ecbd1fc1f",
-     "e7b735f4d7d70bd48906690c637450078613e567119e58323081f77ba64128a7",
-     "2d4171087f491c60385844110c1e3b37603998b43df8c29acc87d775a0bba6cc",
+    {"S2", s2_sources, 1u, s2_documents, 1u, {1u, 2u, 3u, 1u, 0u, 9u, 6u},
+     "3dc00d4575c198d4a5feeb10ed72e05b35cf09f5559de13cd3cfa65678037c0f",
+     "cc2e5f65f7b08a4a9671b596e6d482a9df0fc8adf98471caf3fa7ab3d7925f28",
+     "ce380878d9dc3bf3e45210c0331a27f3c2b3bdae63af4b71c3d92ba859f3380e",
      true, false},
     {"S3", s3_sources, 1u, s3_documents, 1u, {1u, 1u, 4u, 1u, 2u, 164u, 8u},
-     "f46953e0ecf67065c54faeb51c4828e8f61e711b0e957636147bc8fa16312e8c",
-     "0ca41ef4593ce2b7282e607e60a9f537c5c138ddf2cdfafe8a735d293af6cd22",
-     "5af7847274dacd86bfe955b5bb9c09f0d6f9dfcf4dc2dc3057ef710f09699011",
+     "4beca56e4b367c61e574d86a5fc3b09237e0883cf86108d73373dce7e6e8cb6e",
+     "6dae754f74186591a04555c07f421e9d25d0490ae6703cf9290b4126ff65124f",
+     "d33286f9b7d3bb99eab2791f9a036a567a1b372619459aeb6e5fd51d6f68e60a",
      false, false},
     {"S4", s4_sources, 1u, s4_documents, 1u, {1u, 1u, 4u, 1u, 2u, 164u, 8u},
-     "62a4c84da39d46bd174e1aba5fc9fe0df944f742d157bea799ed30e91a3186a5",
-     "19aba5274f2fcac04b5cb75ef2dc211c93cfc2d3d8eb242699a1927e9a300cc5",
-     "d5548ccf6fa53807c875a1488cb1cf7580586fa4adf8f92d15e8a7310df85782",
+     "fd37e09e75e3a16e305802e4f0543fb9b29b14d37e96eea403badc4320cd4dca",
+     "809261488427e51a6ed0d1aadc74c127ce6807364f0d0246a756df9f8b3fe875",
+     "fd597d1daa188ae1bd9f5f20d025e634866799be210e03ecdbefa566477e8283",
      false, false},
     {"S5", s5_sources, 1u, s5_documents, 1u, {1u, 1u, 4u, 3u, 0u, 167u, 8u},
-     "1de20a742bd30d97805f15a9f7a4b0fb336af91f7adc075828466f5ed577a972",
-     "b66b5fb677a2d5f374ec05081b3fc6a6d7b1a98ccaf5accbc6151ea3535c8cae",
-     "c29d9cfb250dc24d2d805e993602474c380ce0b4025aadc8ed1bd7271fe7b06c",
+     "8467bdda421a4a493464b2a5152019859f0cadd576696c578fe65e38ad345147",
+     "6dd496c691e420d071d90c1fbfdc25bc4228301b5087017c02e55397b1365475",
+     "1e298e70676d3af678afa8bcfb6ccb6500ffe281f324c87ded8d2310cf0af40b",
      false, true},
     {"S0_S2", s0_s2_sources, 2u, s0_s2_documents, 2u,
-     {2u, 3u, 5u, 2u, 0u, 83u, 10u},
-     "377c9ec12efa15549f8bc71bd1fe3aa4968d9693f7d11577722283d6242b1fed",
-     "b2c87d21c6ad20075b79b8337afb60d94bab3cb92dd022c852d5c831332a8b0b",
-     "f216ce3ea77a4f4a2cc050a2c36fd6d901cf5d7c6f16e95daa9ee9c08a6518ca",
+     {2u, 3u, 6u, 3u, 0u, 92u, 12u},
+     "901d0be98bf5986f920567f8f17715cc46c9dcbdb356a93f0dde62cb1ad49e7d",
+     "696a8bfce72745a180ef5d465a9f2f435bb97874f5a20724ead029b2e686fedd",
+     "b4deff60e2978bebe53c9c5b7b3b1f1d182575738bf799d24d9457c918f2f47d",
      false, false},
 };
 
@@ -505,7 +506,7 @@ static bool run_golden_case(const golden_case *test, golden_observed *observed) 
   if (test->check_roots &&
       (output.roots[0].kind != W_SEED_MANIFEST_ROOT_PACKAGE ||
        output.roots[0].ordinal != 0u ||
-       output.roots[1].kind != W_SEED_MANIFEST_ROOT_WORKSPACE ||
+       output.roots[1].kind != W_SEED_MANIFEST_ROOT_BUILD ||
        output.roots[1].ordinal != 1u))
     return false;
   if (test->check_s5 && !check_golden_s5(&program)) return false;
@@ -661,6 +662,150 @@ static bool manifest_output_is_unchanged(void) {
                 sizeof(output_canonical)) == 0;
 }
 
+static bool reject_root_source(const uint8_t *bytes, size_t length,
+                               w_seed_manifest_status status,
+                               w_seed_manifest_error_kind error) {
+  const w_seed_manifest_counts sentinel = {
+      UINT32_C(0xa5a5a5a5), UINT32_C(0xa5a5a5a5), UINT32_C(0xa5a5a5a5),
+      UINT32_C(0xa5a5a5a5), UINT32_C(0xa5a5a5a5), UINT32_C(0xa5a5a5a5),
+      UINT32_C(0xa5a5a5a5)};
+  w_seed_manifest_counts counts = sentinel;
+  const w_seed_manifest_result result = measure(bytes, length, &counts);
+  return result.status == status && result.error == error &&
+         same_counts(counts, sentinel);
+}
+
+static bool check_package_build_roots(void) {
+  static const uint8_t multiple[] =
+      "package { name: \"first\" }\n"
+      "build { schema: \"w.build/1\" }\n"
+      "package { name: \"second\" }\n";
+  static const uint8_t multiple_without_build[] =
+      "package {}\npackage {}\n";
+  static const uint8_t duplicate_build[] =
+      "package {}\n"
+      "build { schema: \"w.build/1\" }\n"
+      "build { schema: \"w.build/1\" }\n";
+  static const uint8_t missing_build_schema[] =
+      "package {}\nbuild { selected: \"app\" }\n";
+  static const uint8_t wrong_build_schema[] =
+      "package {}\nbuild { schema: \"w.build/2\" }\n";
+  static const uint8_t nonstring_build_schema[] =
+      "package {}\nbuild { schema: .wBuild }\n";
+  static const uint8_t nested_build_schema[] =
+      "package {}\nbuild { nested: { schema: \"w.build/1\" } }\n";
+  static const uint8_t build_without_package[] =
+      "build { schema: \"w.build/1\" }\n";
+  static const uint8_t legacy_workspace[] =
+      "package {}\nworkspace {}\n";
+  w_seed_manifest_counts counts;
+
+  if (!reject_root_source(multiple_without_build,
+                          sizeof(multiple_without_build) - 1u,
+                          W_SEED_MANIFEST_SYNTAX,
+                          W_SEED_MANIFEST_ERROR_BUILD_REQUIRED) ||
+      !reject_root_source(duplicate_build, sizeof(duplicate_build) - 1u,
+                          W_SEED_MANIFEST_DUPLICATE,
+                          W_SEED_MANIFEST_ERROR_ROOT_DUPLICATE) ||
+      !reject_root_source(missing_build_schema,
+                          sizeof(missing_build_schema) - 1u,
+                          W_SEED_MANIFEST_SYNTAX,
+                          W_SEED_MANIFEST_ERROR_BUILD_SCHEMA_REQUIRED) ||
+      !reject_root_source(wrong_build_schema,
+                          sizeof(wrong_build_schema) - 1u,
+                          W_SEED_MANIFEST_SYNTAX,
+                          W_SEED_MANIFEST_ERROR_BUILD_SCHEMA_INVALID) ||
+      !reject_root_source(nonstring_build_schema,
+                          sizeof(nonstring_build_schema) - 1u,
+                          W_SEED_MANIFEST_SYNTAX,
+                          W_SEED_MANIFEST_ERROR_BUILD_SCHEMA_INVALID) ||
+      !reject_root_source(nested_build_schema,
+                          sizeof(nested_build_schema) - 1u,
+                          W_SEED_MANIFEST_SYNTAX,
+                          W_SEED_MANIFEST_ERROR_BUILD_SCHEMA_REQUIRED) ||
+      !reject_root_source(build_without_package,
+                          sizeof(build_without_package) - 1u,
+                          W_SEED_MANIFEST_SYNTAX,
+                          W_SEED_MANIFEST_ERROR_ROOT_REQUIRED) ||
+      !reject_root_source(legacy_workspace, sizeof(legacy_workspace) - 1u,
+                          W_SEED_MANIFEST_SYNTAX,
+                          W_SEED_MANIFEST_ERROR_ROOT_INVALID))
+    return false;
+
+  (void)memset(&counts, 0, sizeof(counts));
+  w_seed_manifest_result result =
+      measure(multiple, sizeof(multiple) - 1u, &counts);
+  if (result.status != W_SEED_MANIFEST_OK || counts.roots != 3u)
+    return false;
+
+  w_seed_manifest_source_input source;
+  (void)memset(&source, 0, sizeof(source));
+  source.bytes.data = multiple;
+  source.bytes.length = sizeof(multiple) - 1u;
+  w_seed_manifest_input input;
+  (void)memset(&input, 0, sizeof(input));
+  input.documents = &source;
+  input.document_count = 1u;
+  input.limits = w_seed_manifest_default_limits();
+  input.scratch = (w_seed_manifest_scratch){
+      name_slots, W_SEED_MANIFEST_MAX_STRUCTURAL_NODES, scalar_bytes,
+      sizeof(scalar_bytes)};
+  w_seed_manifest_output output = {
+      .documents = output_documents,
+      .document_capacity = sizeof(output_documents) / sizeof(*output_documents),
+      .roots = output_roots,
+      .root_capacity = sizeof(output_roots) / sizeof(*output_roots),
+      .nodes = output_nodes,
+      .node_capacity = sizeof(output_nodes) / sizeof(*output_nodes),
+      .fields = output_fields,
+      .field_capacity = sizeof(output_fields) / sizeof(*output_fields),
+      .edges = output_edges,
+      .edge_capacity = sizeof(output_edges) / sizeof(*output_edges),
+      .canonical_bytes = output_canonical,
+      .canonical_byte_capacity = sizeof(output_canonical),
+  };
+  result = w_seed_manifest_run(&input, &output);
+  if (result.status != W_SEED_MANIFEST_OK ||
+      result.required.roots != 3u ||
+      output_roots[0].kind != W_SEED_MANIFEST_ROOT_PACKAGE ||
+      output_roots[1].kind != W_SEED_MANIFEST_ROOT_PACKAGE ||
+      output_roots[2].kind != W_SEED_MANIFEST_ROOT_BUILD ||
+      output_roots[0].ordinal != 0u || output_roots[1].ordinal != 1u ||
+      output_roots[2].ordinal != 2u ||
+      !(output_roots[0].keyword_span.start_byte <
+            output_roots[2].keyword_span.start_byte &&
+        output_roots[2].keyword_span.start_byte <
+            output_roots[1].keyword_span.start_byte))
+    return false;
+  w_seed_manifest_program program;
+  w_seed_manifest_scratch verify_scratch = input.scratch;
+  if (!w_seed_manifest_program_from_output(&output, &result, &program) ||
+      !w_seed_manifest_verify(&program, &result, &verify_scratch))
+    return false;
+
+  snapshot_manifest_output();
+  input.limits.max_roots_per_document = 2u;
+  const w_seed_manifest_counts count_sentinel = {
+      UINT32_C(0xa5a5a5a5), UINT32_C(0xa5a5a5a5), UINT32_C(0xa5a5a5a5),
+      UINT32_C(0xa5a5a5a5), UINT32_C(0xa5a5a5a5), UINT32_C(0xa5a5a5a5),
+      UINT32_C(0xa5a5a5a5)};
+  w_seed_manifest_counts count_after_failure = count_sentinel;
+  result = w_seed_manifest_measure(&input, &count_after_failure);
+  if (result.status != W_SEED_MANIFEST_LIMIT ||
+      result.error != W_SEED_MANIFEST_ERROR_ROOT_LIMIT ||
+      !same_counts(count_after_failure, count_sentinel) ||
+      !manifest_output_is_unchanged())
+    return false;
+
+  source.bytes.data = multiple_without_build;
+  source.bytes.length = sizeof(multiple_without_build) - 1u;
+  input.limits = w_seed_manifest_default_limits();
+  result = w_seed_manifest_run(&input, &output);
+  return result.status == W_SEED_MANIFEST_SYNTAX &&
+         result.error == W_SEED_MANIFEST_ERROR_BUILD_REQUIRED &&
+         manifest_output_is_unchanged();
+}
+
 static bool check_manifest_capacity_alias(
     const w_seed_manifest_input *input, const w_seed_manifest_output *output,
     w_seed_manifest_counts counts) {
@@ -670,6 +815,13 @@ static bool check_manifest_capacity_alias(
   w_seed_manifest_output variant = *output;
   variant.node_capacity = counts.nodes - 1u;
   w_seed_manifest_result result = w_seed_manifest_run(input, &variant);
+  if (result.status != W_SEED_MANIFEST_CAPACITY ||
+      !manifest_output_is_unchanged())
+    return false;
+
+  variant = *output;
+  variant.root_capacity = counts.roots - 1u;
+  result = w_seed_manifest_run(input, &variant);
   if (result.status != W_SEED_MANIFEST_CAPACITY ||
       !manifest_output_is_unchanged())
     return false;
@@ -922,7 +1074,7 @@ static w_seed_manifest_backend_result guarded_test_read(
 static int run_guarded_fixture(guarded_test_mode mode,
                                w_seed_manifest_status expected_status) {
   static const uint8_t source_a[] = "package { a: 1 }\n";
-  static const uint8_t source_b[] = "workspace { b: true }\n";
+  static const uint8_t source_b[] = "package { b: true }\n";
   guarded_test_context context = {
       {source_a, source_b}, {sizeof(source_a) - 1u, sizeof(source_b) - 1u}};
   guarded_test_context other_context = context;
@@ -1172,6 +1324,8 @@ static int run_manifest_tests(void) {
   CHECK(result.status == W_SEED_MANIFEST_LIMIT);
   CHECK(result.error == W_SEED_MANIFEST_ERROR_WORK_LIMIT);
 
+  CHECK(check_package_build_roots());
+
   CHECK(measure_file("reference/last-light/build.w") == EXIT_SUCCESS);
   CHECK(measure_file("reference/syntax-atlas/build.w") == EXIT_SUCCESS);
 
@@ -1196,7 +1350,7 @@ static int run_manifest_tests(void) {
                W_SEED_MANIFEST_DIGEST_BYTES) != 0);
 
   static const uint8_t run_source[] =
-      "workspace { z: [1, 2], a: .Foo(label: \"x\", true), "
+      "build { schema: \"w.build/1\", z: [1, 2], a: .Foo(label: \"x\", true), "
       "b: 1.00e+2, c: 1KiB, d: 1<m / s> }\n"
       "package { name: \"w\\n\" }\n";
   w_seed_manifest_source_input run_input_source;

@@ -41,12 +41,18 @@ typedef struct {
   uint32_t next_field;
   uint32_t next_edge;
   uint32_t next_canonical;
-  bool package_seen;
-  bool workspace_seen;
+  uint32_t package_count;
+  bool build_seen;
+  w_seed_manifest_root_kind current_root_kind;
+  bool build_schema_seen;
+  bool build_schema_valid;
+  bool expect_build_schema_value;
   const w_seed_manifest_program *verify_program;
   const w_seed_manifest_document *verify_document;
   uint32_t verify_root_match;
 } man0_parser;
+
+static const uint8_t man0_build_schema[] = "w.build/1";
 
 typedef struct {
   w_seed_span span;
@@ -1599,11 +1605,24 @@ static bool parse_record_value(man0_parser *parser, uint32_t parent,
     const uint32_t physical_ordinal = physical_field;
     uint32_t child = W_SEED_MANIFEST_NONE;
     w_seed_span child_span;
+    const bool is_build_schema_field =
+        parent == W_SEED_MANIFEST_NONE &&
+        parser->current_root_kind == W_SEED_MANIFEST_ROOT_BUILD &&
+        span_text(parser, name, "schema");
+    parser->expect_build_schema_value = is_build_schema_field;
     if (!parse_value(parser, node, physical_ordinal, &child, &child_span) ||
         !finish_field(parser, field, node, name,
                       (w_seed_span){name.start_byte, child_span.end_byte}, child) ||
         !skip_trivia(parser))
       return false;
+    if (is_build_schema_field) {
+      parser->build_schema_seen = true;
+      if (!parser->build_schema_valid) {
+        return parser_fail(parser, W_SEED_MANIFEST_SYNTAX,
+                           W_SEED_MANIFEST_ERROR_BUILD_SCHEMA_INVALID,
+                           child_span.start_byte);
+      }
+    }
     physical_field += 1u;
     first = false;
   }
@@ -1790,6 +1809,9 @@ static bool copy_or_compare_scalar(man0_parser *parser, const uint8_t *bytes,
 
 static bool parse_value(man0_parser *parser, uint32_t parent, uint32_t ordinal,
                         uint32_t *node_index, w_seed_span *value_span) {
+  const bool validate_build_schema = parser->expect_build_schema_value;
+  parser->expect_build_schema_value = false;
+  if (validate_build_schema) parser->build_schema_valid = false;
   if (parser->cursor >= parser->length)
     return parser_fail(parser, W_SEED_MANIFEST_SYNTAX,
                        W_SEED_MANIFEST_ERROR_VALUE_REQUIRED,
@@ -1805,6 +1827,14 @@ static bool parse_value(man0_parser *parser, uint32_t parent, uint32_t ordinal,
   if (at_byte(parser, (uint8_t)'"')) {
     man0_string string;
     if (!parse_string(parser, &string)) return false;
+    if (validate_build_schema &&
+        string.decoded_length == sizeof(man0_build_schema) - 1u) {
+      if (!charge(parser, (uint64_t)(sizeof(man0_build_schema) - 1u)))
+        return false;
+      parser->build_schema_valid =
+          memcmp(parser->scratch.bytes, man0_build_schema,
+                 sizeof(man0_build_schema) - 1u) == 0;
+    }
     uint32_t node = W_SEED_MANIFEST_NONE;
     if (!reserve_node(parser, W_SEED_MANIFEST_NODE_STRING, parent, ordinal, start,
                       &node))
@@ -1903,21 +1933,29 @@ static bool parse_document(man0_parser *parser) {
                          roots == 0u ? W_SEED_MANIFEST_ERROR_ROOT_REQUIRED
                                      : W_SEED_MANIFEST_ERROR_TRAILING_SOURCE,
                          start);
-    bool *seen = NULL;
-    if (span_text(parser, keyword, "package")) seen = &parser->package_seen;
-    else if (span_text(parser, keyword, "workspace")) seen = &parser->workspace_seen;
-    else
+    w_seed_manifest_root_kind kind;
+    if (span_text(parser, keyword, "package")) {
+      kind = W_SEED_MANIFEST_ROOT_PACKAGE;
+      parser->package_count += 1u;
+    } else if (span_text(parser, keyword, "build")) {
+      kind = W_SEED_MANIFEST_ROOT_BUILD;
+      if (parser->build_seen)
+        return parser_fail(parser, W_SEED_MANIFEST_DUPLICATE,
+                           W_SEED_MANIFEST_ERROR_ROOT_DUPLICATE, start);
+      parser->build_seen = true;
+    } else if (span_text(parser, keyword, "workspace")) {
+      return parser_fail(parser, W_SEED_MANIFEST_SYNTAX,
+                         W_SEED_MANIFEST_ERROR_ROOT_INVALID,
+                         start);
+    } else {
       return parser_fail(parser, W_SEED_MANIFEST_SYNTAX,
                          roots == 0u ? W_SEED_MANIFEST_ERROR_ROOT_INVALID
                                      : W_SEED_MANIFEST_ERROR_TRAILING_SOURCE,
                          start);
-    if (*seen)
-      return parser_fail(parser, W_SEED_MANIFEST_DUPLICATE,
-                         W_SEED_MANIFEST_ERROR_ROOT_DUPLICATE, start);
+    }
     if (roots >= parser->limits->max_roots_per_document)
       return parser_fail(parser, W_SEED_MANIFEST_LIMIT,
                          W_SEED_MANIFEST_ERROR_ROOT_LIMIT, start);
-    *seen = true;
     const uint32_t physical_root = roots;
     roots += 1u;
     const uint32_t root_index = parser->counts->roots;
@@ -1926,35 +1964,36 @@ static bool parse_document(man0_parser *parser) {
         !skip_trivia(parser))
       return false;
     parser->physical_root_ordinal = physical_root;
+    parser->current_root_kind = kind;
+    parser->build_schema_seen = false;
+    parser->build_schema_valid = false;
+    parser->expect_build_schema_value = false;
     uint32_t record_node = W_SEED_MANIFEST_NONE;
     w_seed_span record_span;
     if (!parse_record_value(parser, W_SEED_MANIFEST_NONE, physical_root,
                             &record_node, &record_span) ||
         !skip_trivia(parser))
       return false;
+    if (kind == W_SEED_MANIFEST_ROOT_BUILD && !parser->build_schema_seen)
+      return parser_fail(parser, W_SEED_MANIFEST_SYNTAX,
+                         W_SEED_MANIFEST_ERROR_BUILD_SCHEMA_REQUIRED, start);
     if (parser->mode == MAN0_MODE_EMIT) {
       if (parser->output == NULL || root_index >= parser->output->root_capacity ||
           parser->output->roots == NULL)
         return parser_fail(parser, W_SEED_MANIFEST_CAPACITY,
                            W_SEED_MANIFEST_ERROR_NONE, start);
       parser->output->roots[root_index] = (w_seed_manifest_root){
-          (uint32_t)parser->document_index, physical_root,
-          span_text(parser, keyword, "package")
-              ? W_SEED_MANIFEST_ROOT_PACKAGE
-              : W_SEED_MANIFEST_ROOT_WORKSPACE,
+          (uint32_t)parser->document_index, physical_root, kind,
           record_node, keyword, {start, record_span.end_byte}};
     } else if (parser->verify_program != NULL) {
-      const w_seed_manifest_root_kind kind =
-          span_text(parser, keyword, "package")
-              ? W_SEED_MANIFEST_ROOT_PACKAGE
-              : W_SEED_MANIFEST_ROOT_WORKSPACE;
       const w_seed_manifest_document *document = parser->verify_document;
       if (document == NULL) return false;
       bool matched = false;
       for (uint32_t offset = 0u; offset < document->root_count; offset += 1u) {
         const w_seed_manifest_root *expected =
             &parser->verify_program->roots[document->first_root + offset];
-        if (expected->kind == kind) {
+        if (expected->kind == kind &&
+            expected->keyword_span.start_byte == keyword.start_byte) {
           matched = expected->record_node == record_node &&
                     expected->document_index == parser->document_index &&
                     expected->keyword_span.start_byte == keyword.start_byte &&
@@ -1984,6 +2023,12 @@ static bool parse_document(man0_parser *parser) {
     for (uint32_t index = 0u; index < roots; index += 1u)
       parser->output->roots[first_root + index].ordinal = index;
   }
+  if (parser->package_count == 0u)
+    return parser_fail(parser, W_SEED_MANIFEST_SYNTAX,
+                       W_SEED_MANIFEST_ERROR_ROOT_REQUIRED, parser->length);
+  if (parser->package_count > 1u && !parser->build_seen)
+    return parser_fail(parser, W_SEED_MANIFEST_SYNTAX,
+                       W_SEED_MANIFEST_ERROR_BUILD_REQUIRED, parser->length);
   return true;
 }
 
@@ -3219,7 +3264,7 @@ static bool program_shape_valid(const w_seed_manifest_program *program,
   for (uint32_t index = 0u; index < counts.roots; index += 1u) {
     const w_seed_manifest_root *root = &program->roots[index];
     if (root->document_index >= counts.documents ||
-        root->kind > W_SEED_MANIFEST_ROOT_WORKSPACE)
+        root->kind > W_SEED_MANIFEST_ROOT_BUILD)
       return false;
     const w_seed_manifest_document *document =
         &program->documents[root->document_index];

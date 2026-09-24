@@ -832,10 +832,13 @@ efeitos. Use:
 
     bun tooling/check-seed-manifest.mjs
 
-MAN0 não seleciona owner, não acopla schema e não integra ACQ0, WSP0 ou produto
-público. A classificação geral permanece `implementation-evidence-gap`;
-Windows operacional, vínculo ACQ0, schema decoder, WSP0 e produto público são
-gaps deste bundle.
+MAN0 valida raízes diretas `package`/`build`: exige ao menos um package,
+permite no máximo um coordinator `build` com `schema: "w.build/1"` e exige esse
+coordinator quando há vários packages. Ele rejeita a forma legada `workspace`,
+mas não decodifica o schema dos fields de package/build, seleciona owner, integra
+ACQ0/WSP0 nem implementa produto público. A classificação geral permanece
+`implementation-evidence-gap`; Windows operacional, vínculo ACQ0, schema
+decoder completo, resolução e produto público são gaps deste bundle.
 
 ## Composição interna BND0
 

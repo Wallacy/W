@@ -2897,7 +2897,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-084 (evidence, sha256:045f71ddfba47b180624fd80a9b14c2120ff352caade4d5331a7ceb920156caa) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -2996,7 +2996,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-087 (tests, sha256:248efb30f354200063171ea997e351eea51426d433854a002a092008b3126da8) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -3275,7 +3275,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-096 (portal, sha256:c8602b012c93f8a8fe8f6d220faeb3a22f1353cb35a900222560f173937eba1f) has no executable witness for component design-freeze. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -4523,7 +4523,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-134 (scheduler de teste, sha256:15e0e204122c2a846eb0c88bbf17e6f6ef9808aa57cac3eff279aea2d2521e17) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -6727,7 +6727,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-202 (exemplo normativo, sha256:018c0d214cdf121787782930433b20a5c0c03b0e9bf8171e80fa4414d740a437) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -11332,7 +11332,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-342 (NaN boxing, sha256:084a72703cf89a49f7779acfb6180562b16af42a2760f327dc5bb6a8a9ee8363) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -12622,7 +12622,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-381 (gate de otimização, sha256:066112f8ef476e1d7919c6f0c9aaad2596b9077dc4ebc887b69274245f056552) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -17095,7 +17095,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-514 (product kind, sha256:6c54b18e3fc8a520d68b4a7b7394b0bd8d1b6b57ee2e1f250d1da427c448a755) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -18871,7 +18871,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-568 (usage de dependência, sha256:68ae1e9361af8291d45b75e2cff97921f3699fd36eed88eb3bf1ccadb842081a) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -21871,7 +21871,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:63323686215fc7208111568c5694825a3dfe981d5a5b9931c08fe68776504168"
+        "sectionDigest": "sha256:6850c8d61fc1bc5f8afc753db02b9dffe478978c390e92216df9ba2cceb93462"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -23286,7 +23286,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-702 (reprodução independente, sha256:4f73118a94e0b354f73d951d13a87ab6dca48a715a5e92ab384f949279fe7945) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -23352,7 +23352,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-704 (transparency adapter, sha256:819e3e25cd9aeeba1ff33b23ee5be99bdf401f21ee1d7857607c89b88a9d0afd) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -23416,7 +23416,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-706 (navegação do design, sha256:d34d5e451878d272e2c020d68b1522357cae7a26525d0630abced2c11346314e) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -23983,7 +23983,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-723 (segunda implementação wWire, sha256:e79b9edd7c174561b34e615b79915f64da234543100600aa0117dd6cdcd57ca4) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -24016,7 +24016,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-724 (evidência de reprodução, sha256:41acffbe819aeb5ceb13e405132b0ec906fd9a884539df44224afa425059586c) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -24821,7 +24821,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-748 (documentação de substituições, sha256:cdde124e249815031e4139b6807b5944f7e7e286b195e05543ef34ee1cc0122a) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -25980,7 +25980,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-783 (evidência de substituição, sha256:271e534da20c4bff0ffbd3fdb08e78ed2b00ff75d1a8fe470ab469545c55cf18) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -27335,7 +27335,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-826 (resultado interno de pattern, sha256:867382fd9a2df77eeaf59008ae007454173173d1c2f581824bfe7b6b039bbca4) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -28123,7 +28123,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-850 (placeholder de code, sha256:6511449de929c985e33ad5c3ca67581ced9ad0fcf9978c4b2a236054cfe65e2e) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -28387,7 +28387,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-858 (corpus wire D0, sha256:45442801dac60ce0c8d74d7e7626f2f41c9dabbcae3428eceaf4fd2c3bb37611) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -28519,7 +28519,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-862 (cobertura progressiva R0, sha256:68735db3a51376e093be3f2a6c85c1ce36a9d256feecce3abf3a8d02e2413200) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -28585,7 +28585,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-864 (fechamento de cobertura R0, sha256:47977bd5cf7520eb9d03d7d35e64dde38eebf2c9a4504fb2d5a85dfe7d1a4dfd) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -28847,7 +28847,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-872 (limite de M1, sha256:9c6521c75dc6cb39d96505ff155eca07ca4664398fc319b95cf42ed758fa8f20) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -29276,7 +29276,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-885 (documentação de ausências, sha256:9de5e1ce91120a21cd8f69768ca0141549e2911889bb6413bd8cfbb238cbd054) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -29435,7 +29435,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-890 (cobertura total de ausências, sha256:84287082b211582559d7a0104bf1025b552f7bf4bdb238ce5f6ed14e754ee557) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -30446,7 +30446,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-920 (cobertura de promoção R1, sha256:87f445f8876276cff8a8ab3eb7a031c13e94509445e38a7f1dceef20e0bc5bc2) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -30893,7 +30893,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-933 (expansão de composição M1, sha256:75f40383de7312c031c00bda1f8999f7172f6592ce788d6b5a265e018635d856) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -33141,7 +33141,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-1002 (máquina host TAB0, sha256:04f9595b113286762629db86e367003f936034ef742f38b47f3cd975fd9a5a55) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -35372,7 +35372,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-1071 (host tests e snapshot RU0, sha256:fe93a141525e1e284faf08cc0b8a759a4713c00285c77b4644531929d7636623) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -37808,7 +37808,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-1149 (R1E0 post-test loop, sha256:80972c0309760638ce8a60e4211183cd3e37806c48349edbad9e222d4876a1e4) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -38427,7 +38427,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-1168 (exemplos de documentação, sha256:6e20999d6f69fe3eba3c2096da3b542701e525085df387561a85076e528141c1) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -38460,7 +38460,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-1169 (terminologia retirada, sha256:5925799ba07477c25b749de1dc6e20eddf19f282865bfb78b239b9841dc48355) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -40734,7 +40734,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-1232 (latest state separado de eventos, sha256:8657f49b7f50435758a7eef93565ac20166a0378e85c210a046b2fccaadd583a) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -41951,7 +41951,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-1267 (evidence FB0, sha256:22ad72227d9aa2ebe43a55533a8c6c05ce2c97615c2190863710a95148e43fa7) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -43820,7 +43820,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-1323 (SDM0, sha256:1d7a99d824da7c92f67c7eda2495d430630e6f819ab79561ecf6a196f177a239) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -45350,7 +45350,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-1368 (interfaces e docs/maps, sha256:d273f8ff8a2c4aca6f8a5e57f200a2de49f2182e8a78b8a95180ca8fdf23beca) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -45447,7 +45447,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-1371 (diagnostics e provenance, sha256:66ec4400e803987429bb431e47ca6c94cbc3558e39774468ee076213d8f895b1) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -46236,7 +46236,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-1395 (identities, schema e targets, sha256:08b59bb972a451c2b32086bb3026429bc7bcb2e4852f67707e2cb9fc837640f2) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -47127,7 +47127,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-1422 (rollout e exposure, sha256:bb9594946c8785a475233643366ff626018781e119077fb5267bbf120f70adbe) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -47255,7 +47255,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-1426 (problema-first SEC0, sha256:10e4656e74ae670f6398a1b1de444873e39886a9fdbc19ff5b7509c05c72e28d) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -47354,7 +47354,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-1429 (input, resource, secret e supply-chain, sha256:21c3905fea90b128bbd81994b5485571ec075a04130a821e79f59a2307cb5480) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -47520,7 +47520,7 @@
         "path": "DESIGN.md",
         "section": "24",
         "heading": "## 24. Design freeze e pendências",
-        "sectionDigest": "sha256:9e41d692585e9676e2a55fa4c433d93332491ca673cd5b0528cf1cd7024ada51"
+        "sectionDigest": "sha256:ed142f4dc36cd5873c271bbf30e46507268fec35791b2deeb780dbe2cf266dae"
       },
       "evidence": [],
       "reason": "W-1434 (FFI, unsafe, multi-tenant e patch, sha256:99581e82f9396f7a531a9fc1c9339092ac864c5854e10be61d0baa8ea53f04bc) has no executable witness for component design-oracles. The checked current contract is DESIGN.md §24 / 24. Design freeze e pendências.",
@@ -50006,7 +50006,7 @@
         "path": "DESIGN.md",
         "section": "24.3.8",
         "heading": "### 24.3.8 MAN0 — guarded structural data-only manifest reader",
-        "sectionDigest": "sha256:408a38e6a5a9c6fb61f416ad74eff816e995436785e3f3665f4e66ee18726e11"
+        "sectionDigest": "sha256:fb8b2d4ff41ceb9176d145ea9acbc430c900740623b78f745852d738cfc504cd"
       },
       "evidence": [
         {
