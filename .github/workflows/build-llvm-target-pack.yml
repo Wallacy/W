@@ -15,29 +15,43 @@ on:
         description: SHA-256 of `git archive --format=tar <commit>` from llvm-project
         required: true
         type: string
+      host:
+        description: Build one host pack per dispatch to bound runner use.
+        required: true
+        type: choice
+        options:
+          - linux-x86_64
+          - windows-x86_64
+          - macos-arm64
+        default: linux-x86_64
 
 permissions:
   contents: read
 
 concurrency:
-  group: w-llvm-target-pack-bootstrap
-  cancel-in-progress: false
+  group: w-llvm-target-pack-bootstrap-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  validate-host:
+    name: Validate selected host
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Reject unsupported host
+        env:
+          W_LLVM_HOST: ${{ inputs.host }}
+        run: |
+          case "$W_LLVM_HOST" in
+            linux-x86_64|windows-x86_64|macos-arm64) ;;
+            *) echo "Unsupported LLVM pack host: $W_LLVM_HOST" >&2; exit 2 ;;
+          esac
+
   build:
-    name: ${{ matrix.host }} development pack
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - host: linux-x86_64
-            runner: ubuntu-24.04
-          - host: windows-x86_64
-            runner: windows-2025
-          - host: macos-arm64
-            runner: macos-15
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 360
+    name: ${{ inputs.host }} development pack
+    needs: validate-host
+    runs-on: ${{ inputs.host == 'linux-x86_64' && 'ubuntu-24.04' || inputs.host == 'windows-x86_64' && 'windows-2025' || 'macos-15' }}
+    timeout-minutes: 240
 
     steps:
       - name: Check out W workflow source
@@ -52,19 +66,21 @@ jobs:
 
       - name: Build, smoke-test, and package the pinned upstream source
         id: pack
+        timeout-minutes: 225
         env:
           W_LLVM_TAG: ${{ inputs.llvm_tag }}
           W_LLVM_EXPECTED_COMMIT: ${{ inputs.expected_commit }}
           W_LLVM_EXPECTED_SOURCE_SHA256: ${{ inputs.expected_source_sha256 }}
-        run: bun tooling/llvm-target-pack.mjs build --host "${{ matrix.host }}"
+        run: bun tooling/llvm-target-pack.mjs build --host "${{ inputs.host }}"
 
       - name: Upload development pack and archive digest
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        timeout-minutes: 10
         with:
-          name: w-llvm-development-${{ inputs.llvm_tag }}-${{ matrix.host }}
+          name: w-llvm-development-${{ inputs.llvm_tag }}-${{ inputs.host }}
           path: |
             ${{ steps.pack.outputs.archive-path }}
             ${{ steps.pack.outputs.archive-sha256-path }}
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 1
           compression-level: 0

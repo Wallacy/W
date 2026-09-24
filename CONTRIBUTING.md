@@ -179,8 +179,14 @@ bun run design:index
 bun check --target docs
 ```
 
-O CI executa o check integrado. Um check aprovado não substitui revisão
-semântica.
+O gate obrigatório `Validate` executa `bun check --target quick` em cada pull
+request e em pushes relevantes a `main`; o trigger de pull request permanece
+sem filtro de paths para sempre emitir o status exigido. Os gates nativos
+Linux/Windows e a aquisição dos toolchains ficam em
+[`Native toolchain validation`](.github/workflows/native-toolchains.yml),
+acionado manualmente até que tenham evidência verde e confiável. O bootstrap do
+LLVM também é manual, escolhe um host por execução e mantém o artifact por um
+dia. Um check aprovado não substitui revisão semântica.
 
 ## Commits e pull requests
 
