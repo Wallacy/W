@@ -234,32 +234,34 @@ The primary product never carries old-ISA fallback code merely because that
 compatibility pack exists. Future ISA levels may become primary after measured
 coverage and target evidence; they need no syntax change.
 
-The public Linux `w build --audit-dir` route was used to compare separately
-optimized W and WRT0 objects against a generic whole-product candidate: link
-their LLVM bitcode, run `opt -O3`, and emit one object. Textual `.ll` linking is
-not compatible with the current WRT0 module-assembly formatting, but the
-bitcode route works. The audit covered Hello-minimal and the process-enum
-payload product, including exact output, object references, final ELF closure,
-section sizes, compile cost, and runtime samples. Under the same local WSL GNU
-ld 2.46 audit lane, both final ELFs kept their total size (13,008 B and
-13,080 B); Hello `.eh_frame` fell 4 B and enum `.text` fell 8 B. Combined object
-bytes fell 1,744→1,104 B for Hello and 3,904→3,104 B for enum. Seven backend
-samples had mixed compile medians (Hello 30→27 ms, enum 51→55 ms); 31
-fork/exec runtime samples were also mixed (Hello p50 111.1→106.0 µs, enum
-110.5→133.4 µs). These small, noisy changes do not establish a material,
-consistent product benefit, so no optimizer change is promoted. The products
-remained PIE and CRT-free with no interpreter or `DT_NEEDED`; this audit's GNU
-ld lane is distinct from the ranked pinned-LLD catalog lane. Keep the existing
-catalog observations as inspection context, not a proven cause or size target.
-Preserve required unwind and debug behavior per target/profile. Reopen this
-candidate only with evidence of a material general benefit and equivalent
-closure/correctness receipts; do not substitute a Hello-specific syscall
-rewrite.
+The public Linux `w build --audit-dir` route can compare separately optimized W
+and WRT0 objects with a generic whole-product candidate: assemble both to
+bitcode, link them, run `opt -O3`, and emit one PIC object. Textual `.ll`
+linking remains unsuitable because WRT0 contains target module assembly. The
+bitcode route is still CRT-free and freestanding; LTO does not change runtime
+closure by itself.
 
-The combined W+WRT0 bitcode/LTO candidate remains a CRT-free, freestanding
-option. It was not promoted from the audited Hello-minimal and process-enum
-cases, whose results were small and mixed; keep it eligible for periodic
-re-evaluation on larger multi-function/runtime families.
+The current GNU ld 2.46 audit covers Hello-minimal plus two larger implemented
+families. `process-enum-payload` preserved all argument cases while shrinking
+the combined object from 3,904 to 2,832 bytes and the final ELF from 13,080 to
+13,008 bytes. `nested-loop-terminal-returns` preserved `-1,1,3\n` while
+shrinking the object from 1,624 to 744 bytes and the final ELF from 12,936 to
+12,864 bytes. Both LTO products remained PIE with RELRO and a non-executable
+stack, with no interpreter, `DT_NEEDED`, post-opt declarations, object undefined
+symbols, or dynamic imports. The 72-byte final reductions were under 0.6%:
+executable `.text` changed by only -8 and 0 bytes respectively, while
+`.eh_frame` and `.got.plt` disappeared. The exact-output checks do not prove
+equivalent unwind/debug behavior, and this rerun did not collect controlled
+compile or runtime samples.
+
+No optimizer default is promoted from that evidence. Keep combined W+WRT0
+bitcode/LTO eligible for larger multi-function/runtime families, profile-guided
+work, and products where cross-boundary inlining or specialization can remove
+material reachable work. Promotion requires equivalent correctness, closure,
+unwind/debug and compile-cost receipts plus a material product benefit. Do not
+substitute a Hello-specific syscall rewrite or treat intermediate-object
+shrinkage as final-product performance evidence. The local GNU-ld audit remains
+distinct from the ranked pinned-LLD catalog lane.
 
 The count-only process-arguments candidate is implemented for the exact
 verified-reachability case where the selected entry observes only
