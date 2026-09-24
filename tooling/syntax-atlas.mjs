@@ -264,20 +264,15 @@ function grammarRules() {
 function parseW(file) {
   const relative = path.relative(ROOT, file).split(path.sep).join("/");
   const executable = process.platform === "win32"
-    ? path.join(ROOT, "tooling", "tree-sitter-w", "node_modules", ".bin", "tree-sitter.cmd")
+    ? path.join(ROOT, "tooling", "tree-sitter-w", "node_modules", ".bin", "tree-sitter.exe")
     : path.join(ROOT, "tooling", "tree-sitter-w", "node_modules", ".bin", "tree-sitter");
-  // Windows exposes the package launcher as a `.cmd` shim. Direct spawn of
-  // that shim returns status null/EINVAL on some Node releases, which makes a
-  // valid atlas fixture look like a recovery parse. Use the platform shell
-  // only for this repository-owned launcher; POSIX keeps the direct binary.
   const result = spawnSync(executable, ["parse", "--grammar-path", "tooling/tree-sitter-w", relative], {
     cwd: ROOT,
     encoding: "utf8",
-    shell: process.platform === "win32",
   });
-  const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+  const output = [result.error?.message, result.stdout, result.stderr].filter(Boolean).join("\n");
   const nodes = new Set([...output.matchAll(/\(([a-z][a-z0-9_]*)\s+\[/gu)].map((match) => match[1]));
-  return { ok: result.status === 0 && !/\b(?:ERROR|MISSING)\b/u.test(output), output, nodes };
+  return { ok: result.status === 0 && !/\b(?:ERROR|MISSING)\b/u.test(output), output, nodes, launchError: result.error };
 }
 
 function validateAtlasValueStatements(file, text, treeOutput) {
@@ -326,7 +321,11 @@ function parseAtlasFile(file) {
   }
   if (open) throw new Error(`${file}:${open.startLine + 1} has an unclosed atlas marker.`);
   const parse = parseW(file);
-  if (!parse.ok) throw new Error(`${file} does not parse without recovery.\n${parse.output.split("\n").filter((line) => /ERROR|MISSING|failed parses/u.test(line)).slice(0, 8).join("\n")}`);
+  if (parse.launchError) throw new Error(`Unable to run Tree-sitter for ${file}: ${parse.launchError.message}`);
+  if (!parse.ok) {
+    const diagnostics = parse.output.split("\n").filter((line) => /ERROR|MISSING|failed parses/u.test(line)).slice(0, 8);
+    throw new Error(`${file} does not parse without recovery.${diagnostics.length ? `\n${diagnostics.join("\n")}` : ""}`);
+  }
   validateAtlasValueStatements(file, text, parse.output);
   return { file, text, blocks, nodes: parse.nodes };
 }
