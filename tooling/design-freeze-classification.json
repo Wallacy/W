@@ -12035,7 +12035,7 @@
       },
       "supersessionClaim": {
         "decisionId": "W-1651",
-        "canonicalClaim": "`f16`/`bf16`/`f32`/`f64`/`f128` are fixed arithmetic scalars; one `BigFloat<precision:>` family covers fixed and `.dynamic`; f4/f6/f8 use mandatory standardized format cases; TensorFloat32 is compute policy and e8m0fnu is block-scale metadata. Frontend76 now preserves exact 16-byte `i128`/`u128` literal magnitudes and immutable binding identity, including signed/unsigned decimal and hexadecimal boundaries, but deliberately rejects wide operations and conversions. `benchmarkDisposition: compiler-lifecycle`; no public/native benchmark row is added by this frontend-only slice.",
+        "canonicalClaim": "`f16`/`bf16`/`f32`/`f64`/`f128` are fixed arithmetic scalars; one `BigFloat<precision:>` family covers fixed and `.dynamic`; f4/f6/f8 use mandatory standardized format cases; TensorFloat32 is compute policy and e8m0fnu is block-scale metadata. Frontend76 preserves exact 16-byte `i128`/`u128` literals and immutable bindings. Frontend78/HIR101, ProductClosure0 v7, NativeSubset0, and process-executable schema 9 additionally close one private non-suspending helper graph over same-type comparisons, `&`, `|`, `^`, `~`, direct signed-literal negation, calls, returns, and equal-type joins. Direct LLVM `i128` SSA executes through the CRT-free Linux/WSL WRT0 route and the native Windows `/nodefaultlib` route with bounded dependency evidence. `benchmarkDisposition: compiler-lifecycle`; no public/ranking benchmark row is added.",
         "relation": "W-397 → W-1651: W-1651 replaces the storage-only f16/bf16 boundary and float8 exclusion with explicit portable numeric families."
       }
     },
@@ -54732,7 +54732,7 @@
     {
       "decisionId": "W-1651",
       "summary": "explicit wide and low-precision numeric families",
-      "canonicalClaim": "`f16`/`bf16`/`f32`/`f64`/`f128` are fixed arithmetic scalars; one `BigFloat<precision:>` family covers fixed and `.dynamic`; f4/f6/f8 use mandatory standardized format cases; TensorFloat32 is compute policy and e8m0fnu is block-scale metadata. Frontend76 now preserves exact 16-byte `i128`/`u128` literal magnitudes and immutable binding identity, including signed/unsigned decimal and hexadecimal boundaries, but deliberately rejects wide operations and conversions. `benchmarkDisposition: compiler-lifecycle`; no public/native benchmark row is added by this frontend-only slice.",
+      "canonicalClaim": "`f16`/`bf16`/`f32`/`f64`/`f128` are fixed arithmetic scalars; one `BigFloat<precision:>` family covers fixed and `.dynamic`; f4/f6/f8 use mandatory standardized format cases; TensorFloat32 is compute policy and e8m0fnu is block-scale metadata. Frontend76 preserves exact 16-byte `i128`/`u128` literals and immutable bindings. Frontend78/HIR101, ProductClosure0 v7, NativeSubset0, and process-executable schema 9 additionally close one private non-suspending helper graph over same-type comparisons, `&`, `|`, `^`, `~`, direct signed-literal negation, calls, returns, and equal-type joins. Direct LLVM `i128` SSA executes through the CRT-free Linux/WSL WRT0 route and the native Windows `/nodefaultlib` route with bounded dependency evidence. `benchmarkDisposition: compiler-lifecycle`; no public/ranking benchmark row is added.",
       "category": "implementation-evidence-gap",
       "basis": "current-ledger-claim-without-executable-witness",
       "authorityRef": {
@@ -54742,8 +54742,8 @@
         "heading": "## 15. Números, ranges e unidades"
       },
       "evidence": [],
-      "reason": "W-1651 (explicit wide and low-precision numeric families) remains an implementation-evidence gap for component syntax-and-types at DESIGN.md §15 / 15. Números, ranges e unidades. Frontend76 now preserves exact i128/u128 identities, 16-byte literal magnitudes and immutable binding reads with boundary rejection, but wide verified HIR, operations, conversions, native execution, ABI/layout, serialization and every new floating family remain missing.",
-      "stopCondition": "Do not claim W-1651 as implemented. Close component syntax-and-types at DESIGN.md §15 / 15. Números, ranges e unidades. Remaining evidence: wide verified HIR, operations, conversions, native execution, ABI/layout and serialization; wide-float and configured low-precision numeric executable witnesses. These gates require exact operation/encoding/conversion/serialization oracles, portability evidence, and target capability/fallback disclosure.",
+      "reason": "W-1651 (explicit wide and low-precision numeric families) remains an implementation-evidence gap for component syntax-and-types at DESIGN.md §15 / 15. Números, ranges e unidades. The exact i128/u128 literals, comparisons, bitwise operations and private non-suspending helper graph now reach verified HIR, ProductClosure0, NativeSubset0, direct LLVM i128 SSA and bounded Windows plus Linux/WSL execution. Checked wide arithmetic, shifts and conversions; stable ABI/layout, serialization, public wide-value execution and other targets; and strict f16/bf16/f128 plus configured low-precision numeric executable witnesses remain missing.",
+      "stopCondition": "Do not claim W-1651 as generally implemented. Close component syntax-and-types at DESIGN.md §15 / 15. Números, ranges e unidades. Remaining evidence: checked wide arithmetic, shifts and conversions; stable ABI/layout, serialization, public wide-value execution and other targets; strict f16/bf16/f128 and configured low-precision numeric executable witnesses. These gates still require exact oracles, portability evidence and target capability/fallback disclosure.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
@@ -54755,8 +54755,9 @@
         "component": "syntax-and-types",
         "gate": "DESIGN.md §15 / 15. Números, ranges e unidades",
         "missingEvidence": [
-          "wide verified HIR, operations, conversions, native execution, ABI/layout and serialization",
-          "wide-float and configured low-precision numeric executable witnesses"
+          "checked wide arithmetic, shifts and conversions",
+          "stable ABI/layout, serialization, public wide-value execution and other targets",
+          "strict f16/bf16/f128 and configured low-precision numeric executable witnesses"
         ]
       },
       "sourceRefs": [
@@ -54774,6 +54775,31 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_i128_literal_frontend",
           "claim": "Focused tests cover decimal and hexadecimal boundaries, signed minimum, immutable binding/read identity and fail-closed operations and conversions."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_product_closure0.c",
+          "symbol": "w_seed_product_closure0_cross_check_functions",
+          "claim": "ProductClosure0 v7 authenticates the exact reachable non-suspending wide helper graph and excludes supported but unreachable helpers."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "native_wide_integer_type / w_seed_native_subset0_select_process_executable",
+          "claim": "NativeSubset0 independently rechecks exact core i128/u128 identities, operations and reachable process-helper relations before admission."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "append_wide_integer_value_operation_in_loop / build_process_executable_artifact",
+          "claim": "Process-executable schema 9 lowers the bounded helper graph through direct LLVM i128 SSA without widening the process root ABI."
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "wide process CRT-free Linux executable",
+          "claim": "The Linux/WSL x64 gate verifies post-opt externals, object symbols and relocations, static WRT0 closure, exact output and exit status."
+        },
+        {
+          "path": "tooling/smoke-mlir0-windows.mjs",
+          "symbol": "runWideProcessProbe",
+          "claim": "The native Windows x64 gate verifies local wide helpers, the external process root, `/nodefaultlib` linking, exact Kernel32 imports and exact execution."
         }
       ]
     },

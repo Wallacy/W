@@ -94,6 +94,23 @@ for (const marker of [
   "WindowsSdkDir",
 ])
   assert(smokeSource.includes(marker), `Windows smoke guard is missing: ${marker}`)
+for (const marker of [
+  'argument === "--wide"',
+  '"wide Windows mlir-opt"',
+  '"wide Windows mlir-translate"',
+  '"wide Windows LLVM opt"',
+  '"wide Windows llc object"',
+  '"wide Windows no-CRT link"',
+  '"wide Windows final imports"',
+  '"llvm-nm.exe"',
+  '"llvm-objdump.exe"',
+  '"llvm-readobj.exe"',
+  '"define internal i128 @w_fn_0("',
+  'mainCRTStartup',
+  '"kernel32.dll"',
+])
+  assert(smokeSource.includes(marker),
+    `wide Windows smoke guard is missing: ${marker}`)
 assert(!smokeSource.includes("process.env.PATH"),
   "Windows smoke must not depend on PATH")
 

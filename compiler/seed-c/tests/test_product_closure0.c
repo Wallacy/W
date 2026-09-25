@@ -1,5 +1,6 @@
 #include "w_seed_product_closure0.h"
 #include "w_seed_mlir0.h"
+#include "../src/w_seed_native_subset0.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -660,14 +661,12 @@ static bool test_native_process_wide_scalar_helpers(void) {
       "import std.process\n"
       "fn chooseWide(zeroArgs: Bool): i128 { return if zeroArgs { "
       "-170141183460469231731687303715884105728_i128 } else { -1_i128 } }\n"
-      "fn wideCore(zeroArgs: Bool): i128 {\n"
+      "fn wideCore(zeroArgs: Bool, unsignedValue: u128): i128 {\n"
       "  let signedValue = chooseWide(zeroArgs: zeroArgs)\n"
       "  let signedLess = signedValue < 0_i128\n"
       "  let signedMask: i128 = 1_i128\n"
       "  let signedBits = ((signedValue & signedMask) | 1_i128) ^ 1_i128\n"
       "  let signedNotTwice = ~(~signedValue)\n"
-      "  let unsignedValue: u128 = "
-      "340282366920938463463374607431768211455_u128\n"
       "  let unsignedGreater = unsignedValue > 2_u128\n"
       "  let unsignedMask: u128 = 1_u128\n"
       "  let unsignedBits = ((unsignedValue & unsignedMask) | 1_u128) ^ "
@@ -680,7 +679,8 @@ static bool test_native_process_wide_scalar_helpers(void) {
       "}\n"
       "async fn run(args: Arguments, ctx: Context): ExitCode {\n"
       "  let zeroArgs = args.count == 0\n"
-      "  let signedValue = wideCore(zeroArgs: zeroArgs)\n"
+      "  let signedValue = wideCore(zeroArgs: zeroArgs, unsignedValue: "
+      "340282366920938463463374607431768211455_u128)\n"
       "  if signedValue < 0_i128 { print(\"wide core\") return .success } "
       "else { print(\"wide core failure\") return .failure(1) }\n"
       "}\nentry(run)\n";
@@ -745,6 +745,12 @@ static bool test_native_process_wide_scalar_helpers(void) {
   }
   CHECK(w_seed_product_closure0_cross_check_functions(
       program, &fixture.hir_result, cross_check, PRODUCT_FUNCTIONS));
+  w_seed_native_subset0_process native_selection;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            program, &fixture.hir_result, &native_selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(native_selection.has_wide_scalar_helpers &&
+        native_selection.function_index == root_function);
 
   bool saw_wide_const = false;
   bool saw_wide_negate = false;
@@ -876,6 +882,13 @@ static bool test_native_process_wide_scalar_helpers(void) {
                W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES) == 0 &&
         w_seed_product_closure0_verify(&dead_wide_input, &dead_wide_output,
                                        &dead_wide_result));
+  w_seed_native_subset0_process dead_wide_selection;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &variant_fixture.hir_program, &variant_fixture.hir_result,
+            &dead_wide_selection) == W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(dead_wide_selection.has_wide_scalar_helpers &&
+        dead_wide_selection.function_index ==
+            variant_fixture.hir_program.entries[0].target_function);
 
   CHECK(replace_process_source_once(SOURCE, "else { -1_i128 }",
                                     "else { -2_i128 }", mutated,
@@ -898,13 +911,24 @@ static bool test_native_process_wide_scalar_helpers(void) {
 
   CHECK(replace_process_source_once(
       SOURCE, "chooseWide(zeroArgs: zeroArgs)",
-      "wideCore(zeroArgs: zeroArgs)", mutated, sizeof(mutated)));
+      "wideCore(zeroArgs: zeroArgs, unsignedValue: unsignedValue)",
+      mutated, sizeof(mutated)));
   CHECK(expect_wide_process_product_unsupported(mutated));
   CHECK(replace_process_source_once(
       SOURCE, "fn chooseWide(zeroArgs: Bool): i128 { return if",
       "fn chooseWide(zeroArgs: Bool): i128 { print(\"helper effect\") return if",
       mutated, sizeof(mutated)));
   CHECK(expect_wide_process_product_unsupported(mutated));
+  CHECK(prepare_process_fixture(&variant_fixture, mutated));
+  w_seed_native_subset0_process rejected_selection;
+  (void)memset(&rejected_selection, 0x6d, sizeof(rejected_selection));
+  const w_seed_native_subset0_process rejected_selection_before =
+      rejected_selection;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &variant_fixture.hir_program, &variant_fixture.hir_result,
+            &rejected_selection) == W_SEED_NATIVE_SUBSET0_UNSUPPORTED);
+  CHECK(memcmp(&rejected_selection, &rejected_selection_before,
+               sizeof(rejected_selection)) == 0);
   CHECK(replace_process_source_once(
       SOURCE, "((signedValue & signedMask) | 1_i128) ^ 1_i128",
       "signedValue + signedMask", mutated, sizeof(mutated)));
@@ -919,9 +943,10 @@ static bool test_native_process_wide_scalar_helpers(void) {
   CHECK(expect_wide_process_source_rejected(mutated));
   CHECK(replace_process_source_once(
       SOURCE,
-      "let unsignedValue: u128 = 340282366920938463463374607431768211455_u128",
-      "let unsignedValue: u128 = u128(signedValue)", mutated,
-      sizeof(mutated)));
+      "wideCore(zeroArgs: zeroArgs, unsignedValue: "
+      "340282366920938463463374607431768211455_u128)",
+      "wideCore(zeroArgs: zeroArgs, unsignedValue: u128(signedValue))",
+      mutated, sizeof(mutated)));
   CHECK(expect_wide_process_source_rejected(mutated));
   CHECK(replace_process_source_once(
       SOURCE, "return .failure(1)", "return .failure(1_i128)", mutated,

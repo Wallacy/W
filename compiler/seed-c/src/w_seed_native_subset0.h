@@ -187,6 +187,10 @@ typedef struct {
   /* True only when the selected process entry call graph contains a verified
    * panic terminator.  The message is validated but never emitted. */
   bool has_reachable_panic;
+  /* The exact ProductClosure0 v7 process graph may keep canonical i128/u128
+   * values internal to reachable helpers. This never widens the process ABI
+   * or printable value subset. */
+  bool has_wide_scalar_helpers;
   bool natural_loop_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS];
   bool post_test_loop_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS];
 } w_seed_native_subset0_process;

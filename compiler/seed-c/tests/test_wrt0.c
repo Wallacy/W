@@ -16,6 +16,18 @@ static bool contains(const w_seed_wrt0_artifact *artifact,
 
 int main(int argc, char **argv) {
   w_seed_wrt0_artifact artifact = {NULL, 0u};
+  if (argc == 2 &&
+      strcmp(argv[1], "--emit-linux-x86-64-count-only-llvm") == 0) {
+    if (!w_seed_wrt0_get(
+            W_SEED_WRT0_TARGET_LINUX_X86_64,
+            W_SEED_RUNTIME_REQUIREMENTS_PROCESS_ARGUMENT_COUNT, &artifact) ||
+        artifact.llvm_ir == NULL || artifact.llvm_ir_length == 0u)
+      return 1;
+    return fwrite(artifact.llvm_ir, 1u, artifact.llvm_ir_length, stdout) ==
+                   artifact.llvm_ir_length
+               ? 0
+               : 1;
+  }
   if (!w_seed_wrt0_get(W_SEED_WRT0_TARGET_LINUX_X86_64,
                        W_SEED_RUNTIME_REQUIREMENTS_PROCESS_ARGUMENTS,
                        &artifact) ||

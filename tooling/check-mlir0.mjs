@@ -377,11 +377,27 @@ function resolveToolCommand(role, environmentName) {
   return asCommand(value, environmentName, override === undefined)
 }
 
+function resolveAuxiliaryToolCommand(command) {
+  let value
+  if (externalToolchainRoot !== undefined) {
+    value = `${externalToolchainRoot}/bin/${command}`
+  } else {
+    value = compatibleHostCommand(command) ?? command
+  }
+  return asCommand(value, `MLIR0 auxiliary ${command}`, true)
+}
+
 const mlirCommands = {
   mlirOpt: resolveToolCommand("mlirOpt", "W_MLIR0_MLIR_OPT"),
   mlirTranslate: resolveToolCommand("mlirTranslate", "W_MLIR0_MLIR_TRANSLATE"),
   llvmConfig: resolveToolCommand("llvmConfig", "W_MLIR0_LLVM_CONFIG"),
   clang: resolveToolCommand("clang", "W_MLIR0_CLANG"),
+  opt: resolveAuxiliaryToolCommand("opt"),
+  llvmNm: resolveAuxiliaryToolCommand("llvm-nm"),
+  llvmObjdump: resolveAuxiliaryToolCommand("llvm-objdump"),
+  llvmReadelf: resolveAuxiliaryToolCommand("llvm-readelf"),
+  llc: resolveAuxiliaryToolCommand("llc"),
+  linkDriver: resolveToolCommand("linkDriver", "W_MLIR0_LINK_DRIVER"),
 }
 
 function versionProbe(role, command) {
@@ -408,8 +424,9 @@ function versionProbe(role, command) {
   }
 }
 
-const versionProbes = Object.entries(mlirCommands).map(([role, command]) =>
-  [role, versionProbe(role, command)])
+const versionProbes = Object.entries(mlirCommands)
+  .filter(([role]) => role !== "linkDriver")
+  .map(([role, command]) => [role, versionProbe(role, command)])
 const mlirToolchainPresent = versionProbes.some(([, probe]) => probe.present)
 if (!mlirToolchainPresent) {
   console.log("MLIR0: SKIP MLIR/LLVM/Clang/llvm-config toolchain unavailable")
@@ -434,7 +451,8 @@ try {
   runRequired(cmake, ["-S", seedDirectory, "-B", buildDirectory, "-G", "Ninja",
     "-DCMAKE_BUILD_TYPE=Release"], root, "seed configure", toolchainEnvironment)
   runRequired(cmake, ["--build", buildDirectory, "--target",
-    "w_seed_mlir0_tests", "w_seed_mlir0_gate", "--parallel", "2"], root,
+    "w_seed_mlir0_tests", "w_seed_mlir0_gate", "w_seed_wrt0_tests",
+    "--parallel", "2"], root,
   "seed build", toolchainEnvironment)
 
   const unitPath = resolve(buildDirectory, `w_seed_mlir0_tests${suffix}`)
@@ -443,6 +461,185 @@ try {
   assert(unit.stderr.length === 0 &&
     unit.stdoutText.includes("verified HIR0 native subset"),
   "unit witness is missing or wrote to stderr")
+
+  const wideProbe = run(unitPath, ["--emit-process-wide-scalar-helpers"])
+  assert(wideProbe.exitCode === 0,
+    `wide process probe failed: ${wideProbe.stderrText}`)
+  assert(wideProbe.stderr.length === 0 && wideProbe.stdout.length > 0 &&
+    wideProbe.stdout.toString("utf8").startsWith(
+      "// w-seed-mlir0-process-executable-9\n"),
+  "wide process probe did not emit the current silent process artifact")
+  const wideInput = resolve(artifactDirectory, "wide-process.mlir")
+  const wideVerified = resolve(artifactDirectory, "wide-process.verified.mlir")
+  const wideLlvm = resolve(artifactDirectory, "wide-process.ll")
+  const wideUnoptimized = resolve(artifactDirectory,
+    "wide-process.unoptimized.ll")
+  const widePostOpt = resolve(artifactDirectory, "wide-process.postopt.ll")
+  const wideUnoptimizedObject = resolve(artifactDirectory,
+    "wide-process.unoptimized.o")
+  const wideObject = resolve(artifactDirectory, "wide-process.o")
+  const wideUnoptimizedExecutable = resolve(artifactDirectory,
+    "wide-process.unoptimized.native")
+  const wideExecutable = resolve(artifactDirectory, "wide-process.native")
+  const wrt0Input = resolve(artifactDirectory, "wide-wrt0.ll")
+  const wrt0Object = resolve(artifactDirectory, "wide-wrt0.o")
+  await writeFile(wideInput, wideProbe.stdout)
+  const wideInputForTool = isWindows ? wslPath(wideInput) : wideInput
+  const wideVerifiedForTool = isWindows ? wslPath(wideVerified) : wideVerified
+  const wideLlvmForTool = isWindows ? wslPath(wideLlvm) : wideLlvm
+  const wideUnoptimizedForTool = isWindows
+    ? wslPath(wideUnoptimized) : wideUnoptimized
+  const widePostOptForTool = isWindows ? wslPath(widePostOpt) : widePostOpt
+  const wideUnoptimizedObjectForTool = isWindows
+    ? wslPath(wideUnoptimizedObject) : wideUnoptimizedObject
+  const wideObjectForTool = isWindows ? wslPath(wideObject) : wideObject
+  const wideUnoptimizedExecutableForTool = isWindows
+    ? wslPath(wideUnoptimizedExecutable) : wideUnoptimizedExecutable
+  const wideExecutableForTool = isWindows ? wslPath(wideExecutable) : wideExecutable
+  invokeTool(tool("mlirOpt"), [wideInputForTool, "-o", wideVerifiedForTool,
+    "--convert-scf-to-cf", "--convert-cf-to-llvm", "--verify-each"],
+  "wide process mlir-opt")
+  invokeTool(tool("mlirTranslate"), ["--mlir-to-llvmir", wideVerifiedForTool,
+    "-o", wideLlvmForTool], "wide process mlir-translate")
+  invokeTool(tool("opt"), ["-O0", "-verify-each", "-S", wideLlvmForTool,
+    "-o", wideUnoptimizedForTool], "wide process unoptimized LLVM opt")
+  invokeTool(tool("opt"), ["-O3", "-verify-each", "-S", wideLlvmForTool,
+    "-o", widePostOptForTool], "wide process LLVM opt")
+  const wideUnoptimizedText = await readFile(wideUnoptimized, "utf8")
+  const wideOptimizedText = await readFile(widePostOpt, "utf8")
+  const wideExternalDeclarations = (llvmText) => [...llvmText.matchAll(
+    /^declare\s+[^\n]*@([A-Za-z0-9_.$-]+)\(/gmu)]
+    .map((match) => match[1]).filter((name) => !name.startsWith("llvm."))
+  for (const [label, llvmText] of [
+    ["unoptimized", wideUnoptimizedText], ["O3", wideOptimizedText],
+  ]) {
+    const externals = wideExternalDeclarations(llvmText)
+    assert(externals.length === 1 && externals[0] === "write",
+      `wide ${label} post-opt externals are not closed to WRT0 write: ${externals.join(", ")}`)
+  }
+  const wideLlvmFeatures = {
+    internalI128Helpers:
+      wideUnoptimizedText.includes("define internal i128 @w_fn_0(") &&
+      wideUnoptimizedText.includes("define internal i128 @w_fn_1("),
+    helperCall: wideUnoptimizedText.includes("call i128 @w_fn_0("),
+    nativeMain: wideUnoptimizedText.includes("define i32 @main(i64 ") &&
+      !wideUnoptimizedText.includes("define i128 @main(") &&
+      !wideUnoptimizedText.includes("declare i128 "),
+    i128Join: wideUnoptimizedText.includes("phi i128"),
+    predicates: ["eq", "ne", "slt", "sle", "sgt", "sge", "ult", "ule",
+      "ugt", "uge"].every((predicate) =>
+      wideUnoptimizedText.includes(`icmp ${predicate} i128`)),
+    bitwise: ["and", "or", "xor"].every((operation) =>
+      wideUnoptimizedText.includes(`${operation} i128`)),
+  }
+  assert(Object.values(wideLlvmFeatures).every(Boolean),
+    `wide LLVM translation lost required SSA operations: ${JSON.stringify(wideLlvmFeatures)}`)
+  invokeTool(tool("llc"), ["-O0", "-filetype=obj", "-mtriple=x86_64-unknown-linux-gnu",
+    wideUnoptimizedForTool, "-o", wideUnoptimizedObjectForTool],
+  "wide process unoptimized llc object")
+  invokeTool(tool("llc"), ["-O3", "-filetype=obj", "-mtriple=x86_64-unknown-linux-gnu",
+    widePostOptForTool, "-o", wideObjectForTool], "wide process llc object")
+  const wideNm = tool("llvmNm")
+  const wideObjdump = tool("llvmObjdump")
+  const wideReadelf = tool("llvmReadelf")
+  const assertWideObjectUndefineds = (objectPath, label) => {
+    const undefineds = invokeTool(wideNm,
+      ["--format=posix", "--undefined-only", objectPath],
+      `wide process ${label} object undefineds`).stdoutText
+    assert([...undefineds.matchAll(/^([A-Za-z0-9_.$-]+)\s+U\s/gmu)]
+        .map((match) => match[1]).join(",") === "write",
+    `wide process ${label} object undefineds escaped the WRT0 closure: ${undefineds.trim()}`)
+  }
+  const wideUnoptimizedDefinedSymbols = invokeTool(wideNm,
+    ["--format=posix", "--defined-only", wideUnoptimizedObjectForTool],
+    "wide process unoptimized object symbols").stdoutText
+  assert(/^w_fn_0\s+t\s/mu.test(wideUnoptimizedDefinedSymbols) &&
+    /^w_fn_1\s+t\s/mu.test(wideUnoptimizedDefinedSymbols) &&
+    /^main\s+T\s/mu.test(wideUnoptimizedDefinedSymbols),
+  "wide unoptimized object helper definitions are not local or process main is not an external root")
+  assertWideObjectUndefineds(wideUnoptimizedObjectForTool, "unoptimized")
+  assertWideObjectUndefineds(wideObjectForTool, "O3")
+  const wideRelocations = invokeTool(wideObjdump,
+    ["-r", wideUnoptimizedObjectForTool],
+    "wide process unoptimized object relocations").stdoutText
+  const wideObjectDisassembly = invokeTool(wideObjdump,
+    ["-d", wideUnoptimizedObjectForTool],
+    "wide process unoptimized object disassembly").stdoutText
+  assert(wideRelocations.includes("write-0x4") &&
+    !wideRelocations.includes("w_fn_") &&
+    /callq?\s+[^\n]*<w_fn_0>/mu.test(wideObjectDisassembly) &&
+    /callq?\s+[^\n]*<w_fn_1>/mu.test(wideObjectDisassembly),
+  "wide helper calls did not resolve within the object or WRT0 write is missing")
+
+  const wrt0UnitPath = resolve(buildDirectory, `w_seed_wrt0_tests${suffix}`)
+  const wrt0Probe = run(wrt0UnitPath,
+    ["--emit-linux-x86-64-count-only-llvm"])
+  assert(wrt0Probe.exitCode === 0 && wrt0Probe.stderr.length === 0 &&
+    wrt0Probe.stdout.toString("utf8").includes("call i32 @main(i64 %argc)"),
+  `count-only WRT0 probe failed: ${wrt0Probe.stderrText}`)
+  await writeFile(wrt0Input, wrt0Probe.stdout)
+  const wrt0InputForTool = isWindows ? wslPath(wrt0Input) : wrt0Input
+  const wrt0ObjectForTool = isWindows ? wslPath(wrt0Object) : wrt0Object
+  invokeTool(tool("llc"), ["-filetype=obj", "-mtriple=x86_64-unknown-linux-gnu",
+    wrt0InputForTool, "-o", wrt0ObjectForTool], "count-only WRT0 llc object")
+  const wrt0DefinedSymbols = invokeTool(wideNm,
+    ["--format=posix", "--defined-only", wrt0ObjectForTool],
+    "count-only WRT0 object symbols").stdoutText
+  const wrt0UndefinedSymbols = invokeTool(wideNm,
+    ["--format=posix", "--undefined-only", wrt0ObjectForTool],
+    "count-only WRT0 object undefineds").stdoutText
+  assert(/^_start\s+T\s/mu.test(wrt0DefinedSymbols) &&
+    /^w_seed_linux_count_only_start\s+T\s/mu.test(wrt0DefinedSymbols) &&
+    /^main\s+U\s/mu.test(wrt0UndefinedSymbols),
+  "WRT0 object lost its external startup roots or main route reference")
+  for (const [objectPath, executablePath, label] of [
+    [wideUnoptimizedObjectForTool, wideUnoptimizedExecutableForTool,
+      "unoptimized"],
+    [wideObjectForTool, wideExecutableForTool, "O3"],
+  ]) {
+    invokeTool(tool("linkDriver"), ["-static", "-e", "_start", "-o",
+      executablePath, objectPath, wrt0ObjectForTool],
+    `wide process CRT-free Linux ${label} link`)
+    const finalUndefined = invokeTool(wideNm,
+      ["--format=posix", "--undefined-only", executablePath],
+      `wide process ${label} final undefineds`).stdoutText
+    const finalProgramHeaders = invokeTool(wideReadelf,
+      ["-l", executablePath], `wide process ${label} final program headers`).stdoutText
+    const finalDynamicSection = invokeTool(wideReadelf,
+      ["-d", executablePath], `wide process ${label} final dynamic section`).stdoutText
+    const finalRelocations = invokeTool(wideReadelf,
+      ["-r", executablePath], `wide process ${label} final relocations`).stdoutText
+    const finalDisassembly = invokeTool(wideObjdump,
+      ["-d", executablePath], `wide process ${label} final disassembly`).stdoutText
+    assert(finalUndefined.trim().length === 0 &&
+      !finalProgramHeaders.includes("INTERP") &&
+      !finalDynamicSection.includes("Dynamic section") &&
+      !finalRelocations.includes("Relocation section") &&
+      (label === "O3" || /callq?\s+[^\n]*<w_fn_[01]>/mu.test(finalDisassembly)),
+    `wide ${label} final executable retains imports/relocations or lost its local helper call`)
+  }
+  for (const args of [[], ["probe"]]) {
+    const expected = args.length === 0
+      ? { exitCode: 0, stdout: "wide core\n" }
+      : { exitCode: 1, stdout: "wide core failure\n" }
+    const unoptimizedExecution = invokeProgram(wideUnoptimizedExecutableForTool,
+      args, `wide process unoptimized Linux executable with ${args.length} args`)
+    const optimizedExecution = invokeProgram(wideExecutableForTool, args,
+      `wide process O3 Linux executable with ${args.length} args`)
+    for (const [label, execution] of [
+      ["unoptimized", unoptimizedExecution], ["O3", optimizedExecution],
+    ])
+      assert(execution.exitCode === expected.exitCode &&
+        execution.stderr.length === 0 &&
+        Buffer.from(execution.stdout).equals(Buffer.from(expected.stdout, "utf8")),
+      `wide ${label} execution differed for ${args.length} args: exit=${execution.exitCode}, stdout=${JSON.stringify(execution.stdout.toString())}, stderr=${execution.stderrText}`)
+    assert(unoptimizedExecution.exitCode === optimizedExecution.exitCode &&
+      Buffer.from(unoptimizedExecution.stdout).equals(
+        Buffer.from(optimizedExecution.stdout)) &&
+      Buffer.from(unoptimizedExecution.stderr).equals(
+        Buffer.from(optimizedExecution.stderr)),
+    `wide Linux observable behavior differs between unoptimized and O3 for ${args.length} args`)
+  }
 
   const typedPropagation = run(unitPath, ["--emit-typed-propagation"])
   assert(typedPropagation.exitCode === 0,

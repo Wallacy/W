@@ -41,8 +41,10 @@ The read-only JSON receipt separates file size, named section bytes, bytes
 covered by declared sections, bytes outside those sections, disassembly
 inventory, observed dependencies and optional IR/object externals. Every
 supplied object is inspected. An optional
-`w-artifact-inspection-allowlists-1` policy independently constrains post-opt
-IR externals, undefined object symbols, final imports, and final dependencies;
+`w-artifact-inspection-allowlists-2` policy independently constrains post-opt
+IR externals, undefined object symbols, per-object external route roots and
+forbidden-global W-private helpers, exact cross-object relocation edges, final
+imports, and final dependencies;
 a requested boundary that is absent, unsupported, ambiguous, or rejected makes
 the command exit with status 2. Partial textual IR parsing can reject an
 unexpected external but cannot prove closure. Bytes

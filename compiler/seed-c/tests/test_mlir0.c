@@ -192,6 +192,50 @@ static bool process_input_float_rounding_mode;
 static bool process_input_float_rounding_bits_mode;
 static bool process_input_checked_integer_helper_mode;
 static bool process_input_wide_integer_core_mode;
+static const uint8_t WIDE_PROCESS_SOURCE[] =
+    "import std.process\n"
+    "fn chooseWide(zeroArgs: Bool): i128 { return if zeroArgs { "
+    "-2_i128 } else { 1_i128 } }\n"
+    "fn wideCore(zeroArgs: Bool, unsignedValue: u128): i128 {\n"
+    "  let signedValue = chooseWide(zeroArgs: zeroArgs)\n"
+    "  let signedLess = signedValue < 0_i128\n"
+    "  let signedEqual = signedValue == signedValue\n"
+    "  let signedNotEqual = signedValue != 0_i128\n"
+    "  let signedLessEqual = signedValue <= 0_i128\n"
+    "  let signedGreater = signedValue > "
+    "-170141183460469231731687303715884105728_i128\n"
+    "  let signedGreaterEqual = signedValue >= "
+    "-170141183460469231731687303715884105728_i128\n"
+    "  let signedMask: i128 = 1_i128\n"
+    "  let signedBits = ((signedValue & signedMask) | 1_i128) ^ 1_i128\n"
+    "  let signedNotTwice = ~(~signedValue)\n"
+    "  let unsignedGreater = unsignedValue > 2_u128\n"
+    "  let unsignedEqual = unsignedValue == 5_u128\n"
+    "  let unsignedNotEqual = unsignedValue != 0_u128\n"
+    "  let unsignedLess = unsignedValue < "
+    "340282366920938463463374607431768211455_u128\n"
+    "  let unsignedLessEqual = unsignedValue <= "
+    "340282366920938463463374607431768211455_u128\n"
+    "  let unsignedGreaterEqual = unsignedValue >= 0_u128\n"
+    "  let unsignedMask: u128 = 1_u128\n"
+    "  let unsignedBits = ((unsignedValue & unsignedMask) | 1_u128) ^ "
+    "1_u128\n"
+    "  let unsignedNotTwice = ~(~unsignedValue)\n"
+    "  let checks = signedLess && signedEqual && signedNotEqual && "
+    "signedLessEqual && signedGreater && signedGreaterEqual && "
+    "unsignedGreater && unsignedEqual && unsignedNotEqual && "
+    "unsignedLess && unsignedLessEqual && unsignedGreaterEqual && "
+    "signedBits == 0_i128 && signedNotTwice == signedValue && "
+    "unsignedBits == 0_u128 && unsignedNotTwice == unsignedValue\n"
+    "  return if checks { signedValue } else { 0_i128 }\n"
+    "}\n"
+    "fn deadWide(value: i128): i128 { return ~(~value) }\n"
+    "async fn run(args: Arguments, ctx: Context): ExitCode {\n"
+    "  let zeroArgs = args.count == 0\n"
+    "  let signedValue = wideCore(zeroArgs: zeroArgs, unsignedValue: 5_u128)\n"
+    "  if signedValue < 0_i128 { print(\"wide core\") return .success } else { "
+    "print(\"wide core failure\") return .failure(1) }\n"
+    "}\nentry(run)\n";
 static void configure_process_external(void);
 static void configure_process_input_external(void);
 static bool resolve_process_import(void);
@@ -201,6 +245,9 @@ static size_t count_bytes(const uint8_t *bytes, size_t length,
                           const char *needle);
 static size_t find_bytes(const uint8_t *bytes, size_t length,
                          const char *needle, size_t start);
+static size_t count_mlir_lines_with_fragment_and_type(
+    const uint8_t *bytes, size_t length, const char *fragment,
+    const char *type_suffix);
 
 static bool parse_source(const uint8_t *source_bytes, size_t source_length) {
   if (source_bytes == NULL || source_length == 0u ||
@@ -1985,36 +2032,9 @@ static bool test_process_arguments_count_comparison_mlir(void) {
 }
 
 static bool test_i128_u128_native_core_selection_boundary(void) {
-  static const uint8_t source[] =
-      "import std.process\n"
-      "fn chooseWide(zeroArgs: Bool): i128 { return if zeroArgs { "
-      "-170141183460469231731687303715884105728_i128 } else { -1_i128 } }\n"
-      "fn wideCore(zeroArgs: Bool): i128 {\n"
-      "  let signedValue = chooseWide(zeroArgs: zeroArgs)\n"
-      "  let signedLess = signedValue < 0_i128\n"
-      "  let signedMask: i128 = 1_i128\n"
-      "  let signedBits = ((signedValue & signedMask) | 1_i128) ^ 1_i128\n"
-      "  let signedNotTwice = ~(~signedValue)\n"
-      "  let unsignedValue: u128 = "
-      "340282366920938463463374607431768211455_u128\n"
-      "  let unsignedGreater = unsignedValue > 2_u128\n"
-      "  let unsignedMask: u128 = 1_u128\n"
-      "  let unsignedBits = ((unsignedValue & unsignedMask) | 1_u128) ^ "
-      "1_u128\n"
-      "  let unsignedNotTwice = ~(~unsignedValue)\n"
-      "  let checks = signedLess && unsignedGreater && "
-      "signedBits == 0_i128 && signedNotTwice == signedValue && "
-      "unsignedBits == 0_u128 && unsignedNotTwice == unsignedValue\n"
-      "  return if checks { signedValue } else { 0_i128 }\n"
-      "}\n"
-      "async fn run(args: Arguments, ctx: Context): ExitCode {\n"
-      "  let zeroArgs = args.count == 0\n"
-      "  let signedValue = wideCore(zeroArgs: zeroArgs)\n"
-      "  if signedValue < 0_i128 { print(\"wide core\") return .success } else { "
-      "print(\"wide core failure\") return .failure(1) }\n"
-      "}\nentry(run)\n";
   process_input_wide_integer_core_mode = true;
-  const bool lowered = lower_process_input_hir(source, sizeof(source) - 1u);
+  const bool lowered = lower_process_input_hir(
+      WIDE_PROCESS_SOURCE, sizeof(WIDE_PROCESS_SOURCE) - 1u);
   process_input_wide_integer_core_mode = false;
   CHECK(lowered);
   CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
@@ -2024,7 +2044,7 @@ static bool test_i128_u128_native_core_selection_boundary(void) {
   CHECK(entry_function < fixture.hir_program.function_count);
   const w_seed_hir0_function *entry =
       &fixture.hir_program.functions[entry_function];
-  CHECK(fixture.hir_program.function_count == 3u &&
+  CHECK(fixture.hir_program.function_count == 4u &&
         fixture.hir_program.functions[0].suspension ==
             W_SEED_HIR0_SUSPENSION_NEVER &&
         fixture.hir_program.functions[1].suspension ==
@@ -2035,7 +2055,79 @@ static bool test_i128_u128_native_core_selection_boundary(void) {
   w_seed_native_subset0_process selection;
   CHECK(w_seed_native_subset0_select_process_executable(
             &fixture.hir_program, &fixture.hir_result, &selection) ==
-        W_SEED_NATIVE_SUBSET0_UNSUPPORTED);
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_wide_scalar_helpers &&
+        selection.function == &fixture.hir_program.functions[entry_function]);
+
+  const w_seed_mlir0_input input = {
+      &fixture.hir_program, &fixture.hir_result,
+      W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE};
+  w_seed_mlir0_counts counts = {0u};
+  w_seed_mlir0_result measured = {0};
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  CHECK(w_seed_mlir0_measure(&input, &TARGET, &counts, &measured) ==
+        W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET,
+            &(w_seed_mlir0_output){output, sizeof(output)}, &measured) ==
+        W_SEED_MLIR0_OK);
+  CHECK(contains_bytes(output, measured.written.mlir_bytes,
+                       "// " W_SEED_MLIR0_PROCESS_EXECUTABLE_SCHEMA_VERSION "\n"));
+  CHECK(contains_bytes(output, measured.written.mlir_bytes,
+                       "llvm.func internal @w_fn_0(%buffer: !llvm.ptr, %cursor_address: !llvm.ptr, %p0: i1) -> i128"));
+  CHECK(contains_bytes(output, measured.written.mlir_bytes,
+                       "llvm.func internal @w_fn_1(%buffer: !llvm.ptr, %cursor_address: !llvm.ptr, %p0: i1, %p1: i128) -> i128"));
+  CHECK(contains_bytes(output, measured.written.mlir_bytes,
+                       "llvm.call @w_fn_1(") &&
+        contains_bytes(output, measured.written.mlir_bytes,
+                       "i1, i128) -> i128"));
+  CHECK(!contains_bytes(output, measured.written.mlir_bytes,
+                        "llvm.func internal @w_fn_2("));
+  CHECK(contains_bytes(output, measured.written.mlir_bytes,
+                       "0x80000000000000000000000000000000 : i128"));
+  CHECK(contains_bytes(output, measured.written.mlir_bytes,
+                       "0xffffffffffffffffffffffffffffffff : i128"));
+  CHECK(contains_bytes(output, measured.written.mlir_bytes, "llvm.sub %v"));
+  CHECK(count_mlir_lines_with_fragment_and_type(
+            output, measured.written.mlir_bytes, "llvm.and ", " : i128") >=
+            2u &&
+        count_mlir_lines_with_fragment_and_type(
+            output, measured.written.mlir_bytes, "llvm.or ", " : i128") >=
+            2u &&
+        count_mlir_lines_with_fragment_and_type(
+            output, measured.written.mlir_bytes, "llvm.xor ", " : i128") >=
+            4u);
+  CHECK(contains_bytes(output, measured.written.mlir_bytes,
+                       "llvm.icmp \"slt\""));
+  CHECK(contains_bytes(output, measured.written.mlir_bytes,
+                       "llvm.icmp \"sle\""));
+  CHECK(contains_bytes(output, measured.written.mlir_bytes,
+                       "llvm.icmp \"sgt\""));
+  CHECK(contains_bytes(output, measured.written.mlir_bytes,
+                       "llvm.icmp \"sge\""));
+  CHECK(contains_bytes(output, measured.written.mlir_bytes,
+                       "llvm.icmp \"eq\""));
+  CHECK(contains_bytes(output, measured.written.mlir_bytes,
+                       "llvm.icmp \"ne\""));
+  CHECK(contains_bytes(output, measured.written.mlir_bytes,
+                       "llvm.icmp \"ult\""));
+  CHECK(contains_bytes(output, measured.written.mlir_bytes,
+                       "llvm.icmp \"ule\""));
+  CHECK(contains_bytes(output, measured.written.mlir_bytes,
+                       "llvm.icmp \"ugt\""));
+  CHECK(contains_bytes(output, measured.written.mlir_bytes,
+                       "llvm.icmp \"uge\""));
+  CHECK(contains_bytes(output, measured.written.mlir_bytes,
+                       "llvm.call @w_fn_1("));
+  CHECK(contains_bytes(output, measured.written.mlir_bytes,
+                       ": i128):"));
+  CHECK(contains_bytes(output, measured.written.mlir_bytes,
+                       "llvm.func @main(%process_argc: i64) -> i32"));
+  CHECK(!contains_bytes(output, measured.written.mlir_bytes,
+                        "llvm.func @main(%process_argc: i128)"));
+  CHECK(!contains_bytes(output, measured.written.mlir_bytes,
+                        "@w_seed_append_i128"));
+  CHECK(counts.mlir_bytes == measured.written.mlir_bytes);
   return true;
 }
 
@@ -8879,6 +8971,26 @@ static bool emit_process_float_rounding_probe(bool windows) {
          fflush(stdout) == 0;
 }
 
+static bool emit_process_wide_scalar_helpers_probe(bool windows) {
+  static uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  process_input_wide_integer_core_mode = true;
+  const bool lowered = lower_process_input_hir(
+      WIDE_PROCESS_SOURCE, sizeof(WIDE_PROCESS_SOURCE) - 1u);
+  process_input_wide_integer_core_mode = false;
+  CHECK(lowered);
+  const w_seed_mlir0_input input = {
+      &fixture.hir_program, &fixture.hir_result,
+      W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE};
+  w_seed_mlir0_result result;
+  CHECK(w_seed_mlir0_emit(
+            &input, windows ? &WINDOWS_TARGET : &TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
+        W_SEED_MLIR0_OK);
+  return fwrite(artifact, 1u, result.written.mlir_bytes, stdout) ==
+             result.written.mlir_bytes &&
+         fflush(stdout) == 0;
+}
+
 static bool test_signed_comparison_artifacts(void) {
   static const char *const operators[] = {"==", "!=", "<", "<=", ">", ">="};
   static const char *const predicates[] = {"eq", "ne", "slt", "sle", "sgt", "sge"};
@@ -9978,6 +10090,20 @@ int main(int argc, char **argv) {
     if (_setmode(_fileno(stdout), _O_BINARY) == -1) return 3;
 #endif
     return emit_process_float_rounding_probe(true) ? 0 : 1;
+  }
+  if (argc == 2 && argv[1] != NULL &&
+      strcmp(argv[1], "--emit-process-wide-scalar-helpers") == 0) {
+#if defined(_WIN32)
+    if (_setmode(_fileno(stdout), _O_BINARY) == -1) return 3;
+#endif
+    return emit_process_wide_scalar_helpers_probe(false) ? 0 : 1;
+  }
+  if (argc == 2 && argv[1] != NULL &&
+      strcmp(argv[1], "--emit-process-wide-scalar-helpers-windows") == 0) {
+#if defined(_WIN32)
+    if (_setmode(_fileno(stdout), _O_BINARY) == -1) return 3;
+#endif
+    return emit_process_wide_scalar_helpers_probe(true) ? 0 : 1;
   }
   if (argc != 1) return 2;
   if (!test_reachable_panic_mlir()) return 1;

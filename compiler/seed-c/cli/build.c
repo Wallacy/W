@@ -76,7 +76,8 @@ bool w_seed_build_parse(int argc, char **argv,
       (pie_seen &&
        strcmp(target, W_SEED_NATIVE_TARGET_LINUX) != 0) ||
       (audit_seen &&
-       strcmp(target, W_SEED_NATIVE_TARGET_LINUX) != 0))
+       strcmp(target, W_SEED_NATIVE_TARGET_LINUX) != 0 &&
+       strcmp(target, W_SEED_NATIVE_TARGET_WINDOWS) != 0))
     return false;
   request->path = argv[2];
   request->target = target;
@@ -818,17 +819,24 @@ static bool build_windows_create_stage(const char *parent, const char *prefix,
 }
 
 static bool build_windows_copy_audit_bundle(const char *source_directory,
-                                            const char *audit_directory) {
-  static const char *const files[] = {
+                                            const char *audit_directory,
+                                            bool windows_target) {
+  static const char *const linux_files[] = {
       "input.mlir", "verified.mlir", "output.ll", "optimized.ll",
       "output.obj", "wrt0.ll", "wrt0.obj", "final-artifact",
       "manifest.json"};
+  static const char *const windows_files[] = {
+      "input.mlir", "verified.mlir", "output.ll", "optimized.ll",
+      "output.obj", "final-artifact", "manifest.json"};
+  const char *const *files = windows_target ? windows_files : linux_files;
+  const size_t file_count = windows_target
+                                ? sizeof(windows_files) / sizeof(windows_files[0])
+                                : sizeof(linux_files) / sizeof(linux_files[0]);
   char source_path[W_SEED_BUILD_WINDOWS_PATH_CAPACITY] = {0};
   char destination_path[W_SEED_BUILD_WINDOWS_PATH_CAPACITY] = {0};
   wchar_t wide_source[W_SEED_BUILD_WINDOWS_PATH_CAPACITY] = {0};
   wchar_t wide_destination[W_SEED_BUILD_WINDOWS_PATH_CAPACITY] = {0};
-  for (size_t index = 0u; index < sizeof(files) / sizeof(files[0]);
-       index += 1u) {
+  for (size_t index = 0u; index < file_count; index += 1u) {
     if (!build_windows_path_join(source_path, sizeof(source_path),
                                  source_directory, files[index]) ||
         !build_windows_path_join(destination_path, sizeof(destination_path),
@@ -935,7 +943,6 @@ static int build_execute_windows(const w_seed_build_request *request) {
       (!build_windows_audit_target_is_safe(request->audit_directory,
                                            audit_parent,
                                            sizeof(audit_parent)) ||
-       windows_target ||
        !build_windows_parent_chain_is_physical(parent) ||
        build_windows_same_target(request->audit_directory, request->output)))
     return 2;
@@ -1004,7 +1011,8 @@ static int build_execute_windows(const w_seed_build_request *request) {
   int exit_code = w_seed_run_compile(&compile_request);
   if (exit_code == 0) {
     if (request->audit_directory != NULL &&
-        !build_windows_copy_audit_bundle(stage, audit_stage)) {
+        !build_windows_copy_audit_bundle(stage, audit_stage,
+                                         windows_target)) {
       exit_code = 3;
       goto cleanup;
     }
@@ -1088,7 +1096,8 @@ int w_seed_build_execute(const w_seed_build_request *request) {
       (request->audit_directory != NULL &&
        (request->audit_directory[0] == '\0' ||
         request->audit_directory[0] == '-' ||
-        strcmp(request->target, W_SEED_NATIVE_TARGET_LINUX) != 0)))
+        (strcmp(request->target, W_SEED_NATIVE_TARGET_LINUX) != 0 &&
+         strcmp(request->target, W_SEED_NATIVE_TARGET_WINDOWS) != 0))))
     return 2;
 #if defined(__linux__)
   return build_execute_linux(request);

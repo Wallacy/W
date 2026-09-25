@@ -399,7 +399,7 @@ closure, and MLIR lowering. A family is not complete merely because a private
 artifact or an alternate native route supports it while the maintained product
 closure rejects it.
 
-Before adding executable wider representations, close runtime-parametrized
+Before adding broader executable wider semantics, close runtime-parametrized
 public-product execution for the already implemented fixed integers and strict `f32`/`f64`:
 typed failure, cleanup, process adaptation, exact output, and equivalent-work
 C23/Rust correctness references on Windows and Linux/WSL. Then add `i128` and
@@ -428,20 +428,20 @@ compile-latency, memory, and binary-size measurements improve without weakening
 the exact semantic oracle.
 
 The remaining numeric order is: complete runtime W-389/W-392 policies and
-typed failure; close target-width ABI/endian/serialization evidence; carry the
-now source-backed `i128`/`u128` identities and 16-byte literals through
-operations, native lowering and serialization; then strict f16/bf16/f128. The
-current bounded compiler-lifecycle increments establish caller-owned verified
-HIR identity/value flow and equal-type scalar-if joins for both `i128` and
-`u128`, including arm values above `u64`, then admit same-identity comparisons
-and bitwise operations in verified HIR. The second increment does not enable
-checked arithmetic, shifts, conversions, ABI/layout, serialization, or a
-Native0/MLIR artifact: the helper-based process witness is rejected by the
-existing process selector after HIR verification, with its entry facts
-`direct_entry=ABSENT` and `suspension=MAY`; ProductClosure's current
-downstream type/value shape also rejects these wide operation records. The
-next prerequisite is a verified, non-suspending helper-call boundary for the
-current process route; do not widen the bounded process CFG to bypass it.
+typed failure; close target-width ABI/endian/serialization evidence; extend
+the bounded source-backed `i128`/`u128` core beyond its current scalar-helper
+process witness; then strict f16/bf16/f128. The compiler-lifecycle slice now
+carries exact 16-byte literals, equal-type joins, same-identity comparisons
+and bitwise operations through verified HIR, ProductClosure0 v7, NativeSubset0,
+and direct MLIR `i128` SSA. Process-executable schema 9 preserves wide helper
+parameters, returns, calls, bindings, and joins while keeping the native
+process root ABI and output narrow. Linux/WSL x64 executes a statically linked
+WRT0 product with no imports; Windows x64 links `/nodefaultlib` and imports
+only the four required Kernel32 functions. The focused fixture cross-checks
+reachable verified-HIR functions against ProductClosure0 and omits a dead wide
+helper. Checked arithmetic, shifts, conversions, mixed types, recursion,
+effects, ABI/layout, serialization, other targets, and a public wide-value
+surface remain unsupported; the bounded process CFG was not widened.
 Configured f4/f6/f8 and tensor
 packing remain storage/compute work, while BigInt/BigFloat wait for ownership,
 allocator, OOM, and generic-value foundations. The bounded
@@ -861,23 +861,29 @@ physical scheduler experiments:
    unimplemented.
    Remaining conversion policies continue to block full rank-1 closure, but
    do not block rank-2 functions or rank-3 general CFG that they now need.
-   W-1651 closes the design identity of i128/u128, the fixed
-   arithmetic float family through f128, configured f4/f6/f8 AI elements, and
-   fixed/dynamic BigFloat. Frontend76 added exact i128/u128 type identities,
-   16-byte literal magnitudes, boundary rejection, and immutable binding.
-   Frontend78/HIR101 add same-identity comparisons and bitwise operations to a
-   verified-HIR-only family slice, including all six comparisons, `&`, `|`,
-   `^`, unary `~`, exact signed-minimum construction, and wide helper-result
-   joins. Checked arithmetic, shifts, conversions, ABI/layout, serialization,
-   and native execution remain open. HIR now proves the two ordinary wide
-   helpers non-suspending and the async process entry direct-entry-capable
+   W-1651 closes the design identity of i128/u128, the fixed arithmetic float
+   family through f128, configured f4/f6/f8 AI elements, and fixed/dynamic
+   BigFloat. Frontend76 added exact i128/u128 type identities, 16-byte literal
+   magnitudes, boundary rejection, and immutable binding. Frontend78/HIR101
+   add same-identity comparisons and bitwise operations to verified HIR,
+   including all six comparisons, `&`, `|`, `^`, unary `~`, exact signed-minimum
+   construction, and wide helper-result joins. HIR proves the two ordinary
+   wide helpers non-suspending and the async process entry direct-entry-capable
    without relaxing effectful or malformed value trees. ProductClosure0 schema
-   7 now closes the exact reachable local-helper/value closure for this family,
-   omits dead supported wide helpers, binds live wide bytes and operators into
-   its semantic digest, and rejects recursion, effects, unsupported operations,
-   and checked faults without a published relation. The next boundary is the
-   corresponding NativeSubset0 admission and direct MLIR `i128` SSA lowering;
-   this is not permission to widen the bounded process CFG. After the
+   7 closes the exact reachable helper/value graph, omits dead supported wide
+   helpers, binds live wide bytes/operators into its semantic digest, and
+   rejects recursion, effects, unsupported operations, and checked faults.
+   NativeSubset0 now independently derives verified-HIR reachability and
+   requires the ProductClosure0 cross-check for that exact graph. Process-
+   executable schema 9 lowers i128/u128 helpers through direct LLVM `i128`
+   parameters, returns, calls, bindings, and equal-type joins; the process root
+   keeps its native ABI and output narrow. Its private compiler-lifecycle
+   witness executes CRT-free on Linux/WSL x64 with the count-only WRT0 and on
+   Windows x64 with `/nodefaultlib`; object symbols/relocations, post-opt
+   externals, and final imports are audited. This does not widen the process
+   CFG or establish wide public ABI/layout. Checked arithmetic, shifts,
+   conversions, mixed types, recursion, effects, serialization, other targets,
+   and a public wide-value surface remain open. After the
    current 64-bit/f32/f64 packages, rank 1 takes only fixed scalar work:
    i128/u128 and strict f16/bf16/f128 semantics, including target rejection or
    an explicitly permitted W-owned fallback. Configured f4/f6/f8 remain

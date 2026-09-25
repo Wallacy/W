@@ -373,9 +373,13 @@ export function validateManifest(manifest, mode = ciMode) {
   const expectedCommands = mode
     ? { mlirOpt: "mlir-opt", mlirTranslate: "mlir-translate",
         llvmConfig: "llvm-config", llvmOpt: "opt", llc: "llc",
+        llvmReadobj: "llvm-readobj", llvmObjdump: "llvm-objdump",
+        llvmNm: "llvm-nm",
         linkDriver: "/usr/bin/ld" }
     : { mlirOpt: "mlir-opt", mlirTranslate: "mlir-translate",
         llvmConfig: "llvm-config", llvmOpt: "opt", clang: "clang", llc: "llc",
+        llvmReadobj: "llvm-readobj", llvmObjdump: "llvm-objdump",
+        llvmNm: "llvm-nm",
         linkDriver: "/usr/bin/ld" }
   for (const [role, expected] of Object.entries(expectedCommands)) {
     const command = commands?.[role]
@@ -441,6 +445,9 @@ export function validateManifest(manifest, mode = ciMode) {
     mlirTranslate: expectedCommands.mlirTranslate,
     llvmConfig: expectedCommands.llvmConfig,
     llvmOpt: expectedCommands.llvmOpt, llc: expectedCommands.llc,
+    llvmReadobj: expectedCommands.llvmReadobj,
+    llvmObjdump: expectedCommands.llvmObjdump,
+    llvmNm: expectedCommands.llvmNm,
     linkDriver: expectedCommands.linkDriver }
 }
 
@@ -742,7 +749,7 @@ async function verifyAuditTrace(directory, finalArtifact,
 }
 
 async function inspectNativeProductAudit(directory, fixtureRoot,
-                                          toolchainRoot,
+                                          inspectionCommands,
                                           inspectionName = "flat-value-aggregates") {
   const inspectionDirectory = join(fixtureRoot,
     `${inspectionName}-inspection`)
@@ -754,10 +761,17 @@ async function inspectNativeProductAudit(directory, fixtureRoot,
     await writeFile(path, await readBuildAuditFile(directory, name))
     localPaths.set(path, isWindows ? wslPath(path) : path)
   }
+  const inspectionRoles = {
+    "llvm-readobj": "llvmReadobj",
+    "llvm-objdump": "llvmObjdump",
+    "llvm-nm": "llvmNm",
+  }
   const toolPath = (name) => {
-    if (toolchainRoot !== undefined)
-      return `${toolchainRoot}/bin/${name}`
-    return findHostExecutable(name)
+    const role = inspectionRoles[name]
+    const executable = role === undefined ? undefined : inspectionCommands[role]
+    if (typeof executable !== "string" || executable.length === 0)
+      throw new Error(`pinned inspection tool path is unavailable: ${name}`)
+    return executable
   }
   const runInspectionTool = (executable, args) => {
     const toolArgs = isWindows
@@ -783,8 +797,37 @@ async function inspectNativeProductAudit(directory, fixtureRoot,
     postOptIrPath: pathFor("optimized.ll"),
     objectPaths: [pathFor("output.o"), pathFor("wrt0.o")],
     allowlists: {
-      schema: "w-artifact-inspection-allowlists-1",
+      schema: "w-artifact-inspection-allowlists-2",
       objectUndefinedSymbols: ["main", "write"],
+      objectSymbolLinkage: [
+        {
+          object: "output.o",
+          routeRoots: ["main"],
+          forbiddenGlobalWPrivateHelpers: [
+            "w_fn_0", "w_fn_1", "w_seed_append_i64", "w_seed_checked_add_i64",
+            "w_seed_copy",
+          ],
+        },
+        {
+          object: "wrt0.o",
+          routeRoots: ["_start", "write"],
+          forbiddenGlobalWPrivateHelpers: [],
+        },
+      ],
+      objectRelocations: [
+        {
+          object: "output.o",
+          allowedCrossObjectRelocations: [
+            { targetObject: "wrt0.o", symbol: "write", type: "R_X86_64_PLT32" },
+          ],
+        },
+        {
+          object: "wrt0.o",
+          allowedCrossObjectRelocations: [
+            { targetObject: "output.o", symbol: "main", type: "R_X86_64_PLT32" },
+          ],
+        },
+      ],
       finalDependencies: [],
     },
     findTool: toolPath,
@@ -807,6 +850,8 @@ async function inspectNativeProductAudit(directory, fixtureRoot,
     receipt.objectUndefinedSymbols.items)}`)
   assert(receipt.checks.requestedClosureValidation.status === "passed" &&
     receipt.checks.suppliedObjectUndefinedSymbolClosure.status === "passed" &&
+    receipt.checks.objectSymbolLinkage.status === "passed" &&
+    receipt.checks.objectRelocations.status === "passed" &&
     receipt.checks.finalDependencyClosure.status === "passed" &&
     receipt.dependencies.status === "observed" &&
     receipt.dependencies.items.length === 0,
@@ -821,9 +866,17 @@ async function inspectNativeProductAudit(directory, fixtureRoot,
     postOptParserCoverage: receipt.postOptIr.externals.coverage,
     objectUndefinedSymbols: receipt.objectUndefinedSymbols.items.map(
       (object) => object.undefinedSymbols),
+    objectSymbolLinkage: receipt.checks.objectSymbolLinkage.items.map((item) => ({
+      object: item.object,
+      routeRoots: item.routeRoots,
+      localWPrivateHelpers: item.localWPrivateHelpers,
+      absentWPrivateHelpers: item.absentWPrivateHelpers,
+    })),
+    crossObjectRelocations: receipt.checks.objectRelocations.items.map((item) =>
+      item.observedCrossObjectRelocations),
     elfDependencies: receipt.dependencies.items,
     interpreter: "absent (ELF program-header check)",
-  })}`)
+  })} lane=${isWindows ? "Windows-host Linux cross-target codegen" : "Linux-host native Linux product codegen"}`)
 }
 
 export function assertCrtFreeElf(bytes) {
@@ -928,7 +981,8 @@ assert(runSource.includes("W_SEED_RUN_COMPILE_PROFILE_DEV"),
   "cli/run.c does not select the development compile profile for w run")
 assert(buildSource.includes("W_SEED_RUN_COMPILE_PROFILE_RELEASE"),
   "cli/build.c does not select the release compile profile for w build")
-const llvmRoles = ["mlirOpt", "mlirTranslate", "llvmConfig", "llvmOpt", "llc"]
+const llvmRoles = ["mlirOpt", "mlirTranslate", "llvmConfig", "llvmOpt", "llc",
+  "llvmReadobj", "llvmObjdump", "llvmNm"]
 const roles = [...llvmRoles, "linkDriver"]
 const externalToolchainRoot = !ciMode &&
   process.env.W_MLIR0_TOOLCHAIN_ROOT !== undefined
@@ -1036,6 +1090,9 @@ try {
     llvmConfig: "llvm-config",
     llvmOpt: "opt",
     llc: "llc",
+    llvmReadobj: "llvm-readobj",
+    llvmObjdump: "llvm-objdump",
+    llvmNm: "llvm-nm",
     linkDriver: "ld",
   }
   if (isWindows) {
@@ -1884,8 +1941,8 @@ try {
     "process-arguments-ordering-build")
   const buildProcessEnumPayload = buildOutput("process-enum-payload-build")
   const buildFlatValueAggregates = buildOutput("flat-value-aggregates-build")
-  const flatValueAggregatesAudit = buildOutput(
-    "flat-value-aggregates-audit")
+  const nestedLoopTerminalReturnsAudit = buildOutput(
+    "nested-loop-terminal-returns-audit")
   const buildEnumCfgJoin = buildOutput("enum-cfg-join-build")
   const enumCfgJoinAudit = buildOutput("enum-cfg-join-audit")
   const buildMounted = join(fixtureDirectory, "mounted-build")
@@ -1908,20 +1965,15 @@ try {
     buildArtifactDirectory)
 
   expectSuccess(binary, ["build", toWsl(flatValueAggregatesFixture),
-    "--target", targetTriple, "--output", buildFlatValueAggregates,
-    "--audit-dir", flatValueAggregatesAudit], Buffer.alloc(0),
-  "build flat tuple and immutable value-struct family in Release with audit")
+    "--target", targetTriple, "--output", buildFlatValueAggregates],
+  Buffer.alloc(0),
+  "build flat tuple and immutable value-struct family in Release")
   const flatValueAggregatesBytes = await readBuildArtifact(
     buildFlatValueAggregates)
   assertCrtFreeElf(flatValueAggregatesBytes)
   assertElfNoExecutableStack(flatValueAggregatesBytes)
   expectExact(buildFlatValueAggregates, [], 0, flatValueAggregatesOutput,
     "execute Release flat tuple and immutable value-struct product")
-  await verifyAuditTrace(flatValueAggregatesAudit,
-    buildFlatValueAggregates, buildArtifactDirectory)
-  await inspectNativeProductAudit(flatValueAggregatesAudit, fixtureDirectory,
-    externalToolchainRoot)
-
   expectSuccess(binary, ["build", toWsl(enumCfgJoinFixture), "--target",
     targetTriple, "--output", buildEnumCfgJoin, "--audit-dir", enumCfgJoinAudit],
   Buffer.alloc(0), "build bounded enum CFG join in Release with audit")
@@ -1932,8 +1984,6 @@ try {
     "execute Release bounded enum CFG join product")
   await verifyAuditTrace(enumCfgJoinAudit, buildEnumCfgJoin,
     buildArtifactDirectory)
-  await inspectNativeProductAudit(enumCfgJoinAudit, fixtureDirectory,
-    externalToolchainRoot, "enum-cfg-join")
 
   if (isWindows) {
     runRequired("WSL existing audit target directory", "wsl.exe", [
@@ -2058,12 +2108,18 @@ try {
     "execute built verified nested labeled loop CFG artifact")
   assertCrtFreeElf(await readBuildArtifact(buildNestedLabeledWhile))
   expectSuccess(binary, ["build", toWsl(nestedLoopTerminalReturnsFixture),
-    "--target", targetTriple, "--output", buildNestedLoopTerminalReturns],
-    Buffer.alloc(0), "build verified nested loop terminal-return CFG fixture")
+    "--target", targetTriple, "--output", buildNestedLoopTerminalReturns,
+    "--audit-dir", nestedLoopTerminalReturnsAudit],
+    Buffer.alloc(0),
+    "build verified nested loop terminal-return CFG fixture with audit")
   expectSuccess(buildNestedLoopTerminalReturns, [],
     Buffer.from("-1,1,3\n", "utf8"),
     "execute built verified nested loop terminal-return CFG artifact")
   assertCrtFreeElf(await readBuildArtifact(buildNestedLoopTerminalReturns))
+  await verifyAuditTrace(nestedLoopTerminalReturnsAudit,
+    buildNestedLoopTerminalReturns, buildArtifactDirectory)
+  await inspectNativeProductAudit(nestedLoopTerminalReturnsAudit,
+    fixtureDirectory, resolvedCommands, "nested-loop-terminal-returns")
   expectSuccess(binary, ["build", toWsl(loopConditionalEarlyReturnFixture),
     "--target", targetTriple, "--output", buildLoopConditionalEarlyReturn],
   Buffer.alloc(0), "build verified loop conditional early-return fixture")

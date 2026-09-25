@@ -1130,6 +1130,24 @@ static bool append_u64_hex_bits(uint8_t *buffer, size_t capacity,
   return append_bytes(buffer, capacity, offset, digits, sizeof(digits));
 }
 
+static bool append_u128_hex_bits(uint8_t *buffer, size_t capacity,
+                                 size_t *offset, const uint8_t *little_endian,
+                                 size_t byte_count) {
+  if (buffer == NULL || offset == NULL || little_endian == NULL ||
+      byte_count != 16u || *offset > capacity || capacity - *offset < 34u)
+    return false;
+  if (!append_literal(buffer, capacity, offset, "0x")) return false;
+  for (size_t ordinal = byte_count; ordinal != 0u; ordinal -= 1u) {
+    const uint8_t byte = little_endian[ordinal - 1u];
+    const uint8_t digits[2] = {
+        (uint8_t)MLIR0_HEX[(byte >> 4u) & 0x0fu],
+        (uint8_t)MLIR0_HEX[byte & 0x0fu]};
+    if (!append_bytes(buffer, capacity, offset, digits, sizeof(digits)))
+      return false;
+  }
+  return true;
+}
+
 static bool append_u32_hex_bits(uint8_t *buffer, size_t capacity,
                                 size_t *offset, uint32_t value) {
   uint8_t digits[10] = {'0', 'x'};
@@ -1477,6 +1495,35 @@ static bool mlir0_integer_type_facts(const w_seed_hir0_program *program,
   }
   *is_signed = type->integer_is_signed;
   *bit_width = type->integer_bit_width;
+  return true;
+}
+
+/* The wide process helper route is intentionally limited to the exact core
+ * i128/u128 identities. This is not a target layout or ABI fact. */
+static bool mlir0_wide_integer_type_facts(
+    const w_seed_hir0_program *program, uint32_t type_index,
+    bool *is_signed) {
+  static const uint8_t I128_NAME[] = "i128";
+  static const uint8_t U128_NAME[] = "u128";
+  if (program == NULL || is_signed == NULL || type_index >= program->type_count)
+    return false;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  const bool signed_type = text_is(program, type->name, I128_NAME,
+                                   sizeof(I128_NAME) - 1u);
+  const bool unsigned_type = text_is(program, type->name, U128_NAME,
+                                     sizeof(U128_NAME) - 1u);
+  if (type->kind != W_SEED_HIR0_TYPE_INTEGER ||
+      (!signed_type && !unsigned_type) ||
+      type->integer_is_signed != signed_type ||
+      type->integer_bit_width != 128u ||
+      type->owner_module != W_SEED_HIR0_NONE ||
+      type->external_module_index != W_SEED_HIR0_NONE ||
+      type->external_symbol_index != W_SEED_HIR0_NONE ||
+      type->enum_index != W_SEED_HIR0_NONE ||
+      type->lifecycle != W_SEED_HIR0_LIFECYCLE_VALUE_COPY ||
+      type->release_contract != W_SEED_HIR0_RELEASE_CONTRACT_NONE)
+    return false;
+  *is_signed = signed_type;
   return true;
 }
 
@@ -5045,6 +5092,28 @@ static bool append_integer_comparison_operation_in_loop(
       value->left_value >= program->value_count ||
       value->right_value >= program->value_count)
     return false;
+  bool wide_signed = false;
+  const uint32_t left_type =
+      program->values[value->left_value].type_index;
+  if (mlir0_wide_integer_type_facts(program, left_type, &wide_signed)) {
+    const char *wide_operation =
+        integer_comparison_operation(value->binary_operator, wide_signed);
+    return program->values[value->right_value].type_index == left_type &&
+           wide_operation != NULL &&
+           append_literal(artifact, capacity, offset, "    %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset, " = ") &&
+           append_literal(artifact, capacity, offset, wide_operation) &&
+           append_literal(artifact, capacity, offset, " ") &&
+           append_program_value_operand_in_loop(
+               program, value->left_value, function_index, process, loop,
+               artifact, capacity, offset) &&
+           append_literal(artifact, capacity, offset, ", ") &&
+           append_program_value_operand_in_loop(
+               program, value->right_value, function_index, process, loop,
+               artifact, capacity, offset) &&
+           append_literal(artifact, capacity, offset, " : i128\n");
+  }
   bool is_signed = false;
   bool right_signed = false;
   uint16_t bit_width = 0u;
@@ -5111,6 +5180,114 @@ static bool append_integer_comparison_operation_in_loop(
              program, value->right_value, function_index, process, loop,
              artifact, capacity, offset) &&
          append_literal(artifact, capacity, offset, " : i64\n");
+}
+
+/* Wide scalar helpers use native i128 SSA values throughout. Keep this
+ * separate from the existing logical-width/i64-carrier operations. */
+static bool append_wide_integer_value_operation_in_loop(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  bool is_signed = false;
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_INTEGER_128) {
+    return mlir0_wide_integer_type_facts(program, value->type_index,
+                                         &is_signed) &&
+           value->byte_count == 16u &&
+           value->byte_offset <= program->value_byte_count &&
+           value->byte_count <=
+               program->value_byte_count - value->byte_offset &&
+           program->value_bytes != NULL &&
+           append_literal(artifact, capacity, offset, "    %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset,
+                          " = llvm.mlir.constant(") &&
+           append_u128_hex_bits(artifact, capacity, offset,
+                                program->value_bytes + value->byte_offset,
+                                value->byte_count) &&
+           append_literal(artifact, capacity, offset,
+                         " : i128) : i128\n");
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_INTEGER_128) {
+    if (!mlir0_wide_integer_type_facts(program, value->type_index,
+                                       &is_signed) ||
+        !is_signed || value->unary_operator != W_SEED_HIR0_UNARY_NEGATE ||
+        value->left_value >= program->value_count ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        program->values[value->left_value].kind !=
+            W_SEED_HIR0_VALUE_CONST_INTEGER_128 ||
+        program->values[value->left_value].type_index != value->type_index)
+      return false;
+    return append_literal(artifact, capacity, offset, "    %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset,
+                          "_wide_zero = llvm.mlir.constant(0 : i128) : i128\n    %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset, " = llvm.sub %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset, "_wide_zero, ") &&
+           append_program_value_operand_in_loop(
+               program, value->left_value, function_index, process, loop,
+               artifact, capacity, offset) &&
+           append_literal(artifact, capacity, offset, " : i128\n");
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_BITWISE_INTEGER_128) {
+    if (!mlir0_wide_integer_type_facts(program, value->type_index,
+                                       &is_signed) ||
+        value->unary_operator != W_SEED_HIR0_UNARY_BIT_NOT ||
+        value->left_value >= program->value_count ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        program->values[value->left_value].type_index != value->type_index)
+      return false;
+    return append_literal(artifact, capacity, offset, "    %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset,
+                          "_wide_mask = llvm.mlir.constant(-1 : i128) : i128\n    %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset, " = llvm.xor ") &&
+           append_program_value_operand_in_loop(
+               program, value->left_value, function_index, process, loop,
+               artifact, capacity, offset) &&
+           append_literal(artifact, capacity, offset, ", %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset,
+                          "_wide_mask : i128\n");
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_128) {
+    if (!mlir0_wide_integer_type_facts(program, value->type_index,
+                                       &is_signed) ||
+        value->binary_operator < W_SEED_HIR0_BINARY_BIT_AND ||
+        value->binary_operator > W_SEED_HIR0_BINARY_BIT_XOR ||
+        value->left_value >= program->value_count ||
+        value->right_value >= program->value_count ||
+        program->values[value->left_value].type_index != value->type_index ||
+        program->values[value->right_value].type_index != value->type_index)
+      return false;
+    const char *operation =
+        value->binary_operator == W_SEED_HIR0_BINARY_BIT_AND
+            ? "llvm.and"
+            : value->binary_operator == W_SEED_HIR0_BINARY_BIT_OR
+                  ? "llvm.or"
+                  : "llvm.xor";
+    return append_literal(artifact, capacity, offset, "    %v") &&
+           append_size(artifact, capacity, offset, value_index) &&
+           append_literal(artifact, capacity, offset, " = ") &&
+           append_literal(artifact, capacity, offset, operation) &&
+           append_literal(artifact, capacity, offset, " ") &&
+           append_program_value_operand_in_loop(
+               program, value->left_value, function_index, process, loop,
+               artifact, capacity, offset) &&
+           append_literal(artifact, capacity, offset, ", ") &&
+           append_program_value_operand_in_loop(
+               program, value->right_value, function_index, process, loop,
+               artifact, capacity, offset) &&
+           append_literal(artifact, capacity, offset, " : i128\n");
+  }
+  return false;
 }
 
 static bool append_integer_comparison_operation(
@@ -5604,7 +5781,10 @@ static bool append_program_block_argument_name(
     bool is_signed = false;
     uint16_t bit_width = 0u;
     integer_ok = mlir0_integer_type_facts(program, argument->type_index,
-                                          &is_signed, &bit_width);
+                                          &is_signed, &bit_width) ||
+                 mlir0_wide_integer_type_facts(program,
+                                               argument->type_index,
+                                               &is_signed);
   }
   const bool local_enum_ok =
       argument_kind == W_SEED_HIR0_TYPE_ENUM &&
@@ -6689,7 +6869,8 @@ static bool program_plan_append_print(mlir0_program_plan *plan,
 static bool build_program_plan(const w_seed_hir0_program *program,
                                const w_seed_hir0_result *hir_result,
                                mlir0_program_plan *plan, bool allow_empty,
-                               bool cross_check_product) {
+                               bool cross_check_product,
+                               bool force_product_cross_check) {
   if (program == NULL || plan == NULL ||
       program->call_count > W_SEED_NATIVE_SUBSET0_MAX_CALLS)
     return false;
@@ -6700,11 +6881,15 @@ static bool build_program_plan(const w_seed_hir0_program *program,
           program, program->entries[0].target_function,
           candidate.reachable_functions, 0u))
     return false;
-  if (cross_check_product && mlir_product_closure_shape_candidate(program) &&
-      !w_seed_product_closure0_cross_check_functions(
-          program, hir_result, candidate.reachable_functions,
-          W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS))
-    return false;
+  if (cross_check_product &&
+      (force_product_cross_check ||
+       mlir_product_closure_shape_candidate(program))) {
+    if (hir_result == NULL ||
+        !w_seed_product_closure0_cross_check_functions(
+            program, hir_result, candidate.reachable_functions,
+            W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS))
+      return false;
+  }
   for (size_t call_index = 0u; call_index < program->call_count;
        call_index += 1u) {
     const w_seed_hir0_call *call = &program->calls[call_index];
@@ -6909,6 +7094,12 @@ static bool append_program_value_operand_in_loop(
                    W_SEED_HIR0_TYPE_U64_BOOL_TUPLE)))) &&
            append_literal(artifact, capacity, offset, "%v") &&
            append_size(artifact, capacity, offset, value_index);
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_INTEGER_128 ||
+      value->kind == W_SEED_HIR0_VALUE_UNARY_BITWISE_INTEGER_128)
+    return mlir0_wide_integer_type_facts(program, value->type_index,
+                                         &(bool){false}) &&
+           append_literal(artifact, capacity, offset, "%v") &&
+           append_size(artifact, capacity, offset, value_index);
   if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
     if (loop != NULL &&
         (function_index != loop->function_index ||
@@ -6955,10 +7146,12 @@ static bool append_program_value_operand_in_loop(
   return (value->kind == W_SEED_HIR0_VALUE_CONST_I64 ||
           value->kind == W_SEED_HIR0_VALUE_CONST_USIZE ||
           value->kind == W_SEED_HIR0_VALUE_CONST_U64 ||
+          value->kind == W_SEED_HIR0_VALUE_CONST_INTEGER_128 ||
           value->kind == W_SEED_HIR0_VALUE_CONST_FLOAT ||
           value->kind == W_SEED_HIR0_VALUE_CONST_BOOL ||
           value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
           value->kind == W_SEED_HIR0_VALUE_BINARY_U64 ||
+          value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_128 ||
           value->kind ==
               W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON ||
           value->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT ||
@@ -7384,6 +7577,32 @@ static bool append_program_value_tree(
       value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ ||
       value->kind == W_SEED_HIR0_VALUE_CALL_RESULT ||
       value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_INTEGER_128 ||
+      value->kind == W_SEED_HIR0_VALUE_UNARY_INTEGER_128 ||
+      value->kind == W_SEED_HIR0_VALUE_UNARY_BITWISE_INTEGER_128 ||
+      value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_128) {
+    if (!mlir0_wide_integer_type_facts(program, value->type_index,
+                                       &(bool){false}))
+      return false;
+    if (value->kind != W_SEED_HIR0_VALUE_CONST_INTEGER_128 &&
+        (value->left_value >= program->value_count ||
+         !append_program_value_tree(program, value->left_value,
+                                    function_index, process, emitted,
+                                    artifact, capacity, offset, depth + 1u)))
+      return false;
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_128 &&
+        (value->right_value >= program->value_count ||
+         !append_program_value_tree(program, value->right_value,
+                                    function_index, process, emitted,
+                                    artifact, capacity, offset, depth + 1u)))
+      return false;
+    if (!append_wide_integer_value_operation_in_loop(
+            program, value_index, function_index, process, NULL, artifact,
+            capacity, offset))
+      return false;
     emitted[value_index] = true;
     return true;
   }
@@ -8270,6 +8489,32 @@ static bool append_program_value_tree_in_loop(
     emitted[value_index] = true;
     return true;
   }
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_INTEGER_128 ||
+      value->kind == W_SEED_HIR0_VALUE_UNARY_INTEGER_128 ||
+      value->kind == W_SEED_HIR0_VALUE_UNARY_BITWISE_INTEGER_128 ||
+      value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_128) {
+    if (!mlir0_wide_integer_type_facts(program, value->type_index,
+                                       &(bool){false}))
+      return false;
+    if (value->kind != W_SEED_HIR0_VALUE_CONST_INTEGER_128 &&
+        (value->left_value >= program->value_count ||
+         !append_program_value_tree_in_loop(
+             program, value->left_value, function_index, process, loop,
+             emitted, artifact, capacity, offset, depth + 1u)))
+      return false;
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_128 &&
+        (value->right_value >= program->value_count ||
+         !append_program_value_tree_in_loop(
+             program, value->right_value, function_index, process, loop,
+             emitted, artifact, capacity, offset, depth + 1u)))
+      return false;
+    if (!append_wide_integer_value_operation_in_loop(
+            program, value_index, function_index, process, loop, artifact,
+            capacity, offset))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
   if (value->kind == W_SEED_HIR0_VALUE_TUPLE ||
       value->kind == W_SEED_HIR0_VALUE_VALUE_STRUCT) {
     if (!append_flat_product_constructor_in_loop(
@@ -8666,6 +8911,8 @@ static const char *program_type_name(const w_seed_hir0_program *program,
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_I64) return "i64";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_U64) return "i64";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_INTEGER) {
+    if (mlir0_wide_integer_type_facts(program, type_index, &(bool){false}))
+      return "i128";
     bool is_signed = false;
     uint16_t bit_width = 0u;
     return mlir0_integer_type_facts(program, type_index, &is_signed,
@@ -10649,7 +10896,7 @@ static bool build_program_artifact(
     return true;
 
   mlir0_program_plan plan;
-  if (!build_program_plan(program, hir_result, &plan, false, true)) {
+  if (!build_program_plan(program, hir_result, &plan, false, true, false)) {
     return false;
   }
   if (plan.has_reachable_panic != selection->has_reachable_panic) {
@@ -11660,10 +11907,13 @@ static bool build_process_executable_artifact(
     return false;
 
   mlir0_program_plan plan;
-  /* Process CFG lowering is outside the scalar ProductClosure shape route;
-   * reauthenticate its copied fault relation directly at this boundary. */
-  if (!build_program_plan(program, NULL, &plan, true, false) ||
-      !plan.reachable_functions[selection->function_index] ||
+  /* Independently derive process reachability. The wide route also requires
+   * ProductClosure0's HIR reachability cross-check before emission. */
+  if (!build_program_plan(program, hir_result, &plan, true, true,
+                          selection->has_wide_scalar_helpers)) {
+    return false;
+  }
+  if (!plan.reachable_functions[selection->function_index] ||
       plan.has_reachable_panic != selection->has_reachable_panic)
     return false;
   const bool has_checked_operation =
@@ -11885,8 +12135,9 @@ static bool build_process_executable_artifact(
              process.has_structured_checked_arithmetic)
                 ? &process
                 : NULL,
-            artifact, capacity, &offset))
+            artifact, capacity, &offset)) {
       return false;
+    }
   if (count_only_arguments) {
     if (!append_output_capacity_template(
             artifact, capacity, &offset,
@@ -14175,7 +14426,7 @@ static bool build_cooperative_output_plan(
     mlir0_program_plan *plan) {
   if (program == NULL || hir_result == NULL || selection == NULL ||
       plan == NULL ||
-      !build_program_plan(program, hir_result, plan, false, false) ||
+      !build_program_plan(program, hir_result, plan, false, false, false) ||
       program_has_unary_u64(program))
     return false;
   size_t result_actions = 0u;
@@ -15352,7 +15603,7 @@ static bool build_process_parallel_artifact(
   if (!mlir0_process_parallel_root_shape(program, &process, selection, &shape))
     return false;
   mlir0_program_plan plan;
-  if (!build_program_plan(program, hir_result, &plan, true, false) ||
+  if (!build_program_plan(program, hir_result, &plan, true, false, false) ||
       !plan.reachable_functions[process.function_index] ||
       plan.action_count != 0u)
     return false;

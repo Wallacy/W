@@ -44,6 +44,18 @@
       "linux": "llc",
       "versionArgs": ["--version"]
     },
+    "llvmReadobj": {
+      "linux": "llvm-readobj",
+      "versionArgs": ["--version"]
+    },
+    "llvmObjdump": {
+      "linux": "llvm-objdump",
+      "versionArgs": ["--version"]
+    },
+    "llvmNm": {
+      "linux": "llvm-nm",
+      "versionArgs": ["--version"]
+    },
     "linkDriver": {
       "linux": "/usr/bin/ld",
       "versionArgs": ["--version"]

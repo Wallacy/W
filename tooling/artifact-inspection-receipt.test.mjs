@@ -40,19 +40,96 @@ function mockedTools(readobjOutput, extras = {}) {
         if (extras.readobjError) throw new Error(extras.readobjError);
         return { stdout: readobjOutput, stderr: "" };
       }
-      if (tool === "llvm-objdump") return { stdout: extras.disassembly ?? "file: file format\n\nDisassembly of section .text:\n  1000:\tretq\n", stderr: "" };
+      if (tool === "llvm-objdump") {
+        if (args.includes("--reloc")) {
+          const objectName = path.basename(args.at(-1));
+          return {
+            stdout: extras.relocationsByObject?.[objectName] ??
+              `${objectName}: file format elf64-x86-64\n`,
+            stderr: "",
+          };
+        }
+        return { stdout: extras.disassembly ?? "file: file format\n\nDisassembly of section .text:\n  1000:\tretq\n", stderr: "" };
+      }
       if (tool === "llvm-nm") {
         const objectName = path.basename(args.at(-1));
         const error = extras.undefinedSymbolsErrorByObject?.[objectName];
         if (error) throw new Error(error);
         return {
-          stdout: extras.undefinedSymbolsByObject?.[objectName] ?? extras.undefinedSymbols ?? "object.obj: external_fn U 0 0\n",
+          stdout: extras.nmOutputByObject?.[objectName] ??
+            extras.undefinedSymbolsByObject?.[objectName] ??
+            extras.undefinedSymbols ?? "object.obj: external_fn U 0 0\n",
           stderr: "",
         };
       }
       throw new Error(`unexpected tool ${tool}`);
     },
   };
+}
+
+function elfObjectBoundaries(overrides = {}) {
+  return {
+    schema: "w-artifact-inspection-allowlists-2",
+    objectUndefinedSymbols: ["main", "write"],
+    objectSymbolLinkage: [
+      {
+        object: "output.o",
+        routeRoots: ["main"],
+        forbiddenGlobalWPrivateHelpers: ["w_seed_copy"],
+      },
+      {
+        object: "wrt0.o",
+        routeRoots: ["_start", "write"],
+        forbiddenGlobalWPrivateHelpers: [],
+      },
+    ],
+    objectRelocations: [
+      {
+        object: "output.o",
+        allowedCrossObjectRelocations: [
+          { targetObject: "wrt0.o", symbol: "write", type: "R_X86_64_PLT32" },
+        ],
+      },
+      {
+        object: "wrt0.o",
+        allowedCrossObjectRelocations: [
+          { targetObject: "output.o", symbol: "main", type: "R_X86_64_PLT32" },
+        ],
+      },
+    ],
+    ...overrides,
+  };
+}
+
+function validElfObjectEvidence() {
+  return {
+    nmOutputByObject: {
+      "output.o": "main T 0 10\nw_seed_copy t 10 4\nwrite U 0 0\n",
+      "wrt0.o": "_start T 0 10\nmain U 0 0\nwrite T 10 8\n",
+    },
+    relocationsByObject: {
+      "output.o": "output.o: file format elf64-x86-64\nRELOCATION RECORDS FOR [.text]:\nOFFSET TYPE VALUE\n0000000000000002 R_X86_64_PLT32 w_seed_copy-0x4\n0000000000000007 R_X86_64_PLT32 write-0x4\n",
+      "wrt0.o": "wrt0.o: file format elf64-x86-64\nRELOCATION RECORDS FOR [.text]:\nOFFSET TYPE VALUE\n0000000000000001 R_X86_64_PLT32 main-0x4\n",
+    },
+  };
+}
+
+async function inspectElfObjectPair(t, evidence, allowlists = elfObjectBoundaries()) {
+  const directory = withTempDirectory(t);
+  const artifactPath = path.join(directory, "product.exe");
+  const productObject = path.join(directory, "output.o");
+  const wrt0Object = path.join(directory, "wrt0.o");
+  fs.writeFileSync(artifactPath, makePeFixture());
+  fs.writeFileSync(productObject, Buffer.from("product object fixture"));
+  fs.writeFileSync(wrt0Object, Buffer.from("WRT0 object fixture"));
+  const tools = mockedTools(peReadobjOutput, evidence);
+  return createArtifactInspectionReceipt({
+    artifactPath,
+    objectPaths: [productObject, wrt0Object],
+    allowlists,
+    findTool: tools.findTool,
+    runTool: tools.runTool,
+  });
 }
 
 const peReadobjOutput = `File: sample.exe
@@ -138,7 +215,7 @@ test("PE receipt inventories section bytes, imports, IR declarations, and suppli
     runTool: tools.runTool,
   });
 
-  assert.equal(receipt.schema, "w-artifact-inspection-receipt-2");
+  assert.equal(receipt.schema, "w-artifact-inspection-receipt-3");
   assert.equal(receipt.artifact.format, "PE");
   assert.equal(receipt.artifact.bytes, 512);
   assert.equal(receipt.sectionInventory.status, "observed");
@@ -184,7 +261,7 @@ test("every supplied object is inspected and an unexpected later-object symbol r
     artifactPath,
     objectPaths: [firstObjectPath, secondObjectPath],
     allowlists: {
-      schema: "w-artifact-inspection-allowlists-1",
+      schema: "w-artifact-inspection-allowlists-2",
       objectUndefinedSymbols: ["allowed_fn"],
     },
     findTool: tools.findTool,
@@ -199,13 +276,146 @@ test("every supplied object is inspected and an unexpected later-object symbol r
   assert.equal(tools.calls.filter((call) => call.tool === "llvm-nm").length, 2);
 });
 
+test("per-object linkage and relocation boundaries prove local helpers and exact route roots", async (t) => {
+  const receipt = await inspectElfObjectPair(t, validElfObjectEvidence());
+
+  assert.equal(receipt.schema, "w-artifact-inspection-receipt-3");
+  assert.equal(receipt.tools.resolution, "caller-supplied-explicit-paths");
+  assert.deepEqual(receipt.objectUndefinedSymbols.items.map((item) => item.object), [
+    "output.o", "wrt0.o",
+  ]);
+  assert.deepEqual(receipt.objectUndefinedSymbols.items[0].definitions, [
+    { symbol: "main", type: "T", linkage: "external" },
+    { symbol: "w_seed_copy", type: "t", linkage: "local" },
+  ]);
+  assert.deepEqual(receipt.objectUndefinedSymbols.items[0].relocations.map(
+    ({ symbol, type }) => ({ symbol, type })), [
+    { symbol: "w_seed_copy", type: "R_X86_64_PLT32" },
+    { symbol: "write", type: "R_X86_64_PLT32" },
+  ]);
+  assert.equal(receipt.checks.objectSymbolLinkage.status, "passed");
+  assert.deepEqual(receipt.checks.objectSymbolLinkage.items[0].routeRoots, ["main"]);
+  assert.deepEqual(receipt.checks.objectSymbolLinkage.items[0].localWPrivateHelpers, ["w_seed_copy"]);
+  assert.equal(receipt.checks.objectRelocations.status, "passed");
+  assert.deepEqual(receipt.checks.objectRelocations.items.map((item) =>
+    item.observedCrossObjectRelocations), [[
+    { targetObject: "wrt0.o", symbol: "write", type: "R_X86_64_PLT32" },
+  ], [
+    { targetObject: "output.o", symbol: "main", type: "R_X86_64_PLT32" },
+  ]]);
+  assert.equal(receipt.checks.requestedClosureValidation.status, "passed");
+});
+
+test("an externalized W-private helper and a lost route root reject object linkage", async (t) => {
+  const externalized = validElfObjectEvidence();
+  externalized.nmOutputByObject["output.o"] =
+    "main T 0 10\nw_seed_copy T 10 4\nwrite U 0 0\n";
+  const externalizedReceipt = await inspectElfObjectPair(t, externalized);
+  assert.equal(externalizedReceipt.checks.objectSymbolLinkage.status, "rejected");
+  assert.deepEqual(
+    externalizedReceipt.checks.objectSymbolLinkage.items[0].forbiddenGlobalWPrivateHelpers,
+    ["w_seed_copy"],
+  );
+
+  const rootLost = validElfObjectEvidence();
+  rootLost.nmOutputByObject["output.o"] = "w_seed_copy t 10 4\nwrite U 0 0\n";
+  const rootLostReceipt = await inspectElfObjectPair(t, rootLost);
+  assert.equal(rootLostReceipt.checks.objectSymbolLinkage.status, "rejected");
+  assert.deepEqual(rootLostReceipt.checks.objectSymbolLinkage.items[0].missingRouteRoots, ["main"]);
+  assert.equal(rootLostReceipt.checks.objectRelocations.status, "rejected");
+});
+
+test("an unexpected external definition rejects object linkage", async (t) => {
+  const evidence = validElfObjectEvidence();
+  evidence.nmOutputByObject["output.o"] += "surprise_fn T 20 4\n";
+  const receipt = await inspectElfObjectPair(t, evidence);
+  assert.equal(receipt.checks.objectSymbolLinkage.status, "rejected");
+  assert.deepEqual(
+    receipt.checks.objectSymbolLinkage.items[0].unexpectedGlobalDefinitions,
+    ["surprise_fn"],
+  );
+});
+
+test("bad helper and unexpected cross-object relocations reject the relocation boundary", async (t) => {
+  const helperReference = validElfObjectEvidence();
+  helperReference.relocationsByObject["wrt0.o"] =
+    "wrt0.o: file format elf64-x86-64\nRELOCATION RECORDS FOR [.text]:\nOFFSET TYPE VALUE\n0000000000000001 R_X86_64_PLT32 main-0x4\n0000000000000005 R_X86_64_PLT32 w_seed_copy-0x4\n";
+  const helperReceipt = await inspectElfObjectPair(t, helperReference);
+  assert.equal(helperReceipt.checks.objectRelocations.status, "rejected");
+  assert.deepEqual(
+    helperReceipt.checks.objectRelocations.items[1].forbiddenGlobalWPrivateHelperRelocations.map(
+      (relocation) => relocation.symbol),
+    ["w_seed_copy"],
+  );
+
+  const unexpectedCrossObject = validElfObjectEvidence();
+  unexpectedCrossObject.relocationsByObject["output.o"] =
+    "output.o: file format elf64-x86-64\nRELOCATION RECORDS FOR [.text]:\nOFFSET TYPE VALUE\n0000000000000002 R_X86_64_PLT32 w_seed_copy-0x4\n0000000000000007 R_X86_64_PLT32 write-0x4\n000000000000000b R_X86_64_PLT32 _start-0x4\n";
+  unexpectedCrossObject.nmOutputByObject["output.o"] += "_start U 0 0\n";
+  const crossReceipt = await inspectElfObjectPair(t, unexpectedCrossObject);
+  assert.equal(crossReceipt.checks.objectRelocations.status, "rejected");
+  assert.deepEqual(
+    crossReceipt.checks.objectRelocations.items[0].unexpectedCrossObjectRelocations,
+    [{ targetObject: "wrt0.o", symbol: "_start", type: "R_X86_64_PLT32" }],
+  );
+});
+
+test("object linkage policy fails closed for missing evidence, mismatched objects, and malformed tool data", async (t) => {
+  const noObjectsDirectory = withTempDirectory(t);
+  const artifactPath = path.join(noObjectsDirectory, "product.exe");
+  fs.writeFileSync(artifactPath, makePeFixture());
+  const tools = mockedTools(peReadobjOutput);
+  await assert.rejects(createArtifactInspectionReceipt({
+    artifactPath,
+    allowlists: elfObjectBoundaries(),
+    findTool: tools.findTool,
+    runTool: tools.runTool,
+  }), /require at least one supplied object/u);
+
+  const mismatch = elfObjectBoundaries({
+    objectSymbolLinkage: [
+      { object: "other.o", routeRoots: ["main"], forbiddenGlobalWPrivateHelpers: [] },
+      elfObjectBoundaries().objectSymbolLinkage[1],
+    ],
+  });
+  const mismatchReceipt = await inspectElfObjectPair(t, validElfObjectEvidence(), mismatch);
+  assert.equal(mismatchReceipt.checks.objectSymbolLinkage.status, "rejected");
+  assert.deepEqual(mismatchReceipt.checks.objectSymbolLinkage.missingObjects, ["other.o"]);
+  assert.deepEqual(mismatchReceipt.checks.objectSymbolLinkage.unexpectedObjects, ["output.o"]);
+
+  const malformedNm = validElfObjectEvidence();
+  malformedNm.nmOutputByObject["output.o"] = "not POSIX nm data";
+  await assert.rejects(inspectElfObjectPair(t, malformedNm), /unrecognized POSIX output/u);
+  const malformedRelocation = validElfObjectEvidence();
+  malformedRelocation.relocationsByObject["output.o"] =
+    "output.o: file format elf64-x86-64\nRELOCATION RECORDS FOR [.text]:\nOFFSET TYPE VALUE\nnot-a-relocation\n";
+  await assert.rejects(inspectElfObjectPair(t, malformedRelocation), /malformed relocation data/u);
+});
+
+test("pre-2 allowlist schema is rejected without a compatibility path and PATH fallback is disabled for linkage claims", async (t) => {
+  const directory = withTempDirectory(t);
+  const artifactPath = path.join(directory, "sample.exe");
+  fs.writeFileSync(artifactPath, makePeFixture());
+  await assert.rejects(createArtifactInspectionReceipt({
+    artifactPath,
+    allowlists: { schema: "w-artifact-inspection-allowlists-1", finalDependencies: [] },
+    findTool: mockedTools(peReadobjOutput).findTool,
+    runTool: mockedTools(peReadobjOutput).runTool,
+  }), /schema must be w-artifact-inspection-allowlists-2/u);
+  await assert.rejects(createArtifactInspectionReceipt({
+    artifactPath,
+    objectPaths: [path.join(directory, "output.o")],
+    allowlists: elfObjectBoundaries(),
+  }), /PATH fallback is disabled/u);
+});
+
 test("explicit PE import and dependency allowlists are checked as separate closures", async (t) => {
   const directory = withTempDirectory(t);
   const artifactPath = path.join(directory, "sample.exe");
   const allowlistsPath = path.join(directory, "allowed.json");
   fs.writeFileSync(artifactPath, makePeFixture());
   const allowlistBytes = Buffer.from(JSON.stringify({
-    schema: "w-artifact-inspection-allowlists-1",
+    schema: "w-artifact-inspection-allowlists-2",
     finalImports: [
       { library: "KERNEL32.dll", kind: "regular", symbols: ["ExitProcess", "WriteFile"] },
       { library: "USER32.dll", kind: "delay", symbols: ["MessageBoxW"] },
@@ -241,7 +451,7 @@ test("unexpected final imports and dependencies are both reported against their 
   const receipt = await createArtifactInspectionReceipt({
     artifactPath,
     allowlists: {
-      schema: "w-artifact-inspection-allowlists-1",
+      schema: "w-artifact-inspection-allowlists-2",
       finalImports: [{ library: "KERNEL32.dll", kind: "regular", symbols: ["ExitProcess"] }],
       finalDependencies: ["KERNEL32.dll"],
     },
@@ -269,7 +479,7 @@ test("post-opt IR allowlists report definite violations but never claim closure 
     artifactPath,
     postOptIrPath: irPath,
     allowlists: {
-      schema: "w-artifact-inspection-allowlists-1",
+      schema: "w-artifact-inspection-allowlists-2",
       postOptIrExternals: { functions: ["puts"], globals: ["runtime_state"] },
     },
     findTool: tools.findTool,
@@ -283,7 +493,7 @@ test("post-opt IR allowlists report definite violations but never claim closure 
     artifactPath,
     postOptIrPath: irPath,
     allowlists: {
-      schema: "w-artifact-inspection-allowlists-1",
+      schema: "w-artifact-inspection-allowlists-2",
       postOptIrExternals: { functions: [], globals: [] },
     },
     findTool: tools.findTool,
@@ -310,7 +520,7 @@ test("requested closure boundaries stay non-passing when their evidence is missi
   const receipt = await createArtifactInspectionReceipt({
     artifactPath,
     allowlists: {
-      schema: "w-artifact-inspection-allowlists-1",
+      schema: "w-artifact-inspection-allowlists-2",
       postOptIrExternals: { functions: [], globals: [] },
       objectUndefinedSymbols: [],
       finalImports: [],
@@ -345,7 +555,7 @@ test("malformed allowlists, duplicate object paths, and conflicting ELF dependen
 
   await assert.rejects(createArtifactInspectionReceipt({
     artifactPath: pePath,
-    allowlists: { schema: "w-artifact-inspection-allowlists-1", objectUndefinedSymbols: ["same", "same"] },
+    allowlists: { schema: "w-artifact-inspection-allowlists-2", objectUndefinedSymbols: ["same", "same"] },
     findTool: tools.findTool,
     runTool: tools.runTool,
   }), /duplicate symbol/u);

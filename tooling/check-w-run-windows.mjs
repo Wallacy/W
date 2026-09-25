@@ -18,6 +18,7 @@ import {
   assertCrtFreeExecElf,
   assertElfNoExecutableStack,
 } from "./check-w-run.mjs"
+import { createArtifactInspectionReceipt } from "./artifact-inspection-receipt.mjs"
 import { checkProcessArgumentCountParity } from
   "./check-process-argument-count.mjs"
 
@@ -473,6 +474,99 @@ async function verifyLinuxAuditTrace(directory, finalArtifact) {
   assert((await readFile(join(directory, "final-artifact"))).equals(
     await readFile(finalArtifact)),
   "Windows-host audit artifact is not byte-identical to the published output")
+}
+
+async function inspectNativeWindowsCoffAudit(directory, finalArtifact) {
+  const expectedFiles = ["final-artifact", "input.mlir", "manifest.json",
+    "optimized.ll", "output.ll", "output.obj", "verified.mlir"].sort()
+  const entries = await readdir(directory, { withFileTypes: true })
+  const actualFiles = entries.filter((entry) => entry.isFile())
+    .map((entry) => entry.name).sort()
+  assert(JSON.stringify(actualFiles) === JSON.stringify(expectedFiles),
+    "native Windows audit trace inventory is not exact")
+  const manifestText = await readFile(join(directory, "manifest.json"), "utf8")
+  const manifest = JSON.parse(manifestText)
+  assert(manifest.schema === "w-seed-audit-trace-1" &&
+    manifest.purpose === "development-only/non-ranking" &&
+    manifest.closure_status === "inspection-required" &&
+    manifest.product?.target === targetTriple &&
+    manifest.product?.abi === "msvc" &&
+    manifest.product?.profile === "release" &&
+    JSON.stringify(manifest.link?.inputs) === JSON.stringify(["output.obj"]),
+  "native Windows audit manifest does not bind the COFF product object")
+  assert(Array.isArray(manifest.artifacts) && manifest.artifacts.length === 6 &&
+    JSON.stringify(manifest.artifacts.map((record) => record.name)) ===
+      JSON.stringify(["input.mlir", "verified.mlir", "output.ll",
+        "optimized.ll", "output.obj", "final-artifact"]),
+  "native Windows audit manifest does not enumerate its exact artifact set")
+  for (const record of manifest.artifacts) {
+    const bytes = await readFile(join(directory, record.name))
+    assert(record.bytes === bytes.length &&
+      record.sha256 === createHash("sha256").update(bytes).digest("hex"),
+    `native Windows audit digest does not match ${record.name}`)
+  }
+  assert((await readFile(join(directory, "final-artifact"))).equals(
+    await readFile(finalArtifact)),
+  "native Windows audit artifact is not byte-identical to the published output")
+
+  const receipt = await createArtifactInspectionReceipt({
+    artifactPath: join(directory, "final-artifact"),
+    postOptIrPath: join(directory, "optimized.ll"),
+    objectPath: join(directory, "output.obj"),
+    toolchainDir: defaultCacheDirectory(),
+    allowlists: {
+      schema: "w-artifact-inspection-allowlists-2",
+      objectUndefinedSymbols: ["ExitProcess", "GetStdHandle", "WriteFile"],
+      objectSymbolLinkage: [{
+        object: "output.obj",
+        routeRoots: ["main", "mainCRTStartup"],
+        forbiddenGlobalWPrivateHelpers: [
+          "w_fn_0", "w_fn_1", "w_seed_append_i64", "w_seed_checked_add_i64",
+          "w_seed_copy",
+        ],
+      }],
+      objectRelocations: [{
+        object: "output.obj",
+        allowedCrossObjectRelocations: [],
+      }],
+      finalImports: [{
+        library: "KERNEL32.dll",
+        kind: "regular",
+        symbols: ["ExitProcess", "GetStdHandle", "WriteFile"],
+      }],
+      finalDependencies: ["KERNEL32.dll"],
+    },
+  })
+  assert(receipt.artifact.format === "PE" &&
+    receipt.checks.suppliedObjectUndefinedSymbolClosure.status === "passed" &&
+    receipt.checks.objectSymbolLinkage.status === "passed" &&
+    receipt.checks.objectRelocations.status === "passed" &&
+    receipt.checks.finalImportClosure.status === "passed" &&
+    receipt.checks.finalDependencyClosure.status === "passed" &&
+    receipt.checks.requestedClosureValidation.status === "passed",
+  `native Windows COFF linkage/relocation evidence did not pass: ${JSON.stringify({
+    undefinedSymbols: receipt.checks.suppliedObjectUndefinedSymbolClosure,
+    linkage: receipt.checks.objectSymbolLinkage,
+    relocations: receipt.checks.objectRelocations,
+    imports: receipt.checks.finalImportClosure,
+    dependencies: receipt.checks.finalDependencyClosure,
+    requested: receipt.checks.requestedClosureValidation,
+  })}`)
+  console.log(`W RUN Windows native COFF object evidence ${JSON.stringify({
+    object: receipt.objectUndefinedSymbols.items[0].object,
+    definitions: receipt.objectUndefinedSymbols.items[0].definitions,
+    undefinedSymbols: receipt.objectUndefinedSymbols.items[0].undefinedSymbols,
+    imports: receipt.imports.items,
+    dependencies: receipt.dependencies.items,
+    routeRoots: receipt.checks.objectSymbolLinkage.items[0].routeRoots,
+    localWPrivateHelpers:
+      receipt.checks.objectSymbolLinkage.items[0].localWPrivateHelpers,
+    absentWPrivateHelpers:
+      receipt.checks.objectSymbolLinkage.items[0].absentWPrivateHelpers,
+    crossObjectRelocations:
+      receipt.checks.objectRelocations.items[0].observedCrossObjectRelocations,
+    toolResolution: receipt.tools.resolution,
+  })}`)
 }
 
 function assertPeX64(bytes, label) {
@@ -1607,6 +1701,16 @@ try {
   const buildHello = join(fixtureDirectory, "hello-build.exe")
   const buildFlatValueAggregates = join(fixtureDirectory,
     "flat-value-aggregates-build.exe")
+  const nativeWindowsAuditTrace = join(fixtureDirectory,
+    "nested-loop-terminal-returns-windows-audit")
+  const failedNativeWindowsAuditProduct = join(fixtureDirectory,
+    "failed-windows-audit-product.exe")
+  const failedNativeWindowsAuditTrace = join(fixtureDirectory,
+    "failed-windows-audit-trace")
+  const existingNativeWindowsAuditTrace = join(fixtureDirectory,
+    "existing-windows-audit-trace")
+  const existingNativeWindowsAuditMarker = join(
+    existingNativeWindowsAuditTrace, "keep")
   const buildEnumCfgJoin = join(fixtureDirectory,
     "enum-cfg-join-build.exe")
   const flatValueAggregatesWindowsRoute = {
@@ -1703,7 +1807,7 @@ try {
   expectExact(binary, ["build", flatValueAggregatesFixture, "--target",
     targetTriple, "--output", buildFlatValueAggregates], 0,
   Buffer.alloc(0),
-  "build flat tuple and immutable value-struct family in Windows Release")
+  "build flat tuple and immutable value-struct family")
   const flatValueAggregatesWindowsBytes = await readFile(
     buildFlatValueAggregates)
   assertPeX64(flatValueAggregatesWindowsBytes,
@@ -1713,6 +1817,24 @@ try {
     flatValueAggregatesWindowsRoute)
   expectExact(buildFlatValueAggregates, [], 0, flatValueAggregatesOutput,
     "execute Windows Release flat tuple and immutable value-struct product")
+  await mkdir(existingNativeWindowsAuditTrace)
+  await writeFile(existingNativeWindowsAuditMarker,
+    "preserve existing native audit data\n")
+  expectBuildFailure(binary, ["build", flatValueAggregatesFixture, "--target",
+    targetTriple, "--output", failedNativeWindowsAuditProduct,
+    "--audit-dir", existingNativeWindowsAuditTrace],
+  "reject an existing native Windows audit directory")
+  assert(!existsSync(failedNativeWindowsAuditProduct) &&
+    await readFile(existingNativeWindowsAuditMarker, "utf8") ===
+      "preserve existing native audit data\n",
+  "native Windows audit preflight replaced an existing target or published output")
+  expectBuildFailure(binary, ["build", join(fixtureDirectory, "missing.w"),
+    "--target", targetTriple, "--output", failedNativeWindowsAuditProduct,
+    "--audit-dir", failedNativeWindowsAuditTrace],
+  "clean failed native Windows audit build")
+  assert(!existsSync(failedNativeWindowsAuditProduct) &&
+    !existsSync(failedNativeWindowsAuditTrace),
+  "failed native Windows build published an artifact or partial audit trace")
   expectExact(binary, ["build", enumCfgJoinFixture, "--target", targetTriple,
     "--output", buildEnumCfgJoin], 0, Buffer.alloc(0),
   "build bounded enum CFG join in Windows Release")
@@ -1778,14 +1900,18 @@ try {
     Buffer.from("0,1,3\n", "utf8"),
     "execute built verified nested labeled loop CFG artifact")
   expectExact(binary, ["build", nestedLoopTerminalReturnsFixture, "--target",
-    targetTriple, "--output", buildNestedLoopTerminalReturns], 0,
-    Buffer.alloc(0), "build verified nested loop terminal-return CFG fixture")
+    targetTriple, "--output", buildNestedLoopTerminalReturns, "--audit-dir",
+    nativeWindowsAuditTrace], 0,
+    Buffer.alloc(0),
+    "build verified nested loop terminal-return CFG fixture with native audit")
   assertKernel32OnlyImports(await readFile(buildNestedLoopTerminalReturns),
     "built verified nested loop terminal-return CFG artifact",
     { usesProcessArgumentAdapter: false, writesStdout: true })
   expectExact(buildNestedLoopTerminalReturns, [], 0,
     Buffer.from("-1,1,3\n", "utf8"),
     "execute built verified nested loop terminal-return CFG artifact")
+  await inspectNativeWindowsCoffAudit(nativeWindowsAuditTrace,
+    buildNestedLoopTerminalReturns)
   expectExact(binary, ["build", loopConditionalEarlyReturnFixture, "--target",
     targetTriple, "--output", buildLoopConditionalEarlyReturn], 0,
     Buffer.alloc(0), "build verified loop conditional early-return fixture")

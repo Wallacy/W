@@ -212,27 +212,34 @@ root liga à aplicação por `generic_application_index`.
 `W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-78`. Version 78 admits
 same-identity `i128`/`u128` equality and ordering comparisons, `&`, `|`, `^`,
 and unary `~`, alongside the version-77 equal-type scalar-if joins and exact
-16-byte little-endian literal magnitudes. The verified-HIR layer preserves
-both signed and unsigned comparison identity and the exact wide operation
-family. Mixed signedness/width, checked `+`, `-`, `*`, `/`, `%`, shifts,
-mutation, and conversions remain closed. HIR0 now recognizes the verified
-direct negation of an exact signed `i128` literal as a closed scalar value for
-the body-never-suspends proof; its existing recursive value-tree verifier
-still enforces that exact shape. This lets the helper-based process witness
-prove both wide helpers `suspension=NEVER` and its async entry
-`direct_entry=AVAILABLE` (async entries remain `suspension=MAY`). NativeSubset0
-still returns `UNSUPPORTED`: its process value/call and helper-signature
-admission does not yet lower `i128`/`u128` values. ProductClosure0 schema 7 now
-admits this exact non-throwing process root and its reachable, direct,
-non-suspending wide helper graph. It preserves exact `i128`/`u128` identities,
-literal bytes, comparisons, `&`, `|`, `^`, and `~` in the reachable digest,
-omits dead supported helpers, rejects effects, recursion, conversions, shifts,
-checked arithmetic without a fault relation, and graphs with no reached wide
-helper operation, and publishes the ordinary process-owner cleanup order.
-No public executable fixture or runtime oracle is claimed; NativeSubset0,
-native lowering, ABI/layout, and serialization remain unsupported.
-The package has `compiler-lifecycle` benchmark disposition and no
-public/native benchmark row.
+16-byte little-endian literal magnitudes. HIR0 also verifies direct negation
+of exact signed `i128` literals for this non-suspending scalar-helper proof.
+Mixed signedness/width, checked `+`, `-`, `*`, `/`, `%`, shifts, mutation, and
+conversions remain closed. The helper process root retains
+`direct_entry=AVAILABLE` while its async entry remains
+`suspension=MAY`. ProductClosure0 schema 7 closes only the exact reachable,
+non-suspending wide helper graph, preserves wide identities/literal bytes and
+operators in its digest, omits dead supported helpers, rejects effects,
+recursion, conversions, shifts, checked arithmetic, and wide graphs that are
+not actually reached, and publishes the ordinary owner cleanup order.
+
+NativeSubset0 now independently derives reachability from verified-HIR call
+records and requires a ProductClosure0 function-set cross-check for the wide
+process graph. It admits only its exact scalar-helper subset: 16-byte
+`i128`/`u128` constants, direct signed-literal negation, same-type comparisons,
+`&`, `|`, `^`, `~`, parameters, returns, calls, immutable bindings, and
+equal-type scalar joins. Process-executable schema
+`w-seed-mlir0-process-executable-9` lowers those values directly as LLVM `i128`
+SSA while keeping the process root ABI and emitted output narrow. The private
+compiler-lifecycle probe passes Linux/WSL x64 source-to-CRT-free-ELF execution
+through count-only WRT0, and native Windows x64 `/nodefaultlib` execution with
+Kernel32-only imports. Both paths audit post-opt externals, object undefineds,
+helper symbol visibility/relocations, final dependencies/imports, exact output,
+and exit status. This is not a public wide-value surface, ABI/layout,
+serialization, or performance result. Other arithmetic, shifts, conversions,
+mixed types, effects, recursion, unsupported layouts, and target families
+remain rejected or unsupported. The package has `compiler-lifecycle`
+benchmark disposition and no public/native benchmark row.
 
 Version 75 adds a discriminated local-struct initializer identity without
 growing the public type, expression, or argument records. The bounded frontend slice accepts an
@@ -1254,17 +1261,18 @@ returns, immutable bindings, and helper-result joins preserve signedness and
 serialization remain outside this slice. The direct-entry proof admits these
 fixed-width scalar value kinds only after their ordinary HIR value-tree checks;
 opaque values, effects, unknown providers, lifecycle owners, and invalid or
-forged facts remain barriers. The helper-based process witness now verifies
-both ordinary helpers as `suspension=NEVER` and the explicit async process
-entry as `direct_entry=AVAILABLE`; the async function itself remains
-`suspension=MAY`. ProductClosure0 schema 7 now proves the reachable helper and
-value closure for that exact process family, including digest sensitivity to
-live wide literals and digest stability when a supported wide helper is dead.
-NativeSubset0 still rejects the witness because i128/u128 value and
-helper-signature lowering is unsupported, so no native artifact or runtime
-result is claimed. This is compiler-lifecycle HIR/ProductClosure correctness
-evidence only. Run `bun tooling/check-hir0.mjs` for the focused verifier and
-adversarial mutation gate.
+forged facts remain barriers. The helper-based process witness verifies both
+ordinary helpers as `suspension=NEVER` and the async process entry as
+`direct_entry=AVAILABLE`; the async function itself remains
+`suspension=MAY`. ProductClosure0 schema 7 proves the reachable helper/value
+closure, including digest sensitivity to live wide literals and stability
+when a supported helper is dead. The exact graph is now admitted by
+NativeSubset0 and lowered by process-executable schema 9 to direct internal
+LLVM `i128` SSA; Linux/WSL and Windows native execution/closure checks are
+documented in the current wide-family section above. ABI/layout, serialization,
+broader numeric operations, and public wide values remain unsupported. Run
+`bun tooling/check-hir0.mjs` for the focused verifier and adversarial mutation
+gate.
 
 [`flat-value-struct-pair.w`](fixtures/flat-value-struct-pair.w) uses one local,
 immutable nominal value struct with two `i64` fields. Its identity is the

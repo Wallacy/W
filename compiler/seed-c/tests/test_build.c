@@ -148,7 +148,11 @@ static bool test_invalid_requests(void) {
   char *audit_windows_target[] = {"w", "build", "main.w", "--target",
                                  "x86_64-pc-windows-msvc", "--output", "out",
                                  "--audit-dir", "trace", NULL};
-  CHECK(rejects(9, audit_windows_target));
+  w_seed_build_request windows_audit_request;
+  CHECK(w_seed_build_parse(9, audit_windows_target, &windows_audit_request));
+  CHECK(windows_audit_request.target == audit_windows_target[4] &&
+        windows_audit_request.output == audit_windows_target[6] &&
+        windows_audit_request.audit_directory == audit_windows_target[8]);
   char *audit_option_without_output[] = {"w", "build", "main.w", "--target",
                                          "x86_64-unknown-linux-gnu",
                                          "--audit-dir", "trace", NULL};

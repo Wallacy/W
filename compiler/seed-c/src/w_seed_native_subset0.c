@@ -89,6 +89,54 @@ static bool native_integer_type_facts(const w_seed_hir0_program *program,
   return true;
 }
 
+/* ProductClosure0's wide lane is deliberately a pair of exact core type
+ * identities, not a rule that accepts arbitrary 128-bit layouts. Keep this
+ * independent from the existing i64 carrier facts below. */
+static bool native_wide_integer_type(const w_seed_hir0_program *program,
+                                    uint32_t type_index,
+                                    bool *is_signed) {
+  static const uint8_t I128_NAME[] = "i128";
+  static const uint8_t U128_NAME[] = "u128";
+  if (program == NULL || is_signed == NULL || type_index >= program->type_count)
+    return false;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  const bool signed_type = text_is(program, type->name, I128_NAME,
+                                   sizeof(I128_NAME) - 1u);
+  const bool unsigned_type = text_is(program, type->name, U128_NAME,
+                                     sizeof(U128_NAME) - 1u);
+  if (type->kind != W_SEED_HIR0_TYPE_INTEGER ||
+      (!signed_type && !unsigned_type) ||
+      type->integer_is_signed != signed_type ||
+      type->integer_bit_width != 128u ||
+      type->owner_module != W_SEED_HIR0_NONE ||
+      type->external_module_index != W_SEED_HIR0_NONE ||
+      type->external_symbol_index != W_SEED_HIR0_NONE ||
+      type->enum_index != W_SEED_HIR0_NONE ||
+      type->lifecycle != W_SEED_HIR0_LIFECYCLE_VALUE_COPY ||
+      type->release_contract != W_SEED_HIR0_RELEASE_CONTRACT_NONE)
+    return false;
+  *is_signed = signed_type;
+  return true;
+}
+
+static bool native_wide_integer_comparison_shape_valid(
+    const w_seed_hir0_program *program, const w_seed_hir0_value *value) {
+  bool is_signed = false;
+  return program != NULL && value != NULL &&
+         value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON &&
+         value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
+         value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL &&
+         value->type_index < program->type_count &&
+         program->types[value->type_index].kind == W_SEED_HIR0_TYPE_BOOL &&
+         value->left_value < program->value_count &&
+         value->right_value < program->value_count &&
+         program->values[value->left_value].type_index ==
+             program->values[value->right_value].type_index &&
+         native_wide_integer_type(
+             program, program->values[value->left_value].type_index,
+             &is_signed);
+}
+
 static bool native_integer_facts_equal(native_integer_facts left,
                                        native_integer_facts right) {
   return left.is_signed == right.is_signed &&
@@ -700,6 +748,8 @@ static bool native_scalar_type_supported(const w_seed_hir0_program *program,
 static bool native_value_cfg_type_supported(const w_seed_hir0_program *program,
                                             uint32_t type_index) {
   if (native_scalar_type_supported(program, type_index)) return true;
+  if (native_wide_integer_type(program, type_index, &(bool){false}))
+    return true;
   return program != NULL && type_index < program->type_count &&
          program->types[type_index].kind == W_SEED_HIR0_TYPE_ENUM &&
          program_enum_type_supported(program, type_index, NULL, NULL);
@@ -2522,6 +2572,58 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
   const w_seed_hir0_value *value = &program->values[value_index];
   if (value->type_index >= program->type_count) return false;
   const w_seed_hir0_type_kind type = program->types[value->type_index].kind;
+  bool wide_signed = false;
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_INTEGER_128)
+    return native_wide_integer_type(program, value->type_index,
+                                    &wide_signed) &&
+           value->byte_count == 16u &&
+           value->byte_offset <= program->value_byte_count &&
+           value->byte_count <=
+               program->value_byte_count - value->byte_offset;
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_INTEGER_128)
+    return native_wide_integer_type(program, value->type_index,
+                                    &wide_signed) &&
+           wide_signed && value->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
+           value->left_value < program->value_count &&
+           value->right_value == W_SEED_HIR0_NONE &&
+           program->values[value->left_value].kind ==
+               W_SEED_HIR0_VALUE_CONST_INTEGER_128 &&
+           program->values[value->left_value].type_index == value->type_index &&
+           program_value_lowerable(program, value->left_value, owner_function,
+                                   false, depth + 1u);
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_BITWISE_INTEGER_128)
+    return native_wide_integer_type(program, value->type_index,
+                                    &wide_signed) &&
+           value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT &&
+           value->left_value < program->value_count &&
+           value->right_value == W_SEED_HIR0_NONE &&
+           program->values[value->left_value].type_index == value->type_index &&
+           program_value_lowerable(program, value->left_value, owner_function,
+                                   false, depth + 1u);
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_128)
+    return native_wide_integer_type(program, value->type_index,
+                                    &wide_signed) &&
+           native_integer_is_bitwise_binary(value->binary_operator) &&
+           value->left_value < program->value_count &&
+           value->right_value < program->value_count &&
+           program->values[value->left_value].type_index == value->type_index &&
+           program->values[value->right_value].type_index == value->type_index &&
+           program_value_lowerable(program, value->left_value, owner_function,
+                                   false, depth + 1u) &&
+           program_value_lowerable(program, value->right_value, owner_function,
+                                   false, depth + 1u);
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON &&
+      value->left_value < program->value_count &&
+      program->values[value->left_value].type_index < program->type_count &&
+      program->types[program->values[value->left_value].type_index].kind ==
+          W_SEED_HIR0_TYPE_INTEGER &&
+      program->types[program->values[value->left_value].type_index]
+              .integer_bit_width == 128u)
+    return native_wide_integer_comparison_shape_valid(program, value) &&
+           program_value_lowerable(program, value->left_value,
+                                   owner_function, false, depth + 1u) &&
+           program_value_lowerable(program, value->right_value,
+                                   owner_function, false, depth + 1u);
   if (value->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN) {
     native_integer_facts source_facts;
     native_integer_facts destination_facts;
@@ -2628,8 +2730,12 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
     return true;
   }
   if (value->kind == W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ) {
-    if ((type != W_SEED_HIR0_TYPE_I64 && type != W_SEED_HIR0_TYPE_INTEGER &&
-         type != W_SEED_HIR0_TYPE_BOOL) ||
+    if ((type != W_SEED_HIR0_TYPE_I64 &&
+         type != W_SEED_HIR0_TYPE_BOOL &&
+         !native_integer_type_facts(program, value->type_index,
+                                    &(native_integer_facts){0}) &&
+         !native_wide_integer_type(program, value->type_index,
+                                   &(bool){false})) ||
         value->pattern_capture_index >= program->switch_capture_count)
       return false;
     const w_seed_hir0_switch_capture *capture =
@@ -2642,7 +2748,11 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
   if (value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ) {
     const bool scalar = type == W_SEED_HIR0_TYPE_I64 ||
                         type == W_SEED_HIR0_TYPE_U64 ||
-                        type == W_SEED_HIR0_TYPE_INTEGER ||
+                        native_integer_type_facts(
+                            program, value->type_index,
+                            &(native_integer_facts){0}) ||
+                        native_wide_integer_type(program, value->type_index,
+                                                 &(bool){false}) ||
                         type == W_SEED_HIR0_TYPE_F32 ||
                         type == W_SEED_HIR0_TYPE_F64 ||
                         type == W_SEED_HIR0_TYPE_BOOL;
@@ -2818,7 +2928,11 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
                                    owner_function, false, depth + 1u);
   if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
     if ((type != W_SEED_HIR0_TYPE_I64 && type != W_SEED_HIR0_TYPE_U64 &&
-         type != W_SEED_HIR0_TYPE_INTEGER && type != W_SEED_HIR0_TYPE_BOOL &&
+         type != W_SEED_HIR0_TYPE_BOOL &&
+         !native_integer_type_facts(program, value->type_index,
+                                    &(native_integer_facts){0}) &&
+         !native_wide_integer_type(program, value->type_index,
+                                   &(bool){false}) &&
          !program_enum_type_supported(program, value->type_index, NULL,
                                       NULL)) ||
         value->block_argument_index == W_SEED_HIR0_NONE ||
@@ -2842,7 +2956,10 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
   }
   if (value->kind == W_SEED_HIR0_VALUE_CALL_RESULT) {
     if ((type != W_SEED_HIR0_TYPE_I64 && type != W_SEED_HIR0_TYPE_U64 &&
-         type != W_SEED_HIR0_TYPE_INTEGER &&
+         !native_integer_type_facts(program, value->type_index,
+                                    &(native_integer_facts){0}) &&
+         !native_wide_integer_type(program, value->type_index,
+                                   &(bool){false}) &&
          type != W_SEED_HIR0_TYPE_F32 &&
          type != W_SEED_HIR0_TYPE_F64 &&
          type != W_SEED_HIR0_TYPE_BOOL &&
@@ -3445,10 +3562,19 @@ static bool process_value_lowerable(
   }
 
   if (value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON) {
-    return native_integer_comparison_shape_valid(program, value) &&
+    const bool wide_comparison =
+        value->left_value < program->value_count &&
+        program->values[value->left_value].type_index < program->type_count &&
+        program->types[program->values[value->left_value].type_index].kind ==
+            W_SEED_HIR0_TYPE_INTEGER &&
+        program->types[program->values[value->left_value].type_index]
+                .integer_bit_width == 128u;
+    return (wide_comparison
+                ? native_wide_integer_comparison_shape_valid(program, value)
+                : native_integer_comparison_shape_valid(program, value)) &&
            process_value_lowerable(program, value->left_value,
-                                  owner_function, process, false,
-                                  depth + 1u) &&
+                                   owner_function, process, false,
+                                   depth + 1u) &&
            process_value_lowerable(program, value->right_value,
                                   owner_function, process, false,
                                   depth + 1u);
@@ -5599,8 +5725,10 @@ static bool program_function_maximum(
              W_SEED_HIR0_TYPE_UNIT ||
           program->types[function->return_type].kind == W_SEED_HIR0_TYPE_I64 ||
           program->types[function->return_type].kind == W_SEED_HIR0_TYPE_U64 ||
-          program->types[function->return_type].kind ==
-              W_SEED_HIR0_TYPE_INTEGER ||
+          native_integer_type_facts(program, function->return_type,
+                                    &(native_integer_facts){0}) ||
+          native_wide_integer_type(program, function->return_type,
+                                   &(bool){false}) ||
           program->types[function->return_type].kind == W_SEED_HIR0_TYPE_F32 ||
           program->types[function->return_type].kind == W_SEED_HIR0_TYPE_F64 ||
          program->types[function->return_type].kind == W_SEED_HIR0_TYPE_BOOL ||
@@ -5630,6 +5758,10 @@ static bool program_function_maximum(
       program_post_test_loop_is_supported(program, function_index);
   const bool verified_i64_loop_cfg =
       program_verified_i64_loop_cfg_is_supported(program, function_index);
+  if (process != NULL && process->has_wide_scalar_helpers &&
+      (program_natural_loop_is_supported(program, function_index) ||
+       post_test_loop || verified_i64_loop_cfg))
+    return false;
   if (program->types[function->return_type].kind != W_SEED_HIR0_TYPE_UNIT &&
       function->block_count > 1u &&
       !program_scalar_cfg_is_supported(program, function_index) &&
@@ -5650,7 +5782,9 @@ static bool program_function_maximum(
     const bool scalar_or_enum =
         program->types[type_index].kind == W_SEED_HIR0_TYPE_I64 ||
         program->types[type_index].kind == W_SEED_HIR0_TYPE_U64 ||
-        program->types[type_index].kind == W_SEED_HIR0_TYPE_INTEGER ||
+        native_integer_type_facts(program, type_index,
+                                  &(native_integer_facts){0}) ||
+        native_wide_integer_type(program, type_index, &(bool){false}) ||
         program->types[type_index].kind == W_SEED_HIR0_TYPE_F32 ||
         program->types[type_index].kind == W_SEED_HIR0_TYPE_F64 ||
         program->types[type_index].kind == W_SEED_HIR0_TYPE_BOOL ||
@@ -7303,7 +7437,9 @@ static bool process_local_call_supported(
          (call->result_type == 0u ||
           program->types[call->result_type].kind == W_SEED_HIR0_TYPE_I64 ||
           program->types[call->result_type].kind == W_SEED_HIR0_TYPE_U64 ||
-          program->types[call->result_type].kind == W_SEED_HIR0_TYPE_INTEGER ||
+          native_integer_type_facts(program, call->result_type,
+                                    &(native_integer_facts){0}) ||
+          native_wide_integer_type(program, call->result_type, &(bool){false}) ||
           program->types[call->result_type].kind == W_SEED_HIR0_TYPE_BOOL ||
           program_enum_type_supported(program, call->result_type, NULL, NULL));
 }
@@ -8587,6 +8723,119 @@ static bool process_checked_fault_relation_equal(
                 sizeof(left->operation_digest)) == 0;
 }
 
+/* NativeSubset0 deliberately derives this set from verified HIR rather than
+ * accepting ProductClosure0's published list as its premise. ProductClosure0
+ * is then asked to independently cross-check the exact set. */
+static bool native_process_reachable_functions(
+    const w_seed_hir0_program *program, uint32_t root_function,
+    bool reachable[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS]) {
+  if (program == NULL || reachable == NULL ||
+      program->function_count == 0u ||
+      program->function_count > W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS ||
+      root_function >= program->function_count)
+    return false;
+  uint32_t pending[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS];
+  size_t pending_count = 1u;
+  pending[0] = root_function;
+  reachable[root_function] = true;
+  while (pending_count != 0u) {
+    const uint32_t function_index = pending[--pending_count];
+    const w_seed_hir0_function *function =
+        &program->functions[function_index];
+    if (function->first_block >= program->block_count ||
+        function->block_count == 0u ||
+        function->block_count > program->block_count - function->first_block)
+      return false;
+    for (size_t block_ordinal = 0u; block_ordinal < function->block_count;
+         block_ordinal += 1u) {
+      const size_t block_index =
+          (size_t)function->first_block + block_ordinal;
+      const w_seed_hir0_block *block = &program->blocks[block_index];
+      if (block->owner_function != function_index ||
+          block->first_instruction > program->instruction_count ||
+          block->instruction_count >
+              program->instruction_count - block->first_instruction)
+        return false;
+      for (size_t ordinal = 0u; ordinal < block->instruction_count;
+           ordinal += 1u) {
+        const w_seed_hir0_instruction *instruction =
+            &program->instructions[(size_t)block->first_instruction + ordinal];
+        if (instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL) continue;
+        if (instruction->call_index >= program->call_count) return false;
+        const w_seed_hir0_call *call =
+            &program->calls[instruction->call_index];
+        if (call->callee_identity >= program->identity_count) return false;
+        const w_seed_hir0_identity *callee =
+            &program->identities[call->callee_identity];
+        if (callee->kind != W_SEED_HIR0_IDENTITY_FUNCTION) continue;
+        if (callee->target_index >= program->function_count) return false;
+        if (!reachable[callee->target_index]) {
+          if (pending_count >= W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS)
+            return false;
+          reachable[callee->target_index] = true;
+          pending[pending_count++] = callee->target_index;
+        }
+      }
+    }
+  }
+  return true;
+}
+
+static bool native_process_graph_has_wide_values(
+    const w_seed_hir0_program *program,
+    const bool reachable[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS],
+    bool *has_wide_values) {
+  if (program == NULL || reachable == NULL || has_wide_values == NULL)
+    return false;
+  bool found = false;
+  for (size_t function_index = 0u;
+       function_index < program->function_count; function_index += 1u) {
+    if (!reachable[function_index]) continue;
+    const w_seed_hir0_function *function = &program->functions[function_index];
+    if (function->return_type < program->type_count &&
+        program->types[function->return_type].kind ==
+            W_SEED_HIR0_TYPE_INTEGER &&
+        program->types[function->return_type].integer_bit_width == 128u)
+      found = true;
+    if (function->first_parameter > program->parameter_count ||
+        function->parameter_count >
+            program->parameter_count - function->first_parameter)
+      return false;
+    for (size_t ordinal = 0u; ordinal < function->parameter_count; ordinal += 1u) {
+      const uint32_t type_index = program->parameters[
+          (size_t)function->first_parameter + ordinal].type_index;
+      if (type_index < program->type_count &&
+          program->types[type_index].kind == W_SEED_HIR0_TYPE_INTEGER &&
+          program->types[type_index].integer_bit_width == 128u)
+        found = true;
+    }
+  }
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u) {
+    const w_seed_hir0_value *value = &program->values[value_index];
+    const uint32_t owner_function =
+        process_value_owner_function(program, (uint32_t)value_index);
+    if (owner_function >= program->function_count ||
+        !reachable[owner_function])
+      continue;
+    if (value->type_index < program->type_count &&
+        program->types[value->type_index].kind == W_SEED_HIR0_TYPE_INTEGER &&
+        program->types[value->type_index].integer_bit_width == 128u)
+      found = true;
+    if (value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON &&
+        value->left_value < program->value_count) {
+      const uint32_t operand_type =
+          program->values[value->left_value].type_index;
+      if (operand_type < program->type_count &&
+          program->types[operand_type].kind == W_SEED_HIR0_TYPE_INTEGER &&
+          program->types[operand_type].integer_bit_width == 128u)
+        found = true;
+    }
+  }
+  *has_wide_values = found;
+  return true;
+}
+
 static w_seed_native_subset0_status
 select_process_executable_mode(
     const w_seed_hir0_program *program,
@@ -8748,6 +8997,18 @@ select_process_executable_mode(
   candidate.entry = entry;
   candidate.function_index = entry->target_function;
   candidate.function = &program->functions[candidate.function_index];
+  bool reachable_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS] = {false};
+  if (!native_process_reachable_functions(program, candidate.function_index,
+                                          reachable_functions) ||
+      !native_process_graph_has_wide_values(
+          program, reachable_functions,
+          &candidate.has_wide_scalar_helpers))
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+  if (candidate.has_wide_scalar_helpers &&
+      !w_seed_product_closure0_cross_check_functions(
+          program, hir_result, reachable_functions,
+          W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS))
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
   candidate.arguments_symbol_index = (uint32_t)arguments_symbol;
   candidate.context_symbol_index = (uint32_t)context_symbol;
   candidate.exit_code_symbol_index = (uint32_t)exit_code_symbol;
@@ -8869,6 +9130,7 @@ select_process_executable_mode(
         program_post_test_loop_is_supported(program, index);
   for (size_t index = 0u; index < program->function_count; index += 1u)
     if (index != candidate.function_index &&
+        (!candidate.has_wide_scalar_helpers || reachable_functions[index]) &&
         !program_function_maximum(
             program, index, NULL, bindings, binding_reads, state, cached,
             &has_interpolation, &has_local_calls, false))

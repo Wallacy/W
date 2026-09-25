@@ -1346,15 +1346,26 @@ static bool windows_run_write_audit_manifest(
     const w_seed_frontend_text *source_id, const wchar_t *directory,
     const wchar_t *mlir_opt_path, const wchar_t *mlir_translate_path,
     const wchar_t *llvm_opt_path, const wchar_t *llc_path,
-    const wchar_t *linker_path) {
-  static const char *const names[] = {
+    const wchar_t *linker_path, bool windows_target) {
+  static const char *const linux_names[] = {
       "input.mlir", "verified.mlir", "output.ll", "optimized.ll",
       "output.obj", "wrt0.ll", "wrt0.obj", "final-artifact"};
-  static const char *const kinds[] = {
+  static const char *const linux_kinds[] = {
       "input-mlir", "verified-mlir", "pre-opt-llvm-ir", "post-opt-llvm-ir",
       "product-object", "wrt0-llvm-ir", "wrt0-object", "final-product"};
-  windows_audit_file files[sizeof(names) / sizeof(names[0])];
-  for (size_t index = 0u; index < sizeof(names) / sizeof(names[0]);
+  static const char *const windows_names[] = {
+      "input.mlir", "verified.mlir", "output.ll", "optimized.ll",
+      "output.obj", "final-artifact"};
+  static const char *const windows_kinds[] = {
+      "input-mlir", "verified-mlir", "pre-opt-llvm-ir", "post-opt-llvm-ir",
+      "product-object", "final-product"};
+  const char *const *names = windows_target ? windows_names : linux_names;
+  const char *const *kinds = windows_target ? windows_kinds : linux_kinds;
+  const size_t file_count = windows_target
+                                ? sizeof(windows_names) / sizeof(windows_names[0])
+                                : sizeof(linux_names) / sizeof(linux_names[0]);
+  windows_audit_file files[sizeof(linux_names) / sizeof(linux_names[0])];
+  for (size_t index = 0u; index < file_count;
        index += 1u)
     if (!windows_run_audit_file_init(&files[index], directory, names[index],
                                     kinds[index]))
@@ -1391,49 +1402,87 @@ static bool windows_run_write_audit_manifest(
                              ? "-no-pie"
                              : "-pie";
   char manifest[8192];
-  int length = snprintf(
-      manifest, sizeof(manifest),
-      "{\n"
-      "  \"schema\":\"w-seed-audit-trace-1\",\n"
-      "  \"purpose\":\"development-only/non-ranking\",\n"
-      "  \"closure_status\":\"inspection-required\",\n"
-      "  \"compiler_binary_sha256\":\"%s\",\n"
-      "  \"source_id_sha256\":\"%s\",\n"
-      "  \"product\":{\"target\":\"%s\",\"abi\":\"linux-gnu\","
-      "\"profile\":\"release\",\"pie\":\"%s\","
-      "\"final_artifact\":\"final-artifact\"},\n"
-      "  \"tools\":["
-      "{\"role\":\"mlir-opt\",\"sha256\":\"%s\"},"
-      "{\"role\":\"mlir-translate\",\"sha256\":\"%s\"},"
-      "{\"role\":\"llvm-opt\",\"sha256\":\"%s\"},"
-      "{\"role\":\"llc\",\"sha256\":\"%s\"},"
-      "{\"role\":\"link-driver\",\"sha256\":\"%s\"}],\n"
-      "  \"pipeline\":["
-      "{\"tool\":\"mlir-opt\",\"args\":[\"--convert-scf-to-cf\","
-      "\"--convert-arith-to-llvm\",\"--convert-func-to-llvm\","
-      "\"--convert-cf-to-llvm\",\"--verify-each\",\"--canonicalize\","
-      "\"--cse\"]},"
-      "{\"tool\":\"mlir-translate\",\"args\":[\"--mlir-to-llvmir\"]},"
-      "{\"tool\":\"llvm-opt\",\"args\":[\"-O3\",\"-S\"]},"
-      "{\"tool\":\"llc-product\",\"args\":[\"-mtriple=%s\","
-      "\"-filetype=obj\",\"-relocation-model=%s\",\"-O3\"]},"
-      "{\"tool\":\"llc-wrt0\",\"args\":[\"-mtriple=%s\","
-      "\"-filetype=obj\",\"-relocation-model=%s\",\"-O3\"]}],\n"
-      "  \"link\":{\"arguments\":[\"%s\",\"--no-dynamic-linker\","
-      "\"--hash-style=gnu\",\"-e\",\"_start\",\"--gc-sections\","
-      "\"-z\",\"noexecstack\",\"-s\"],"
-      "\"inputs\":[\"output.obj\",\"wrt0.obj\"]},\n"
-      "  \"artifacts\":[",
-      compiler_digest, source_id_digest, request->target, pie, mlir_opt_digest,
-      mlir_translate_digest, llvm_opt_digest, llc_digest, linker_digest,
-      W_SEED_NATIVE_TARGET_LINUX,
-      request->pie_mode == W_SEED_RUN_COMPILE_PIE_OFF ? "static" : "pic",
-      W_SEED_NATIVE_TARGET_LINUX,
-      request->pie_mode == W_SEED_RUN_COMPILE_PIE_OFF ? "static" : "pic",
-      link_pie);
+  int length;
+  if (windows_target) {
+    length = snprintf(
+        manifest, sizeof(manifest),
+        "{\n"
+        "  \"schema\":\"w-seed-audit-trace-1\",\n"
+        "  \"purpose\":\"development-only/non-ranking\",\n"
+        "  \"closure_status\":\"inspection-required\",\n"
+        "  \"compiler_binary_sha256\":\"%s\",\n"
+        "  \"source_id_sha256\":\"%s\",\n"
+        "  \"product\":{\"target\":\"%s\",\"abi\":\"msvc\","
+        "\"profile\":\"release\",\"final_artifact\":\"final-artifact\"},\n"
+        "  \"tools\":["
+        "{\"role\":\"mlir-opt\",\"sha256\":\"%s\"},"
+        "{\"role\":\"mlir-translate\",\"sha256\":\"%s\"},"
+        "{\"role\":\"llvm-opt\",\"sha256\":\"%s\"},"
+        "{\"role\":\"llc\",\"sha256\":\"%s\"},"
+        "{\"role\":\"link-driver\",\"sha256\":\"%s\"}],\n"
+        "  \"pipeline\":["
+        "{\"tool\":\"mlir-opt\",\"args\":[\"--convert-scf-to-cf\","
+        "\"--convert-arith-to-llvm\",\"--convert-func-to-llvm\","
+        "\"--convert-cf-to-llvm\",\"--verify-each\",\"--canonicalize\","
+        "\"--cse\"]},"
+        "{\"tool\":\"mlir-translate\",\"args\":[\"--mlir-to-llvmir\"]},"
+        "{\"tool\":\"llvm-opt\",\"args\":[\"-O3\",\"-S\"]},"
+        "{\"tool\":\"llc-product\",\"args\":[\"-mtriple=%s\","
+        "\"-filetype=obj\",\"-O3\"]}],\n"
+        "  \"link\":{\"arguments\":[\"/entry:mainCRTStartup\","
+        "\"/subsystem:console\",\"/nodefaultlib\",\"/machine:x64\","
+        "\"/out:<final-artifact>\",\"/Brepro\",\"/opt:ref\","
+        "\"/opt:icf\",\"/incremental:no\",\"/merge:.pdata=.rdata\"],"
+        "\"inputs\":[\"output.obj\"]},\n"
+        "  \"artifacts\":[",
+        compiler_digest, source_id_digest, request->target, mlir_opt_digest,
+        mlir_translate_digest, llvm_opt_digest, llc_digest, linker_digest,
+        W_SEED_NATIVE_TARGET_WINDOWS);
+  } else {
+    length = snprintf(
+        manifest, sizeof(manifest),
+        "{\n"
+        "  \"schema\":\"w-seed-audit-trace-1\",\n"
+        "  \"purpose\":\"development-only/non-ranking\",\n"
+        "  \"closure_status\":\"inspection-required\",\n"
+        "  \"compiler_binary_sha256\":\"%s\",\n"
+        "  \"source_id_sha256\":\"%s\",\n"
+        "  \"product\":{\"target\":\"%s\",\"abi\":\"linux-gnu\","
+        "\"profile\":\"release\",\"pie\":\"%s\","
+        "\"final_artifact\":\"final-artifact\"},\n"
+        "  \"tools\":["
+        "{\"role\":\"mlir-opt\",\"sha256\":\"%s\"},"
+        "{\"role\":\"mlir-translate\",\"sha256\":\"%s\"},"
+        "{\"role\":\"llvm-opt\",\"sha256\":\"%s\"},"
+        "{\"role\":\"llc\",\"sha256\":\"%s\"},"
+        "{\"role\":\"link-driver\",\"sha256\":\"%s\"}],\n"
+        "  \"pipeline\":["
+        "{\"tool\":\"mlir-opt\",\"args\":[\"--convert-scf-to-cf\","
+        "\"--convert-arith-to-llvm\",\"--convert-func-to-llvm\","
+        "\"--convert-cf-to-llvm\",\"--verify-each\",\"--canonicalize\","
+        "\"--cse\"]},"
+        "{\"tool\":\"mlir-translate\",\"args\":[\"--mlir-to-llvmir\"]},"
+        "{\"tool\":\"llvm-opt\",\"args\":[\"-O3\",\"-S\"]},"
+        "{\"tool\":\"llc-product\",\"args\":[\"-mtriple=%s\","
+        "\"-filetype=obj\",\"-relocation-model=%s\",\"-O3\"]},"
+        "{\"tool\":\"llc-wrt0\",\"args\":[\"-mtriple=%s\","
+        "\"-filetype=obj\",\"-relocation-model=%s\",\"-O3\"]}],\n"
+        "  \"link\":{\"arguments\":[\"%s\",\"--no-dynamic-linker\","
+        "\"--hash-style=gnu\",\"-e\",\"_start\",\"--gc-sections\","
+        "\"-z\",\"noexecstack\",\"-s\"],"
+        "\"inputs\":[\"output.obj\",\"wrt0.obj\"]},\n"
+        "  \"artifacts\":[",
+        compiler_digest, source_id_digest, request->target, pie, mlir_opt_digest,
+        mlir_translate_digest, llvm_opt_digest, llc_digest, linker_digest,
+        W_SEED_NATIVE_TARGET_LINUX,
+        request->pie_mode == W_SEED_RUN_COMPILE_PIE_OFF ? "static" : "pic",
+        W_SEED_NATIVE_TARGET_LINUX,
+        request->pie_mode == W_SEED_RUN_COMPILE_PIE_OFF ? "static" : "pic",
+        link_pie);
+  }
   if (length < 0 || (size_t)length >= sizeof(manifest)) return false;
   size_t offset = (size_t)length;
-  for (size_t index = 0u; index < sizeof(files) / sizeof(files[0]);
+  for (size_t index = 0u; index < file_count;
        index += 1u) {
     length = snprintf(
         manifest + offset, sizeof(manifest) - offset,
@@ -1510,8 +1559,7 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
        request->pie_mode != W_SEED_RUN_COMPILE_PIE_OFF) ||
       (windows_target && request->pie_mode == W_SEED_RUN_COMPILE_PIE_OFF) ||
       (request->retain_audit_trace &&
-       (!linux_target ||
-        request->profile != W_SEED_RUN_COMPILE_PROFILE_RELEASE)))
+       request->profile != W_SEED_RUN_COMPILE_PROFILE_RELEASE))
     return 2;
   const size_t path_length = strlen(request->source_path);
   if (path_length == 0u || path_length > W_SEED_NATIVE0_MAX_PATH_BYTES)
@@ -1762,7 +1810,8 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
     if (!windows_copy_private_file(artifact_path, final_path)) goto cleanup;
     if (!windows_run_write_audit_manifest(request, &source_id, directory,
                                           mlir_opt, mlir_translate, llvm_opt,
-                                          llc, ld_lld))
+                                          llc, windows_target ? lld_link : ld_lld,
+                                          windows_target))
       goto cleanup;
     return 0;
   }

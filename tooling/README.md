@@ -64,8 +64,8 @@ aliases are no longer root package commands.
 
 ## Artifact inspection receipts
 
-`artifact-inspection-receipt.mjs` resolves LLVM inspection tools from `PATH`
-when no toolchain option is supplied. On native Windows, pass the root of an
+`artifact-inspection-receipt.mjs` resolves ordinary inspection tools from
+`PATH` when no toolchain option is supplied. On native Windows, pass the root of an
 already materialized portable MLIR0 toolchain to use its pinned cache instead;
 the command revalidates the materialization and resolves exact, unique tool
 basenames from its archive inventory without falling back to `PATH`:
@@ -77,14 +77,25 @@ bun tooling/artifact-inspection-receipt.mjs build/w-windows/w.exe `
 
 The selected executable paths and resolution source are recorded in the
 receipt. Repeat `--object` for every emitted object; `llvm-nm.exe` is required
-when at least one is supplied. `--allowlists <file.json>` accepts a
-`w-artifact-inspection-allowlists-1` policy with independent entries for
-post-opt IR externals, undefined object symbols, final PE imports, and final
-dependencies. Requested boundaries must pass or the CLI exits with status 2.
+when at least one is supplied. Linkage/relocation checks also require pinned
+`llvm-objdump` and explicit toolchain paths. `--allowlists <file.json>` accepts a
+`w-artifact-inspection-allowlists-2` policy with independent entries for
+post-opt IR externals, undefined object symbols, per-object external route roots
+and forbidden-global W-private helpers, exact cross-object relocation edges,
+final PE imports, and final dependencies. Linkage/relocation boundaries require
+all named objects plus pinned tool paths; they never fall back to `PATH`.
+Schema 1 is rejected without a compatibility path. Requested boundaries must
+pass or the CLI exits with status 2.
 The receipt records the policy and digest, but the product gate must still
 authenticate its provider authority and target/ABI applicability. ELF symbol
 imports and the current partial textual IR scanner remain explicit unknowns,
 never inferred successes.
+
+Routine native checks collect structural evidence for one representative Linux
+ELF product/WRT0 pair and one native Windows COFF product object. Windows-host
+Linux cross-target checks are labeled separately and do not imply Linux-host
+execution evidence. The COFF audit option retains only its bounded, private
+release trace; ordinary build/run cleanup and product bytes are unchanged.
 
 Use o runner para inspecionar uma suíte antes de executá-la:
 

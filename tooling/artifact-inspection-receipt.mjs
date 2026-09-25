@@ -11,6 +11,7 @@ import {
 const MAX_TOOL_OUTPUT_BYTES = 128 * 1024 * 1024;
 const MAX_INPUT_FILE_BYTES = 128 * 1024 * 1024;
 const MAX_ALLOWLIST_BYTES = 1024 * 1024;
+const MAX_OBJECT_FILES = 16;
 const KEY_SECTION_NAMES = [".text", ".rodata", ".rdata"];
 
 function fail(message) {
@@ -368,17 +369,67 @@ function sectionCoverageFileBytes(sections) {
   return coveredBytes;
 }
 
-function parseUndefinedSymbols(output, errorOutput) {
-  const symbols = [];
+function parseNmSymbols(output, errorOutput) {
+  const undefinedSymbols = [];
+  const definitions = [];
   for (const line of output.split(/\r?\n/u)) {
     const trimmed = line.trim();
-    if (!trimmed || /^\S+:\s*$/u.test(trimmed)) continue;
-    const match = /^(?:\S+:\s+)?(\S+)\s+U(?:\s|$)/u.exec(trimmed);
-    if (match) symbols.push(match[1]);
-    else fail(`llvm-nm returned unrecognized POSIX output: ${trimmed.slice(0, 160)}`);
+    if (!trimmed || trimmed.endsWith(":")) continue;
+    const match = /^(?:\S+:\s+)?(\S+)\s+([A-Za-z?])(?:\s+.*)?$/u.exec(trimmed);
+    if (!match) fail(`llvm-nm returned unrecognized POSIX output: ${trimmed.slice(0, 160)}`);
+    const [, symbol, type] = match;
+    if (type === "U") {
+      undefinedSymbols.push(symbol);
+      continue;
+    }
+    definitions.push({
+      symbol,
+      type,
+      linkage: /^[A-Z]$/u.test(type) || type === "u"
+        ? "external"
+        : /^[a-z]$/u.test(type) ? "local" : "unknown",
+    });
   }
-  if (symbols.length === 0 && /\bno symbols\b/iu.test(errorOutput)) return [];
-  return [...new Set(symbols)].sort();
+  if (undefinedSymbols.length === 0 && definitions.length === 0 &&
+      /\bno symbols\b/iu.test(errorOutput)) {
+    return { undefinedSymbols: [], definitions: [] };
+  }
+  return {
+    undefinedSymbols: [...new Set(undefinedSymbols)].sort(),
+    definitions: definitions.sort((left, right) => compareText(left.symbol, right.symbol) ||
+      compareText(left.type, right.type)),
+  };
+}
+
+function relocationSymbol(value) {
+  return value.replace(/(?:[-+]0x[0-9a-f]+|[-+][0-9]+)$/iu, "");
+}
+
+function parseObjectRelocations(output) {
+  const relocations = [];
+  let section = null;
+  for (const line of output.split(/\r?\n/u)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const sectionMatch = /^RELOCATION RECORDS FOR \[(.+)\]:$/u.exec(trimmed);
+    if (sectionMatch) {
+      section = sectionMatch[1];
+      continue;
+    }
+    if (/^\S.*:\s+file format\s+\S+$/iu.test(trimmed)) continue;
+    if (/^OFFSET\s+TYPE\s+VALUE$/iu.test(trimmed)) continue;
+    if (section === null) fail(`llvm-objdump returned unrecognized relocation output: ${trimmed.slice(0, 160)}`);
+    const match = /^(\S+)\s+(\S+)\s+(.+?)\s*$/u.exec(trimmed);
+    if (!match) fail(`llvm-objdump returned malformed relocation data: ${trimmed.slice(0, 160)}`);
+    const [, offset, type, target] = match;
+    if (!/^[0-9a-f]+$/iu.test(offset) || target.trim().length === 0) {
+      fail(`llvm-objdump returned malformed relocation data: ${trimmed.slice(0, 160)}`);
+    }
+    relocations.push({ section, offset: offset.toLowerCase(), type, symbol: relocationSymbol(target.trim()) });
+  }
+  return relocations.sort((left, right) => compareText(left.section, right.section) ||
+    compareText(left.offset, right.offset) || compareText(left.type, right.type) ||
+    compareText(left.symbol, right.symbol));
 }
 
 function parsePostOptIR(bytes) {
@@ -415,12 +466,103 @@ function compareText(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
+function validateObjectName(value, label) {
+  if (typeof value !== "string" || value.length === 0 || value.includes("\0") ||
+      value === "." || value === ".." || /[\\/]/u.test(value)) {
+    fail(`${label} must be one object basename`);
+  }
+  return value;
+}
+
+function normalizeObjectSymbolLinkage(value) {
+  if (!Array.isArray(value) || value.length === 0) {
+    fail("objectSymbolLinkage must be a non-empty per-object array");
+  }
+  const seen = new Set();
+  return value.map((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry) ||
+        Object.keys(entry).some((key) => ![
+          "object", "routeRoots", "forbiddenGlobalWPrivateHelpers",
+        ].includes(key))) {
+      fail(`objectSymbolLinkage[${index}] has an invalid shape`);
+    }
+    const object = validateObjectName(entry.object, `objectSymbolLinkage[${index}].object`);
+    if (seen.has(object)) fail(`objectSymbolLinkage contains a duplicate object: ${object}`);
+    seen.add(object);
+    const routeRoots = validateSymbolList(entry.routeRoots, `objectSymbolLinkage[${index}].routeRoots`);
+    if (routeRoots.length === 0) fail(`objectSymbolLinkage[${index}].routeRoots must not be empty`);
+    const forbiddenGlobalWPrivateHelpers = validateSymbolList(
+      entry.forbiddenGlobalWPrivateHelpers,
+      `objectSymbolLinkage[${index}].forbiddenGlobalWPrivateHelpers`,
+    );
+    const rootSet = new Set(routeRoots);
+    if (forbiddenGlobalWPrivateHelpers.some((symbol) => rootSet.has(symbol))) {
+      fail(`objectSymbolLinkage[${index}] marks a route root as a forbidden helper`);
+    }
+    return { object, routeRoots, forbiddenGlobalWPrivateHelpers };
+  }).sort((left, right) => compareText(left.object, right.object));
+}
+
+function normalizeObjectRelocations(value) {
+  if (!Array.isArray(value) || value.length === 0) {
+    fail("objectRelocations must be a non-empty per-object array");
+  }
+  const seenObjects = new Set();
+  const entries = value.map((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry) ||
+        Object.keys(entry).some((key) => !["object", "allowedCrossObjectRelocations"].includes(key))) {
+      fail(`objectRelocations[${index}] has an invalid shape`);
+    }
+    const object = validateObjectName(entry.object, `objectRelocations[${index}].object`);
+    if (seenObjects.has(object)) fail(`objectRelocations contains a duplicate object: ${object}`);
+    seenObjects.add(object);
+    if (!Array.isArray(entry.allowedCrossObjectRelocations)) {
+      fail(`objectRelocations[${index}].allowedCrossObjectRelocations must be an explicit array`);
+    }
+    const seenReferences = new Set();
+    const allowedCrossObjectRelocations = entry.allowedCrossObjectRelocations.map((reference, referenceIndex) => {
+      if (!reference || typeof reference !== "object" || Array.isArray(reference) ||
+          Object.keys(reference).some((key) => !["targetObject", "symbol", "type"].includes(key))) {
+        fail(`objectRelocations[${index}].allowedCrossObjectRelocations[${referenceIndex}] has an invalid shape`);
+      }
+      const targetObject = validateObjectName(
+        reference.targetObject,
+        `objectRelocations[${index}].allowedCrossObjectRelocations[${referenceIndex}].targetObject`,
+      );
+      if (targetObject === object) fail(`objectRelocations[${index}] cannot allow a same-object relocation`);
+      const symbol = validateSymbolList(
+        [reference.symbol],
+        `objectRelocations[${index}].allowedCrossObjectRelocations[${referenceIndex}].symbol`,
+      )[0];
+      const type = reference.type;
+      if (typeof type !== "string" || type.trim().length === 0 || type.includes("\0")) {
+        fail(`objectRelocations[${index}].allowedCrossObjectRelocations[${referenceIndex}].type must be a non-empty string`);
+      }
+      const key = `${targetObject}\0${symbol}\0${type}`;
+      if (seenReferences.has(key)) fail(`objectRelocations[${index}] contains a duplicate cross-object relocation`);
+      seenReferences.add(key);
+      return { targetObject, symbol, type };
+    }).sort((left, right) => compareText(left.targetObject, right.targetObject) ||
+      compareText(left.symbol, right.symbol) || compareText(left.type, right.type));
+    return { object, allowedCrossObjectRelocations };
+  }).sort((left, right) => compareText(left.object, right.object));
+  for (const entry of entries) {
+    for (const reference of entry.allowedCrossObjectRelocations) {
+      if (!seenObjects.has(reference.targetObject)) {
+        fail(`objectRelocations target is not a supplied policy object: ${reference.targetObject}`);
+      }
+    }
+  }
+  return entries;
+}
+
 function normalizeAllowlists(value) {
   if (value === undefined) return undefined;
   if (!value || typeof value !== "object" || Array.isArray(value)) fail("allowlists must be an object");
-  if (value.schema !== "w-artifact-inspection-allowlists-1") fail("allowlists.schema must be w-artifact-inspection-allowlists-1");
+  if (value.schema !== "w-artifact-inspection-allowlists-2") fail("allowlists.schema must be w-artifact-inspection-allowlists-2");
   const allowedKeys = new Set([
-    "schema", "postOptIrExternals", "objectUndefinedSymbols", "finalImports", "finalDependencies",
+    "schema", "postOptIrExternals", "objectUndefinedSymbols", "objectSymbolLinkage",
+    "objectRelocations", "finalImports", "finalDependencies",
   ]);
   for (const key of Object.keys(value)) if (!allowedKeys.has(key)) fail(`unknown allowlist boundary: ${key}`);
 
@@ -438,6 +580,12 @@ function normalizeAllowlists(value) {
   }
   if (Object.hasOwn(value, "objectUndefinedSymbols")) {
     normalized.objectUndefinedSymbols = validateSymbolList(value.objectUndefinedSymbols, "objectUndefinedSymbols");
+  }
+  if (Object.hasOwn(value, "objectSymbolLinkage")) {
+    normalized.objectSymbolLinkage = normalizeObjectSymbolLinkage(value.objectSymbolLinkage);
+  }
+  if (Object.hasOwn(value, "objectRelocations")) {
+    normalized.objectRelocations = normalizeObjectRelocations(value.objectRelocations);
   }
   if (Object.hasOwn(value, "finalImports")) {
     if (!Array.isArray(value.finalImports)) fail("finalImports must be an explicit array");
@@ -532,6 +680,173 @@ function finalImportClosureCheck(allowlist, imports) {
   };
 }
 
+function sortedObjectNames(records) {
+  return records.map((record) => record.object).sort(compareText);
+}
+
+function exactObjectSetCheck(policyEntries, objectRecords, label) {
+  const allowedObjects = policyEntries.map((entry) => entry.object).sort(compareText);
+  const observedObjects = sortedObjectNames(objectRecords);
+  if (JSON.stringify(allowedObjects) === JSON.stringify(observedObjects)) return undefined;
+  return {
+    status: "rejected",
+    basis: "exact-comparison-with-caller-supplied-object-paths",
+    missingObjects: allowedObjects.filter((object) => !observedObjects.includes(object)),
+    unexpectedObjects: observedObjects.filter((object) => !allowedObjects.includes(object)),
+    reason: `${label} policy object names must match every supplied object basename exactly`,
+  };
+}
+
+function objectSymbolLinkageCheck(policyEntries, objectRecords) {
+  if (policyEntries === undefined) {
+    return { status: "unknown", reason: "no per-object symbol-linkage policy was supplied" };
+  }
+  if (objectRecords.length === 0) {
+    return { status: "unknown", reason: "no object files were supplied" };
+  }
+  const mismatch = exactObjectSetCheck(policyEntries, objectRecords, "object symbol-linkage");
+  if (mismatch) return mismatch;
+  const recordByName = new Map(objectRecords.map((record) => [record.object, record]));
+  const items = policyEntries.map((policy) => {
+    const record = recordByName.get(policy.object);
+    const externalDefinitions = record.definitions.filter((definition) => definition.linkage === "external");
+    const unknownDefinitions = record.definitions.filter((definition) => definition.linkage === "unknown");
+    const missingRouteRoots = policy.routeRoots.filter((root) =>
+      externalDefinitions.filter((definition) => definition.symbol === root).length !== 1);
+    const unknownRouteRoots = policy.routeRoots.filter((root) =>
+      unknownDefinitions.some((definition) => definition.symbol === root));
+    const forbiddenGlobalWPrivateHelpers = policy.forbiddenGlobalWPrivateHelpers.filter((helper) =>
+      externalDefinitions.some((definition) => definition.symbol === helper));
+    const unknownPrivateHelpers = policy.forbiddenGlobalWPrivateHelpers.filter((helper) =>
+      unknownDefinitions.some((definition) => definition.symbol === helper));
+    const undefinedPrivateHelpers = policy.forbiddenGlobalWPrivateHelpers.filter((helper) =>
+      record.undefinedSymbols.includes(helper));
+    const unexpectedGlobalDefinitions = externalDefinitions
+      .map((definition) => definition.symbol)
+      .filter((symbol) => !policy.routeRoots.includes(symbol));
+    const localWPrivateHelpers = policy.forbiddenGlobalWPrivateHelpers.filter((helper) =>
+      record.definitions.some((definition) => definition.symbol === helper && definition.linkage === "local"));
+    const absentWPrivateHelpers = policy.forbiddenGlobalWPrivateHelpers.filter((helper) =>
+      !record.definitions.some((definition) => definition.symbol === helper) &&
+      !record.undefinedSymbols.includes(helper));
+    const rejected = missingRouteRoots.length > 0 || forbiddenGlobalWPrivateHelpers.length > 0 ||
+      undefinedPrivateHelpers.length > 0 || unexpectedGlobalDefinitions.length > 0;
+    const unknown = unknownRouteRoots.length > 0 || unknownPrivateHelpers.length > 0 ||
+      unknownDefinitions.length > 0;
+    return {
+      object: policy.object,
+      status: rejected ? "rejected" : unknown ? "unknown" : "passed",
+      routeRoots: policy.routeRoots,
+      observedExternalDefinitions: externalDefinitions.map((definition) => definition.symbol),
+      missingRouteRoots,
+      forbiddenGlobalWPrivateHelpers,
+      undefinedPrivateHelpers,
+      unexpectedGlobalDefinitions: [...new Set(unexpectedGlobalDefinitions)].sort(compareText),
+      localWPrivateHelpers,
+      absentWPrivateHelpers,
+      ...(unknownRouteRoots.length === 0 && unknownPrivateHelpers.length === 0 && unknownDefinitions.length === 0
+        ? {} : { unknownLinkageSymbols: [...new Set([
+          ...unknownRouteRoots, ...unknownPrivateHelpers,
+          ...unknownDefinitions.map((definition) => definition.symbol),
+        ])].sort(compareText) }),
+    };
+  });
+  const statuses = new Set(items.map((item) => item.status));
+  const status = statuses.has("rejected") ? "rejected" : statuses.has("unknown") ? "unknown" : "passed";
+  return {
+    status,
+    basis: "POSIX-nm-definition-types-and-exact-route-root-policy",
+    items,
+    ...(status === "passed" ? {} : { reason: status === "unknown"
+      ? "one or more requested symbol definitions have unknown nm linkage"
+      : "object definitions do not preserve the exact route roots and local-only W-private helper boundary" }),
+  };
+}
+
+function objectRelocationCheck(policyEntries, objectRecords, symbolPolicies) {
+  if (policyEntries === undefined) {
+    return { status: "unknown", reason: "no per-object relocation policy was supplied" };
+  }
+  if (objectRecords.length === 0) {
+    return { status: "unknown", reason: "no object files were supplied" };
+  }
+  const mismatch = exactObjectSetCheck(policyEntries, objectRecords, "object relocation");
+  if (mismatch) return mismatch;
+  const recordByName = new Map(objectRecords.map((record) => [record.object, record]));
+  const ownersBySymbol = new Map();
+  for (const record of objectRecords) {
+    for (const definition of record.definitions) {
+      if (definition.linkage !== "external") continue;
+      const owners = ownersBySymbol.get(definition.symbol) ?? [];
+      owners.push(record.object);
+      ownersBySymbol.set(definition.symbol, owners);
+    }
+  }
+  const privateHelpers = new Set((symbolPolicies ?? []).flatMap((entry) => entry.forbiddenGlobalWPrivateHelpers));
+  const items = policyEntries.map((policy) => {
+    const record = recordByName.get(policy.object);
+    const observedCrossObjectRelocations = new Map();
+    const localWPrivateHelperRelocations = [];
+    const forbiddenGlobalWPrivateHelperRelocations = [];
+    const ambiguousTargets = [];
+    for (const relocation of record.relocations) {
+      if (privateHelpers.has(relocation.symbol)) {
+        const localDefinition = record.definitions.some((definition) =>
+          definition.symbol === relocation.symbol && definition.linkage === "local");
+        if (localDefinition) localWPrivateHelperRelocations.push(relocation);
+        else forbiddenGlobalWPrivateHelperRelocations.push(relocation);
+      }
+      const owners = ownersBySymbol.get(relocation.symbol) ?? [];
+      const otherOwners = owners.filter((owner) => owner !== policy.object);
+      if (otherOwners.length > 1) {
+        ambiguousTargets.push({ symbol: relocation.symbol, owners: otherOwners.sort(compareText) });
+      } else if (otherOwners.length === 1) {
+        const reference = {
+          targetObject: otherOwners[0],
+          symbol: relocation.symbol,
+          type: relocation.type,
+        };
+        observedCrossObjectRelocations.set(
+          `${reference.targetObject}\0${reference.symbol}\0${reference.type}`,
+          reference,
+        );
+      }
+    }
+    const observed = [...observedCrossObjectRelocations.values()].sort((left, right) =>
+      compareText(left.targetObject, right.targetObject) || compareText(left.symbol, right.symbol) ||
+      compareText(left.type, right.type));
+    const allowed = policy.allowedCrossObjectRelocations;
+    const keyOf = (reference) => `${reference.targetObject}\0${reference.symbol}\0${reference.type}`;
+    const allowedKeys = new Set(allowed.map(keyOf));
+    const observedKeys = new Set(observed.map(keyOf));
+    const unexpectedCrossObjectRelocations = observed.filter((reference) => !allowedKeys.has(keyOf(reference)));
+    const missingCrossObjectRelocations = allowed.filter((reference) => !observedKeys.has(keyOf(reference)));
+    const rejected = unexpectedCrossObjectRelocations.length > 0 ||
+      missingCrossObjectRelocations.length > 0 || forbiddenGlobalWPrivateHelperRelocations.length > 0 ||
+      ambiguousTargets.length > 0;
+    return {
+      object: policy.object,
+      status: rejected ? "rejected" : "passed",
+      relocationCount: record.relocations.length,
+      allowedCrossObjectRelocations: allowed,
+      observedCrossObjectRelocations: observed,
+      unexpectedCrossObjectRelocations,
+      missingCrossObjectRelocations,
+      localWPrivateHelperRelocations,
+      forbiddenGlobalWPrivateHelperRelocations,
+      ambiguousTargets,
+      ...(rejected ? { reason: "object relocation boundary does not match the exact allowed cross-object and local-helper references" } : {}),
+    };
+  });
+  const status = items.some((item) => item.status !== "passed") ? "rejected" : "passed";
+  return {
+    status,
+    basis: "llvm-objdump-relocations-resolved-against-supplied-object-definitions",
+    items,
+    ...(status === "passed" ? {} : { reason: "one or more object relocations cross or expose a forbidden helper boundary" }),
+  };
+}
+
 function allowlistReceipt(allowlists, source, bytes) {
   if (allowlists === undefined) return { status: "unknown", reason: "no closure allowlists were supplied" };
   const serialized = JSON.stringify(allowlists);
@@ -609,7 +924,8 @@ export function artifactInspectionUsage() {
     "Repeated --object options inspect every supplied object with llvm-nm.",
     "By default llvm-readobj, llvm-objdump, and (when --object is used) llvm-nm are resolved on PATH.",
     "--toolchain-dir validates an existing pinned Windows materialization and resolves exact tool basenames from its archive inventory without PATH fallback.",
-    "--allowlists supplies explicit per-boundary symbol/import/dependency allowlists using schema w-artifact-inspection-allowlists-1.",
+    "--allowlists supplies explicit per-boundary symbol/import/dependency allowlists using schema w-artifact-inspection-allowlists-2.",
+    "Per-object linkage/relocation boundaries require supplied objects and explicit pinned tool paths; PATH fallback is disabled for these claims.",
     "Input files and each tool's combined output are capped at 128 MiB.",
     "CRT-free status remains unknown; a partial IR scan or unsupported import inventory cannot prove closure.",
   ].join("\n");
@@ -647,6 +963,18 @@ export async function createArtifactInspectionReceipt({
     allowlistSource = allowlistSnapshot.path;
   }
   const allowlists = normalizeAllowlists(suppliedAllowlists);
+  if (requestedObjectPaths.length > MAX_OBJECT_FILES) {
+    fail(`objectPaths exceeds the ${MAX_OBJECT_FILES}-object inspection limit`);
+  }
+  const needsObjectSymbolLinkage = allowlists?.objectSymbolLinkage !== undefined;
+  const needsObjectRelocations = allowlists?.objectRelocations !== undefined;
+  if ((needsObjectSymbolLinkage || needsObjectRelocations) && requestedObjectPaths.length === 0) {
+    fail("per-object linkage/relocation boundaries require at least one supplied object");
+  }
+  if ((needsObjectSymbolLinkage || needsObjectRelocations) && toolchainDir === undefined &&
+      findTool === defaultFindTool) {
+    fail("per-object linkage/relocation evidence requires a validated --toolchain-dir or caller-supplied pinned tool paths; PATH fallback is disabled");
+  }
 
   const artifact = await readRegularFile(artifactPath, "artifact", cwd);
   const format = detectArtifactFormat(artifact.bytes);
@@ -659,7 +987,9 @@ export async function createArtifactInspectionReceipt({
   const toolFindContext = {
     findTool: toolResolution,
     runTool,
-    resolution: toolchain.selected === null ? "PATH" : "validated-materialized-toolchain",
+    resolution: toolchain.selected !== null
+      ? "validated-materialized-toolchain"
+      : findTool === defaultFindTool ? "PATH" : "caller-supplied-explicit-paths",
   };
   const readobjArgs = format === "ELF"
     ? ["--elf-output-style=JSON", "--pretty-print", "--sections", "--dynamic-table", "--needed-libs", artifact.path]
@@ -689,20 +1019,41 @@ export async function createArtifactInspectionReceipt({
   const objectSnapshots = [];
   const objectRecords = [];
   let llvmNmPath = null;
+  let objectRelocationsToolPath = null;
   const resolvedObjectPaths = new Set();
+  const resolvedObjectNames = new Set();
   for (const objectPathValue of requestedObjectPaths) {
     const object = await readRegularFile(objectPathValue, "object", cwd);
     const pathKey = process.platform === "win32" ? object.path.toLowerCase() : object.path;
     if (resolvedObjectPaths.has(pathKey)) fail(`object path was supplied more than once: ${object.path}`);
     resolvedObjectPaths.add(pathKey);
-    const nm = invokeTool("llvm-nm", ["--undefined-only", "--format=posix", object.path], toolFindContext);
+    const objectName = path.basename(object.path);
+    if ((needsObjectSymbolLinkage || needsObjectRelocations) && resolvedObjectNames.has(objectName)) {
+      fail(`object basename was supplied more than once: ${objectName}`);
+    }
+    resolvedObjectNames.add(objectName);
+    const nm = invokeTool("llvm-nm", [
+      ...(needsObjectSymbolLinkage || needsObjectRelocations ? [] : ["--undefined-only"]),
+      "--format=posix", object.path,
+    ], toolFindContext);
+    const nmSymbols = parseNmSymbols(nm.stdout, nm.stderr);
+    let relocations;
+    if (needsObjectRelocations) {
+      const objectDump = invokeTool("llvm-objdump", ["--reloc", object.path], toolFindContext);
+      objectRelocationsToolPath = objectDump.executable;
+      relocations = parseObjectRelocations(objectDump.stdout);
+    }
     objectSnapshots.push(object);
     llvmNmPath = nm.executable;
     objectRecords.push({
       path: object.path,
+      object: objectName,
       bytes: object.size,
       sha256: sha256(object.bytes),
-      undefinedSymbols: parseUndefinedSymbols(nm.stdout, nm.stderr),
+      undefinedSymbols: nmSymbols.undefinedSymbols,
+      ...(needsObjectSymbolLinkage || needsObjectRelocations
+        ? { definitions: nmSymbols.definitions } : {}),
+      ...(needsObjectRelocations ? { relocations } : {}),
     });
   }
 
@@ -745,6 +1096,12 @@ export async function createArtifactInspectionReceipt({
     label: "object undefined-symbol",
     reason: "no object files were supplied",
   });
+  const objectSymbolLinkage = objectSymbolLinkageCheck(
+    allowlists?.objectSymbolLinkage, objectRecords,
+  );
+  const objectRelocations = objectRelocationCheck(
+    allowlists?.objectRelocations, objectRecords, allowlists?.objectSymbolLinkage,
+  );
   const finalDependencyClosure = closureCheck({
     allowlist: allowlists?.finalDependencies,
     evidenceStatus: inventory.dependencies.status,
@@ -759,11 +1116,15 @@ export async function createArtifactInspectionReceipt({
     suppliedObjectUndefinedSymbolClosure: objectUndefinedSymbolClosure,
     finalImportClosure: finalImports,
     finalDependencyClosure,
+    objectSymbolLinkage,
+    objectRelocations,
     crtFree: { status: "unknown", reason: "inventory alone cannot rule out statically linked runtime code or establish the product's runtime policy" },
   };
   const boundaryChecks = {
     postOptIrExternals: postOptExternalClosure,
     objectUndefinedSymbols: objectUndefinedSymbolClosure,
+    objectSymbolLinkage,
+    objectRelocations,
     finalImports,
     finalDependencies: finalDependencyClosure,
   };
@@ -778,7 +1139,7 @@ export async function createArtifactInspectionReceipt({
   };
 
   return {
-    schema: "w-artifact-inspection-receipt-2",
+    schema: "w-artifact-inspection-receipt-3",
     allowlists: allowlistInfo,
     artifact: { path: artifact.path, format, bytes: artifact.size, sha256: sha256(artifact.bytes) },
     sectionInventory: { status: "observed", items: inventory.sections, keySectionFileBytes: namedSectionBytes(inventory.sections) },
@@ -796,11 +1157,12 @@ export async function createArtifactInspectionReceipt({
       : { status: "observed", scope: "caller-supplied-object-paths", items: objectRecords },
     checks,
     tools: {
-      resolution: toolchain.selected === null ? "PATH" : "validated-materialized-toolchain",
+      resolution: toolFindContext.resolution,
       toolchainDirectory: toolchain.directory,
       llvmReadobj: readobj.executable,
       llvmObjdump: disassembly.executable,
       llvmNm: llvmNmPath,
+      llvmObjectRelocations: objectRelocationsToolPath,
     },
   };
 }
