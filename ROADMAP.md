@@ -270,10 +270,11 @@ distinct from the ranked pinned-LLD catalog lane.
 The count-only process-arguments candidate is implemented for the exact
 verified-reachability case where the selected entry observes only
 `Arguments.count` and no argument bytes or descriptors. Windows retains a
-bounded current-adapter quote/count scan; Linux derives the count from bounded
-`argc`/`argv` invariants without scanning argument strings, and an empty
-argument still counts as one. Both accept 0..256 user arguments and reject 257
-before output. The full value-observing adapter
+bounded current-adapter quote/count scan; the native Linux x86_64 WRT0 route
+derives the count directly from its target-owned kernel-entry `argc`, validates
+the total range before subtraction, and performs no `argv` load or pointer
+walk. An empty argument still counts as one. Both accept 0..256 user arguments
+and reject 257 before output. The full value-observing adapter
 remains unchanged. Focused Windows raw-command and Linux/WSL execution plus
 post-opt/object/final dependency receipts passed; the count-only Linux object
 has no process-items table or `.bss`, versus 6,144 bytes in the general lane.
