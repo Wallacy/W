@@ -3011,6 +3011,7 @@ typedef struct {
   bool has_integer_exactly;
   bool has_float_to_integer_rounding;
   bool has_structured_checked_arithmetic;
+  bool count_only_arguments;
   uint16_t exact_source_bit_width;
   uint16_t exact_destination_bit_width;
   bool exact_source_is_signed;
@@ -6725,6 +6726,53 @@ static bool build_program_plan(const w_seed_hir0_program *program,
   return true;
 }
 
+/* A count-only process adapter scalarizes only the exact entry Arguments
+ * member already authenticated by the selector and reachable-value plan. */
+static bool process_count_only_member_alias(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process) {
+  if (program == NULL || process == NULL || !process->count_only_arguments ||
+      function_index != process->function_index ||
+      value_index >= program->value_count ||
+      process->function_index >= program->function_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  const w_seed_hir0_function *function =
+      &program->functions[process->function_index];
+  if (value->kind != W_SEED_HIR0_VALUE_EXTERNAL_MEMBER ||
+      value->external_module_index != 0u ||
+      value->external_symbol_index != process->count_symbol_index ||
+      value->left_value >= program->value_count ||
+      value->type_index >= program->type_count ||
+      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_USIZE ||
+      !text_is(program, value->member_name, (const uint8_t *)"count", 5u) ||
+      process->arguments_parameter_index >= function->parameter_count ||
+      function->first_parameter > UINT32_MAX -
+                                      process->arguments_parameter_index)
+    return false;
+  const size_t parameter_index =
+      (size_t)function->first_parameter +
+      process->arguments_parameter_index;
+  if (parameter_index >= program->parameter_count) return false;
+  const w_seed_hir0_value *receiver =
+      &program->values[value->left_value];
+  if (receiver->kind != W_SEED_HIR0_VALUE_PARAMETER_READ ||
+      receiver->parameter_index != parameter_index ||
+      receiver->parameter_index >= program->parameter_count ||
+      receiver->type_index >= program->type_count)
+    return false;
+  const w_seed_hir0_parameter *parameter =
+      &program->parameters[receiver->parameter_index];
+  const w_seed_hir0_type *receiver_type =
+      &program->types[receiver->type_index];
+  return parameter->owner_function == function_index &&
+         parameter->ordinal == process->arguments_parameter_index &&
+         receiver_type->kind == W_SEED_HIR0_TYPE_NOMINAL &&
+         receiver_type->external_module_index == 0u &&
+         receiver_type->external_symbol_index ==
+             process->arguments_symbol_index;
+}
+
 static bool append_program_value_operand_in_loop(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
@@ -6734,6 +6782,11 @@ static bool append_program_value_operand_in_loop(
       artifact == NULL || offset == NULL)
     return false;
   const w_seed_hir0_value *value = &program->values[value_index];
+  if (process_count_only_member_alias(program, value_index, function_index,
+                                      process))
+    return append_program_value_operand_in_loop(
+        program, value->left_value, function_index, process, loop, artifact,
+        capacity, offset);
   if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ) {
     if (value->binding_index >= program->binding_count) return false;
     if (loop != NULL && loop->result_binding_indices != NULL) {
@@ -7337,6 +7390,11 @@ static bool append_program_value_tree(
         value->left_value >= program->value_count ||
         value->type_index >= program->type_count)
       return false;
+    if (process_count_only_member_alias(program, value_index, function_index,
+                                        process)) {
+      emitted[value_index] = true;
+      return true;
+    }
     const bool is_empty =
         value->external_symbol_index == process->is_empty_symbol_index &&
         program->types[value->type_index].kind == W_SEED_HIR0_TYPE_BOOL &&
@@ -8215,6 +8273,11 @@ static bool append_program_value_tree_in_loop(
         value->left_value >= program->value_count ||
         value->type_index >= program->type_count)
       return false;
+    if (process_count_only_member_alias(program, value_index, function_index,
+                                        process)) {
+      emitted[value_index] = true;
+      return true;
+    }
     const bool is_empty =
         value->external_symbol_index == process->is_empty_symbol_index &&
         program->types[value->type_index].kind == W_SEED_HIR0_TYPE_BOOL &&
@@ -8911,9 +8974,10 @@ static bool append_process_integer_exactly_terminator(
                           " = llvm.icmp \"") ||
           !append_literal(artifact, capacity, offset,
                           predicates[index].predicate) ||
-          !append_literal(artifact, capacity, offset,
-                          "\" %v") ||
-          !append_size(artifact, capacity, offset, terminator->value_index) ||
+          !append_literal(artifact, capacity, offset, "\" ") ||
+          !append_program_value_operand(
+              program, terminator->value_index, function_index, process,
+              artifact, capacity, offset) ||
           !append_literal(artifact, capacity, offset,
                           ", %process_exact_bound_") ||
           !append_size(artifact, capacity, offset, index) ||
@@ -8942,8 +9006,10 @@ static bool append_process_integer_exactly_terminator(
   const char *source_operand = NULL;
   if (source_width < 64u &&
       (!append_literal(artifact, capacity, offset,
-                       "    %process_exact_source_narrow = llvm.trunc %v") ||
-       !append_size(artifact, capacity, offset, terminator->value_index) ||
+                       "    %process_exact_source_narrow = llvm.trunc ") ||
+       !append_program_value_operand(
+           program, terminator->value_index, function_index, process,
+           artifact, capacity, offset) ||
        !append_literal(artifact, capacity, offset, " : i64 to i") ||
        !append_u64(artifact, capacity, offset, source_width) ||
        !append_literal(artifact, capacity, offset, "\n")))
@@ -8965,9 +9031,9 @@ static bool append_process_integer_exactly_terminator(
                           "%process_exact_source_narrow : i") ||
           !append_u64(artifact, capacity, offset, source_width))
         return false;
-    } else if (!append_literal(artifact, capacity, offset, "%v") ||
-               !append_size(artifact, capacity, offset,
-                            terminator->value_index) ||
+    } else if (!append_program_value_operand(
+                   program, terminator->value_index, function_index, process,
+                   artifact, capacity, offset) ||
                !append_literal(artifact, capacity, offset, " : i64")) {
         return false;
     }
@@ -9003,8 +9069,9 @@ static bool append_process_integer_exactly_terminator(
                                   process->exact_normal_block_index, false) ||
       !append_literal(artifact, capacity, offset, "(") ||
       (destination_is_source_value
-           ? (!append_literal(artifact, capacity, offset, "%v") ||
-              !append_size(artifact, capacity, offset, terminator->value_index))
+           ? !append_program_value_operand(
+                 program, terminator->value_index, function_index, process,
+                 artifact, capacity, offset)
            : !append_literal(artifact, capacity, offset, destination_operand)) ||
       !append_literal(artifact, capacity, offset, " : i64), ") ||
       !append_program_block_label(artifact, capacity, offset, function_index,
@@ -10053,8 +10120,14 @@ static bool append_program_function(
     const w_seed_hir0_parameter *parameter =
         &program->parameters[(size_t)function->first_parameter + ordinal];
     char type_buffer[96];
-    const char *type = program_type_name(program, parameter->type_index,
-                                         type_buffer, process);
+    const bool count_parameter =
+        process != NULL && process->count_only_arguments &&
+        function_index == process->function_index &&
+        ordinal == process->arguments_parameter_index;
+    const char *type = count_parameter
+                           ? "i64"
+                           : program_type_name(program, parameter->type_index,
+                                               type_buffer, process);
     if (type == NULL ||
         !append_literal(artifact, capacity, offset, ", %p") ||
         !append_size(artifact, capacity, offset, ordinal) ||
@@ -10807,8 +10880,7 @@ static const char MLIR0_PROCESS_EXECUTABLE_COUNT_ONLY_WINDOWS_HELPERS1B[] =
     "    llvm.return %valid_argument_count : i64\n"
     "  ^invalid:\n"
     "    llvm.return %minus_one : i64\n"
-    "  }\n"
-    "  llvm.func internal @w_seed_process_root_init(%vector: !llvm.ptr, %root: !llvm.ptr, %arguments: !llvm.ptr, %context: !llvm.ptr) -> i1 {\n";
+    "  }\n";
 
 /* Linux receives an already separated byte vector from the kernel. The
  * startup adapter supplies argc and argv through WRT0 accessors, so this
@@ -10879,7 +10951,6 @@ static const char MLIR0_PROCESS_EXECUTABLE_LINUX_HELPERS[] =
  * observes Arguments.count, the target-owned startup argc is sufficient; keep
  * its range checks explicit so argc - 1 cannot underflow or admit >256 users. */
 static const char MLIR0_PROCESS_EXECUTABLE_COUNT_ONLY_LINUX_HELPERS[] =
-    "  llvm.func @w_seed_process_argc() -> i64\n"
     "  llvm.func internal @w_seed_process_count_arguments(%argument_count: i64) -> i64 {\n"
     "    %one = llvm.mlir.constant(1 : i64) : i64\n"
     "    %max_total = llvm.mlir.constant(257 : i64) : i64\n"
@@ -10893,8 +10964,7 @@ static const char MLIR0_PROCESS_EXECUTABLE_COUNT_ONLY_LINUX_HELPERS[] =
     "    llvm.return %user_count : i64\n"
     "  ^invalid:\n"
     "    llvm.return %minus_one : i64\n"
-    "  }\n"
-    "  llvm.func internal @w_seed_process_root_init(%vector: !llvm.ptr, %root: !llvm.ptr, %arguments: !llvm.ptr, %context: !llvm.ptr) -> i1 {\n";
+    "  }\n";
 
 static const char MLIR0_PROCESS_EXECUTABLE_HELPERS2[] =
     "    %one = llvm.mlir.constant(1 : i64) : i64\n"
@@ -11066,18 +11136,9 @@ static const char MLIR0_PROCESS_EXECUTABLE_HELPERS7[] =
 static const char MLIR0_PROCESS_EXECUTABLE_COUNT_ONLY_WINDOWS_ROOT[] =
     "  llvm.func @mainCRTStartup() {\n"
     "    %process_zero = llvm.mlir.constant(0 : i64) : i64\n"
-    "    %process_one = llvm.mlir.constant(1 : i64) : i64\n"
-    "    %process_two = llvm.mlir.constant(2 : i64) : i64\n"
     "    %process_minus_one = llvm.mlir.constant(-1 : i64) : i64\n"
     "    %process_failure = llvm.mlir.constant(3 : i32) : i32\n"
-    "    %process_vector_words = llvm.mlir.constant(3 : i64) : i64\n"
-    "    %process_root_words = llvm.mlir.constant(8 : i64) : i64\n"
-    "    %process_owner_words = llvm.mlir.constant(5 : i64) : i64\n"
     "    %process_cursor_count = llvm.mlir.constant(1 : i64) : i64\n"
-    "    %process_vector = llvm.alloca %process_vector_words x i64 : (i64) -> !llvm.ptr\n"
-    "    %process_root = llvm.alloca %process_root_words x i64 : (i64) -> !llvm.ptr\n"
-    "    %process_arguments = llvm.alloca %process_owner_words x i64 : (i64) -> !llvm.ptr\n"
-    "    %process_context = llvm.alloca %process_owner_words x i64 : (i64) -> !llvm.ptr\n"
     "    %process_cursor_address = llvm.alloca %process_cursor_count x i64 : (i64) -> !llvm.ptr\n"
     "    %process_fault_address = llvm.alloca %process_cursor_count x i64 : (i64) -> !llvm.ptr\n"
     "    %process_command_line = llvm.call @GetCommandLineW() : () -> !llvm.ptr\n"
@@ -11087,16 +11148,7 @@ static const char MLIR0_PROCESS_EXECUTABLE_COUNT_ONLY_WINDOWS_ROOT[] =
     "  ^process_capture:\n"
     "    %process_argument_count = llvm.call @w_seed_process_count_arguments(%process_command_line) : (!llvm.ptr) -> i64\n"
     "    %process_parse_failed = llvm.icmp \"eq\" %process_argument_count, %process_minus_one : i64\n"
-    "    llvm.cond_br %process_parse_failed, ^process_early_fault, ^process_vector_ready\n"
-    "  ^process_vector_ready:\n"
-    "    %process_vector_items_address = llvm.getelementptr %process_vector[1] : (!llvm.ptr) -> !llvm.ptr, i64\n"
-    "    llvm.store %process_zero, %process_vector_items_address : i64, !llvm.ptr\n"
-    "    %process_vector_encoding_address = llvm.getelementptr %process_vector[0] : (!llvm.ptr) -> !llvm.ptr, i64\n"
-    "    llvm.store %process_two, %process_vector_encoding_address : i64, !llvm.ptr\n"
-    "    %process_vector_count_address = llvm.getelementptr %process_vector[2] : (!llvm.ptr) -> !llvm.ptr, i64\n"
-    "    llvm.store %process_argument_count, %process_vector_count_address : i64, !llvm.ptr\n"
-    "    %process_root_initialized = llvm.call @w_seed_process_root_init(%process_vector, %process_root, %process_arguments, %process_context) : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i1\n"
-    "    llvm.cond_br %process_root_initialized, ^process_evaluate, ^process_early_fault\n"
+    "    llvm.cond_br %process_parse_failed, ^process_early_fault, ^process_evaluate\n"
     "  ^process_evaluate:\n"
     "    %process_buffer_base = llvm.mlir.addressof @w_seed_mlir0_buffer : !llvm.ptr\n"
     "    %process_buffer = llvm.getelementptr %process_buffer_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<"
@@ -11105,46 +11157,29 @@ static const char MLIR0_PROCESS_EXECUTABLE_COUNT_ONLY_WINDOWS_ROOT[] =
     "    llvm.store %process_zero, %process_fault_address : i64, !llvm.ptr\n";
 
 static const char MLIR0_PROCESS_EXECUTABLE_COUNT_ONLY_LINUX_ROOT[] =
-    "  llvm.func @main() -> i32 {\n"
+    "  llvm.func @main(%process_argc: i64) -> i32 {\n"
     "    %process_zero = llvm.mlir.constant(0 : i64) : i64\n"
-    "    %process_one = llvm.mlir.constant(1 : i64) : i64\n"
     "    %process_minus_one = llvm.mlir.constant(-1 : i64) : i64\n"
     "    %process_failure = llvm.mlir.constant(3 : i32) : i32\n"
-    "    %process_vector_words = llvm.mlir.constant(3 : i64) : i64\n"
-    "    %process_root_words = llvm.mlir.constant(8 : i64) : i64\n"
-    "    %process_owner_words = llvm.mlir.constant(5 : i64) : i64\n"
     "    %process_buffer_capacity = llvm.mlir.constant("
     MLIR0_OUTPUT_BUFFER_CAPACITY_TOKEN " : i64) : i64\n"
     "    %process_cursor_count = llvm.mlir.constant(1 : i64) : i64\n"
-    "    %process_vector = llvm.alloca %process_vector_words x i64 : (i64) -> !llvm.ptr\n"
-    "    %process_root = llvm.alloca %process_root_words x i64 : (i64) -> !llvm.ptr\n"
-    "    %process_arguments = llvm.alloca %process_owner_words x i64 : (i64) -> !llvm.ptr\n"
-    "    %process_context = llvm.alloca %process_owner_words x i64 : (i64) -> !llvm.ptr\n"
     "    %process_buffer = llvm.alloca %process_buffer_capacity x i8 : (i64) -> !llvm.ptr\n"
     "    %process_cursor_address = llvm.alloca %process_cursor_count x i64 : (i64) -> !llvm.ptr\n"
     "    %process_fault_address = llvm.alloca %process_cursor_count x i64 : (i64) -> !llvm.ptr\n"
-    "    %process_argc = llvm.call @w_seed_process_argc() : () -> i64\n"
     "    %process_argument_count = llvm.call @w_seed_process_count_arguments(%process_argc) : (i64) -> i64\n"
     "    %process_parse_failed = llvm.icmp \"eq\" %process_argument_count, %process_minus_one : i64\n"
-    "    llvm.cond_br %process_parse_failed, ^process_early_fault, ^process_vector_ready\n"
-    "  ^process_vector_ready:\n"
-    "    %process_vector_items_address = llvm.getelementptr %process_vector[1] : (!llvm.ptr) -> !llvm.ptr, i64\n"
-    "    llvm.store %process_zero, %process_vector_items_address : i64, !llvm.ptr\n"
-    "    %process_vector_encoding_address = llvm.getelementptr %process_vector[0] : (!llvm.ptr) -> !llvm.ptr, i64\n"
-    "    llvm.store %process_one, %process_vector_encoding_address : i64, !llvm.ptr\n"
-    "    %process_vector_count_address = llvm.getelementptr %process_vector[2] : (!llvm.ptr) -> !llvm.ptr, i64\n"
-    "    llvm.store %process_argument_count, %process_vector_count_address : i64, !llvm.ptr\n"
-    "    %process_root_initialized = llvm.call @w_seed_process_root_init(%process_vector, %process_root, %process_arguments, %process_context) : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i1\n"
-    "    llvm.cond_br %process_root_initialized, ^process_evaluate, ^process_early_fault\n"
+    "    llvm.cond_br %process_parse_failed, ^process_early_fault, ^process_evaluate\n"
     "  ^process_evaluate:\n"
     "    llvm.store %process_zero, %process_cursor_address : i64, !llvm.ptr\n"
-    "    llvm.store %process_zero, %process_fault_address : i64, !llvm.ptr\n";
+    "    llvm.store %process_zero, %process_fault_address : i64, !llvm.ptr\n"
+    "    %process_null = llvm.inttoptr %process_zero : i64 to !llvm.ptr\n";
 
 /* `reachable_values` is computed from the verified entry call graph and all
- * HIR value roots consumed by that graph. The process selector has already
- * proven that Arguments can only reach the approved external members; this
- * projection specializes only when every reachable member is the exact
- * resolver-owned `Arguments.count`. */
+ * HIR value roots consumed by that graph. External-member receivers are not
+ * part of the ordinary value-tree walk, so this proof explicitly starts at
+ * reachable authenticated count members and checks every other reachable use
+ * of their Arguments PARAMETER_READ. */
 static bool process_plan_observes_only_arguments_count(
     const w_seed_hir0_program *program,
     const w_seed_native_subset0_process *selection,
@@ -11155,21 +11190,46 @@ static bool process_plan_observes_only_arguments_count(
       selection->function != &program->functions[selection->function_index] ||
       selection->arguments_parameter_ordinal >=
           selection->function->parameter_count ||
+      selection->context_parameter_ordinal >=
+          selection->function->parameter_count ||
       program->value_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES)
     return false;
   if (selection->function->first_parameter >
       UINT32_MAX - selection->arguments_parameter_ordinal)
     return false;
+  if (selection->function->first_parameter >
+      UINT32_MAX - selection->context_parameter_ordinal)
+    return false;
   const uint32_t parameter_index =
       selection->function->first_parameter +
       selection->arguments_parameter_ordinal;
-  if (parameter_index >= program->parameter_count) return false;
+  const uint32_t context_parameter_index =
+      selection->function->first_parameter +
+      selection->context_parameter_ordinal;
+  if (parameter_index >= program->parameter_count ||
+      context_parameter_index >= program->parameter_count)
+    return false;
+
+  /* Scalar projection is authorized only when every reachable Arguments
+   * parameter read is used solely as the receiver of an authenticated count
+   * member. The external-member receiver edge is deliberately kept out of the
+   * shared reachability walk; record it here and audit every other value and
+   * executable-record edge to that exact HIR value. */
+  bool argument_reads[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {false};
+  bool saw_argument_read = false;
   bool saw_count = false;
   for (size_t value_index = 0u; value_index < program->value_count;
        value_index += 1u) {
-    if (!plan->reachable_values[value_index]) continue;
     const w_seed_hir0_value *value = &program->values[value_index];
-    if (value->kind != W_SEED_HIR0_VALUE_EXTERNAL_MEMBER) continue;
+    if (plan->reachable_values[value_index] &&
+        value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ &&
+        value->parameter_index == parameter_index) {
+      argument_reads[value_index] = true;
+      saw_argument_read = true;
+    }
+    if (!plan->reachable_values[value_index] ||
+        value->kind != W_SEED_HIR0_VALUE_EXTERNAL_MEMBER)
+      continue;
     if (value->external_module_index != 0u ||
         value->external_symbol_index != selection->count_symbol_index ||
         value->left_value >= program->value_count ||
@@ -11177,8 +11237,8 @@ static bool process_plan_observes_only_arguments_count(
         program->types[value->type_index].kind != W_SEED_HIR0_TYPE_USIZE ||
         !text_is(program, value->member_name, (const uint8_t *)"count", 5u))
       return false;
-    const w_seed_hir0_value *receiver =
-        &program->values[value->left_value];
+    const uint32_t receiver_index = value->left_value;
+    const w_seed_hir0_value *receiver = &program->values[receiver_index];
     if (receiver->kind != W_SEED_HIR0_VALUE_PARAMETER_READ ||
         receiver->parameter_index != parameter_index ||
         receiver->type_index >= program->type_count)
@@ -11190,9 +11250,251 @@ static bool process_plan_observes_only_arguments_count(
         receiver_type->external_symbol_index !=
             selection->arguments_symbol_index)
       return false;
+    argument_reads[receiver_index] = true;
+    saw_argument_read = true;
     saw_count = true;
   }
-  return saw_count;
+  if (!saw_count) return false;
+
+  for (size_t read_index = 0u; read_index < program->value_count;
+       read_index += 1u) {
+    if (!argument_reads[read_index]) continue;
+    const w_seed_hir0_value *read = &program->values[read_index];
+    if (read->kind != W_SEED_HIR0_VALUE_PARAMETER_READ ||
+        read->parameter_index != parameter_index ||
+        read->type_index >= program->type_count)
+      return false;
+    const w_seed_hir0_type *read_type = &program->types[read->type_index];
+    if (read_type->kind != W_SEED_HIR0_TYPE_NOMINAL ||
+        read_type->external_module_index != 0u ||
+        read_type->external_symbol_index != selection->arguments_symbol_index)
+      return false;
+
+    size_t authenticated_receiver_uses = 0u;
+    for (size_t owner_index = 0u; owner_index < program->value_count;
+         owner_index += 1u) {
+      if (!plan->reachable_values[owner_index]) continue;
+      const w_seed_hir0_value *owner = &program->values[owner_index];
+      const bool left_use = owner->left_value == read_index;
+      const bool right_use = owner->right_value == read_index;
+      if (left_use || right_use) {
+        const bool authenticated_count_receiver =
+            left_use && !right_use &&
+            owner->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER &&
+            owner->external_module_index == 0u &&
+            owner->external_symbol_index == selection->count_symbol_index &&
+            owner->type_index < program->type_count &&
+            program->types[owner->type_index].kind == W_SEED_HIR0_TYPE_USIZE &&
+            text_is(program, owner->member_name,
+                    (const uint8_t *)"count", 5u);
+        if (!authenticated_count_receiver) return false;
+        authenticated_receiver_uses += 1u;
+      }
+
+      /* Direct HIR value-array uses are escapes too, even if an optimizer
+       * could later discard the containing aggregate. */
+      if (owner->kind == W_SEED_HIR0_VALUE_INTERPOLATED_STRING) {
+        if (owner->interpolation_segment_count != 0u &&
+            (owner->first_interpolation_segment == W_SEED_HIR0_NONE ||
+             (size_t)owner->first_interpolation_segment >
+                 program->interpolation_segment_count ||
+             owner->interpolation_segment_count >
+                 program->interpolation_segment_count -
+                     owner->first_interpolation_segment))
+          return false;
+        for (size_t ordinal = 0u;
+             ordinal < owner->interpolation_segment_count; ordinal += 1u) {
+          const w_seed_hir0_interpolation_segment *segment =
+              &program->interpolation_segments[
+                  (size_t)owner->first_interpolation_segment + ordinal];
+          if (segment->kind == W_SEED_HIR0_INTERPOLATION_VALUE &&
+              segment->value_index == read_index)
+            return false;
+        }
+      } else if (owner->kind == W_SEED_HIR0_VALUE_TUPLE) {
+        if (owner->tuple_element_count != 0u &&
+            (owner->first_tuple_element == W_SEED_HIR0_NONE ||
+             (size_t)owner->first_tuple_element >
+                 program->tuple_element_count ||
+             owner->tuple_element_count >
+                 program->tuple_element_count - owner->first_tuple_element))
+          return false;
+        for (size_t ordinal = 0u; ordinal < owner->tuple_element_count;
+             ordinal += 1u)
+          if (program->tuple_elements[(size_t)owner->first_tuple_element +
+                                      ordinal]
+                  .value_index == read_index)
+            return false;
+      } else if (owner->kind == W_SEED_HIR0_VALUE_ENUM_CASE) {
+        if (owner->enum_payload_count != 0u &&
+            (owner->first_enum_payload == W_SEED_HIR0_NONE ||
+             (size_t)owner->first_enum_payload >
+                 program->enum_payload_count ||
+             owner->enum_payload_count >
+                 program->enum_payload_count - owner->first_enum_payload))
+          return false;
+        for (size_t ordinal = 0u; ordinal < owner->enum_payload_count;
+             ordinal += 1u)
+          if (program->enum_payloads[(size_t)owner->first_enum_payload +
+                                     ordinal]
+                  .value_index == read_index)
+            return false;
+      } else if (owner->kind == W_SEED_HIR0_VALUE_VALUE_STRUCT) {
+        if (owner->value_struct_initializer_count != 0u &&
+            (owner->first_value_struct_initializer == W_SEED_HIR0_NONE ||
+             (size_t)owner->first_value_struct_initializer >
+                 program->value_struct_initializer_count ||
+             owner->value_struct_initializer_count >
+                 program->value_struct_initializer_count -
+                     owner->first_value_struct_initializer))
+          return false;
+        for (size_t ordinal = 0u;
+             ordinal < owner->value_struct_initializer_count; ordinal += 1u)
+          if (program->value_struct_initializers[
+                  (size_t)owner->first_value_struct_initializer + ordinal]
+                  .value_index == read_index)
+            return false;
+      }
+    }
+
+    /* Value roots owned by executable records are not represented by a
+     * value-to-value edge. Audit reachable binding/call/terminator/CFG roots
+     * so a second use of the same read cannot escape the count projection. */
+    for (size_t function_index = 0u;
+         function_index < program->function_count; function_index += 1u) {
+      if (!plan->reachable_functions[function_index]) continue;
+      const w_seed_hir0_function *function =
+          &program->functions[function_index];
+      if ((size_t)function->first_block > program->block_count ||
+          function->block_count >
+              program->block_count - function->first_block)
+        return false;
+      for (size_t block_ordinal = 0u;
+           block_ordinal < function->block_count; block_ordinal += 1u) {
+        const w_seed_hir0_block *block =
+            &program->blocks[(size_t)function->first_block + block_ordinal];
+        if ((size_t)block->first_instruction > program->instruction_count ||
+            block->instruction_count >
+                program->instruction_count - block->first_instruction ||
+            block->terminator_index >= program->terminator_count)
+          return false;
+        for (size_t instruction_ordinal = 0u;
+             instruction_ordinal < block->instruction_count;
+             instruction_ordinal += 1u) {
+          const w_seed_hir0_instruction *instruction =
+              &program->instructions[(size_t)block->first_instruction +
+                                     instruction_ordinal];
+          if (instruction->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
+            if (instruction->binding_index >= program->binding_count ||
+                program->bindings[instruction->binding_index]
+                        .initializer_value == read_index)
+              return false;
+          } else if (instruction->kind == W_SEED_HIR0_INSTRUCTION_CALL) {
+            if (instruction->call_index >= program->call_count) return false;
+            const w_seed_hir0_call *call =
+                &program->calls[instruction->call_index];
+            if ((size_t)call->first_argument > program->argument_count ||
+                call->argument_count >
+                    program->argument_count - call->first_argument)
+              return false;
+            for (size_t ordinal = 0u; ordinal < call->argument_count;
+                 ordinal += 1u)
+              if (program->arguments[(size_t)call->first_argument + ordinal]
+                      .value_index == read_index)
+                return false;
+          }
+        }
+        const w_seed_hir0_terminator *terminator =
+            &program->terminators[block->terminator_index];
+        if (terminator->value_index == read_index) return false;
+        if (terminator->first_edge_argument != W_SEED_HIR0_NONE &&
+            (size_t)terminator->first_edge_argument >
+                program->edge_argument_count)
+          return false;
+        if (terminator->edge_argument_count != 0u) {
+          if (terminator->first_edge_argument == W_SEED_HIR0_NONE ||
+              terminator->edge_argument_count >
+                  program->edge_argument_count -
+                      terminator->first_edge_argument)
+            return false;
+          for (size_t ordinal = 0u; ordinal < terminator->edge_argument_count;
+               ordinal += 1u)
+            if (program->edge_arguments[
+                    (size_t)terminator->first_edge_argument + ordinal]
+                    .value_index == read_index)
+              return false;
+        }
+        if (terminator->call_index != W_SEED_HIR0_NONE) {
+          if (terminator->call_index >= program->call_count) return false;
+          const w_seed_hir0_call *call =
+              &program->calls[terminator->call_index];
+          if ((size_t)call->first_argument > program->argument_count ||
+              call->argument_count >
+                  program->argument_count - call->first_argument)
+            return false;
+          for (size_t ordinal = 0u; ordinal < call->argument_count; ordinal += 1u)
+            if (program->arguments[(size_t)call->first_argument + ordinal]
+                    .value_index == read_index)
+              return false;
+        }
+      }
+    }
+    if (authenticated_receiver_uses == 0u) return false;
+  }
+  if (!saw_argument_read) return false;
+
+  /* Any independently reachable Arguments PARAMETER_READ must have appeared
+   * as one of the authenticated count receiver values above. */
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u) {
+    if (!plan->reachable_values[value_index]) continue;
+    const w_seed_hir0_value *value = &program->values[value_index];
+    if (value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ &&
+        value->parameter_index == context_parameter_index)
+      return false;
+    if (value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ &&
+        value->parameter_index == parameter_index &&
+        !argument_reads[value_index])
+      return false;
+  }
+  return true;
+}
+
+static bool artifact_contains_exact_line(const uint8_t *bytes, size_t length,
+                                         const char *line,
+                                         size_t line_length) {
+  if (bytes == NULL || line == NULL || line_length == 0u ||
+      line_length > length)
+    return false;
+  size_t matches = 0u;
+  for (size_t offset = 0u; offset <= length - line_length; offset += 1u)
+    if (memcmp(bytes + offset, line, line_length) == 0) matches += 1u;
+  return matches == 1u;
+}
+
+bool w_seed_mlir0_verify_process_arguments_demand_receipt(
+    const uint8_t *artifact, size_t artifact_length,
+    const uint8_t digest[MLIR0_DIGEST_BYTES], bool count_only_arguments) {
+  static const char count_only_line[] =
+      "// process-arguments-demand: count-only\n";
+  static const char value_observing_line[] =
+      "// process-arguments-demand: value-observing\n";
+  if (artifact == NULL || digest == NULL || artifact_length == 0u)
+    return false;
+  const bool count_line_present = artifact_contains_exact_line(
+      artifact, artifact_length, count_only_line, sizeof(count_only_line) - 1u);
+  const bool value_line_present = artifact_contains_exact_line(
+      artifact, artifact_length, value_observing_line,
+      sizeof(value_observing_line) - 1u);
+  if (count_line_present == value_line_present ||
+      count_only_arguments != count_line_present)
+    return false;
+  uint8_t actual_digest[MLIR0_DIGEST_BYTES];
+  w_seed_sha256_state state;
+  w_seed_sha256_init(&state);
+  w_seed_sha256_update(&state, artifact, artifact_length);
+  w_seed_sha256_final(&state, actual_digest);
+  return memcmp(actual_digest, digest, sizeof(actual_digest)) == 0;
 }
 
 static bool build_process_executable_artifact(
@@ -11200,10 +11502,12 @@ static bool build_process_executable_artifact(
     const w_seed_hir0_result *hir_result,
     const w_seed_native_subset0_process *selection,
     const w_seed_mlir0_target *target, uint8_t *artifact, size_t capacity,
-    size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
+    size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES],
+    bool *count_only_arguments_out) {
   if (program == NULL || hir_result == NULL || selection == NULL ||
       !target_is_supported(target) ||
       artifact == NULL || written == NULL || digest == NULL ||
+      count_only_arguments_out == NULL ||
       selection->function_index >= program->function_count ||
       selection->function != &program->functions[selection->function_index] ||
       selection->function->parameter_count != 2u ||
@@ -11268,7 +11572,8 @@ static bool build_process_executable_artifact(
       .is_empty_symbol_index = selection->is_empty_symbol_index,
       .count_symbol_index = selection->count_symbol_index,
       .success_symbol_index = selection->success_symbol_index,
-      .failure_symbol_index = selection->failure_symbol_index};
+      .failure_symbol_index = selection->failure_symbol_index,
+      .count_only_arguments = count_only_arguments};
   process.has_integer_exactly = selection->has_integer_exactly;
   process.has_float_to_integer_rounding =
       selection->has_float_to_integer_rounding;
@@ -11316,9 +11621,14 @@ static bool build_process_executable_artifact(
   const bool windows = target_is_windows(target);
   const char *triple = windows ? W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS
                                : W_SEED_MLIR0_TARGET_TRIPLE;
+  const char *demand_receipt =
+      count_only_arguments
+          ? "// process-arguments-demand: count-only\n"
+          : "// process-arguments-demand: value-observing\n";
   if (!append_literal(artifact, capacity, &offset,
                       "// " W_SEED_MLIR0_PROCESS_EXECUTABLE_SCHEMA_VERSION
                       "\n") ||
+      !append_literal(artifact, capacity, &offset, demand_receipt) ||
       !append_literal(artifact, capacity, &offset,
                       "module attributes {llvm.target_triple = \"") ||
        !append_literal(artifact, capacity, &offset, triple) ||
@@ -11416,18 +11726,19 @@ static bool build_process_executable_artifact(
              count_only_arguments
                  ? MLIR0_PROCESS_EXECUTABLE_COUNT_ONLY_WINDOWS_HELPERS1B
                  : MLIR0_PROCESS_EXECUTABLE_HELPERS1B))) ||
-       !append_literal(artifact, capacity, &offset,
-                       MLIR0_PROCESS_EXECUTABLE_HELPERS2) ||
-      !append_literal(artifact, capacity, &offset,
-                      MLIR0_PROCESS_EXECUTABLE_HELPERS3) ||
-      !append_literal(artifact, capacity, &offset,
-                      MLIR0_PROCESS_EXECUTABLE_HELPERS4) ||
-      !append_literal(artifact, capacity, &offset,
-                      MLIR0_PROCESS_EXECUTABLE_HELPERS5) ||
-      !append_literal(artifact, capacity, &offset,
-                      MLIR0_PROCESS_EXECUTABLE_HELPERS6) ||
-      !append_literal(artifact, capacity, &offset,
-                      MLIR0_PROCESS_EXECUTABLE_HELPERS7) ||
+       (!count_only_arguments &&
+        (!append_literal(artifact, capacity, &offset,
+                         MLIR0_PROCESS_EXECUTABLE_HELPERS2) ||
+         !append_literal(artifact, capacity, &offset,
+                         MLIR0_PROCESS_EXECUTABLE_HELPERS3) ||
+         !append_literal(artifact, capacity, &offset,
+                         MLIR0_PROCESS_EXECUTABLE_HELPERS4) ||
+         !append_literal(artifact, capacity, &offset,
+                         MLIR0_PROCESS_EXECUTABLE_HELPERS5) ||
+         !append_literal(artifact, capacity, &offset,
+                         MLIR0_PROCESS_EXECUTABLE_HELPERS6) ||
+         !append_literal(artifact, capacity, &offset,
+                         MLIR0_PROCESS_EXECUTABLE_HELPERS7))) ||
       (!count_only_arguments &&
        !append_literal(
            artifact, capacity, &offset,
@@ -11581,21 +11892,40 @@ static bool build_process_executable_artifact(
       !append_literal(artifact, capacity, &offset,
                       "%process_fault_address, "))
     return false;
-  if (selection->arguments_parameter_ordinal == 0u) {
-    if (!append_literal(artifact, capacity, &offset,
-                        "%process_arguments, %process_context"))
+  for (size_t ordinal = 0u; ordinal < selection->function->parameter_count;
+       ordinal += 1u) {
+    if (!append_literal(artifact, capacity, &offset, ordinal == 0u ? "" : ", "))
       return false;
-  } else if (!append_literal(artifact, capacity, &offset,
-                             "%process_context, %process_arguments")) {
-    return false;
+    const bool is_arguments =
+        ordinal == selection->arguments_parameter_ordinal;
+    const char *operand = count_only_arguments
+                              ? (is_arguments ? "%process_argument_count"
+                                              : "%process_null")
+                              : (is_arguments ? "%process_arguments"
+                                              : "%process_context");
+    if (!append_literal(artifact, capacity, &offset, operand)) return false;
   }
-  if (!append_literal(
-          artifact, capacity, &offset,
-          process.has_structured_checked_arithmetic
-              ? ") : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i64\n"
-              : (has_typed_numeric_root
-                     ? ") : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i64\n"
-                     : ") : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i32\n")))
+  if (!append_literal(artifact, capacity, &offset,
+                      ") : (!llvm.ptr, !llvm.ptr"))
+    return false;
+  if (process.has_structured_checked_arithmetic &&
+      !append_literal(artifact, capacity, &offset, ", !llvm.ptr"))
+    return false;
+  for (size_t ordinal = 0u; ordinal < selection->function->parameter_count;
+       ordinal += 1u) {
+    const bool count_parameter =
+        count_only_arguments &&
+        ordinal == selection->arguments_parameter_ordinal;
+    if (!append_literal(artifact, capacity, &offset, ", ") ||
+        !append_literal(artifact, capacity, &offset,
+                        count_parameter ? "i64" : "!llvm.ptr"))
+      return false;
+  }
+  if (!append_literal(artifact, capacity, &offset,
+                      has_typed_numeric_root ||
+                              process.has_structured_checked_arithmetic
+                          ? ") -> i64\n"
+                          : ") -> i32\n"))
     return false;
   if (process.has_structured_checked_arithmetic &&
       !append_literal(
@@ -11608,16 +11938,21 @@ static bool build_process_executable_artifact(
   if (has_typed_numeric_root) {
     if (!append_literal(
             artifact, capacity, &offset,
-            "    llvm.br ^process_release_context(%process_status : i64)\n"
-            "  ^process_release_context(%process_exact_status: i64):\n"
-            "    %process_context_released = llvm.call @w_seed_process_context_drop(%process_context) : (!llvm.ptr) -> i1\n"
-            "    llvm.cond_br %process_context_released, ^process_release_arguments(%process_exact_status : i64), ^process_release_fault\n"
-            "  ^process_release_arguments(%process_exact_arguments_status: i64):\n"
-            "    %process_arguments_released = llvm.call @w_seed_process_arguments_drop(%process_arguments) : (!llvm.ptr) -> i1\n"
-            "    llvm.cond_br %process_arguments_released, ^process_finalize_root(%process_exact_arguments_status : i64), ^process_release_fault\n"
-            "  ^process_finalize_root(%process_exact_finalize_status: i64):\n"
-            "    %process_root_finalized = llvm.call @w_seed_process_root_finalize(%process_root) : (!llvm.ptr) -> i1\n"
-            "    llvm.cond_br %process_root_finalized, ^process_map_outcome(%process_exact_finalize_status : i64), ^process_release_fault\n"
+            count_only_arguments
+                ? "    llvm.br ^process_map_outcome(%process_status : i64)\n"
+                : "    llvm.br ^process_release_context(%process_status : i64)\n"
+                  "  ^process_release_context(%process_exact_status: i64):\n"
+                  "    %process_context_released = llvm.call @w_seed_process_context_drop(%process_context) : (!llvm.ptr) -> i1\n"
+                  "    llvm.cond_br %process_context_released, ^process_release_arguments(%process_exact_status : i64), ^process_release_fault\n"
+                  "  ^process_release_arguments(%process_exact_arguments_status: i64):\n"
+                  "    %process_arguments_released = llvm.call @w_seed_process_arguments_drop(%process_arguments) : (!llvm.ptr) -> i1\n"
+                  "    llvm.cond_br %process_arguments_released, ^process_finalize_root(%process_exact_arguments_status : i64), ^process_release_fault\n"
+                  "  ^process_finalize_root(%process_exact_finalize_status: i64):\n"
+                  "    %process_root_finalized = llvm.call @w_seed_process_root_finalize(%process_root) : (!llvm.ptr) -> i1\n"
+                  "    llvm.cond_br %process_root_finalized, ^process_map_outcome(%process_exact_finalize_status : i64), ^process_release_fault\n"))
+      return false;
+    if (!append_literal(
+            artifact, capacity, &offset,
             "  ^process_map_outcome(%process_exact_outcome: i64):\n"
             "    %process_outcome_shift = llvm.mlir.constant(32 : i64) : i64\n"
             "    %process_outcome_kind = llvm.lshr %process_exact_outcome, %process_outcome_shift : i64\n"
@@ -11721,6 +12056,72 @@ static bool build_process_executable_artifact(
                    "}\n")) {
       return false;
     }
+  } else if (count_only_arguments) {
+    if (selection->maximum_stdout_bytes != 0u) {
+      if (!append_literal(
+              artifact, capacity, &offset,
+              "    %process_length = llvm.load %process_cursor_address : !llvm.ptr -> i64\n"
+              "    %process_output_terminator_zero = llvm.mlir.constant(0 : i8) : i8\n"
+              "    %process_output_terminator_address = llvm.getelementptr %process_buffer[%process_length] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+              "    llvm.store %process_output_terminator_zero, %process_output_terminator_address : i8, !llvm.ptr\n"
+              "    %process_has_output = llvm.icmp \"ne\" %process_length, %process_zero : i64\n"
+              "    llvm.cond_br %process_has_output, ^process_flush, ^process_exit(%process_status : i32)\n"
+              "  ^process_flush:\n"))
+        return false;
+      if (windows) {
+        if (!append_literal(
+                artifact, capacity, &offset,
+                "    %process_written = llvm.call @w_seed_write(%process_buffer, %process_length) : (!llvm.ptr, i64) -> i64\n"
+                "    %process_flush_ok = llvm.icmp \"eq\" %process_written, %process_length : i64\n"
+                "    llvm.cond_br %process_flush_ok, ^process_exit(%process_status : i32), ^process_write_fault\n"
+                "  ^process_write_fault:\n"
+                "    llvm.br ^process_exit(%process_failure : i32)\n"
+                "  ^process_exit(%process_code: i32):\n"
+                "    llvm.call @ExitProcess(%process_code) : (i32) -> ()\n"
+                "    llvm.return\n"
+                "  ^process_early_fault:\n"
+                "    llvm.call @ExitProcess(%process_failure) : (i32) -> ()\n"
+                "    llvm.return\n"
+                "  }\n"
+                "}\n"))
+          return false;
+      } else if (!append_literal(
+                     artifact, capacity, &offset,
+                     "    %process_fd = llvm.mlir.constant(1 : i32) : i32\n"
+                     "    %process_written = llvm.call @write(%process_fd, %process_buffer, %process_length) : (i32, !llvm.ptr, i64) -> i64\n"
+                     "    %process_flush_ok = llvm.icmp \"eq\" %process_written, %process_length : i64\n"
+                     "    llvm.cond_br %process_flush_ok, ^process_exit(%process_status : i32), ^process_write_fault\n"
+                     "  ^process_write_fault:\n"
+                     "    llvm.br ^process_exit(%process_failure : i32)\n"
+                     "  ^process_exit(%process_code: i32):\n"
+                     "    llvm.return %process_code : i32\n"
+                     "  ^process_early_fault:\n"
+                     "    llvm.return %process_failure : i32\n"
+                     "  }\n"
+                     "}\n"))
+        return false;
+    } else if (windows) {
+      if (!append_literal(
+              artifact, capacity, &offset,
+              "  ^process_exit(%process_code: i32):\n"
+              "    llvm.call @ExitProcess(%process_code) : (i32) -> ()\n"
+              "    llvm.return\n"
+              "  ^process_early_fault:\n"
+              "    llvm.call @ExitProcess(%process_failure) : (i32) -> ()\n"
+              "    llvm.return\n"
+              "  }\n"
+              "}\n"))
+        return false;
+    } else if (!append_literal(
+                   artifact, capacity, &offset,
+                   "  ^process_exit(%process_code: i32):\n"
+                   "    llvm.return %process_code : i32\n"
+                   "  ^process_early_fault:\n"
+                   "    llvm.return %process_failure : i32\n"
+                   "  }\n"
+                   "}\n")) {
+      return false;
+    }
   } else if (!append_literal(
                  artifact, capacity, &offset,
                  "    %process_length = llvm.load %process_cursor_address : !llvm.ptr -> i64\n"
@@ -11731,7 +12132,7 @@ static bool build_process_executable_artifact(
                  "    llvm.cond_br %process_has_output, ^process_flush, ^process_release_context(%process_status : i32)\n"
                  "  ^process_flush:\n"))
     return false;
-  if (!has_typed_numeric_root && windows) {
+  if (!count_only_arguments && !has_typed_numeric_root && windows) {
     if (!append_literal(
             artifact, capacity, &offset,
             "    %process_written = llvm.call @w_seed_write(%process_buffer, %process_length) : (!llvm.ptr, i64) -> i64\n"
@@ -11760,7 +12161,8 @@ static bool build_process_executable_artifact(
             "  }\n"
             "}\n"))
       return false;
-  } else if (!has_typed_numeric_root && !append_literal(
+  } else if (!count_only_arguments && !has_typed_numeric_root &&
+             !append_literal(
                  artifact, capacity, &offset,
                  "    %process_fd = llvm.mlir.constant(1 : i32) : i32\n"
                  "    %process_written = llvm.call @write(%process_fd, %process_buffer, %process_length) : (i32, !llvm.ptr, i64) -> i64\n"
@@ -11791,6 +12193,7 @@ static bool build_process_executable_artifact(
   w_seed_sha256_init(&state);
   w_seed_sha256_update(&state, artifact, offset);
   w_seed_sha256_final(&state, digest);
+  *count_only_arguments_out = count_only_arguments;
   return true;
 }
 
@@ -12041,6 +12444,7 @@ w_seed_mlir0_status w_seed_mlir0_measure(
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   uint8_t digest[MLIR0_DIGEST_BYTES];
   size_t written = 0u;
+  bool count_only_arguments = false;
   if (cooperative_executable) {
     if (!build_cooperative_executable_artifact(
             input->program, input->hir_result, &cooperative_selection, target,
@@ -12053,7 +12457,7 @@ w_seed_mlir0_status w_seed_mlir0_measure(
   } else if (process_executable) {
     if (!build_process_executable_artifact(
             input->program, input->hir_result, &process_selection, target, artifact,
-            sizeof(artifact), &written, digest))
+            sizeof(artifact), &written, digest, &count_only_arguments))
       return W_SEED_MLIR0_INVALID_HIR;
   } else if (program_selection.has_local_calls || program_selection.has_cfg ||
              program_selection.has_enum_switch ||
@@ -12081,6 +12485,10 @@ w_seed_mlir0_status w_seed_mlir0_measure(
                         sizeof(artifact), &written, digest))
       return W_SEED_MLIR0_INVALID_HIR;
   }
+  if (process_executable &&
+      !w_seed_mlir0_verify_process_arguments_demand_receipt(
+          artifact, written, digest, count_only_arguments))
+    return W_SEED_MLIR0_INVALID_HIR;
   const w_seed_mlir0_counts candidate_counts = {written};
   w_seed_mlir0_result candidate_result;
   (void)memset(&candidate_result, 0, sizeof(candidate_result));
@@ -12088,6 +12496,8 @@ w_seed_mlir0_status w_seed_mlir0_measure(
   candidate_result.required = candidate_counts;
   (void)memcpy(candidate_result.mlir_sha256, digest,
                sizeof(candidate_result.mlir_sha256));
+  candidate_result.process_arguments_count_only =
+      process_executable && count_only_arguments;
   *counts = candidate_counts;
   *result = candidate_result;
   return W_SEED_MLIR0_OK;
@@ -12136,6 +12546,7 @@ w_seed_mlir0_status w_seed_mlir0_emit(
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   uint8_t digest[MLIR0_DIGEST_BYTES];
   size_t written = 0u;
+  bool count_only_arguments = false;
   if (cooperative_executable) {
     if (!build_cooperative_executable_artifact(
             input->program, input->hir_result, &cooperative_selection, target,
@@ -12148,7 +12559,7 @@ w_seed_mlir0_status w_seed_mlir0_emit(
   } else if (process_executable) {
     if (!build_process_executable_artifact(
             input->program, input->hir_result, &process_selection, target, artifact,
-            sizeof(artifact), &written, digest))
+            sizeof(artifact), &written, digest, &count_only_arguments))
       return W_SEED_MLIR0_INVALID_HIR;
   } else if (program_selection.has_local_calls || program_selection.has_cfg ||
              program_selection.has_enum_switch ||
@@ -12175,6 +12586,10 @@ w_seed_mlir0_status w_seed_mlir0_emit(
                         sizeof(artifact), &written, digest))
       return W_SEED_MLIR0_INVALID_HIR;
   }
+  if (process_executable &&
+      !w_seed_mlir0_verify_process_arguments_demand_receipt(
+          artifact, written, digest, count_only_arguments))
+    return W_SEED_MLIR0_INVALID_HIR;
   if (output_buffer_aliases(input, target, output, result, written))
     return W_SEED_MLIR0_ALIAS;
   if (output == NULL || output->bytes == NULL || output->capacity < written)
@@ -12186,6 +12601,8 @@ w_seed_mlir0_status w_seed_mlir0_emit(
   candidate_result.written.mlir_bytes = written;
   (void)memcpy(candidate_result.mlir_sha256, digest,
                sizeof(candidate_result.mlir_sha256));
+  candidate_result.process_arguments_count_only =
+      process_executable && count_only_arguments;
   (void)memcpy(output->bytes, artifact, written);
   *result = candidate_result;
   return W_SEED_MLIR0_OK;

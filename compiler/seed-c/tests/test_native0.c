@@ -241,7 +241,7 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 }
 
 static bool test_products(void) {
-  CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-11") == 0);
+  CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-12") == 0);
   CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-62") == 0);
   CHECK(strcmp(W_SEED_MLIR0_WINDOWS_SCHEMA_VERSION,
                "w-seed-mlir0-windows-48") == 0);
@@ -1551,7 +1551,10 @@ static bool test_process_integer_exactly_adapter(void) {
       runtime_output, sizeof(runtime_output), &runtime_result);
   CHECK(runtime_status == W_SEED_NATIVE0_OK);
   CHECK(storage.runtime_requirements ==
-        W_SEED_RUNTIME_REQUIREMENTS_PROCESS_ARGUMENTS);
+        W_SEED_RUNTIME_REQUIREMENTS_PROCESS_ARGUMENT_COUNT &&
+        runtime_result.mlir.process_arguments_count_only &&
+        contains_bytes(runtime_output, runtime_result.mlir.written.mlir_bytes,
+                       "// process-arguments-demand: count-only\n"));
   CHECK(storage.hir_program.call_count == 1u &&
         storage.hir_program.binding_count == 1u);
   CHECK(w_seed_native_subset0_select_process_executable(
@@ -1565,7 +1568,7 @@ static bool test_process_integer_exactly_adapter(void) {
         selection.exact_destination_is_signed &&
         selection.maximum_stdout_bytes > 0u);
   CHECK(contains_bytes(runtime_output, runtime_result.mlir.written.mlir_bytes,
-                       "@w_seed_process_arguments_count"));
+                       "@w_seed_process_count_arguments"));
   CHECK(contains_bytes(runtime_output, runtime_result.mlir.written.mlir_bytes,
                        "llvm.icmp \"ule\""));
   CHECK(contains_bytes(runtime_output, runtime_result.mlir.written.mlir_bytes,
@@ -1577,16 +1580,23 @@ static bool test_process_integer_exactly_adapter(void) {
       runtime_output, runtime_bytes,
       "llvm.call @w_seed_process_root_finalize", 0u);
   const size_t runtime_map = find_bytes(
-      runtime_output, runtime_bytes, "^process_map_outcome", runtime_finalize);
+      runtime_output, runtime_bytes, "^process_map_outcome", 0u);
   const size_t runtime_typed_error = find_bytes(
       runtime_output, runtime_bytes, "^process_abnormal(", runtime_map);
   const size_t runtime_success = find_bytes(
       runtime_output, runtime_bytes, "^process_exact_success", runtime_map);
   const size_t runtime_write = find_bytes(
       runtime_output, runtime_bytes, "llvm.call @w_seed_write", runtime_success);
-  CHECK(runtime_finalize != SIZE_MAX && runtime_map > runtime_finalize &&
-        runtime_typed_error > runtime_map && runtime_success > runtime_map &&
-        runtime_write > runtime_success && runtime_write > runtime_typed_error);
+  CHECK(runtime_finalize == SIZE_MAX);
+  CHECK(runtime_map != SIZE_MAX);
+  CHECK(runtime_typed_error > runtime_map && runtime_success > runtime_map);
+  CHECK(runtime_write > runtime_success && runtime_write > runtime_typed_error);
+  CHECK(!contains_bytes(runtime_output, runtime_bytes,
+                        "w_seed_process_context_drop") &&
+        !contains_bytes(runtime_output, runtime_bytes,
+                        "w_seed_process_arguments_drop") &&
+        !contains_bytes(runtime_output, runtime_bytes,
+                        "w_seed_process_root_init"));
   CHECK(run_source_mode(
             arithmetic_fault_source, sizeof(arithmetic_fault_source) - 1u,
             "process-arithmetic-fault", 24u, &WINDOWS_TARGET,
@@ -1598,9 +1608,15 @@ static bool test_process_integer_exactly_adapter(void) {
   const size_t arithmetic_fault_drop = find_bytes(
       arithmetic_fault_output, arithmetic_fault_bytes,
       "llvm.call @w_seed_process_context_drop", 0u);
+  CHECK(arithmetic_fault_result.mlir.process_arguments_count_only &&
+        arithmetic_fault_drop == SIZE_MAX &&
+        !contains_bytes(arithmetic_fault_output, arithmetic_fault_bytes,
+                        "w_seed_process_arguments_drop") &&
+        !contains_bytes(arithmetic_fault_output, arithmetic_fault_bytes,
+                        "w_seed_process_root_finalize"));
   const size_t arithmetic_fault_map = find_bytes(
       arithmetic_fault_output, arithmetic_fault_bytes,
-      "^process_map_outcome", arithmetic_fault_drop);
+      "^process_map_outcome", 0u);
   const size_t arithmetic_fault_flush = find_bytes(
       arithmetic_fault_output, arithmetic_fault_bytes,
       "llvm.call @w_seed_write", arithmetic_fault_map);
@@ -1614,9 +1630,46 @@ static bool test_process_integer_exactly_adapter(void) {
                        "llvm.mlir.constant(2 : i32)") &&
         !contains_bytes(arithmetic_fault_output, arithmetic_fault_bytes,
                         "@w_seed_checked_add_i64") &&
-        arithmetic_fault_drop != SIZE_MAX &&
-        arithmetic_fault_map > arithmetic_fault_drop &&
+         arithmetic_fault_drop == SIZE_MAX &&
+        arithmetic_fault_map != SIZE_MAX &&
         arithmetic_fault_flush > arithmetic_fault_map);
+  static const uint8_t combined_arithmetic_source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let narrowed = try i8(exactly: args.count) "
+      "print(\"Arithmetic ${narrowed}/${narrowed % 11_i8 * 2_i8 / "
+      "2_i8 + 7_i8 - 3_i8}/${narrowed + 1_i8}\") "
+      "return .success }\nentry(run)\n";
+  static uint8_t combined_arithmetic_output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result combined_arithmetic_result;
+  CHECK(run_source_mode(
+            combined_arithmetic_source, sizeof(combined_arithmetic_source) - 1u,
+            "process-combined-arithmetic",
+            sizeof("process-combined-arithmetic") - 1u, &WINDOWS_TARGET,
+            W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE,
+            combined_arithmetic_output, sizeof(combined_arithmetic_output),
+            &combined_arithmetic_result) == W_SEED_NATIVE0_OK);
+  CHECK(combined_arithmetic_result.mlir.process_arguments_count_only &&
+        contains_bytes(combined_arithmetic_output,
+                       combined_arithmetic_result.mlir.written.mlir_bytes,
+                       "llvm.icmp \"ule\" %p0, %process_exact_bound_0 : i64") &&
+        contains_bytes(combined_arithmetic_output,
+                       combined_arithmetic_result.mlir.written.mlir_bytes,
+                       "@w_seed_process_checked_add_i64") &&
+        contains_bytes(combined_arithmetic_output,
+                       combined_arithmetic_result.mlir.written.mlir_bytes,
+                       "@w_seed_process_checked_subtract_i64") &&
+        contains_bytes(combined_arithmetic_output,
+                       combined_arithmetic_result.mlir.written.mlir_bytes,
+                       "@w_seed_process_checked_multiply_i64") &&
+        contains_bytes(combined_arithmetic_output,
+                       combined_arithmetic_result.mlir.written.mlir_bytes,
+                       "llvm.srem %arg0") &&
+        contains_bytes(combined_arithmetic_output,
+                       combined_arithmetic_result.mlir.written.mlir_bytes,
+                       "llvm.sdiv %v6, %v7"));
   const size_t runtime_exact_source_index =
       (size_t)(selection.exact_source_value - storage.hir_program.values);
   CHECK(runtime_exact_source_index < storage.hir_program.value_count);
@@ -1907,16 +1960,31 @@ static bool test_process_arguments_count_public_artifact(void) {
   CHECK(program->external_symbol_count == 7u && count_reads == 1u &&
         count_comparisons == 1u && usize_literals == 1u &&
         program->binding_count == 0u);
-  CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
-                       "@w_seed_process_arguments_count") &&
-        count_bytes(output, result.mlir.written.mlir_bytes,
-                    "@w_seed_process_arguments_count") >= 2u &&
+  CHECK(result.mlir.process_arguments_count_only &&
+        storage.runtime_requirements ==
+            W_SEED_RUNTIME_REQUIREMENTS_PROCESS_ARGUMENT_COUNT &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "// process-arguments-demand: count-only\n") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "@w_seed_process_arguments_count") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "w_seed_process_root_init") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "w_seed_process_context_drop") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "w_seed_process_arguments_drop") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "w_seed_process_root_finalize") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "process_vector") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "w_seed_process_argv") &&
         contains_bytes(output, result.mlir.written.mlir_bytes,
                        "llvm.icmp \"ne\"") &&
         contains_bytes(output, result.mlir.written.mlir_bytes,
                        "llvm.mlir.constant(0 : i64) : i64") &&
         contains_bytes(output, result.mlir.written.mlir_bytes,
-                       ") : (!llvm.ptr) -> i64"));
+                       "llvm.call @w_seed_process_count_arguments(%process_command_line)"));
 
   w_seed_native_subset0_process process_selection;
   CHECK(w_seed_native_subset0_select_process_executable(
@@ -2029,12 +2097,40 @@ static bool expect_process_count_native_unsigned_predicate(
   CHECK(comparison_value != UINT32_MAX);
   const w_seed_hir0_value *comparison =
       &storage.hir_program.values[comparison_value];
+  w_seed_native_subset0_process process_selection;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &storage.hir_program, &storage.hir_result, &process_selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  const bool left_is_count =
+      storage.hir_program.values[comparison->left_value].kind ==
+      W_SEED_HIR0_VALUE_EXTERNAL_MEMBER;
+  const uint32_t left_value = left_is_count ? UINT32_MAX
+                                            : comparison->left_value;
+  const uint32_t right_value = left_is_count ? comparison->right_value
+                                             : UINT32_MAX;
+  char left_operand[32];
+  char right_operand[32];
+  const int left_length = left_is_count
+                              ? snprintf(left_operand, sizeof(left_operand),
+                                         "%%p%u",
+                                         process_selection
+                                             .arguments_parameter_ordinal)
+                              : snprintf(left_operand, sizeof(left_operand),
+                                         "%%v%u", left_value);
+  const int right_length = left_is_count
+                               ? snprintf(right_operand, sizeof(right_operand),
+                                          "%%v%u", right_value)
+                               : snprintf(right_operand, sizeof(right_operand),
+                                          "%%p%u",
+                                          process_selection
+                                              .arguments_parameter_ordinal);
+  CHECK(left_length > 0 && (size_t)left_length < sizeof(left_operand) &&
+        right_length > 0 && (size_t)right_length < sizeof(right_operand));
   char expected[160];
   const int expected_length = snprintf(expected, sizeof(expected),
-                                       "%%v%u = %s %%v%u, %%v%u : i64",
+                                       "%%v%u = %s %s, %s : i64",
                                        comparison_value, predicate,
-                                       comparison->left_value,
-                                       comparison->right_value);
+                                       left_operand, right_operand);
   CHECK(expected_length > 0 && (size_t)expected_length < sizeof(expected));
   CHECK(contains_bytes(output, result.mlir.written.mlir_bytes, expected));
   return true;

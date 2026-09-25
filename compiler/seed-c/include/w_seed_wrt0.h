@@ -12,12 +12,13 @@ typedef enum {
   W_SEED_WRT0_TARGET_LINUX_X86_64 = 1,
 } w_seed_wrt0_target;
 
-/* Target-neutral facts derived from an admitted program. UNKNOWN is zero so
- * zero-initialized or future values conservatively retain the full startup. */
+/* Target-neutral facts derived from an admitted program. UNKNOWN is zero for
+ * safe initialization but must be narrowed before a WRT startup is selected. */
 typedef enum {
   W_SEED_RUNTIME_REQUIREMENTS_UNKNOWN = 0,
   W_SEED_RUNTIME_REQUIREMENTS_NONE,
   W_SEED_RUNTIME_REQUIREMENTS_PROCESS_ARGUMENTS,
+  W_SEED_RUNTIME_REQUIREMENTS_PROCESS_ARGUMENT_COUNT,
 } w_seed_runtime_requirements;
 
 typedef struct {
@@ -26,10 +27,10 @@ typedef struct {
 } w_seed_wrt0_artifact;
 
 /* Returns immutable authored LLVM IR for one implemented target closure.
- * Only proven NONE selects the no-arguments startup; UNKNOWN and unrecognized
- * values retain the full startup. Failure leaves artifact unchanged. The
- * returned storage has static lifetime and excludes a trailing C NUL from
- * llvm_ir_length. */
+ * NONE, PROCESS_ARGUMENTS, and PROCESS_ARGUMENT_COUNT select their exact
+ * startup contracts. UNKNOWN and unrecognized values are rejected. Failure
+ * leaves artifact unchanged. The returned storage has static lifetime and
+ * excludes a trailing C NUL from llvm_ir_length. */
 bool w_seed_wrt0_get(w_seed_wrt0_target target,
                      w_seed_runtime_requirements requirements,
                      w_seed_wrt0_artifact *artifact);

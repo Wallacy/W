@@ -4181,12 +4181,22 @@ runtime count cases.
 
 ### Count-only process adaptation
 
-MLIR0 removes argument-descriptor materialization only when the verified
-process selection and reachable-value plan prove that every reachable
-`Arguments` external member is the resolver-owned `count: usize` read from the
-selected entry parameter. Any other reachable member keeps the existing general
-adapter. This is an exact HIR/plan liveness fact; the compiler does not inspect
-fixture names or source spellings.
+MLIR0 selects count-only lowering only when the verified process selection and
+reachable-value plan prove that the selected `Arguments` parameter read is used
+solely as the receiver of its authenticated `count: usize` member read(s), with
+no other reachable `Arguments` member or `Context` read. A reachable flow of
+that parameter through a binding, local call, return, or other value use rejects
+the proof. Any other reachable member keeps the existing general adapter. This
+is an exact HIR/plan def-use fact; the compiler does not inspect fixture names
+or source spellings.
+
+For this proven demand, MLIR0 scalarizes the entry parameter to the physical
+`i64` count and omits compiler-owned `Arguments`/`Context` storage, initialization,
+and cleanup. Windows still scans the bounded command line to derive the count;
+Linux WRT0 passes the kernel-provided `argc` directly. Neither count-only route
+materializes an argv accessor/global/store, descriptor vector, or context/argument
+drop/finalize call. Sources that observe argument text or context retain the full
+adapter.
 
 On Windows, the specialized adapter still performs a bounded command-line
 quoting/count scan (at most 32,767 UTF-16 code units), but allocates no argument

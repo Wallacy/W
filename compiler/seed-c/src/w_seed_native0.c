@@ -567,13 +567,17 @@ static bool effective_artifact_kind(
 }
 
 static w_seed_runtime_requirements runtime_requirements_for_artifact(
-    w_seed_mlir0_artifact_kind artifact_kind) {
+    w_seed_mlir0_artifact_kind artifact_kind,
+    const w_seed_mlir0_result *mlir_result) {
   switch (artifact_kind) {
     case W_SEED_MLIR0_ARTIFACT_EXECUTABLE:
     case W_SEED_MLIR0_ARTIFACT_COOPERATIVE_EXECUTABLE:
       return W_SEED_RUNTIME_REQUIREMENTS_NONE;
     case W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE:
-      return W_SEED_RUNTIME_REQUIREMENTS_PROCESS_ARGUMENTS;
+      return mlir_result != NULL &&
+                     mlir_result->process_arguments_count_only
+                 ? W_SEED_RUNTIME_REQUIREMENTS_PROCESS_ARGUMENT_COUNT
+                 : W_SEED_RUNTIME_REQUIREMENTS_PROCESS_ARGUMENTS;
     case W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER:
       return W_SEED_RUNTIME_REQUIREMENTS_UNKNOWN;
   }
@@ -600,10 +604,30 @@ static w_seed_native0_status emit_hir_program(
   if (status != W_SEED_NATIVE0_OK) return status;
   *result = (w_seed_native0_result){
       W_SEED_NATIVE0_OK, source_bytes, mlir_result};
-  storage->runtime_requirements =
-      exact_native0_program
-          ? runtime_requirements_for_artifact(artifact_kind)
-          : W_SEED_RUNTIME_REQUIREMENTS_UNKNOWN;
+  if (exact_native0_program) {
+    storage->runtime_requirements =
+        runtime_requirements_for_artifact(artifact_kind, &mlir_result);
+  } else {
+    /* A frontend graph is admitted and verified, but it has not passed the
+     * exact Native0 process-shape selector. Keep process products on the full
+     * conservative startup; WRT0 intentionally rejects UNKNOWN rather than
+     * silently treating it as argv-bearing. */
+    switch (artifact_kind) {
+      case W_SEED_MLIR0_ARTIFACT_EXECUTABLE:
+      case W_SEED_MLIR0_ARTIFACT_COOPERATIVE_EXECUTABLE:
+        storage->runtime_requirements = W_SEED_RUNTIME_REQUIREMENTS_NONE;
+        break;
+      case W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE:
+        storage->runtime_requirements =
+            W_SEED_RUNTIME_REQUIREMENTS_PROCESS_ARGUMENTS;
+        break;
+      case W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER:
+      default:
+        storage->runtime_requirements =
+            W_SEED_RUNTIME_REQUIREMENTS_UNKNOWN;
+        break;
+    }
+  }
   return W_SEED_NATIVE0_OK;
 }
 

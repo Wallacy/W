@@ -1073,7 +1073,8 @@ static bool test_process_checked_integer_helper_fault_mlir(void) {
             &input, &TARGET,
             &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
         W_SEED_MLIR0_OK);
-  CHECK(result.written.mlir_bytes == counts.mlir_bytes);
+  CHECK(result.written.mlir_bytes == counts.mlir_bytes &&
+        result.process_arguments_count_only);
   CHECK(contains_bytes(artifact, result.written.mlir_bytes,
                        "@w_seed_process_checked_add_u64(%left: i64, %right: i64, %width: i64, %fault: !llvm.ptr) -> i64"));
   CHECK(contains_bytes(artifact, result.written.mlir_bytes,
@@ -1090,32 +1091,23 @@ static bool test_process_checked_integer_helper_fault_mlir(void) {
                         "@w_seed_checked_add_u64"));
   CHECK(!contains_bytes(artifact, result.written.mlir_bytes,
                         "llvm.intr.trap"));
-  size_t context_release = find_bytes(
-      artifact, result.written.mlir_bytes,
-      "llvm.call @w_seed_process_context_drop(", 0u);
-  size_t arguments_release = find_bytes(
-      artifact, result.written.mlir_bytes,
-      "llvm.call @w_seed_process_arguments_drop(", 0u);
-  size_t root_finalize = find_bytes(
-      artifact, result.written.mlir_bytes,
-      "llvm.call @w_seed_process_root_finalize(", 0u);
   size_t stdout_write = find_bytes(artifact, result.written.mlir_bytes,
                                    "llvm.call @write(", 0u);
-  CHECK(count_bytes(artifact, result.written.mlir_bytes,
-                    "llvm.call @w_seed_process_context_drop(") == 1u &&
-        count_bytes(artifact, result.written.mlir_bytes,
-                    "llvm.call @w_seed_process_arguments_drop(") == 1u &&
-        count_bytes(artifact, result.written.mlir_bytes,
-                    "llvm.call @w_seed_process_root_finalize(") == 1u &&
-        context_release < arguments_release &&
-        arguments_release < root_finalize && root_finalize < stdout_write);
+  CHECK(stdout_write != SIZE_MAX &&
+        !contains_bytes(artifact, result.written.mlir_bytes,
+                        "llvm.call @w_seed_process_context_drop(") &&
+        !contains_bytes(artifact, result.written.mlir_bytes,
+                        "llvm.call @w_seed_process_arguments_drop(") &&
+        !contains_bytes(artifact, result.written.mlir_bytes,
+                        "llvm.call @w_seed_process_root_finalize("));
   CHECK(w_seed_mlir0_measure(&input, &WINDOWS_TARGET, &counts, &result) ==
         W_SEED_MLIR0_OK);
   CHECK(w_seed_mlir0_emit(
             &input, &WINDOWS_TARGET,
             &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
         W_SEED_MLIR0_OK);
-  CHECK(result.written.mlir_bytes == counts.mlir_bytes);
+  CHECK(result.written.mlir_bytes == counts.mlir_bytes &&
+        result.process_arguments_count_only);
   CHECK(contains_bytes(artifact, result.written.mlir_bytes,
                        "@w_seed_process_checked_add_u64(%left: i64, %right: i64, %width: i64, %fault: !llvm.ptr) -> i64"));
   CHECK(contains_bytes(artifact, result.written.mlir_bytes,
@@ -1126,25 +1118,15 @@ static bool test_process_checked_integer_helper_fault_mlir(void) {
                         "@w_seed_checked_add_u64"));
   CHECK(!contains_bytes(artifact, result.written.mlir_bytes,
                         "llvm.intr.trap"));
-  context_release = find_bytes(artifact, result.written.mlir_bytes,
-                               "llvm.call @w_seed_process_context_drop(",
-                               0u);
-  arguments_release = find_bytes(
-      artifact, result.written.mlir_bytes,
-      "llvm.call @w_seed_process_arguments_drop(", 0u);
-  root_finalize = find_bytes(
-      artifact, result.written.mlir_bytes,
-      "llvm.call @w_seed_process_root_finalize(", 0u);
   stdout_write = find_bytes(artifact, result.written.mlir_bytes,
-                            "llvm.call @write(", 0u);
-  CHECK(count_bytes(artifact, result.written.mlir_bytes,
-                    "llvm.call @w_seed_process_context_drop(") == 1u &&
-        count_bytes(artifact, result.written.mlir_bytes,
-                    "llvm.call @w_seed_process_arguments_drop(") == 1u &&
-        count_bytes(artifact, result.written.mlir_bytes,
-                    "llvm.call @w_seed_process_root_finalize(") == 1u &&
-        context_release < arguments_release &&
-        arguments_release < root_finalize && root_finalize < stdout_write);
+                            "llvm.call @w_seed_write(", 0u);
+  CHECK(stdout_write != SIZE_MAX &&
+        !contains_bytes(artifact, result.written.mlir_bytes,
+                        "llvm.call @w_seed_process_context_drop(") &&
+        !contains_bytes(artifact, result.written.mlir_bytes,
+                        "llvm.call @w_seed_process_arguments_drop(") &&
+        !contains_bytes(artifact, result.written.mlir_bytes,
+                        "llvm.call @w_seed_process_root_finalize("));
 
   static const uint8_t signed_source[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
@@ -1426,6 +1408,12 @@ static bool test_process_float_rounding_native_subset(void) {
         contains_bytes(artifact, result.written.mlir_bytes,
                        "llvm.call @write(%process_fd") &&
         !contains_bytes(artifact, result.written.mlir_bytes, "@_fltused"));
+  const size_t outcome_map =
+      find_bytes(artifact, result.written.mlir_bytes,
+                 "^process_map_outcome", 0u);
+  const size_t stdout_write =
+      find_bytes(artifact, result.written.mlir_bytes,
+                 "llvm.call @write(%process_fd", 0u);
   const size_t context_drop =
       find_bytes(artifact, result.written.mlir_bytes,
                  "llvm.call @w_seed_process_context_drop", 0u);
@@ -1435,17 +1423,11 @@ static bool test_process_float_rounding_native_subset(void) {
   const size_t root_finalize =
       find_bytes(artifact, result.written.mlir_bytes,
                  "llvm.call @w_seed_process_root_finalize", 0u);
-  const size_t outcome_map =
-      find_bytes(artifact, result.written.mlir_bytes,
-                 "^process_map_outcome", 0u);
-  const size_t stdout_write =
-      find_bytes(artifact, result.written.mlir_bytes,
-                 "llvm.call @write(%process_fd", 0u);
   CHECK(context_drop != SIZE_MAX && arguments_drop != SIZE_MAX &&
         root_finalize != SIZE_MAX && outcome_map != SIZE_MAX &&
-        stdout_write != SIZE_MAX &&
-        context_drop < arguments_drop && arguments_drop < root_finalize &&
-        root_finalize < outcome_map && outcome_map < stdout_write);
+        stdout_write != SIZE_MAX && context_drop < arguments_drop &&
+        arguments_drop < root_finalize && root_finalize < outcome_map &&
+        outcome_map < stdout_write);
 
   CHECK(w_seed_mlir0_measure(&input, &WINDOWS_TARGET, &counts, &result) ==
         W_SEED_MLIR0_OK);
@@ -1470,6 +1452,12 @@ static bool test_process_float_rounding_native_subset(void) {
 
   /* Typed failures are mapped only after cleanup and skip the success-only
    * write; the formatter consumes the HIR result binding on the normal edge. */
+  const size_t windows_write =
+      find_bytes(artifact, result.written.mlir_bytes,
+                 "llvm.call @w_seed_write(%process_buffer", 0u);
+  const size_t windows_outcome_map =
+      find_bytes(artifact, result.written.mlir_bytes,
+                 "^process_map_outcome", 0u);
   const size_t windows_context_drop =
       find_bytes(artifact, result.written.mlir_bytes,
                  "llvm.call @w_seed_process_context_drop", 0u);
@@ -1479,12 +1467,6 @@ static bool test_process_float_rounding_native_subset(void) {
   const size_t windows_root_finalize =
       find_bytes(artifact, result.written.mlir_bytes,
                  "llvm.call @w_seed_process_root_finalize", 0u);
-  const size_t windows_write =
-      find_bytes(artifact, result.written.mlir_bytes,
-                 "llvm.call @w_seed_write(%process_buffer", 0u);
-  const size_t windows_outcome_map =
-      find_bytes(artifact, result.written.mlir_bytes,
-                 "^process_map_outcome", 0u);
   CHECK(windows_context_drop != SIZE_MAX &&
         windows_arguments_drop != SIZE_MAX &&
         windows_root_finalize != SIZE_MAX && windows_outcome_map != SIZE_MAX &&
@@ -1607,7 +1589,6 @@ static bool test_process_float_rounding_join_mlir(void) {
             &input, &TARGET,
             &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
         W_SEED_MLIR0_OK);
-
   char join_signature[128];
   char then_edge_text[160];
   char else_edge_text[160];
@@ -1706,41 +1687,62 @@ static bool test_process_arguments_count_comparison_mlir(void) {
   w_seed_mlir0_result result;
   CHECK(w_seed_mlir0_measure(&input, &WINDOWS_TARGET, &counts, &result) ==
         W_SEED_MLIR0_OK);
+  CHECK(result.process_arguments_count_only);
   uint8_t output[W_SEED_MLIR0_MAX_BYTES];
   CHECK(w_seed_mlir0_emit(
             &input, &WINDOWS_TARGET,
             &(w_seed_mlir0_output){output, sizeof(output)}, &result) ==
         W_SEED_MLIR0_OK);
+  CHECK(result.process_arguments_count_only &&
+        w_seed_mlir0_verify_process_arguments_demand_receipt(
+            output, result.written.mlir_bytes, result.mlir_sha256,
+            result.process_arguments_count_only) &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "// process-arguments-demand: count-only\n"));
   w_seed_native_subset0_process process_selection;
   CHECK(w_seed_native_subset0_select_process_executable(
             &fixture.hir_program, &fixture.hir_result,
             &process_selection) == W_SEED_NATIVE_SUBSET0_OK);
   CHECK(process_selection.maximum_stdout_bytes == 36u);
-  CHECK(result.written.mlir_bytes == counts.mlir_bytes &&
-        contains_bytes(output, result.written.mlir_bytes,
-                       "@w_seed_mlir0_buffer() : !llvm.array<37 x i8>") &&
-        contains_bytes(output, result.written.mlir_bytes,
-                       "!llvm.array<37 x i8>") &&
-        contains_bytes(output, result.written.mlir_bytes,
-                       "llvm.getelementptr %process_buffer[%process_length]") &&
-        contains_bytes(output, result.written.mlir_bytes,
-                       "llvm.func internal @w_seed_process_count_arguments(%command_line: !llvm.ptr) -> i64") &&
-        contains_bytes(output, result.written.mlir_bytes,
-                       "llvm.call @w_seed_process_count_arguments(%process_command_line)") &&
-        contains_bytes(output, result.written.mlir_bytes,
-                       "llvm.store %process_zero, %process_vector_items_address") &&
-        !contains_bytes(output, result.written.mlir_bytes,
-                        "@w_seed_process_items") &&
-        !contains_bytes(output, result.written.mlir_bytes,
-                        "%field_encoding_address") &&
-        contains_bytes(output, result.written.mlir_bytes,
-                       "llvm.mlir.constant(0 : i64) : i64") &&
-        contains_bytes(output, result.written.mlir_bytes,
-                       "llvm.call @w_seed_process_arguments_count") &&
-        contains_bytes(output, result.written.mlir_bytes,
-                       "llvm.icmp \"ne\"") &&
-        contains_bytes(output, result.written.mlir_bytes,
+  CHECK(result.written.mlir_bytes == counts.mlir_bytes);
+  CHECK(contains_bytes(output, result.written.mlir_bytes,
+                       "@w_seed_mlir0_buffer() : !llvm.array<37 x i8>"));
+  CHECK(contains_bytes(output, result.written.mlir_bytes,
+                       "!llvm.array<37 x i8>"));
+  CHECK(contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.getelementptr %process_buffer[%process_length]"));
+  CHECK(contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.func internal @w_seed_process_count_arguments(%command_line: !llvm.ptr) -> i64"));
+  CHECK(contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.call @w_seed_process_count_arguments(%process_command_line)"));
+  CHECK(!contains_bytes(output, result.written.mlir_bytes,
+                        "@w_seed_process_items"));
+  CHECK(!contains_bytes(output, result.written.mlir_bytes,
+                        "@w_seed_process_arguments_count"));
+  CHECK(!contains_bytes(output, result.written.mlir_bytes,
+                        "w_seed_process_root_init"));
+  CHECK(!contains_bytes(output, result.written.mlir_bytes,
+                        "w_seed_process_context_drop"));
+  CHECK(!contains_bytes(output, result.written.mlir_bytes,
+                        "w_seed_process_arguments_drop"));
+  CHECK(!contains_bytes(output, result.written.mlir_bytes,
+                        "w_seed_process_root_finalize"));
+  CHECK(contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.mlir.constant(0 : i64) : i64"));
+  CHECK(!contains_bytes(output, result.written.mlir_bytes,
+                        "w_seed_process_argv"));
+  CHECK(contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.icmp \"ne\""));
+  CHECK(contains_bytes(output, result.written.mlir_bytes,
                        "llvm.cond_br"));
+  static const char windows_null_declaration[] =
+      "    %process_null = llvm.inttoptr %process_zero : i64 to !llvm.ptr\n";
+  const size_t windows_null_declaration_offset = find_bytes(
+      output, result.written.mlir_bytes, windows_null_declaration, 0u);
+  CHECK(windows_null_declaration_offset != SIZE_MAX &&
+        find_bytes(output, result.written.mlir_bytes,
+                   windows_null_declaration,
+                   windows_null_declaration_offset + 1u) == SIZE_MAX);
 
   CHECK(w_seed_mlir0_measure(&input, &TARGET, &counts, &result) ==
         W_SEED_MLIR0_OK);
@@ -1753,9 +1755,7 @@ static bool test_process_arguments_count_comparison_mlir(void) {
                        "llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE
                        "\"") &&
         contains_bytes(output, result.written.mlir_bytes,
-                       "llvm.func @main() -> i32") &&
-        contains_bytes(output, result.written.mlir_bytes,
-                       "llvm.call @w_seed_process_argc()") &&
+                       "llvm.func @main(%process_argc: i64) -> i32") &&
         contains_bytes(output, result.written.mlir_bytes,
                        "llvm.func internal @w_seed_process_count_arguments(%argument_count: i64) -> i64") &&
         contains_bytes(output, result.written.mlir_bytes,
@@ -1766,24 +1766,26 @@ static bool test_process_arguments_count_comparison_mlir(void) {
                        "llvm.icmp \"ugt\" %argument_count, %max_total : i64") &&
         contains_bytes(output, result.written.mlir_bytes,
                        "llvm.sub %argument_count, %one : i64") &&
-        contains_bytes(output, result.written.mlir_bytes,
-                       "llvm.store %process_zero, %process_vector_items_address") &&
         !contains_bytes(output, result.written.mlir_bytes,
                         "w_seed_process_argv") &&
         !contains_bytes(output, result.written.mlir_bytes,
-                        "%argv_address") &&
+                        "w_seed_process_argc") &&
         !contains_bytes(output, result.written.mlir_bytes,
-                        "%item_data") &&
+                        "w_seed_process_root_init") &&
         !contains_bytes(output, result.written.mlir_bytes,
-                        "@w_seed_process_items") &&
+                        "w_seed_process_context_drop") &&
+        !contains_bytes(output, result.written.mlir_bytes,
+                        "w_seed_process_arguments_drop") &&
+        !contains_bytes(output, result.written.mlir_bytes,
+                        "w_seed_process_root_finalize") &&
         !contains_bytes(output, result.written.mlir_bytes,
                         "no-builtin-strlen") &&
         !contains_bytes(output, result.written.mlir_bytes,
                         "%scan_data") &&
         !contains_bytes(output, result.written.mlir_bytes,
                         "%byte_address") &&
-        contains_bytes(output, result.written.mlir_bytes,
-                       "llvm.store %process_one, %process_vector_encoding_address") &&
+        !contains_bytes(output, result.written.mlir_bytes,
+                        "process_vector") &&
         contains_bytes(output, result.written.mlir_bytes,
                        "llvm.call @write(%process_fd") &&
         !contains_bytes(output, result.written.mlir_bytes,
@@ -1792,6 +1794,95 @@ static bool test_process_arguments_count_comparison_mlir(void) {
                         "GetCommandLineW") &&
         !contains_bytes(output, result.written.mlir_bytes,
                         "ExitProcess"));
+
+  uint8_t forged_digest[sizeof(result.mlir_sha256)];
+  (void)memcpy(forged_digest, result.mlir_sha256, sizeof(forged_digest));
+  forged_digest[0] ^= 1u;
+  CHECK(!w_seed_mlir0_verify_process_arguments_demand_receipt(
+      output, result.written.mlir_bytes, forged_digest, true));
+  CHECK(!w_seed_mlir0_verify_process_arguments_demand_receipt(
+      output, result.written.mlir_bytes, result.mlir_sha256, false));
+  static uint8_t forged_artifact[W_SEED_MLIR0_MAX_BYTES];
+  (void)memcpy(forged_artifact, output, result.written.mlir_bytes);
+  const size_t demand_marker = find_bytes(
+      forged_artifact, result.written.mlir_bytes,
+      "process-arguments-demand: count-only", 0u);
+  CHECK(demand_marker != SIZE_MAX);
+  forged_artifact[demand_marker + sizeof("process-arguments-demand: ") - 1u] =
+      (uint8_t)'x';
+  CHECK(!w_seed_mlir0_verify_process_arguments_demand_receipt(
+      forged_artifact, result.written.mlir_bytes, result.mlir_sha256, true));
+
+  static w_seed_hir0_value forged_values[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
+  CHECK(fixture.hir_program.value_count <=
+        sizeof(forged_values) / sizeof(forged_values[0]));
+  (void)memcpy(forged_values, fixture.hir_program.values,
+               fixture.hir_program.value_count * sizeof(forged_values[0]));
+  w_seed_hir0_program forged_program = fixture.hir_program;
+  forged_program.values = forged_values;
+  size_t count_member = 0u;
+  while (count_member < forged_program.value_count &&
+         forged_values[count_member].kind !=
+             W_SEED_HIR0_VALUE_EXTERNAL_MEMBER)
+    count_member += 1u;
+  CHECK(count_member < forged_program.value_count);
+  forged_values[count_member].left_value = W_SEED_HIR0_NONE;
+  w_seed_mlir0_input forged_input = input;
+  forged_input.program = &forged_program;
+  uint8_t output_snapshot[sizeof(output)];
+  (void)memcpy(output_snapshot, output, sizeof(output_snapshot));
+  const w_seed_mlir0_result result_snapshot = result;
+  CHECK(w_seed_mlir0_emit(
+            &forged_input, &TARGET,
+            &(w_seed_mlir0_output){output, sizeof(output)}, &result) ==
+        W_SEED_MLIR0_INVALID_HIR);
+  CHECK(memcmp(output, output_snapshot, sizeof(output)) == 0 &&
+        memcmp(&result, &result_snapshot, sizeof(result)) == 0);
+
+  /* This bounded process subset does not accept a source helper with an
+   * Arguments parameter. Forge the corresponding raw entry-Arguments value
+   * as a reachable call argument and require HIR admission to reject it before
+   * it can choose the compact count WRT or touch the caller's buffers. */
+  uint32_t arguments_read = W_SEED_HIR0_NONE;
+  const uint32_t arguments_parameter =
+      process_selection.function->first_parameter +
+      process_selection.arguments_parameter_ordinal;
+  for (uint32_t index = 0u; index < fixture.hir_program.value_count; index += 1u)
+    if (fixture.hir_program.values[index].kind ==
+            W_SEED_HIR0_VALUE_PARAMETER_READ &&
+        fixture.hir_program.values[index].parameter_index ==
+            arguments_parameter) {
+      arguments_read = index;
+      break;
+    }
+  CHECK(arguments_read != W_SEED_HIR0_NONE);
+  uint32_t escaped_call_argument = W_SEED_HIR0_NONE;
+  for (uint32_t call_index = 0u;
+       call_index < fixture.hir_program.call_count; call_index += 1u) {
+    const w_seed_hir0_call *call = &fixture.hir_program.calls[call_index];
+    if (call->argument_count != 0u &&
+        call->first_argument < fixture.hir_program.argument_count) {
+      escaped_call_argument = call->first_argument;
+      break;
+    }
+  }
+  CHECK(escaped_call_argument != W_SEED_HIR0_NONE);
+  w_seed_hir0_argument *mutable_call_argument =
+      &fixture.hir_arguments[escaped_call_argument];
+  const w_seed_hir0_argument saved_call_argument = *mutable_call_argument;
+  mutable_call_argument->value_index = arguments_read;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  (void)memcpy(output_snapshot, output, sizeof(output_snapshot));
+  const w_seed_mlir0_result valid_result_snapshot = result;
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET,
+            &(w_seed_mlir0_output){output, sizeof(output)}, &result) ==
+        W_SEED_MLIR0_INVALID_HIR);
+  CHECK(memcmp(output, output_snapshot, sizeof(output)) == 0 &&
+        memcmp(&result, &valid_result_snapshot,
+               sizeof(valid_result_snapshot)) == 0);
+  *mutable_call_argument = saved_call_argument;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   return true;
 }
 
@@ -1804,15 +1895,8 @@ static bool test_process_arguments_value_lane_mlir(void) {
       "} from std.process\n"
       "\n"
       "async fn run(args: ProcessArguments, ctx: ProcessContext): "
-      "ProcessExitCode {\n"
-      "  if args.isEmpty {\n"
-      "    print(\"missing\")\n"
-      "    return .failure(2)\n"
-      "  } else {\n"
-      "    print(\"received\")\n"
-      "    return .success\n"
-      "  }\n"
-      "}\n"
+      "ProcessExitCode { print(\"empty: ${args.isEmpty}\") "
+      "return .success }\n"
       "entry(run)\n";
   CHECK(lower_process_input_hir(source, sizeof(source) - 1u));
   const w_seed_mlir0_input input = {
@@ -1828,7 +1912,12 @@ static bool test_process_arguments_value_lane_mlir(void) {
             &input, &WINDOWS_TARGET,
             &(w_seed_mlir0_output){output, sizeof(output)}, &result) ==
         W_SEED_MLIR0_OK);
-  CHECK(contains_bytes(output, result.written.mlir_bytes,
+  CHECK(!result.process_arguments_count_only &&
+        w_seed_mlir0_verify_process_arguments_demand_receipt(
+            output, result.written.mlir_bytes, result.mlir_sha256, false) &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "// process-arguments-demand: value-observing\n") &&
+        contains_bytes(output, result.written.mlir_bytes,
                        "@w_seed_process_items") &&
         contains_bytes(output, result.written.mlir_bytes,
                        "llvm.call @w_seed_process_count_arguments(%process_command_line, %process_items)") &&
@@ -1841,7 +1930,8 @@ static bool test_process_arguments_value_lane_mlir(void) {
             &input, &TARGET,
             &(w_seed_mlir0_output){output, sizeof(output)}, &result) ==
         W_SEED_MLIR0_OK);
-  CHECK(contains_bytes(output, result.written.mlir_bytes,
+  CHECK(!result.process_arguments_count_only &&
+        contains_bytes(output, result.written.mlir_bytes,
                        "@w_seed_process_items") &&
         contains_bytes(output, result.written.mlir_bytes,
                        "llvm.call @w_seed_process_count_arguments(%process_argc, %process_argv, %process_items)") &&
@@ -1878,12 +1968,36 @@ static bool expect_process_count_unsigned_predicate(
   CHECK(comparison_value != UINT32_MAX);
   const w_seed_hir0_value *comparison =
       &fixture.hir_program.values[comparison_value];
+  w_seed_native_subset0_process process_selection;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &fixture.hir_program, &fixture.hir_result, &process_selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  const bool left_is_count =
+      fixture.hir_program.values[comparison->left_value].kind ==
+      W_SEED_HIR0_VALUE_EXTERNAL_MEMBER;
+  char left_operand[32];
+  char right_operand[32];
+  const int left_length = left_is_count
+                              ? snprintf(left_operand, sizeof(left_operand),
+                                         "%%p%u",
+                                         process_selection
+                                             .arguments_parameter_ordinal)
+                              : snprintf(left_operand, sizeof(left_operand),
+                                         "%%v%u", comparison->left_value);
+  const int right_length = left_is_count
+                               ? snprintf(right_operand, sizeof(right_operand),
+                                          "%%v%u", comparison->right_value)
+                               : snprintf(right_operand, sizeof(right_operand),
+                                          "%%p%u",
+                                          process_selection
+                                              .arguments_parameter_ordinal);
+  CHECK(left_length > 0 && (size_t)left_length < sizeof(left_operand) &&
+        right_length > 0 && (size_t)right_length < sizeof(right_operand));
   char expected[160];
   const int expected_length = snprintf(expected, sizeof(expected),
-                                       "%%v%u = %s %%v%u, %%v%u : i64",
+                                       "%%v%u = %s %s, %s : i64",
                                        comparison_value, predicate,
-                                       comparison->left_value,
-                                       comparison->right_value);
+                                       left_operand, right_operand);
   CHECK(expected_length > 0 && (size_t)expected_length < sizeof(expected));
   CHECK(contains_bytes(output, result.written.mlir_bytes, expected));
   return true;

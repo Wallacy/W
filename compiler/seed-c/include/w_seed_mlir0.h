@@ -26,7 +26,7 @@ extern "C" {
 #define W_SEED_MLIR0_PROCESS_SCHEMA_VERSION \
   "w-seed-mlir0-process-handler-1"
 #define W_SEED_MLIR0_PROCESS_EXECUTABLE_SCHEMA_VERSION \
-  "w-seed-mlir0-process-executable-7"
+  "w-seed-mlir0-process-executable-8"
 /* Target-neutral M2 cooperative product emission is a scalar MLIR core.  It
  * has no target triple, data-layout, runtime, or process-entry contract. */
 #define W_SEED_MLIR0_COOPERATIVE_SCHEMA_VERSION \
@@ -125,7 +125,18 @@ typedef struct {
   w_seed_mlir0_counts required;
   w_seed_mlir0_counts written;
   uint8_t mlir_sha256[32];
+  /* Exact verified process demand carried to Native0's WRT selection. This
+   * is true only when the process plan observes Arguments.count and no other
+   * process-argument or Context value. */
+  bool process_arguments_count_only;
 } w_seed_mlir0_result;
+
+/* Verify the demand bit against its digest-covered process artifact receipt.
+ * Native0 uses the result only after MLIR0 has performed this check before
+ * committing bytes to caller-owned output. */
+bool w_seed_mlir0_verify_process_arguments_demand_receipt(
+    const uint8_t *artifact, size_t artifact_bytes,
+    const uint8_t digest[32], bool process_arguments_count_only);
 
 typedef struct {
   uint8_t *bytes;
