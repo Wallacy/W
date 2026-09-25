@@ -8,44 +8,36 @@
   ],
   "sourceBase": {
     "path": "current.w",
-    "symbol": "finalResearchClosure",
-    "digest": "sha256:d0bfb9a06190275b83aa2febb8a0f18b7a3e6129922a681283623c611c2b5ba9"
+    "symbol": "finalResearchClosure"
   },
   "sourceRefs": [
     {
       "path": "../../../tooling/final-research-closure-cases.json",
-      "symbol": "w-final-research-closure-cases-1",
-      "digest": "sha256:07629120e2af063e6714cd7f4dcfc10f00057a3c11f960d7b7e1b52e7df88e7f"
+      "symbol": "w-final-research-closure-cases-1"
     },
     {
       "path": "../../../tooling/research-state-inventory.json",
-      "symbol": "w-research-state-inventory-1",
-      "digest": "sha256:1f96b954b2d76b21c4b719d5c56e078c901254fb2392e12ab1867894256b8bb4"
+      "symbol": "w-research-state-inventory-1"
     },
     {
       "path": "../../../tooling/frontend-freeze-cases.json",
-      "symbol": "FZ0-G0-statements-control",
-      "digest": "sha256:09f876a2360495adc615260ce1458461148334d5f6bede63a9b05be6ec70f484"
+      "symbol": "FZ0-G0-statements-control"
     },
     {
       "path": "../../../tooling/hum0-human-review-protocol.json",
-      "symbol": "w-hum0-human-review-protocol-1",
-      "digest": "sha256:9f86a61841caa5fe66d52589219fce857ee5391ec8a5153802748efcd57fa3d1"
+      "symbol": "w-hum0-human-review-protocol-1"
     },
     {
       "path": "../../../tooling/design-freeze-classification.json",
-      "symbol": "w-design-freeze-classification-1",
-      "digest": "sha256:c85937e3fdb026e1dd0d8572b0426ff70e8d254b4333e0fe25be2b3e55b73b5b"
+      "symbol": "w-design-freeze-classification-2"
     },
     {
       "path": "../../../RATIONALE.md",
-      "symbol": "| W-707 | gate de design freeze",
-      "digest": "sha256:da1a2aa7d4a3d05a1622483303ee30875f51a14b2c591dcab93c48a4bc6ae715"
+      "symbol": "| W-707 | gate de design freeze"
     },
     {
       "path": "../../../DESIGN.md",
-      "symbol": "#### 24.4.2 FRC0 — snapshot histórico das gates de pesquisa",
-      "digest": "sha256:334d6b9f7c33dde805961f857aa00feb220052beabaae2444a0d96489646acac"
+      "symbol": "#### 24.4.2 FRC0 — snapshot histórico das gates de pesquisa"
     }
   ],
   "variants": [

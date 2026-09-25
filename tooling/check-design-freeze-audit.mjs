@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -43,17 +42,28 @@ function nonEmptyString(value, location) {
   return true;
 }
 
-function digest(filePath) {
-  return `sha256:${crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex")}`;
+function rejectLegacyHashFields(value, location = "classification") {
+  if (Array.isArray(value)) {
+    for (const [index, child] of value.entries()) rejectLegacyHashFields(child, `${location}[${index}]`);
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  const localFileReference = typeof value.path === "string" &&
+    (typeof value.symbol === "string" || typeof value.kind === "string");
+  for (const [field, child] of Object.entries(value)) {
+    if (["claimDigest", "sectionDigest"].includes(field) ||
+        (field === "sha256" && (location === "classification.ledger" || localFileReference))) {
+      fail(`${location}.${field} is obsolete in classification schema 2.`);
+    }
+    rejectLegacyHashFields(child, `${location}.${field}`);
+  }
 }
 
-function textDigest(value) {
-  return `sha256:${crypto.createHash("sha256").update(value).digest("hex")}`;
-}
+rejectLegacyHashFields(classification);
 
 // DESIGN.md is the only normative authority for implementation-evidence gaps.
-// Resolve a section from its current heading and digest the exact slice so a
-// broad or stale gate cannot masquerade as component evidence.
+// Resolve a section from its current heading so a broad gate cannot masquerade
+// as component evidence.
 const designPath = path.join(wDirectory, "DESIGN.md");
 const designText = fs.readFileSync(designPath, "utf8");
 const designLines = designText.split(/\r?\n/);
@@ -73,12 +83,9 @@ for (const [index, line] of designLines.entries()) {
 function designSectionInfo(section) {
   const record = designHeadings.find((candidate) => candidate.section === section);
   if (!record) return null;
-  const next = designHeadings.find((candidate) => candidate.start > record.start && candidate.level <= record.level);
-  const end = next?.start ?? designLines.length;
   return {
     section,
     heading: record.heading,
-    sectionDigest: textDigest(designLines.slice(record.start, end).join("\n")),
   };
 }
 function designGate(ref) {
@@ -114,20 +121,6 @@ function validateFileRef(ref, location) {
     return null;
   }
   const resolved = resolveRepositoryPath(ref.path, location);
-  const hasLocalDigest =
-    typeof ref.caseDigest === "string" ||
-    typeof ref.sectionDigest === "string" ||
-    (ref.path === "RATIONALE.md" && typeof ref.claimDigest === "string");
-  if (hasLocalDigest) {
-    if (ref.sha256 !== undefined) {
-      fail(`${location}.sha256 must be omitted when a local digest is present.`);
-    }
-    return resolved;
-  }
-  if (!nonEmptyString(ref.sha256, `${location}.sha256`)) return resolved;
-  if (resolved && ref.sha256 !== digest(resolved)) {
-    fail(`${location}.sha256 is stale for ${ref.path}.`);
-  }
   return resolved;
 }
 
@@ -169,6 +162,12 @@ function validateSourceRef(sourceRef, location) {
   const resolved = validateFileRef(sourceRef, location);
   if (!nonEmptyString(sourceRef.symbol, `${location}.symbol`)) return;
   if (resolved && sourceRef.symbol.length > 200) fail(`${location}.symbol is too long.`);
+  if (resolved) {
+    const source = fs.readFileSync(resolved, "utf8");
+    if (source.split(sourceRef.symbol).length - 1 !== 1) {
+      fail(`${location}.symbol must occur exactly once in ${sourceRef.path}.`);
+    }
+  }
 }
 
 function validateDecisionBridge(bridge, location, decisionId, citedDecisionIds) {
@@ -186,9 +185,6 @@ function validateDecisionBridge(bridge, location, decisionId, citedDecisionIds) 
   const row = rowsById.get(bridge.decisionId);
   if (!row) {
     fail(`${location}.decisionId is not in the current ledger.`);
-  } else {
-    const expected = textDigest(row.claim);
-    if (bridge.claimDigest !== expected) fail(`${location}.claimDigest is stale for ${bridge.decisionId}.`);
   }
   if (!nonEmptyString(bridge.relation, `${location}.relation`)) return false;
   if (!bridge.relation.includes(decisionId) || !bridge.relation.includes(bridge.decisionId)) {
@@ -212,7 +208,6 @@ function validateEvidence(ref, location, decisionId) {
     if (testCase && ref.caseDigest !== caseDigest(testCase)) {
       fail(`${location}.caseDigest is stale for ${ref.caseId}.`);
     }
-    if (ref.sha256 !== undefined) fail(`${location}.sha256 must not pin a complete case corpus.`);
     if (!(testCase?.decisions ?? []).includes(decisionId)) fail(`${location}.caseId does not cite ${decisionId}.`);
   } else if (ref.kind === "oracle") {
     const oracle = oracleCases.get(ref.caseId);
@@ -222,7 +217,6 @@ function validateEvidence(ref, location, decisionId) {
       if (ref.caseDigest !== caseDigest(oracle.testCase)) {
         fail(`${location}.caseDigest is stale for ${ref.caseId}.`);
       }
-      if (ref.sha256 !== undefined) fail(`${location}.sha256 must not pin a complete case corpus.`);
       const decisions = oracle.testCase.decisions ?? oracle.testCase.decisionIds ??
         (oracle.testCase.rule !== undefined ? [oracle.testCase.rule] : undefined) ??
         (["module-run-cases.json", "repl-session-cases.json"].includes(oracle.name)
@@ -283,9 +277,7 @@ function validateAuthority(ref, location, entry) {
       fail(`${location}.section does not identify a current DESIGN heading.`);
     } else {
       if (ref.heading !== current.heading) fail(`${location}.heading is stale for DESIGN.md §${ref.section}.`);
-      if (ref.sectionDigest !== current.sectionDigest) fail(`${location}.sectionDigest is stale for DESIGN.md §${ref.section}.`);
     }
-    if (ref.sha256 !== undefined) fail(`${location}.sha256 must not pin complete DESIGN.md.`);
     if (ref.section === "24.4" && entry.gap?.component !== "design-freeze") {
       fail(`${location}.section 24.4 is reserved for a concrete design-freeze gate.`);
     }
@@ -302,24 +294,18 @@ function validateAuthority(ref, location, entry) {
     if (ref.path !== "RATIONALE.md" || ref.section !== "3. Ledger") {
       fail(`${location} must point to the current ledger section.`);
     }
-    const successor = rowsById.get(ref.decisionId);
-    if (successor && ref.claimDigest !== textDigest(successor.claim)) {
-      fail(`${location}.claimDigest is stale for ${ref.decisionId}.`);
-    }
-    if (ref.sha256 !== undefined) fail(`${location}.sha256 must not pin complete RATIONALE.md.`);
   }
   if (ref.kind === "design-freeze-gate" || ref.kind === "design-absence") {
     if (ref.path !== "DESIGN.md") fail(`${location} must point to DESIGN.md.`);
     if (!["24.2", "24.4"].includes(ref.section)) fail(`${location}.section must be 24.2 or 24.4.`);
     const current = designSectionInfo(ref.section);
-    if (!current || ref.sectionDigest !== current.sectionDigest) {
-      fail(`${location}.sectionDigest is stale for DESIGN.md §${ref.section}.`);
+    if (!current) {
+      fail(`${location}.section does not identify a current DESIGN heading.`);
     }
-    if (ref.sha256 !== undefined) fail(`${location}.sha256 must not pin complete DESIGN.md.`);
   }
 }
 
-if (classification.$schema !== "w-design-freeze-classification-1") fail("classification schema must be w-design-freeze-classification-1.");
+if (classification.$schema !== "w-design-freeze-classification-2") fail("classification schema must be w-design-freeze-classification-2.");
 if (classification.status !== "design-oracle-input") fail("classification status must be design-oracle-input.");
 if (!classification.selectionPolicy || typeof classification.selectionPolicy !== "object" ||
     classification.selectionPolicy.kind !== "explicit-ledger-id") {
@@ -340,8 +326,6 @@ if (!classification.selectionPolicy || typeof classification.selectionPolicy !==
 if (!classification.ledger || classification.ledger.path !== "RATIONALE.md" || classification.ledger.section !== "3. Ledger") {
   fail("classification.ledger must point to RATIONALE.md §3 Ledger.");
 } else {
-  const rationalePath = path.join(wDirectory, "RATIONALE.md");
-  if (classification.ledger.sha256 !== digest(rationalePath)) fail("classification ledger digest is stale.");
   if (classification.ledger.count !== ledgerIds.length) fail("classification ledger count is stale.");
   if (classification.ledger.first !== ledgerIds[0] || classification.ledger.last !== ledgerIds.at(-1)) fail("classification ledger bounds are stale.");
 }
@@ -351,6 +335,8 @@ if (!Array.isArray(classification.categories) || classification.categories.lengt
 }
 if (!Array.isArray(classification.entries)) {
   fail("classification.entries must be an array.");
+} else if (JSON.stringify(classification.entries.map((entry) => entry?.decisionId)) !== JSON.stringify(ledgerIds)) {
+  fail("classification decision order differs from the current ledger.");
 }
 
 const entriesById = new Map();
@@ -368,8 +354,6 @@ for (const [index, entry] of (classification.entries ?? []).entries()) {
   if (!row) continue;
   if (entry.summary !== row.theme) fail(`${location}.summary does not match ${entry.decisionId}.`);
   if (entry.canonicalClaim !== row.claim) fail(`${location}.canonicalClaim does not match ${entry.decisionId}.`);
-  const expectedClaimDigest = `sha256:${crypto.createHash("sha256").update(row.claim).digest("hex")}`;
-  if (entry.claimDigest !== expectedClaimDigest) fail(`${location}.claimDigest is stale for ${entry.decisionId}.`);
   if (!categories.has(entry.category)) fail(`${location}.category is not closed.`);
   if (!nonEmptyString(entry.basis, `${location}.basis`)) continue;
   const expectedBasis = {
@@ -397,9 +381,6 @@ for (const [index, entry] of (classification.entries ?? []).entries()) {
     if (entry.basisRef.decisionId !== entry.decisionId) {
       fail(`${location}.basisRef.decisionId must equal ${entry.decisionId}.`);
     }
-    if (entry.basisRef.claimDigest !== entry.claimDigest) {
-      fail(`${location}.basisRef.claimDigest must equal ${entry.decisionId}.claimDigest.`);
-    }
   }
   validateAuthority(entry.authorityRef, `${location}.authorityRef`, entry);
   if (!Array.isArray(entry.evidence)) {
@@ -426,8 +407,8 @@ for (const [index, entry] of (classification.entries ?? []).entries()) {
     }
   }
   if (!nonEmptyString(entry.reason, `${location}.reason`)) continue;
-  if (!entry.reason.includes(entry.decisionId) || !entry.reason.includes(entry.summary) || !entry.reason.includes(entry.claimDigest)) {
-    fail(`${location}.reason must identify its decision, summary, and claim digest.`);
+  if (!entry.reason.includes(entry.decisionId) || !entry.reason.includes(entry.summary)) {
+    fail(`${location}.reason must identify its decision and summary.`);
   }
   const evidenceKindsForEntry = new Set((entry.evidence ?? []).map((ref) => ref.kind));
   if (entry.category === "source-backed-current" && !evidenceKindsForEntry.has("source")) {
@@ -564,7 +545,6 @@ for (const [index, entry] of (classification.entries ?? []).entries()) {
         fail(`${claimLocation}.decisionId must identify a current ledger row.`);
       } else {
         if (claim.canonicalClaim !== successorRow.claim) fail(`${claimLocation}.canonicalClaim does not match ${claim.decisionId}.`);
-        if (claim.claimDigest !== textDigest(successorRow.claim)) fail(`${claimLocation}.claimDigest is stale for ${claim.decisionId}.`);
       }
       nonEmptyString(claim.relation, `${claimLocation}.relation`);
       if (claim.relation && (!claim.relation.includes(entry.decisionId) || !claim.relation.includes(claim.decisionId))) {
@@ -705,13 +685,13 @@ for (const [decisionId, successorId] of fixedSupersessionTargets) {
 const w1519 = entriesById.get("W-1519");
 const w1519SourceRefs = [
   ["compiler/seed-c/include/w_seed_frontend.h", "W_SEED_FRONTEND_SCHEMA_VERSION"],
-  ["compiler/seed-c/src/w_seed_frontend.c", "resolved_binding_statement"],
-  ["compiler/seed-c/include/w_seed_hir0.h", "w_seed_hir0_binding"],
-  ["compiler/seed-c/src/w_seed_hir0.c", "frontend_statement_and_expression_ok"],
-  ["compiler/seed-c/src/w_seed_native_subset0.c", "w_seed_native_subset0_select"],
-  ["compiler/seed-c/tests/test_frontend.c", "test_local_binding_resolution"],
-  ["compiler/seed-c/tests/test_hir0.c", "test_local_binding_lowering"],
-  ["compiler/seed-c/tests/test_hlo0.c", "test_hlo_binding_chain_all_or_nothing"],
+  ["compiler/seed-c/src/w_seed_frontend.c", "static uint32_t binding_statement_for_expression("],
+  ["compiler/seed-c/include/w_seed_hir0.h", "} w_seed_hir0_binding;"],
+  ["compiler/seed-c/src/w_seed_hir0.c", "static bool frontend_statement_and_expression_ok("],
+  ["compiler/seed-c/src/w_seed_native_subset0.c", "w_seed_native_subset0_status w_seed_native_subset0_select("],
+  ["compiler/seed-c/tests/test_frontend.c", "static bool test_local_binding_resolution(void)"],
+  ["compiler/seed-c/tests/test_hir0.c", "static bool test_local_binding_lowering(void)"],
+  ["compiler/seed-c/tests/test_hlo0.c", "static bool test_hlo_binding_chain_all_or_nothing(void)"],
   ["tooling/check-hlo0.mjs", "const accepted = ["],
   ["tooling/check-hlo1.mjs", "const products = ["],
   ["tooling/check-run0.mjs", "const sources = new Map(["],
@@ -736,10 +716,6 @@ if (!w1519 || w1519.category !== "source-backed-current" ||
       if (ref?.path !== expectedPath || ref?.symbol !== expectedSymbol) {
         fail(`${location} must identify ${expectedPath} and ${expectedSymbol}.`);
         continue;
-      }
-      const source = fs.readFileSync(path.join(wDirectory, expectedPath), "utf8");
-      if (!source.includes(expectedSymbol)) {
-        fail(`${location}.symbol is absent from ${expectedPath}.`);
       }
     }
   }
@@ -786,15 +762,15 @@ if (!w1520 || w1520.category !== "superseded" ||
 
 const w1522 = entriesById.get("W-1522");
 const w1522SourceRefs = [
-  ["compiler/seed-c/include/w_seed_mlir0.h", "w_seed_mlir0_input"],
+  ["compiler/seed-c/include/w_seed_mlir0.h", "} w_seed_mlir0_input;"],
   ["compiler/seed-c/src/w_seed_native_subset0.c", "w_seed_native_subset0_select_sequence"],
-  ["compiler/seed-c/src/w_seed_mlir0.c", "build_artifact"],
-  ["compiler/seed-c/tests/test_mlir0.c", "test_linear_sequence"],
-  ["compiler/seed-c/tests/test_native0.c", "test_products"],
-  ["compiler/seed-c/cli/run.c", "run_logical_source_id"],
+  ["compiler/seed-c/src/w_seed_mlir0.c", "static bool build_artifact("],
+  ["compiler/seed-c/tests/test_mlir0.c", "static bool test_linear_sequence(void)"],
+  ["compiler/seed-c/tests/test_native0.c", "static bool test_products(void)"],
+  ["compiler/seed-c/cli/run.c", "static bool run_logical_source_id("],
   ["tooling/check-mlir0.mjs", "const products = ["],
   ["tooling/check-w-run.mjs", "const expectedHelp ="],
-  ["compiler/seed-c/fixtures/linear.w", "serve"],
+  ["compiler/seed-c/fixtures/linear.w", "fn serve() {"],
 ];
 if (!w1522 || w1522.category !== "source-backed-current" || !w1520Case ||
     !(w1520Case.decisions ?? []).includes("W-1522")) {
@@ -815,8 +791,6 @@ if (!w1522 || w1522.category !== "source-backed-current" || !w1520Case ||
         fail(`${location} must identify ${expectedPath} and ${expectedSymbol}.`);
         continue;
       }
-      const source = fs.readFileSync(path.join(wDirectory, expectedPath), "utf8");
-      if (!source.includes(expectedSymbol)) fail(`${location}.symbol is absent from ${expectedPath}.`);
     }
   }
   const mlirHeader = fs.readFileSync(path.join(wDirectory, "compiler/seed-c/include/w_seed_mlir0.h"), "utf8");

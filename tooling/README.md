@@ -206,15 +206,19 @@ one transaction and repeats until metadata dependencies reach a fixed point.
 Missing paths, invalid JSON, duplicates, and cycles fail before each wave.
 
 After changing normative text or classified evidence, run
-`bun tooling/refresh-design-freeze-evidence.mjs`. The command updates only mechanical
-identities in the freeze classification: ledger text and claim digests,
-source/oracle case digests, remaining file digests, and exact `DESIGN.md`
-section digests. Case digests use stable-key JSON, so key order alone does not
-invalidate evidence. The command fails if decision order or reviewed
-classification fields would change. The explicit
-`bun tooling/refresh-design-freeze-evidence.mjs --migrate-local-digests` form
-is reserved for a reviewed migration from whole-file pins; routine refreshes
-do not require that flag.
+`bun tooling/refresh-design-freeze-evidence.mjs`. Classification schema 2 keeps
+exact ledger claim equality, ledger count/bounds, section headings, and case
+digests without repeating claim hashes, whole-ledger hashes, DESIGN section
+hashes, or repository-local source-file hashes. Local source references are
+bound by repository-contained paths and uniquely occurring symbols; case
+digests use stable-key JSON, so key order alone does not invalidate evidence.
+FRC validates classification order, count/bounds, and every canonical claim
+against the ledger text directly; its manifest carries no whole-RATIONALE
+digest.
+The refresh accepts only schema 2 and updates linked claims, current section
+headings, and exact source/oracle case digests. There is no legacy migration
+mode. It fails if decision order or reviewed classification fields would
+change.
 
 `bun run hum0:refresh-evidence` applies the same rule to the HUM0 review
 protocol. It updates only file hashes and derived stimuli. Symbols, windows,

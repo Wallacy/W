@@ -25,7 +25,7 @@
       "id": "FRC0-machine",
       "role": "machine",
       "path": "tooling/final-research-closure-machine.mjs",
-      "digest": "sha256:61162bbe350f19739d918030bb0b39a014281473f00872fdbd37c888a389d4e9"
+      "digest": "sha256:47bf9afd892bbda17d44c4b38af95b5c1b206d4fa7aa8917688aaa5f1b4fba13"
     },
     {
       "id": "FRC0-root-checker",
@@ -43,7 +43,7 @@
       "id": "FRC0-snapshot",
       "role": "snapshot",
       "path": "tooling/final-research-closure-results.snapshot.jsonl",
-      "digest": "sha256:d7ea4cf6cdf2a4a063b7d188a4d5d5c3b02294dcf163538ba16c29ef62e6050b"
+      "digest": "sha256:249606e50b0d4f2ed8913ee9862f88dc545ed788a912edc4cc9504f6bfb2ece9"
     },
     {
       "id": "FRC0-oracle",
@@ -55,7 +55,7 @@
       "id": "FRC0-bundle",
       "role": "bundle",
       "path": "tooling/studies/final-research-closure/bundle.json",
-      "digest": "sha256:2c59dd378700a6dd88eb57aa681111960db144132082b6598d71a442185e0075"
+      "digest": "sha256:caee757a49bb773c659faba792ac70e361a50aeb5fe61c8803b912ff2f9b411c"
     },
     {
       "id": "FRC0-study",
@@ -169,7 +169,7 @@
       "id": "FRC0-freeze-checker",
       "role": "freeze-checker",
       "path": "tooling/check-design-freeze-audit.mjs",
-      "digest": "sha256:01b7f19d20e2470b7ea552f4482996c88f18b6cc684576deae4a32cbe241f872"
+      "digest": "sha256:8d6431cf1a72a3387c08e494898d63597603037470c0bf30413844a7e346ac5e"
     },
     {
       "id": "FRC0-study-checker",
@@ -181,13 +181,7 @@
       "id": "FRC0-classification",
       "role": "classification",
       "path": "tooling/design-freeze-classification.json",
-      "digest": "sha256:c85937e3fdb026e1dd0d8572b0426ff70e8d254b4333e0fe25be2b3e55b73b5b"
-    },
-    {
-      "id": "FRC0-ledger",
-      "role": "ledger",
-      "path": "RATIONALE.md",
-      "digest": "sha256:da1a2aa7d4a3d05a1622483303ee30875f51a14b2c591dcab93c48a4bc6ae715"
+      "digest": "sha256:39f3c5a8c05fe35a193372f238df95c21467759513c16898687e43213cfcc6f7"
     },
     {
       "id": "FRC0-design",

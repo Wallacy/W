@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ledgerIds } from "./design-ledger.mjs";
+import { ledgerIds, rationaleText } from "./design-ledger.mjs";
 import { validateProtocol } from "./hum0-human-review-machine.mjs";
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -18,6 +18,20 @@ export const HISTORICAL_SNAPSHOT_LAST = "W-1450";
 export const HISTORICAL_SNAPSHOT_IDS = Object.freeze(
   ledgerIds.filter((decisionId) => Number(decisionId.slice(2)) <= Number(HISTORICAL_SNAPSHOT_LAST.slice(2))),
 );
+const ledgerRowsById = new Map();
+const ledgerStart = rationaleText.indexOf("## 3. Ledger");
+for (const line of rationaleText.slice(ledgerStart).split("\n")) {
+  if (!line.startsWith("| W-")) continue;
+  const body = line.slice(2);
+  const first = body.indexOf("|");
+  const second = body.indexOf("|", first + 1);
+  const trailing = body.lastIndexOf("|");
+  const claimEnd = body.lastIndexOf("|", trailing - 1);
+  ledgerRowsById.set(body.slice(0, first).trim(), {
+    theme: body.slice(first + 1, second).trim(),
+    claim: body.slice(second + 1, claimEnd).trim(),
+  });
+}
 export const PFU0_DECISIONS = Object.freeze(["W-1451", "W-1452", "W-1453"]);
 export const PFU0_DISPOSITIONS = Object.freeze({
   "W-1451": "oracle-backed-current",
@@ -156,7 +170,6 @@ export const MANIFEST_ARTIFACTS = Object.freeze({
   "study-checker": "tooling/check-study-bundles.mjs",
   classification: "tooling/design-freeze-classification.json",
   "research-state-inventory": RESEARCH_STATE_INVENTORY_PATH,
-  ledger: "RATIONALE.md",
   design: "DESIGN.md",
   index: "DESIGN-INDEX.md",
 });
@@ -364,8 +377,6 @@ function sourceReferenceValid(reference) {
   const file = resolveInside(reference?.path);
   return Boolean(
     file && fs.existsSync(file) && fs.statSync(file).isFile() &&
-    /^sha256:[0-9a-f]{64}$/u.test(reference?.digest ?? "") &&
-    digestFile(file) === reference.digest &&
     symbolCount(file, reference.symbol) === 1,
   );
 }
@@ -382,7 +393,6 @@ function frontendFacts(state) {
   const families = Array.isArray(corpus.families) ? corpus.families : [];
   const familyIds = families.map((family) => family?.family);
   const expectedFamilies = ["G0", "G1", "G2", "G3", "G4", "G5"];
-  const sourceDigests = families.map((family) => family?.sourceRef?.digest);
   const snapshotIds = snapshot.map((record) => record?.family);
   const sourceRefs = families.map((family) => {
     const file = resolveInside(family?.sourceRef?.path);
@@ -390,7 +400,8 @@ function frontendFacts(state) {
   });
   const snapshotCoherent = families.every((family) => {
     const record = snapshot.find((candidate) => candidate?.family === family?.family);
-    return record?.source?.digest === family?.sourceRef?.digest &&
+    return record?.source?.path === family?.sourceRef?.path &&
+      record?.source?.symbol === family?.sourceRef?.symbol &&
       Array.isArray(record?.decisions) && record.decisions.every((decision) => /^W-[0-9]{3,4}$/u.test(decision));
   });
   const parserBoundary = corpus.status === "design-oracle-input" &&
@@ -408,7 +419,6 @@ function frontendFacts(state) {
     sourceRefsValid: sourceRefs.every(Boolean),
     snapshotCoherent,
     parserBoundary,
-    sourceDigests,
   };
 }
 
@@ -416,11 +426,20 @@ function classificationFacts(state) {
   const classification = state.classification;
   const researchStateInventory = researchStateInventoryFacts(state.researchStateInventory);
   const entries = Array.isArray(classification.entries) ? classification.entries : [];
+  const classificationSchemaValid = classification.$schema === "w-design-freeze-classification-2";
   const ids = entries.map((entry) => entry?.decisionId);
   const unique = new Set(ids);
   const complete = entries.length === ledgerIds.length &&
     unique.size === ledgerIds.length &&
+    same(ids, ledgerIds) &&
     ledgerIds.every((decisionId) => unique.has(decisionId));
+  const entriesById = new Map(entries.map((entry) => [entry?.decisionId, entry]));
+  const canonicalClaimsAligned = ledgerRowsById.size === ledgerIds.length &&
+    ledgerIds.every((decisionId) => {
+      const entry = entriesById.get(decisionId);
+      const row = ledgerRowsById.get(decisionId);
+      return entry?.summary === row?.theme && entry?.canonicalClaim === row?.claim;
+    });
   const dispositions = entries.every((entry) =>
     typeof entry?.decisionId === "string" &&
     typeof entry?.category === "string" &&
@@ -455,19 +474,21 @@ function classificationFacts(state) {
     designOnlyClosures[decisionId] === category,
   );
   const targetCategories = Object.fromEntries(DECISIONS.map((decision) => [decision, entries.find((entry) => entry?.decisionId === decision)?.category ?? null]));
-  const ledgerDigestValid = classification.ledger?.path === "RATIONALE.md" &&
+  const ledgerAlignmentValid = classification.ledger?.path === "RATIONALE.md" &&
+    classification.ledger?.section === "3. Ledger" &&
     classification.ledger?.count === ledgerIds.length &&
     classification.ledger?.first === ledgerIds[0] &&
     classification.ledger?.last === ledgerIds.at(-1) &&
-    classification.ledger?.sha256 === digestFile(path.join(repositoryRoot, "RATIONALE.md"));
+    canonicalClaimsAligned;
   const researchStateClosed = researchStateInventory.valid &&
     researchStateInventory.normalized === true &&
     researchStateInventory.normalizationPendingCount === 0 &&
     researchStateInventory.status === "authoritative-maintained-surface";
-  const valid = complete && historicalComplete && dispositions && researchResidual.length === 0 && reopenedResearch && pfuSupersessionValid && globalResearchExact && designOnlyClosuresValid && ledgerDigestValid && researchStateClosed &&
+  const valid = classificationSchemaValid && complete && historicalComplete && dispositions && researchResidual.length === 0 && reopenedResearch && pfuSupersessionValid && globalResearchExact && designOnlyClosuresValid && ledgerAlignmentValid && researchStateClosed &&
     DECISIONS.every((decision) => targetCategories[decision] === DISPOSITIONS[decision]);
   return {
     valid,
+    classificationSchemaValid,
     entryCount: entries.length,
     uniqueDecisionCount: unique.size,
     complete,
@@ -490,7 +511,8 @@ function classificationFacts(state) {
     designOnlyClosures,
     designOnlyClosuresValid,
     targetCategories,
-    ledgerDigestValid,
+    ledgerAlignmentValid,
+    canonicalClaimsAligned,
     researchStateClosed,
     researchStateInventory,
   };
@@ -749,14 +771,16 @@ function validateBundle(bundle = readJson("tooling/studies/final-research-closur
   if (bundle.$schema !== "w-substitution-study-bundle-1") errors.push("bundle schema is invalid.");
   if (bundle.status !== "design-oracle-input" || bundle.entry !== "finalResearchClosure") errors.push("bundle status or entry is invalid.");
   const base = path.dirname(bundlePath);
+  if (!exactKeys(bundle.sourceBase, ["path", "symbol"])) errors.push("bundle sourceBase keys are invalid.");
   const baseFile = resolveInside(bundle.sourceBase?.path, base);
-  if (!baseFile || !fs.existsSync(baseFile) || digestFile(baseFile) !== bundle.sourceBase?.digest || symbolCount(baseFile, bundle.sourceBase?.symbol) !== 1) errors.push("bundle sourceBase chain is invalid.");
+  if (!baseFile || !fs.existsSync(baseFile) || symbolCount(baseFile, bundle.sourceBase?.symbol) !== 1) errors.push("bundle sourceBase path/symbol chain is invalid.");
   if (!Array.isArray(bundle.sourceRefs) || bundle.sourceRefs.length < 4) errors.push("bundle sourceRefs are incomplete.");
   const sourceKeys = new Set();
   for (const [index, reference] of (bundle.sourceRefs ?? []).entries()) {
     const file = resolveInside(reference?.path, base);
     const key = `${reference?.path}\0${reference?.symbol}`;
-    if (!file || !fs.existsSync(file) || !/^sha256:[0-9a-f]{64}$/u.test(reference?.digest ?? "") || digestFile(file) !== reference.digest || symbolCount(file, reference.symbol) !== 1) errors.push(`bundle sourceRef[${index}] is stale or invalid.`);
+    if (!exactKeys(reference, ["path", "symbol"])) errors.push(`bundle sourceRef[${index}] keys are invalid.`);
+    if (!file || !fs.existsSync(file) || symbolCount(file, reference?.symbol) !== 1) errors.push(`bundle sourceRef[${index}] path/symbol is stale or invalid.`);
     if (sourceKeys.has(key)) errors.push(`bundle sourceRef[${index}] is duplicated.`);
     sourceKeys.add(key);
   }
@@ -824,6 +848,14 @@ export function mutationChecks() {
   escapedSource.artifacts.find((artifact) => artifact.role === "classification").path = "../../outside.json";
   checks.sourceEscapeRejected = validateManifest(escapedSource).some((error) => error.includes("escapes") || error.includes("role/path"));
 
+  const ambiguousBundleSymbol = clone(bundle);
+  ambiguousBundleSymbol.sourceRefs[0].symbol = "FRC0";
+  checks.ambiguousBundleSymbolRejected = validateBundle(ambiguousBundleSymbol).some((error) => error.includes("symbol"));
+
+  const legacyBundleSourceDigest = clone(bundle);
+  legacyBundleSourceDigest.sourceRefs[0].digest = `sha256:${"0".repeat(64)}`;
+  checks.legacyBundleSourceDigestRejected = validateBundle(legacyBundleSourceDigest).some((error) => error.includes("sourceRef[0] keys"));
+
   const wrongCategory = clone(corpus);
   wrongCategory.dispositions["W-731"] = "research-gated";
   checks.wrongCategoryRejected = validateCorpus(wrongCategory).errors.some((error) => error.includes("dispositions"));
@@ -831,6 +863,27 @@ export function mutationChecks() {
   const researchResidual = clone(state);
   researchResidual.classification.entries.find((entry) => entry.decisionId === "W-1450").category = "research-gated";
   checks.researchResidualRejected = classificationFacts(researchResidual).valid === false;
+
+  const alteredCanonicalClaim = clone(state);
+  alteredCanonicalClaim.classification.entries.find((entry) => entry.decisionId === "W-001").canonicalClaim += " mutated";
+  checks.canonicalClaimDriftRejected = classificationFacts(alteredCanonicalClaim).valid === false;
+
+  const alteredLedgerBounds = clone(state);
+  alteredLedgerBounds.classification.ledger.first = "W-000";
+  checks.ledgerBoundsDriftRejected = classificationFacts(alteredLedgerBounds).valid === false;
+  const legacyLedgerHash = clone(state);
+  legacyLedgerHash.classification.ledger.sha256 = `sha256:${"0".repeat(64)}`;
+  const legacyLedgerHashFacts = classificationFacts(legacyLedgerHash);
+  checks.ledgerAlignmentDoesNotConsumeWholeFileHash = legacyLedgerHashFacts.ledgerAlignmentValid &&
+    legacyLedgerHashFacts.canonicalClaimsAligned;
+  const legacyClassificationSchema = clone(state);
+  legacyClassificationSchema.classification.$schema = "w-design-freeze-classification-1";
+  checks.legacyClassificationSchemaRejected = classificationFacts(legacyClassificationSchema).valid === false;
+
+  const reorderedClassification = clone(state);
+  [reorderedClassification.classification.entries[0], reorderedClassification.classification.entries[1]] =
+    [reorderedClassification.classification.entries[1], reorderedClassification.classification.entries[0]];
+  checks.classificationOrderDriftRejected = classificationFacts(reorderedClassification).valid === false;
 
   const reopenedCategory = clone(state);
   reopenedCategory.classification.entries.find((entry) => entry.decisionId === "W-1451").category = "research-gated";

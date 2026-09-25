@@ -28,14 +28,14 @@ function runMutation(mutator) {
   }
 }
 
-function runRefreshMutation(mutator) {
+function runRefreshMutation(mutator, arguments_ = []) {
   const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "w-freeze-refresh-"));
   try {
     const value = JSON.parse(fs.readFileSync(sourcePath, "utf8"));
     mutator(value);
     const mutatedPath = path.join(temporaryDirectory, "classification.json");
     fs.writeFileSync(mutatedPath, `${JSON.stringify(value)}\n`);
-    const result = Bun.spawnSync([process.execPath, refreshPath], {
+    const result = Bun.spawnSync([process.execPath, refreshPath, ...arguments_], {
       cwd: rootDirectory,
       env: { ...process.env, W_DESIGN_FREEZE_CLASSIFICATION: mutatedPath },
       stdout: "pipe",
@@ -56,6 +56,14 @@ test("rejects a missing ledger entry", () => {
   expect(result.stderr.toString()).toContain("classification is missing");
 });
 
+test("requires classification schema 2 without a legacy compatibility path", () => {
+  const result = runMutation((value) => {
+    value.$schema = "w-design-freeze-classification-1";
+  });
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stderr.toString()).toContain("schema must be w-design-freeze-classification-2");
+});
+
 test("rejects a stale authority digest", () => {
   const result = runMutation((value) => {
     const entry = value.entries.find((candidate) => candidate.authorityRef.kind === "source-case");
@@ -65,13 +73,13 @@ test("rejects a stale authority digest", () => {
   expect(result.stderr.toString()).toContain("caseDigest is stale");
 });
 
-test("rejects a corpus-wide digest beside a local case digest", () => {
+test("rejects a legacy local source hash field", () => {
   const result = runMutation((value) => {
     const entry = value.entries.find((candidate) => candidate.authorityRef.kind === "source-case");
     entry.authorityRef.sha256 = "sha256:stale";
   });
   expect(result.exitCode).not.toBe(0);
-  expect(result.stderr.toString()).toContain("sha256 must be omitted when a local digest is present");
+  expect(result.stderr.toString()).toContain("sha256 is obsolete in classification schema 2");
 });
 
 test("refresh repairs an existing local case digest without migration mode", () => {
@@ -85,13 +93,19 @@ test("refresh repairs an existing local case digest without migration mode", () 
   expect(entry.authorityRef.sha256).toBeUndefined();
 });
 
-test("rejects a stale DESIGN section digest", () => {
+test("refresh has no legacy digest migration option", () => {
+  const { result } = runRefreshMutation(() => {}, ["--migrate-local-digests"]);
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stderr.toString()).toContain("unknown argument: --migrate-local-digests");
+});
+
+test("rejects a legacy DESIGN section digest", () => {
   const result = runMutation((value) => {
     const entry = value.entries.find((candidate) => candidate.decisionId === "W-1418");
     entry.authorityRef.sectionDigest = "sha256:stale";
   });
   expect(result.exitCode).not.toBe(0);
-  expect(result.stderr.toString()).toContain("sectionDigest is stale");
+  expect(result.stderr.toString()).toContain("sectionDigest is obsolete in classification schema 2");
 });
 
 test("rejects a DESIGN gate that does not match its authority", () => {
@@ -248,13 +262,22 @@ test("rejects a baseline with an active Research extension", () => {
   expect(result.stderr.toString()).toContain("fixed baseline assertion W-1436");
 });
 
-test("rejects a stale BRX0 decision bridge", () => {
+test("rejects a legacy claim digest on a BRX0 decision bridge", () => {
   const result = runMutation((value) => {
     const entry = value.entries.find((candidate) => candidate.decisionId === "W-1436");
     entry.authorityRef.decisionBridge.claimDigest = "sha256:stale";
   });
   expect(result.exitCode).not.toBe(0);
-  expect(result.stderr.toString()).toContain("decisionBridge.claimDigest is stale");
+  expect(result.stderr.toString()).toContain("decisionBridge.claimDigest is obsolete in classification schema 2");
+});
+
+test("rejects a local symbol selector that is not unique", () => {
+  const result = runMutation((value) => {
+    const entry = value.entries.find((candidate) => candidate.decisionId === "W-1522");
+    entry.sourceRefs[0].symbol = "w_seed_mlir0_input";
+  });
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stderr.toString()).toContain("symbol must occur exactly once");
 });
 
 test("rejects the protocol-default mapping drift", () => {

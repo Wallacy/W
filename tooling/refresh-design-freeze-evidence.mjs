@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,18 +9,8 @@ const repositoryDirectory = path.resolve(toolingDirectory, "..");
 const classificationPath = process.env.W_DESIGN_FREEZE_CLASSIFICATION
   ? path.resolve(process.env.W_DESIGN_FREEZE_CLASSIFICATION)
   : path.join(toolingDirectory, "design-freeze-classification.json");
-const migrateLocalDigests = process.argv.includes("--migrate-local-digests");
-const unknownArguments = process.argv.slice(2).filter((value) => value !== "--migrate-local-digests");
-if (unknownArguments.length !== 0) {
-  throw new Error(`unknown argument: ${unknownArguments.join(" ")}`);
-}
-
-function textDigest(value) {
-  return `sha256:${crypto.createHash("sha256").update(value).digest("hex")}`;
-}
-
-function fileDigest(filePath) {
-  return textDigest(fs.readFileSync(filePath));
+if (process.argv.length > 2) {
+  throw new Error(`unknown argument: ${process.argv.slice(2).join(" ")}`);
 }
 
 function repositoryFile(relativePath) {
@@ -72,11 +61,8 @@ function designSections() {
     headings.push({ section: sectionMatch[1], heading: line, level: match[1].length, start: index });
   }
   return new Map(headings.map((record) => {
-    const next = headings.find((candidate) => candidate.start > record.start && candidate.level <= record.level);
-    const end = next?.start ?? lines.length;
     return [record.section, {
       heading: record.heading,
-      sectionDigest: textDigest(lines.slice(record.start, end).join("\n")),
     }];
   }));
 }
@@ -150,87 +136,46 @@ function protectedClassificationShape(classification) {
   });
 }
 
-function refreshFileReferences(value, counters, seen = new Set()) {
-  if (!value || typeof value !== "object" || seen.has(value)) return;
-  seen.add(value);
-  if (typeof value.path === "string" && Object.hasOwn(value, "sha256")) {
-    const next = fileDigest(repositoryFile(value.path));
-    if (value.sha256 !== next) {
-      value.sha256 = next;
-      counters.fileDigests++;
-    }
-  }
-  for (const nested of Object.values(value)) refreshFileReferences(nested, counters, seen);
-}
-
-function refreshLocalReference(reference, rows, sections, indexes, counters) {
+function refreshReference(reference, sections, indexes, counters) {
   if (!reference || typeof reference !== "object") return;
   const testCase = referencedCase(reference, indexes);
   if (testCase) {
-    if (!migrateLocalDigests && !Object.hasOwn(reference, "caseDigest")) return;
     const next = caseDigest(testCase);
     if (reference.caseDigest !== next) {
       reference.caseDigest = next;
-      counters.localDigests++;
-    }
-    if (migrateLocalDigests && Object.hasOwn(reference, "sha256")) {
-      delete reference.sha256;
-      counters.removedWholeFileDigests++;
+      counters.caseDigests++;
     }
     return;
   }
   if (["design-contract", "design-freeze-gate", "design-absence"].includes(reference.kind)) {
-    if (!migrateLocalDigests && !Object.hasOwn(reference, "sectionDigest")) return;
     const section = sections.get(reference.section);
     if (!section) throw new Error(`unknown DESIGN.md section ${reference.section}`);
-    if (reference.heading !== section.heading) reference.heading = section.heading;
-    if (reference.sectionDigest !== section.sectionDigest) {
-      reference.sectionDigest = section.sectionDigest;
-      counters.localDigests++;
-    }
-    if (migrateLocalDigests && Object.hasOwn(reference, "sha256")) {
-      delete reference.sha256;
-      counters.removedWholeFileDigests++;
-    }
-    return;
-  }
-  if (reference.kind === "ledger-row" || reference.kind === "superseding-decision") {
-    if (!migrateLocalDigests && !Object.hasOwn(reference, "claimDigest")) return;
-    const row = rows.get(reference.decisionId);
-    if (!row) throw new Error(`unknown ledger decision ${reference.decisionId}`);
-    const next = textDigest(row.claim);
-    if (reference.claimDigest !== next) {
-      reference.claimDigest = next;
-      counters.localDigests++;
-    }
-    if (migrateLocalDigests && Object.hasOwn(reference, "sha256")) {
-      delete reference.sha256;
-      counters.removedWholeFileDigests++;
+    if (reference.heading !== section.heading) {
+      reference.heading = section.heading;
+      counters.designHeadings++;
     }
   }
 }
 
-function replaceIdentityText(value, oldSummary, newSummary, oldDigest, newDigest) {
+function replaceIdentityText(value, oldSummary, newSummary) {
   if (typeof value !== "string") return value;
-  return value.replaceAll(oldDigest, newDigest).replaceAll(oldSummary, newSummary);
+  return value.replaceAll(oldSummary, newSummary);
 }
 
 function refreshClaimReference(reference, rows, counters) {
   if (!reference || typeof reference !== "object" || typeof reference.decisionId !== "string") return;
   const row = rows.get(reference.decisionId);
   if (!row) throw new Error(`claim reference names unknown decision ${reference.decisionId}`);
-  const nextDigest = textDigest(row.claim);
   if (Object.hasOwn(reference, "canonicalClaim") && reference.canonicalClaim !== row.claim) {
     reference.canonicalClaim = row.claim;
-    counters.claimReferences++;
-  }
-  if (Object.hasOwn(reference, "claimDigest") && reference.claimDigest !== nextDigest) {
-    reference.claimDigest = nextDigest;
     counters.claimReferences++;
   }
 }
 
 const classification = JSON.parse(fs.readFileSync(classificationPath, "utf8"));
+if (classification.$schema !== "w-design-freeze-classification-2") {
+  throw new Error("classification schema must be w-design-freeze-classification-2");
+}
 const beforeShape = protectedClassificationShape(classification);
 const rows = ledgerRows();
 const sections = designSections();
@@ -238,10 +183,8 @@ const indexes = caseIndexes();
 const counters = {
   entries: 0,
   claimReferences: 0,
-  fileDigests: 0,
-  designSections: 0,
-  localDigests: 0,
-  removedWholeFileDigests: 0,
+  designHeadings: 0,
+  caseDigests: 0,
 };
 
 if (!Array.isArray(classification.entries)) throw new Error("classification.entries must be an array");
@@ -253,7 +196,6 @@ if (JSON.stringify(classifiedIds) !== JSON.stringify(ledgerIds)) {
   throw new Error("classification decision order differs from the current ledger");
 }
 
-classification.ledger.sha256 = fileDigest(repositoryFile("RATIONALE.md"));
 classification.ledger.count = ledgerIds.length;
 classification.ledger.first = ledgerIds[0];
 classification.ledger.last = ledgerIds.at(-1);
@@ -262,39 +204,32 @@ for (const entry of classification.entries) {
   const row = rows.get(entry.decisionId);
   if (!row) throw new Error(`classification contains unknown decision ${entry.decisionId}`);
   const oldSummary = entry.summary;
-  const oldDigest = entry.claimDigest;
-  const nextDigest = textDigest(row.claim);
-  const identityChanged = oldSummary !== row.theme || entry.canonicalClaim !== row.claim || oldDigest !== nextDigest;
+  const identityChanged = oldSummary !== row.theme || entry.canonicalClaim !== row.claim;
   if (identityChanged) counters.entries++;
   entry.summary = row.theme;
   entry.canonicalClaim = row.claim;
-  entry.claimDigest = nextDigest;
   if (identityChanged) {
-    entry.reason = replaceIdentityText(entry.reason, oldSummary, row.theme, oldDigest, nextDigest);
-    entry.stopCondition = replaceIdentityText(entry.stopCondition, oldSummary, row.theme, oldDigest, nextDigest);
+    entry.reason = replaceIdentityText(entry.reason, oldSummary, row.theme);
+    entry.stopCondition = replaceIdentityText(entry.stopCondition, oldSummary, row.theme);
   }
-  if (entry.basisRef) entry.basisRef.claimDigest = nextDigest;
   refreshClaimReference(entry.supersessionClaim, rows, counters);
   refreshClaimReference(entry.authorityRef?.decisionBridge, rows, counters);
   for (const evidence of entry.evidence ?? []) refreshClaimReference(evidence.decisionBridge, rows, counters);
-  if (entry.authorityRef?.path === "DESIGN.md" && typeof entry.authorityRef.section === "string" &&
-      Object.hasOwn(entry.authorityRef, "sectionDigest")) {
+  if (entry.authorityRef?.path === "DESIGN.md" && typeof entry.authorityRef.section === "string") {
     const section = sections.get(entry.authorityRef.section);
     if (!section) throw new Error(`unknown DESIGN.md section ${entry.authorityRef.section}`);
-    if (entry.authorityRef.heading !== section.heading || entry.authorityRef.sectionDigest !== section.sectionDigest) {
+    if (entry.authorityRef.heading !== section.heading) {
       entry.authorityRef.heading = section.heading;
-      entry.authorityRef.sectionDigest = section.sectionDigest;
-      counters.designSections++;
+      counters.designHeadings++;
     }
   }
-  refreshLocalReference(entry.basisRef, rows, sections, indexes, counters);
-  refreshLocalReference(entry.authorityRef, rows, sections, indexes, counters);
+  refreshReference(entry.basisRef, sections, indexes, counters);
+  refreshReference(entry.authorityRef, sections, indexes, counters);
   for (const evidence of entry.evidence ?? []) {
-    refreshLocalReference(evidence, rows, sections, indexes, counters);
+    refreshReference(evidence, sections, indexes, counters);
   }
 }
 
-refreshFileReferences(classification, counters);
 if (protectedClassificationShape(classification) !== beforeShape) {
   throw new Error("refresh attempted to change reviewed classification structure");
 }
@@ -302,7 +237,6 @@ if (protectedClassificationShape(classification) !== beforeShape) {
 fs.writeFileSync(classificationPath, `${JSON.stringify(classification, null, 2)}\n`);
 process.stdout.write(
   `Design freeze evidence refreshed: ${counters.entries} ledger identities, ` +
-  `${counters.claimReferences} linked claims, ${counters.fileDigests} file digests, ` +
-  `${counters.designSections} DESIGN sections, ${counters.localDigests} local digests, ` +
-  `${counters.removedWholeFileDigests} whole-file pins removed; reviewed categories unchanged.\n`,
+  `${counters.claimReferences} linked canonical claims, ${counters.caseDigests} exact case digests, ` +
+  `${counters.designHeadings} DESIGN headings; reviewed categories unchanged.\n`,
 );
