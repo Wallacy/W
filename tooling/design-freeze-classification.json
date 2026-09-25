@@ -23,7 +23,7 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:9b18d560a9fcc208de243a696ad43297c9b76bb50559e4f72659a9bc0d0605dd",
+    "sha256": "sha256:1d68505b225b8d5575565534e484aaa526f8485080e267d3acfdd26ed722c522",
     "count": 1653,
     "first": "W-001",
     "last": "W-1653"
@@ -13152,7 +13152,7 @@
         "path": "RATIONALE.md",
         "section": "3. Ledger",
         "decisionId": "W-1651",
-        "claimDigest": "sha256:51a24f249dba6d607a37439d99a69225a20682848020e435baef6ce61e8d419c"
+        "claimDigest": "sha256:565c07ce1afb907f8d7d464e0a4d65604e2b4c18dc17cf66a2687861f318d7c6"
       },
       "evidence": [],
       "reason": "W-397 (ML storage (superseded by W-1651), sha256:9d8f669be249d4081868c95983d4a241c822cc9d47acf903d6d547d640f0ea21) is historical provenance. W-1651 replaces its storage-only f16/bf16 rule and float8 exclusion with the explicit fixed, arbitrary-precision, and configured low-precision numeric families.",
@@ -13166,8 +13166,8 @@
       },
       "supersessionClaim": {
         "decisionId": "W-1651",
-        "canonicalClaim": "`f16`/`bf16`/`f32`/`f64`/`f128` are fixed arithmetic scalars; one `BigFloat<precision:>` family covers fixed and `.dynamic`; f4/f6/f8 use mandatory standardized format cases; TensorFloat32 is compute policy and e8m0fnu is block-scale metadata",
-        "claimDigest": "sha256:51a24f249dba6d607a37439d99a69225a20682848020e435baef6ce61e8d419c",
+        "canonicalClaim": "`f16`/`bf16`/`f32`/`f64`/`f128` are fixed arithmetic scalars; one `BigFloat<precision:>` family covers fixed and `.dynamic`; f4/f6/f8 use mandatory standardized format cases; TensorFloat32 is compute policy and e8m0fnu is block-scale metadata. Frontend76 now preserves exact 16-byte `i128`/`u128` literal magnitudes and immutable binding identity, including signed/unsigned decimal and hexadecimal boundaries, but deliberately rejects wide operations and conversions.",
+        "claimDigest": "sha256:565c07ce1afb907f8d7d464e0a4d65604e2b4c18dc17cf66a2687861f318d7c6",
         "relation": "W-397 → W-1651: W-1651 replaces the storage-only f16/bf16 boundary and float8 exclusion with explicit portable numeric families."
       }
     },
@@ -16900,7 +16900,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_entry",
           "claim": "Frontend15 synthesizes one private Unit function and records the direct entry target relation.",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240"
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -21871,7 +21871,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:87e4c3367c5d109aaf7505e8619c1e9ed03a22e6a1c89b91b347d596164b9435"
+        "sectionDigest": "sha256:2e279b4083afedca5ca1e2b3c37b1f952246a5818fef9b8a846d8e6e18629eeb"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -50772,13 +50772,13 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/include/w_seed_frontend.h",
-          "sha256": "sha256:bf9d5c136b63877e7e48c962495f2dffc8acabce5bc4a6ca05f332ea6a63c71f",
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966",
           "symbol": "W_SEED_FRONTEND_SCHEMA_VERSION",
           "claim": "Frontend schema version and binding relation fields."
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240",
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc",
           "symbol": "resolved_binding_statement",
           "claim": "Frontend publishes the lexical binding relation."
         },
@@ -50802,7 +50802,7 @@
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc",
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e",
           "symbol": "test_local_binding_resolution",
           "claim": "Frontend unit covers effective type, initializer type and binding relation."
         },
@@ -51129,13 +51129,13 @@
         },
         {
           "path": "compiler/seed-c/include/w_seed_frontend.h",
-          "sha256": "sha256:bf9d5c136b63877e7e48c962495f2dffc8acabce5bc4a6ca05f332ea6a63c71f",
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966",
           "symbol": "w_seed_frontend_interpolation_segment",
           "claim": "Frontend schema v12 publishes explicit ordered text and expression segments."
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240",
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc",
           "symbol": "expression_parse_interpolated_string",
           "claim": "The frontend normalizes interpolation segments and canonical built-in types."
         },
@@ -51147,7 +51147,7 @@
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc",
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e",
           "symbol": "test_interpolated_string_projection",
           "claim": "The frontend unit proves ownership, exact text, canonical i64, and capacity transactions."
         },
@@ -51365,7 +51365,7 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240",
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc",
           "symbol": "expression_tree_contains",
           "claim": "Frontend supplies canonical Bool identity and resolves a binding nested inside the bounded argument tree."
         },
@@ -52001,7 +52001,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "statement_for_expression",
           "claim": "Existing bounded expression-tree walks locate prior-binding operands without downstream name resolution.",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240"
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -52013,7 +52013,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_scalar_type_measure_emit_parity",
           "claim": "Contextual comparison types and prior bindings preserve dry/emit counts and capacity failure boundaries.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         },
         {
           "path": "compiler/seed-c/fixtures/comparisons.w",
@@ -52167,7 +52167,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_scalar_if_frontend_subset",
           "claim": "Frontend tests cover scalar return and immutable-let positives plus diagnostic and unsupported-form boundaries.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
@@ -52345,7 +52345,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_entry",
           "claim": "Frontend15 synthesizes one private Unit function and records the direct entry target relation.",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240"
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -52363,7 +52363,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_short_entry_frontend",
           "claim": "Frontend tests prove the private Unit function, direct target, symbol order, and receipt mode.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
@@ -52428,7 +52428,7 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_SCHEMA_VERSION",
           "claim": "Frontend16 publishes append-only external nominal identity fields.",
-          "sha256": "sha256:bf9d5c136b63877e7e48c962495f2dffc8acabce5bc4a6ca05f332ea6a63c71f"
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966"
         },
         {
           "path": "compiler/seed-c/src/w_seed_parser.c",
@@ -52446,13 +52446,13 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "external_identity_pair_valid",
           "claim": "Frontend16 validates external nominal identity pairs and the bounded ExitCode success projection.",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240"
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_process_abi_alias_and_exit_case",
           "claim": "Frontend tests cover valid aliases, canonical success, forged metadata, receipts, and capacity preservation.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         },
         {
           "path": "compiler/seed-c/tests/test_module_scan.c",
@@ -52588,7 +52588,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_function",
           "claim": "The frontend assigns is_async from the explicit CST async modifier before HIR publication.",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240"
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -52905,7 +52905,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_expression",
           "claim": "Frontend preserves resolver-owned Arguments.isEmpty and ExitCode.failure(i64) identities for the public process forms.",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240"
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -53022,7 +53022,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_expression_node",
           "claim": "Frontend normalizes an unparenthesized trailing nested scalar if as a value-block tail.",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240"
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -53052,7 +53052,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_scalar_if_frontend_subset",
           "claim": "Frontend tests cover the nested scalar-if source normalization and unsupported-form boundaries.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
@@ -53295,13 +53295,13 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "expression_parse_interpolated_string",
           "claim": "The frontend applies canonical i64 context before publishing a leading prefix-negative interpolation tree.",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240"
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_interpolated_string_projection",
           "claim": "Frontend units prove the literal, unary root and segment type relation.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
@@ -53372,7 +53372,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "mutable_binding_for_name",
           "claim": "The frontend admits only a preceding mutable binding target.",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240"
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -53579,7 +53579,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_local_assignment_projection",
           "claim": "Frontend tests prove lexical ancestor visibility, nested shadowing, and branch-local non-escape.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
@@ -53656,7 +53656,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_local_assignment_projection",
           "claim": "Frontend tests prove opposite arm order and resolved root target identity.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
@@ -53745,7 +53745,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_while_projection",
           "claim": "Frontend tests prove statement relations, lexical root resolution, and non-Bool diagnostics.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54979,7 +54979,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "expression_parse_prefix_inner",
           "claim": "The frontend preserves exact execution yield as a Unit semantic expression inside async functions.",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240"
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -55050,7 +55050,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "expression_parse_prefix_inner",
           "claim": "Frontend24 preserves every execution yield while interning their canonical Unit type identity.",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240"
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -55473,7 +55473,7 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_EXPR_SPAWN_MAIN_LAUNCH",
           "claim": "Frontend25 preserves main-domain launch intent separately from ordinary async.",
-          "sha256": "sha256:bf9d5c136b63877e7e48c962495f2dffc8acabce5bc4a6ca05f332ea6a63c71f"
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -55659,13 +55659,13 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_EXPR_SPAWN_PARALLEL_DOMAIN_LAUNCH",
           "claim": "Frontend28 preserves explicit parallel-domain syntax and caller-owned placement facts.",
-          "sha256": "sha256:bf9d5c136b63877e7e48c962495f2dffc8acabce5bc4a6ca05f332ea6a63c71f"
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966"
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "domain_input_ready",
           "claim": "Frontend validates bounded caller-owned domain records before parsing explicit placement.",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240"
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -55695,7 +55695,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_structured_async_projection",
           "claim": "Frontend tests cover missing, serial, capability-free, valid, and duplicate domain records.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
@@ -56372,7 +56372,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_kernel_module_frontend",
           "claim": "Frontend32 binds one or multiple label-canonicalized kernel bindings to direct local function identities and rejects malformed or incomplete module contracts transactionally.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         },
         {
           "path": "compiler/seed-c/src/w_seed_gpu_module.c",
@@ -56384,7 +56384,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_gpu_module_bridge",
           "claim": "A versioned W fixture crosses Frontend32 into caller-owned device-module records and remains verifiable after source/frontend teardown.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         },
         {
           "path": "compiler/seed-c/src/w_seed_gpu0.c",
@@ -56464,13 +56464,13 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_EXPR_SPAWN_ACCELERATED_DOMAIN_LAUNCH",
           "claim": "Frontend32 publishes a distinct accelerated-domain launch and exact module/kernel-binding callee identity.",
-          "sha256": "sha256:bf9d5c136b63877e7e48c962495f2dffc8acabce5bc4a6ca05f332ea6a63c71f"
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_kernel_module_frontend",
           "claim": "Focused C23 evidence accepts serial and concurrent accelerated bindings and rejects bare, async, host-domain, missing-field, zero-budget, and device-less variants.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         }
       ],
       "benchmarkDisposition": "deferred",
@@ -57107,7 +57107,7 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "w_seed_frontend_function",
           "claim": "Frontend29 publishes the concrete function error type and typed throw statement.",
-          "sha256": "sha256:bf9d5c136b63877e7e48c962495f2dffc8acabce5bc4a6ca05f332ea6a63c71f"
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -57225,19 +57225,19 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_EXPR_TRY",
           "claim": "Frontend30 publishes the EXPR_TRY kind and its concrete propagated error enum relation.",
-          "sha256": "sha256:bf9d5c136b63877e7e48c962495f2dffc8acabce5bc4a6ca05f332ea6a63c71f"
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966"
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "expression_parse_prefix_inner",
           "claim": "Frontend parsing admits only the exact synchronous local typed-try shape and records its nested call and enum identity.",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240"
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc"
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "resolve_frontend_links",
           "claim": "Frontend link resolution rechecks lexical ownership, local callee identity, matching error enums, result type, and async barriers.",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240"
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc"
         },
         {
           "path": "compiler/seed-c/tests/test_parser.c",
@@ -57249,7 +57249,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_typed_throw_projection",
           "claim": "The frontend witness proves supported propagation, receipt identity, direct-call rejection, enum mismatch, optional try, and async barriers.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -57840,7 +57840,7 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "expression_parse_panic",
           "claim": "The frontend accepts one unlabelled plain String literal, records Never and a closed explicit code, and fails closed on other shapes.",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240"
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -58241,7 +58241,7 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_POWER",
           "claim": "Frontend60 names the append-only u64 overflowing-power builtin.",
-          "sha256": "sha256:bf9d5c136b63877e7e48c962495f2dffc8acabce5bc4a6ca05f332ea6a63c71f"
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -58312,7 +58312,7 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_BUILTIN_U64_SATURATING_NEGATE",
           "claim": "Frontend61 names append-only unsigned saturating negate and power builtins.",
-          "sha256": "sha256:bf9d5c136b63877e7e48c962495f2dffc8acabce5bc4a6ca05f332ea6a63c71f"
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -58383,7 +58383,7 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_BUILTIN_U64_OVERFLOWING_SUBTRACT",
           "claim": "Frontend61 names append-only overflowing subtract, multiply, and negate builtins with virtual tuple results.",
-          "sha256": "sha256:bf9d5c136b63877e7e48c962495f2dffc8acabce5bc4a6ca05f332ea6a63c71f"
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -58519,13 +58519,13 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_SCHEMA_VERSION",
           "claim": "Frontend schema 62 publishes the exact canonical closed-product annotation and module-constant relations consumed by ConstIR.",
-          "sha256": "sha256:bf9d5c136b63877e7e48c962495f2dffc8acabce5bc4a6ca05f332ea6a63c71f"
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966"
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "simple_type_is_u64_bool_tuple",
           "claim": "The frontend recognizes only the exact closed product, normalizes source trivia to one identity, and resolves builtin module-constant argument ordinals without admitting generic module calls.",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240"
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc"
         },
         {
           "path": "compiler/seed-c/tests/test_constir.c",
@@ -58578,7 +58578,7 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_BUILTIN_INTEGER_WRAPPING_ADD",
           "claim": "Frontend63 exposes one append-only wrapping operation family while canonical type records carry signedness and logical width.",
-          "sha256": "sha256:bf9d5c136b63877e7e48c962495f2dffc8acabce5bc4a6ca05f332ea6a63c71f"
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -58649,7 +58649,7 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN",
           "claim": "Frontend64 exposes one append-only conversion record whose source and destination types are explicit.",
-          "sha256": "sha256:bf9d5c136b63877e7e48c962495f2dffc8acabce5bc4a6ca05f332ea6a63c71f"
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966"
         },
         {
           "path": "compiler/seed-c/include/w_seed_constir.h",
@@ -58685,7 +58685,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_implicit_integer_widening_frontend",
           "claim": "Focused C23 coverage exercises the legal family matrix, all source contexts, boundary literals, and rejected conversion classes.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
@@ -58975,19 +58975,19 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_SCHEMA_VERSION / W_SEED_FRONTEND_EXPR_INTEGER_TRUNCATING_BITS",
           "claim": "Frontend65 provides a distinct frontend conversion identity.",
-          "sha256": "sha256:bf9d5c136b63877e7e48c962495f2dffc8acabce5bc4a6ca05f332ea6a63c71f"
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966"
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "expression_append_integer_truncating_bits",
           "claim": "Frontend parsing constructs the fixed-width conversion and validates supported types and contexts.",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240"
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_explicit_integer_truncating_bits_frontend",
           "claim": "Frontend65 tests cover four contexts, 100 legal pairs, and 11 rejected forms.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -59250,13 +59250,13 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_SCHEMA_VERSION / W_SEED_FRONTEND_EXPR_INTEGER_SATURATING",
           "claim": "Frontend66 exposes one explicit saturating conversion identity.",
-          "sha256": "sha256:bf9d5c136b63877e7e48c962495f2dffc8acabce5bc4a6ca05f332ea6a63c71f"
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_explicit_integer_saturating_frontend",
           "claim": "Frontend tests cover the 100-pair family and malformed or excluded forms.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -59351,13 +59351,13 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_SCHEMA_VERSION / float_bits",
           "claim": "Frontend67 materializes canonical binary32 and binary64 bits exactly once.",
-          "sha256": "sha256:bf9d5c136b63877e7e48c962495f2dffc8acabce5bc4a6ca05f332ea6a63c71f"
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_f32_scalar_projection",
           "claim": "Frontend tests cover binary32 rounding, boundaries, environment isolation, and rejected forms.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -59446,13 +59446,13 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_SCHEMA_VERSION / W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN",
           "claim": "Frontend68 records one exact numeric-widen node and its explicit or contextual source surface.",
-          "sha256": "sha256:bf9d5c136b63877e7e48c962495f2dffc8acabce5bc4a6ca05f332ea6a63c71f"
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966"
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "numeric_widening_route",
           "claim": "The frontend derives the closed relation once and inserts the shared wrapper across supported contexts.",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240"
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -59565,13 +59565,13 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "float_bits_conversion_route",
           "claim": "Frontend69 admits only exact same-width unsigned fromBits and matching receiver toBits routes.",
-          "sha256": "sha256:61149380d2c22bfbf66b4648c9a2ba19ec023baa3ab438e3f7aa04d464572240"
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_float_bits_frontend",
           "claim": "Frontend tests cover exact signatures, bits, storage, copy, and rejected width, label, receiver, and arity forms.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
@@ -59672,13 +59672,13 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_SCHEMA_VERSION / fixed-width builtin operation IDs",
           "claim": "Frontend70 keeps the existing function signatures and records the selected operations for the fixed-width source types.",
-          "sha256": "sha256:bf9d5c136b63877e7e48c962495f2dffc8acabce5bc4a6ca05f332ea6a63c71f"
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_fixed_integer_bit_primitives_frontend_matrix",
           "claim": "The frontend matrix checks exact operation names, arities, fixed-width signedness, and logical widths across the bounded types.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -59797,13 +59797,13 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_SCHEMA_VERSION / named shift operation IDs",
           "claim": "Frontend70 retains the append-only named shift operation identities while generalizing their fixed-width type facts.",
-          "sha256": "sha256:bf9d5c136b63877e7e48c962495f2dffc8acabce5bc4a6ca05f332ea6a63c71f"
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_fixed_integer_shift_policies_frontend_matrix",
           "claim": "The frontend matrix checks the three policies, eight types, exact UInt count, arity, labels, and excluded widths.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -59910,13 +59910,13 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_SCHEMA_VERSION / W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY",
           "claim": "Frontend71 gives the bounded integer exactly conversion a distinct expression identity.",
-          "sha256": "sha256:bf9d5c136b63877e7e48c962495f2dffc8acabce5bc4a6ca05f332ea6a63c71f"
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_explicit_integer_exactly_frontend",
           "claim": "Frontend tests cover the supported integer type-pair matrix and reject unsupported exactly forms.",
-          "sha256": "sha256:9dfa56a306533ef3dedafc7a86879cde41399e03af0bc6b7d389cd46ad8567dc"
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -59991,8 +59991,8 @@
     {
       "decisionId": "W-1651",
       "summary": "explicit wide and low-precision numeric families",
-      "canonicalClaim": "`f16`/`bf16`/`f32`/`f64`/`f128` are fixed arithmetic scalars; one `BigFloat<precision:>` family covers fixed and `.dynamic`; f4/f6/f8 use mandatory standardized format cases; TensorFloat32 is compute policy and e8m0fnu is block-scale metadata",
-      "claimDigest": "sha256:51a24f249dba6d607a37439d99a69225a20682848020e435baef6ce61e8d419c",
+      "canonicalClaim": "`f16`/`bf16`/`f32`/`f64`/`f128` are fixed arithmetic scalars; one `BigFloat<precision:>` family covers fixed and `.dynamic`; f4/f6/f8 use mandatory standardized format cases; TensorFloat32 is compute policy and e8m0fnu is block-scale metadata. Frontend76 now preserves exact 16-byte `i128`/`u128` literal magnitudes and immutable binding identity, including signed/unsigned decimal and hexadecimal boundaries, but deliberately rejects wide operations and conversions.",
+      "claimDigest": "sha256:565c07ce1afb907f8d7d464e0a4d65604e2b4c18dc17cf66a2687861f318d7c6",
       "category": "implementation-evidence-gap",
       "basis": "current-ledger-claim-without-executable-witness",
       "authorityRef": {
@@ -60003,23 +60003,44 @@
         "sectionDigest": "sha256:ec960698b0718ff3fd130d8533f2e81def90e195e0c87482d0ac532578d69a5b"
       },
       "evidence": [],
-      "reason": "W-1651 (explicit wide and low-precision numeric families, sha256:51a24f249dba6d607a37439d99a69225a20682848020e435baef6ce61e8d419c) remains an implementation-evidence gap for component syntax-and-types at DESIGN.md §15 / 15. Números, ranges e unidades because wide and configured low-precision numeric executable witnesses are missing.",
-      "stopCondition": "Do not claim W-1651 as implemented. Close the syntax-and-types gap at DESIGN.md §15 / 15. Números, ranges e unidades with wide and configured low-precision numeric executable witnesses, exact encoding and conversion oracles, portability evidence, and target capability/fallback disclosure.",
+      "reason": "W-1651 (explicit wide and low-precision numeric families, sha256:565c07ce1afb907f8d7d464e0a4d65604e2b4c18dc17cf66a2687861f318d7c6) remains an implementation-evidence gap for component syntax-and-types at DESIGN.md §15 / 15. Números, ranges e unidades. Frontend76 now preserves exact i128/u128 identities, 16-byte literal magnitudes and immutable binding reads with boundary rejection, but wide verified HIR, operations, conversions, native execution, ABI/layout, serialization and every new floating family remain missing.",
+      "stopCondition": "Do not claim W-1651 as implemented. Close component syntax-and-types at DESIGN.md §15 / 15. Números, ranges e unidades. Remaining evidence: wide verified HIR, operations, conversions, native execution, ABI/layout and serialization; wide-float and configured low-precision numeric executable witnesses. These gates require exact operation/encoding/conversion/serialization oracles, portability evidence, and target capability/fallback disclosure.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
         "path": "RATIONALE.md",
         "section": "3. Ledger",
         "decisionId": "W-1651",
-        "claimDigest": "sha256:51a24f249dba6d607a37439d99a69225a20682848020e435baef6ce61e8d419c"
+        "claimDigest": "sha256:565c07ce1afb907f8d7d464e0a4d65604e2b4c18dc17cf66a2687861f318d7c6"
       },
       "gap": {
         "component": "syntax-and-types",
         "gate": "DESIGN.md §15 / 15. Números, ranges e unidades",
         "missingEvidence": [
-          "wide and configured low-precision numeric executable witnesses"
+          "wide verified HIR, operations, conversions, native execution, ABI/layout and serialization",
+          "wide-float and configured low-precision numeric executable witnesses"
         ]
-      }
+      },
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_frontend.h",
+          "symbol": "W_SEED_FRONTEND_SCHEMA_VERSION / w_seed_frontend_expression.integer_value",
+          "claim": "Frontend76 retains integer literal magnitudes in the existing 16-byte expression field.",
+          "sha256": "sha256:01f1376a8b25e829064abfcde53f49c4a88f9fb5068fab6a4a8f4d6c6cb55966"
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_frontend.c",
+          "symbol": "integer_literal_magnitude / integer_magnitude_fits_width",
+          "claim": "The frontend recognizes i128/u128 identities, parses exact 16-byte magnitudes and rejects out-of-range values without enabling wide operations.",
+          "sha256": "sha256:9fd5d4cf66ea64859ebc0450d4714a7de6cc240563ee3aa933762317e9990cbc"
+        },
+        {
+          "path": "compiler/seed-c/tests/test_frontend.c",
+          "symbol": "test_i128_literal_frontend",
+          "claim": "Focused tests cover decimal and hexadecimal boundaries, signed minimum, immutable binding/read identity and fail-closed operations and conversions.",
+          "sha256": "sha256:0b1ac52a701c1757f97618dd98f1e3658bd7565c5d615f9580477dd362a59c7e"
+        }
+      ]
     },
     {
       "decisionId": "W-1652",

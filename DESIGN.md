@@ -43171,7 +43171,13 @@ W-1651 refines W-397 without adding target-dependent scalar names. The fixed
 arithmetic family is `f16`, `bf16`, `f32`, `f64`, and IEEE binary128 `f128`.
 `i128` and `u128` remain core integer identities. The current source-to-native
 evidence still covers only the narrower subsets recorded by W-1645 through
-W-1650; this decision is design, not an implementation claim.
+W-1650. Frontend76 now recognizes the exact `i128`/`u128` identities and keeps
+integer-literal magnitudes as 16-byte little-endian values. It accepts signed
+maximum and minimum, unsigned maximum, hexadecimal boundary spelling, and an
+immutable explicitly typed binding while rejecting out-of-range spellings.
+This is frontend-only evidence: wide arithmetic, conversions, verified HIR,
+native lowering, layout/ABI, serialization, fallback, and execution remain
+implementation gaps.
 
 Arbitrary precision uses one `std.math` family:
 `BigFloat<precision: N>` or `BigFloat<precision: .dynamic>`. There is no
@@ -43189,10 +43195,11 @@ TensorFloat32 is a compute policy. Element format, packed layout, compute mode,
 accumulator, and target capability remain separate facts.
 
 W-1651 supersedes W-397's prohibition on scalar `f16`/`bf16` arithmetic and
-its exclusion of float8 from the core type surface. It does not claim frontend,
-HIR, const evaluation, ABI/FFI, SIMD, DLPack adapter, native instruction,
-software fallback, executable, benchmark, or performance evidence for the new
-families. Those remain explicit implementation gaps.
+its exclusion of float8 from the core type surface. Beyond the bounded
+`i128`/`u128` frontend identity-and-literal slice above, it does not claim HIR,
+const evaluation, ABI/FFI, SIMD, DLPack adapter, native instruction, software
+fallback, executable, benchmark, or performance evidence for the new families.
+Those remain explicit implementation gaps.
 
 #### 26.4.1.132 W-1652 — native-process unhandled typed-error adaptation
 

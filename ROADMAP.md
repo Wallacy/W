@@ -399,8 +399,8 @@ closure, and MLIR lowering. A family is not complete merely because a private
 artifact or an alternate native route supports it while the maintained product
 closure rejects it.
 
-Before adding wider representations, close runtime-parametrized public-product
-execution for the already implemented fixed integers and strict `f32`/`f64`:
+Before adding executable wider representations, close runtime-parametrized
+public-product execution for the already implemented fixed integers and strict `f32`/`f64`:
 typed failure, cleanup, process adaptation, exact output, and equivalent-work
 C23/Rust correctness references on Windows and Linux/WSL. Then add `i128` and
 `u128` as one complete package spanning literals, arithmetic, bit operations,
@@ -428,8 +428,10 @@ compile-latency, memory, and binary-size measurements improve without weakening
 the exact semantic oracle.
 
 The remaining numeric order is: complete runtime W-389/W-392 policies and
-typed failure; close target-width ABI/endian/serialization evidence; implement
-i128/u128; then strict f16/bf16/f128. Configured f4/f6/f8 and tensor packing
+typed failure; close target-width ABI/endian/serialization evidence; carry the
+now source-backed `i128`/`u128` frontend identities and 16-byte literals through
+verified HIR, operations, native lowering and serialization; then strict
+f16/bf16/f128. Configured f4/f6/f8 and tensor packing
 remain storage/compute work, while BigInt/BigFloat wait for ownership,
 allocator, OOM, and generic-value foundations. The bounded
 `Arguments.count -> i8` witness now feeds one checked runtime expression
@@ -831,7 +833,9 @@ physical scheduler experiments:
    do not block rank-2 functions or rank-3 general CFG that they now need.
    W-1651 closes the design identity of i128/u128, the fixed
    arithmetic float family through f128, configured f4/f6/f8 AI elements, and
-   fixed/dynamic BigFloat, but adds no implementation evidence. After the
+   fixed/dynamic BigFloat. Frontend76 now adds bounded implementation evidence
+   for exact i128/u128 type identities, 16-byte literal magnitudes, boundary
+   rejection and immutable binding only. After the
    current 64-bit/f32/f64 packages, rank 1 takes only fixed scalar work:
    i128/u128 and strict f16/bf16/f128 semantics, including target rejection or
    an explicitly permitted W-owned fallback. Configured f4/f6/f8 remain

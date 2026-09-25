@@ -209,9 +209,16 @@ Cada aplicação tem owner type, head, envelope, argumentos ordenados e status d
 binding; cada argumento preserva ordinal, span, label, parâmetro, kind, o índice
 de type ou `ConstValue` e o índice sentinel/relacionado de `TypedConstExpr`. O
 root liga à aplicação por `generic_application_index`.
-`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-75`. Version 75 adds a
-discriminated local-struct initializer identity without growing the public
-type, expression, or argument records. The bounded frontend slice accepts an
+`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-76`. Version 76 admits
+the designed `i128` and `u128` identities and preserves exact integer-literal
+magnitudes in the existing 16-byte little-endian expression field. It covers
+signed maximum/minimum, unsigned maximum, decimal and hexadecimal spellings,
+and immutable explicitly typed bindings. Out-of-range values, negative
+`u128`, wide arithmetic, mutation and conversions fail closed; verified HIR,
+native lowering, ABI/layout and serialization remain unsupported.
+
+Version 75 adds a discriminated local-struct initializer identity without
+growing the public type, expression, or argument records. The bounded frontend slice accepts an
 immutable nominal value struct with exactly two `i64` fields, labelled
 construction in either label order, projection by field name, local bindings,
 labelled arguments, and returns. It rejects duplicate, missing, unknown,

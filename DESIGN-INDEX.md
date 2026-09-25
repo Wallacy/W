@@ -222,4 +222,3 @@ bun tooling/design-slice.mjs --rationale-heading 1.3
 rg -n -C 4 'transaction' DESIGN.md
 bun tooling/design-index.mjs --check
 ```
-
