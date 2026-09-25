@@ -3541,6 +3541,15 @@ bitcasts, without a runtime, heap, or CRT helper. Focused frontend/HIR/
 NativeSubset0/MLIR tests cover signed zero, subnormals, infinities, quiet-NaN
 payloads, and rejected widths, receivers, labels, and arities.
 
+The native-process HIR root also admits a bounded normal-path chain after
+`try u64(exactly: args.count)`: immutable `fromBits`/`toBits` bindings may
+consume only the immediately preceding binding, and the final value must be
+observed by the one direct `print` before the existing success return. The HIR
+verifier independently rejects reordered or forged binding reads. This is
+compiler-lifecycle evidence only; native selection and runtime execution of
+that process-shaped chain remain unsupported. Its benchmark disposition is
+`compiler-lifecycle`.
+
 [`fixtures/float-bit-representation.w`](fixtures/float-bit-representation.w)
 declares exit 0 and exact stdout
 `Float bits f32 2147483648/2139095040/2143363909 f64 9223372036854775808/9218868437227405312/9221140253039434428\n`.

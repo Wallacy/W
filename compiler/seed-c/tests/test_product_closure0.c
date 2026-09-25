@@ -1221,6 +1221,62 @@ static bool test_native_process_checked_scalar_if_join(void) {
   return true;
 }
 
+static bool test_native_process_float_raw_bits_from_runtime_count(void) {
+  static const char SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let bits: u64 = try u64(exactly: args.count) "
+      "let value: f64 = f64.fromBits(bits) "
+      "let roundTrip: u64 = value.toBits() "
+      "print(\"Bits ${roundTrip}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static multidoc_fixture fixture;
+  CHECK(prepare_process_fixture(&fixture, SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  bool saw_from_bits = false;
+  bool saw_to_bits = false;
+  uint32_t from_bits_value = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < program->value_count; index += 1u) {
+    if (program->values[index].kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS) {
+      saw_from_bits = true;
+      from_bits_value = (uint32_t)index;
+    }
+    saw_to_bits = saw_to_bits ||
+                  program->values[index].kind ==
+                      W_SEED_HIR0_VALUE_FLOAT_TO_BITS;
+  }
+  CHECK(saw_from_bits && saw_to_bits &&
+        from_bits_value < program->value_count &&
+        program->values[from_bits_value].left_value < program->value_count);
+
+  w_seed_hir0_value *source =
+      &fixture.hir_values[program->values[from_bits_value].left_value];
+  const w_seed_hir0_value saved_source = *source;
+  source->binding_index = (uint32_t)program->binding_count;
+  reseal_process_hir(&fixture);
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  *source = saved_source;
+  reseal_process_hir(&fixture);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  static const char UNOBSERVED_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let bits: u64 = try u64(exactly: args.count) "
+      "let value: f64 = f64.fromBits(bits) "
+      "let roundTrip: u64 = value.toBits() "
+      "return .success }\n"
+      "entry(run)\n";
+  CHECK(!prepare_process_fixture(&fixture, UNOBSERVED_SOURCE));
+  return true;
+}
+
 static bool test_native_process_float_rounding_split(void) {
   static const char SOURCE[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
@@ -1907,6 +1963,7 @@ int main(void) {
   if (!test_native_process_numeric_split()) return 1;
   if (!test_native_process_checked_local_helper()) return 1;
   if (!test_native_process_checked_scalar_if_join()) return 1;
+  if (!test_native_process_float_raw_bits_from_runtime_count()) return 1;
   if (!test_native_process_float_rounding_split()) return 1;
   if (!test_native_process_float_rounding_diamond()) return 1;
   if (!test_direct_float_rounding_product()) return 1;

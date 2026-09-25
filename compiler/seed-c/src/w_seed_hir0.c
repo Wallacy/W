@@ -8230,7 +8230,6 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
       return false;
     if (initializer->kind == W_SEED_FRONTEND_EXPR_TRY) {
       if (branch || statement->kind != W_SEED_FRONTEND_STMT_LET ||
-          statement->declared_type != W_SEED_FRONTEND_NONE ||
           initializer->left == W_SEED_FRONTEND_NONE ||
           (size_t)initializer->left >= walk->result->written.expressions ||
           (walk->output->expressions[initializer->left].kind !=
@@ -10465,6 +10464,64 @@ static bool frontend_exact_observation_value_ok(
              depth + 1u, saw_binding);
 }
 
+/* A fallible process conversion may feed a bounded, straight-line chain of
+ * representation-only float bit transfers before the normal-path
+ * observation.  Each step must read exactly the immediately preceding
+ * binding.  The ordinary statement walk still proves dense expression
+ * ownership; this predicate closes the process-root shape independently. */
+static bool frontend_process_float_bits_binding_ok(
+    const w_seed_hir0_input *input, uint32_t function_index,
+    uint32_t statement_index, uint32_t source_binding_statement,
+    uint32_t source_type) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL ||
+      (size_t)statement_index >= input->frontend_result->written.statements ||
+      (size_t)source_binding_statement >=
+          input->frontend_result->written.statements)
+    return false;
+  const w_seed_frontend_statement *statement =
+      &input->frontend_output->statements[statement_index];
+  if (statement->owner_function != function_index ||
+      statement->kind != W_SEED_FRONTEND_STMT_LET ||
+      statement->binding_name.length == 0u ||
+      statement->effective_type == W_SEED_FRONTEND_NONE ||
+      (size_t)statement->effective_type >=
+          input->frontend_result->written.types ||
+      (statement->declared_type != W_SEED_FRONTEND_NONE &&
+       ((size_t)statement->declared_type >=
+            input->frontend_result->written.types ||
+        !frontend_supported_types_equal_for_input(
+            input,
+            &input->frontend_output->types[statement->declared_type],
+            &input->frontend_output->types[statement->effective_type]))) ||
+      statement->expression_index == W_SEED_FRONTEND_NONE ||
+      (size_t)statement->expression_index >=
+          input->frontend_result->written.expressions)
+    return false;
+  const w_seed_frontend_expression *conversion =
+      &input->frontend_output->expressions[statement->expression_index];
+  if ((conversion->kind != W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS &&
+       conversion->kind != W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS) ||
+      conversion->left == W_SEED_FRONTEND_NONE ||
+      (size_t)conversion->left >=
+          input->frontend_result->written.expressions ||
+      conversion->right != W_SEED_FRONTEND_NONE ||
+      conversion->conversion_source_type != source_type ||
+      conversion->conversion_destination_type != statement->effective_type ||
+      conversion->inferred_type != statement->effective_type ||
+      !frontend_float_bits_conversion_route(
+          &input->frontend_output->types[conversion->conversion_source_type],
+          &input->frontend_output
+               ->types[conversion->conversion_destination_type],
+          conversion->kind))
+    return false;
+  const w_seed_frontend_expression *source =
+      &input->frontend_output->expressions[conversion->left];
+  return source->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+         source->resolved_binding_statement == source_binding_statement &&
+         source->inferred_type == source_type;
+}
+
 /* The process ABI admits the historical direct payloadless local case throw,
  * plus one typed NumericConversionError split emitted for either exact integer
  * conversion or float-to-integer rounding. Either split may additionally own
@@ -10480,7 +10537,7 @@ static bool frontend_process_numeric_conversion_body_ok(
       (size_t)function->error_type >= input->frontend_result->written.types ||
       !frontend_type_is_numeric_conversion_error(
           &input->frontend_output->types[function->error_type]) ||
-      (function->statement_count != 2u && function->statement_count != 3u) ||
+      function->statement_count < 2u || function->statement_count > 5u ||
       function->first_statement == W_SEED_FRONTEND_NONE ||
       (size_t)function->first_statement >=
           input->frontend_result->written.statements)
@@ -10491,7 +10548,15 @@ static bool frontend_process_numeric_conversion_body_ok(
       binding->owner_function != function_index ||
       binding->kind != W_SEED_FRONTEND_STMT_LET ||
       binding->binding_name.length == 0u ||
-      binding->declared_type != W_SEED_FRONTEND_NONE ||
+      binding->effective_type == W_SEED_FRONTEND_NONE ||
+      (size_t)binding->effective_type >=
+          input->frontend_result->written.types ||
+      (binding->declared_type != W_SEED_FRONTEND_NONE &&
+       ((size_t)binding->declared_type >=
+            input->frontend_result->written.types ||
+        !frontend_supported_types_equal_for_input(
+            input, &input->frontend_output->types[binding->declared_type],
+            &input->frontend_output->types[binding->effective_type]))) ||
       binding->expression_index == W_SEED_FRONTEND_NONE ||
       (size_t)binding->expression_index >=
           input->frontend_result->written.expressions ||
@@ -10500,7 +10565,33 @@ static bool frontend_process_numeric_conversion_body_ok(
           input->frontend_result->written.statements)
     return false;
   uint32_t normal_statement = binding->next_sibling;
-  if (function->statement_count == 3u) {
+  uint32_t observation_binding_statement = function->first_statement;
+  uint32_t observation_binding_type = binding->effective_type;
+  size_t consumed_statements = 1u;
+  bool saw_float_bits_binding = false;
+  bool saw_observation = false;
+  while (normal_statement != W_SEED_FRONTEND_NONE &&
+         consumed_statements + 1u < function->statement_count) {
+    if ((size_t)normal_statement >=
+        input->frontend_result->written.statements)
+      return false;
+    if (input->frontend_output->statements[normal_statement].kind !=
+        W_SEED_FRONTEND_STMT_LET)
+      break;
+    if (!frontend_process_float_bits_binding_ok(
+            input, function_index, normal_statement,
+            observation_binding_statement, observation_binding_type))
+      return false;
+    observation_binding_statement = normal_statement;
+    observation_binding_type =
+        input->frontend_output->statements[normal_statement].effective_type;
+    normal_statement =
+        input->frontend_output->statements[normal_statement].next_sibling;
+    consumed_statements += 1u;
+    saw_float_bits_binding = true;
+  }
+  if (normal_statement != W_SEED_FRONTEND_NONE &&
+      consumed_statements + 1u < function->statement_count) {
     const w_seed_frontend_statement *observation =
         &input->frontend_output->statements[normal_statement];
     if (observation->module_index != function->module_index ||
@@ -10564,14 +10655,19 @@ static bool frontend_process_numeric_conversion_body_ok(
       const bool observation_value_ok =
           segment->kind == W_SEED_FRONTEND_INTERPOLATION_EXPRESSION &&
           frontend_exact_observation_value_ok(
-              input, function->first_statement, binding->effective_type,
+              input, observation_binding_statement,
+              observation_binding_type,
               segment->expression_index, 0u, &expression_saw_binding);
       if (!observation_value_ok || !expression_saw_binding) return false;
       saw_value = true;
     }
     if (!saw_value) return false;
     normal_statement = observation->next_sibling;
+    consumed_statements += 1u;
+    saw_observation = true;
   }
+  if (saw_float_bits_binding && !saw_observation) return false;
+  if (consumed_statements + 1u != function->statement_count) return false;
   const w_seed_frontend_statement *normal =
       &input->frontend_output->statements[normal_statement];
   if (normal->module_index != function->module_index ||
@@ -10597,8 +10693,15 @@ static bool frontend_process_numeric_conversion_body_ok(
   return (conversion->kind == W_SEED_FRONTEND_EXPR_INTEGER_EXACTLY ||
           conversion->kind ==
               W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING) &&
-         conversion->conversion_destination_type == binding->effective_type &&
-         binding->effective_type != W_SEED_FRONTEND_NONE;
+         conversion->conversion_destination_type != W_SEED_FRONTEND_NONE &&
+         (size_t)conversion->conversion_destination_type <
+             input->frontend_result->written.types &&
+         binding->effective_type != W_SEED_FRONTEND_NONE &&
+         frontend_supported_types_equal_for_input(
+             input,
+             &input->frontend_output
+                  ->types[conversion->conversion_destination_type],
+             &input->frontend_output->types[binding->effective_type]);
 }
 
 /* Typed process errors are admitted only as one direct payloadless local case
@@ -27338,14 +27441,15 @@ static bool hir0_process_numeric_conversion_print_observes_binding(
       normal_block >= program->block_count ||
       binding_index >= program->binding_count ||
       instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
-      instruction->owner_block != normal_block || instruction->ordinal != 1u ||
+      instruction->owner_block != normal_block || instruction->ordinal == 0u ||
       instruction->call_index >= program->call_count)
     return false;
   const w_seed_hir0_call *call = &program->calls[instruction->call_index];
   if (call->owner_instruction !=
           (uint32_t)(instruction - program->instructions) ||
       call->owner_terminator != W_SEED_HIR0_NONE ||
-      call->owner_block != normal_block || call->ordinal != 1u ||
+      call->owner_block != normal_block ||
+      call->ordinal != instruction->ordinal ||
       call->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
       call->placement != W_SEED_HIR0_CALL_PLACEMENT_NONE ||
       call->callee_identity >= program->identity_count ||
@@ -28097,6 +28201,49 @@ static bool verify_integer_exactly_observation(
          (instruction->ordinal != 1u || !saw_helper_call);
 }
 
+static bool hir0_process_float_bits_binding_step_ok(
+    const w_seed_hir0_program *program, uint32_t normal_block,
+    const w_seed_hir0_instruction *instruction,
+    uint32_t previous_binding_index) {
+  if (program == NULL || instruction == NULL ||
+      normal_block >= program->block_count ||
+      previous_binding_index >= program->binding_count ||
+      instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+      instruction->owner_block != normal_block ||
+      instruction->binding_index >= program->binding_count)
+    return false;
+  const uint32_t binding_index = instruction->binding_index;
+  const w_seed_hir0_binding *binding = &program->bindings[binding_index];
+  if (binding->owner_instruction !=
+          (uint32_t)(instruction - program->instructions) ||
+      binding->owner_block != normal_block || binding->is_mutable ||
+      binding->initializer_value >= program->value_count)
+    return false;
+  const w_seed_hir0_value *conversion =
+      &program->values[binding->initializer_value];
+  if ((conversion->kind != W_SEED_HIR0_VALUE_FLOAT_FROM_BITS &&
+       conversion->kind != W_SEED_HIR0_VALUE_FLOAT_TO_BITS) ||
+      conversion->owner_kind != W_SEED_HIR0_VALUE_OWNER_BINDING ||
+      conversion->owner_index != binding_index ||
+      conversion->owner_ordinal != 0u ||
+      conversion->type_index != binding->type_index ||
+      conversion->left_value >= program->value_count ||
+      !hir_float_bits_conversion_route(
+          program, conversion->source_type, conversion->type_index,
+          conversion->kind))
+    return false;
+  const w_seed_hir0_value *source =
+      &program->values[conversion->left_value];
+  return source->kind == W_SEED_HIR0_VALUE_BINDING_READ &&
+         source->owner_kind == W_SEED_HIR0_VALUE_OWNER_FLOAT_BITS_CONVERSION &&
+         source->owner_index == binding->initializer_value &&
+         source->owner_ordinal == 0u &&
+         source->binding_index == previous_binding_index &&
+         source->type_index ==
+             program->bindings[previous_binding_index].type_index &&
+         conversion->source_type == source->type_index;
+}
+
 static bool verify_cfg_integer_exactly(const w_seed_hir0_program *program,
                                       size_t function_index) {
   if (program == NULL || function_index >= program->function_count)
@@ -28246,11 +28393,14 @@ static bool verify_cfg_integer_exactly(const w_seed_hir0_program *program,
         normal_value->block_argument_index == normal->first_block_argument &&
         function->return_type == split_term->result_type;
   } else {
-    if (normal->instruction_count != 1u + function_call_count)
-      return false;
+    if (normal->instruction_count < function_call_count + 1u) return false;
+    const size_t normal_binding_count =
+        normal->instruction_count - function_call_count;
+    if (normal_binding_count > 1u && function_call_count != 1u) return false;
     bool normal_binding_found = false;
     bool normal_observation_found = false;
     uint32_t exact_binding_index = W_SEED_HIR0_NONE;
+    uint32_t observed_binding_index = W_SEED_HIR0_NONE;
     for (size_t ordinal = 0u; ordinal < normal->instruction_count;
          ordinal += 1u) {
       const size_t instruction_index =
@@ -28261,15 +28411,50 @@ static bool verify_cfg_integer_exactly(const w_seed_hir0_program *program,
       if (instruction->owner_block != normal_block ||
           instruction->ordinal != ordinal)
         return false;
+      if (ordinal < normal_binding_count) {
+        if (instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+            instruction->binding_index >= program->binding_count)
+          return false;
+        if (ordinal != 0u) {
+          if (!normal_binding_found ||
+              !hir0_process_float_bits_binding_step_ok(
+                  program, (uint32_t)normal_block, instruction,
+                  observed_binding_index))
+            return false;
+          observed_binding_index = instruction->binding_index;
+          continue;
+        }
+        const w_seed_hir0_binding *binding =
+            &program->bindings[instruction->binding_index];
+        if (normal_binding_found || binding->owner_block != normal_block ||
+            binding->is_mutable ||
+            binding->type_index != split_term->result_type ||
+            binding->initializer_value >= program->value_count)
+          return false;
+        const w_seed_hir0_value *initializer =
+            &program->values[binding->initializer_value];
+        if (initializer->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+            initializer->owner_kind != W_SEED_HIR0_VALUE_OWNER_BINDING ||
+            initializer->owner_index != instruction->binding_index ||
+            initializer->owner_ordinal != 0u ||
+            initializer->type_index != split_term->result_type ||
+            initializer->block_argument_index !=
+                normal->first_block_argument)
+          return false;
+        normal_binding_found = true;
+        exact_binding_index = instruction->binding_index;
+        observed_binding_index = exact_binding_index;
+        continue;
+      }
       if (instruction->kind == W_SEED_HIR0_INSTRUCTION_CALL) {
         if (!normal_binding_found || normal_observation_found)
           return false;
-        if (function_call_count == 2u && ordinal == 1u) {
+        if (function_call_count == 2u && ordinal == normal_binding_count) {
           if (instruction->call_index == W_SEED_HIR0_NONE ||
               instruction->call_index >= program->call_count ||
               program->calls[instruction->call_index].owner_block !=
                   normal_block ||
-              program->calls[instruction->call_index].ordinal != 1u ||
+              program->calls[instruction->call_index].ordinal != ordinal ||
               program->calls[instruction->call_index].execution_kind !=
                   W_SEED_HIR0_CALL_DIRECT ||
               program->calls[instruction->call_index].placement !=
@@ -28282,36 +28467,25 @@ static bool verify_cfg_integer_exactly(const w_seed_hir0_program *program,
             return false;
           continue;
         }
-        if (!((function_call_count == 1u && ordinal == 1u) ||
-              (function_call_count == 2u && ordinal == 2u)) ||
-            !verify_integer_exactly_observation(
-                program, function_index, normal_block, exact_binding_index,
-                instruction))
+        const size_t observation_ordinal =
+            normal_binding_count + (function_call_count == 2u ? 1u : 0u);
+        if (ordinal != observation_ordinal)
           return false;
+        if (observed_binding_index != exact_binding_index) {
+          if (function_call_count != 1u ||
+              !hir0_process_numeric_conversion_print_observes_binding(
+                  program, function_index, (uint32_t)normal_block,
+                  observed_binding_index, instruction))
+            return false;
+        } else if (!verify_integer_exactly_observation(
+                       program, function_index, normal_block,
+                       exact_binding_index, instruction)) {
+          return false;
+        }
         normal_observation_found = true;
         continue;
       }
-      if (instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
-          ordinal != 0u || normal_binding_found ||
-          instruction->binding_index >= program->binding_count)
-        return false;
-      const w_seed_hir0_binding *binding =
-          &program->bindings[instruction->binding_index];
-      if (binding->owner_block != normal_block || binding->is_mutable ||
-          binding->type_index != split_term->result_type ||
-          binding->initializer_value >= program->value_count)
-        return false;
-      const w_seed_hir0_value *initializer =
-          &program->values[binding->initializer_value];
-      if (initializer->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
-          initializer->owner_kind == W_SEED_HIR0_VALUE_OWNER_BINDING &&
-          initializer->owner_index == instruction->binding_index &&
-          initializer->owner_ordinal == 0u &&
-          initializer->type_index == split_term->result_type &&
-          initializer->block_argument_index == normal->first_block_argument) {
-        normal_binding_found = true;
-        exact_binding_index = instruction->binding_index;
-      }
+      return false;
     }
     if (!normal_binding_found ||
         normal_observation_found != (function_call_count != 0u))
