@@ -5740,10 +5740,11 @@ static bool frontend_value_tree_ok_impl(
                      value->interpolation_segment_count,
                      result->written.interpolation_segments))
       return false;
+    const size_t first_segment = *segment_cursor;
     for (size_t ordinal = 0u; ordinal < value->interpolation_segment_count;
          ordinal += 1u) {
       const w_seed_frontend_interpolation_segment *segment =
-          &output->interpolation_segments[*segment_cursor];
+          &output->interpolation_segments[first_segment + ordinal];
       if (segment->owner_expression != root_index ||
           segment->ordinal != ordinal ||
           !frontend_span_ok(&input->frontend_input->documents[document_index],
@@ -5751,31 +5752,42 @@ static bool frontend_value_tree_ok_impl(
         return false;
       if (segment->kind == W_SEED_FRONTEND_INTERPOLATION_TEXT) {
         if (segment->expression_index != W_SEED_FRONTEND_NONE ||
-            segment->const_byte_offset == W_SEED_FRONTEND_NONE ||
-            (size_t)segment->const_byte_offset != *const_byte_cursor ||
+            segment->const_byte_offset == W_SEED_FRONTEND_NONE)
+          return false;
+      } else if (segment->kind ==
+                 W_SEED_FRONTEND_INTERPOLATION_EXPRESSION) {
+        if (segment->const_byte_offset != W_SEED_FRONTEND_NONE ||
+            segment->const_byte_count != 0u)
+          return false;
+      } else {
+        return false;
+      }
+    }
+    if (!add_size(*segment_cursor, value->interpolation_segment_count,
+                  segment_cursor) ||
+        !add_size(*segment_total, value->interpolation_segment_count,
+                  segment_total))
+      return false;
+    for (size_t ordinal = 0u; ordinal < value->interpolation_segment_count;
+         ordinal += 1u) {
+      const w_seed_frontend_interpolation_segment *segment =
+          &output->interpolation_segments[first_segment + ordinal];
+      if (segment->kind == W_SEED_FRONTEND_INTERPOLATION_TEXT) {
+        if ((size_t)segment->const_byte_offset != *const_byte_cursor ||
             !range_valid(segment->const_byte_offset, segment->const_byte_count,
                          result->written.const_bytes) ||
             !add_size(*const_byte_cursor, segment->const_byte_count,
                       const_byte_cursor) ||
             !add_size(*value_bytes, segment->const_byte_count, value_bytes))
           return false;
-      } else if (segment->kind ==
-                 W_SEED_FRONTEND_INTERPOLATION_EXPRESSION) {
-        if (segment->const_byte_offset != W_SEED_FRONTEND_NONE ||
-            segment->const_byte_count != 0u ||
-            !frontend_value_tree_ok(
-            input, module_index, function_index, document_index,
-            use_statement, segment->expression_index, depth + 1u,
-            expression_cursor, segment_cursor, const_byte_cursor, value_total,
-            segment_total, value_bytes, call_total, argument_total,
-            logical_total))
-          return false;
-      } else {
+      } else if (!frontend_value_tree_ok(
+                     input, module_index, function_index, document_index,
+                     use_statement, segment->expression_index, depth + 1u,
+                     expression_cursor, segment_cursor, const_byte_cursor,
+                     value_total, segment_total, value_bytes, call_total,
+                     argument_total, logical_total)) {
         return false;
       }
-      if (!add_size(*segment_cursor, 1u, segment_cursor) ||
-          !add_size(*segment_total, 1u, segment_total))
-        return false;
     }
     if ((size_t)root_index != *expression_cursor ||
         !add_size(*value_total, 1u, value_total) ||
@@ -18881,17 +18893,16 @@ static uint32_t hir0_emit_value_m2(
   }
   if (source->kind == W_SEED_FRONTEND_EXPR_INTERPOLATED_STRING) {
     first_segment = (uint32_t)*context->interpolation_segment_index;
-    size_t segment_block = current_block;
+    *context->interpolation_segment_index +=
+        source->interpolation_segment_count;
     for (size_t ordinal = 0u; ordinal < source->interpolation_segment_count;
          ordinal += 1u) {
       const w_seed_frontend_interpolation_segment *source_segment =
           &context->frontend->interpolation_segments[
               (size_t)source->first_interpolation_segment + ordinal];
-      const uint32_t target_segment_index =
-          (uint32_t)*context->interpolation_segment_index;
       w_seed_hir0_interpolation_segment *target_segment =
-          &context->output->interpolation_segments[
-              *context->interpolation_segment_index];
+          &context->output->interpolation_segments[(size_t)first_segment +
+                                                   ordinal];
       *target_segment = (w_seed_hir0_interpolation_segment){
           .kind = source_segment->kind == W_SEED_FRONTEND_INTERPOLATION_TEXT
                       ? W_SEED_HIR0_INTERPOLATION_TEXT
@@ -18902,7 +18913,17 @@ static uint32_t hir0_emit_value_m2(
           .byte_offset = 0u,
           .byte_count = 0u,
           .source_span = source_segment->span};
-      *context->interpolation_segment_index += 1u;
+    }
+    size_t segment_block = current_block;
+    for (size_t ordinal = 0u; ordinal < source->interpolation_segment_count;
+         ordinal += 1u) {
+      const w_seed_frontend_interpolation_segment *source_segment =
+          &context->frontend->interpolation_segments[
+              (size_t)source->first_interpolation_segment + ordinal];
+      const uint32_t target_segment_index =
+          first_segment + (uint32_t)ordinal;
+      w_seed_hir0_interpolation_segment *target_segment =
+          &context->output->interpolation_segments[target_segment_index];
       if (source_segment->kind == W_SEED_FRONTEND_INTERPOLATION_TEXT) {
         const uint8_t *bytes = source_segment->const_byte_count == 0u
                                    ? NULL
@@ -24341,32 +24362,46 @@ static bool verify_value_tree_with_cfg_impl(
         value->integer_value != 0 || value->bool_value ||
         value->byte_offset != 0u || value->byte_count != 0u)
       return false;
+    const size_t first_segment = *segment_cursor;
     for (size_t ordinal = 0u; ordinal < value->interpolation_segment_count;
          ordinal += 1u) {
-      const size_t index = *segment_cursor;
+      const size_t index = first_segment + ordinal;
       const w_seed_hir0_interpolation_segment *segment =
           &program->interpolation_segments[index];
       if (segment->owner_value != root_index || segment->ordinal != ordinal ||
           !span_valid(segment->source_span, source_length))
         return false;
-      *segment_cursor += 1u;
       if (segment->kind == W_SEED_HIR0_INTERPOLATION_TEXT) {
         if (segment->value_index != W_SEED_HIR0_NONE ||
-            (size_t)segment->byte_offset != *byte_cursor ||
             !byte_slice_valid(program, segment->byte_offset,
-                              segment->byte_count) ||
-            !add_size(*byte_cursor, segment->byte_count, byte_cursor))
+                              segment->byte_count))
           return false;
       } else if (segment->kind == W_SEED_HIR0_INTERPOLATION_VALUE) {
         if (segment->byte_offset != 0u || segment->byte_count != 0u ||
-            !verify_value_tree_with_cfg(
-                program, segment->value_index,
-                W_SEED_HIR0_VALUE_OWNER_INTERPOLATION_SEGMENT,
-                (uint32_t)index, 0u, current_block, current_instruction,
-                source_length, depth + 1u, value_cursor, segment_cursor,
-                byte_cursor, cfg_analysis))
+            segment->value_index == W_SEED_HIR0_NONE)
           return false;
       } else {
+        return false;
+      }
+    }
+    if (!add_size(*segment_cursor, value->interpolation_segment_count,
+                  segment_cursor))
+      return false;
+    for (size_t ordinal = 0u; ordinal < value->interpolation_segment_count;
+         ordinal += 1u) {
+      const size_t index = first_segment + ordinal;
+      const w_seed_hir0_interpolation_segment *segment =
+          &program->interpolation_segments[index];
+      if (segment->kind == W_SEED_HIR0_INTERPOLATION_TEXT) {
+        if ((size_t)segment->byte_offset != *byte_cursor ||
+            !add_size(*byte_cursor, segment->byte_count, byte_cursor))
+          return false;
+      } else if (!verify_value_tree_with_cfg(
+                     program, segment->value_index,
+                     W_SEED_HIR0_VALUE_OWNER_INTERPOLATION_SEGMENT,
+                     (uint32_t)index, 0u, current_block, current_instruction,
+                     source_length, depth + 1u, value_cursor, segment_cursor,
+                     byte_cursor, cfg_analysis)) {
         return false;
       }
     }

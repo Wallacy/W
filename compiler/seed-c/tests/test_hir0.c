@@ -15,6 +15,7 @@
 #include "w_seed_parallel_elision0.h"
 #include "w_seed_product_closure0.h"
 #include "w_seed_scalar_evaluator0.h"
+#include "w_seed_constant_output0.h"
 
 #include <inttypes.h>
 #include <stdarg.h>
@@ -15762,6 +15763,33 @@ static bool test_typed_interpolation_value_tree(void) {
   return true;
 }
 
+static bool test_constant_output_nested_interpolation(void) {
+  static const char SOURCE[] =
+      "entry { print(\"outer ${'${6_i64 * 7_i64}'}\") }\n";
+  CHECK(lower_single_print_host(SOURCE));
+  CHECK(fixture.hir_program.value_count == 5u &&
+        fixture.hir_program.interpolation_segment_count == 3u &&
+        fixture.hir_program.values[3].kind ==
+            W_SEED_HIR0_VALUE_INTERPOLATED_STRING &&
+        fixture.hir_program.values[3].first_interpolation_segment == 2u &&
+        fixture.hir_program.values[3].interpolation_segment_count == 1u &&
+        fixture.hir_program.values[4].kind ==
+            W_SEED_HIR0_VALUE_INTERPOLATED_STRING &&
+        fixture.hir_program.values[4].first_interpolation_segment == 0u &&
+        fixture.hir_program.values[4].interpolation_segment_count == 2u &&
+        fixture.hir_program.interpolation_segments[1].value_index == 3u &&
+        fixture.hir_program.interpolation_segments[2].value_index == 2u);
+  w_seed_constant_output0_result result;
+  (void)memset(&result, 0xa5, sizeof(result));
+  CHECK(w_seed_constant_output0_evaluate(&fixture.hir_program,
+                                         &fixture.hir_result, &result));
+  static const char EXPECTED[] = "outer 42\n";
+  CHECK(result.stdout_length == sizeof(EXPECTED) - 1u &&
+        memcmp(result.stdout_bytes, EXPECTED, sizeof(EXPECTED) - 1u) == 0 &&
+        !result.evaluated_flat_product);
+  return true;
+}
+
 static bool test_builtin_display_value_tree(void) {
   static const char SOURCE[] =
       "fn main() { let state = \"open\" "
@@ -23097,6 +23125,7 @@ int main(int argc, char **argv) {
   if (!test_verify_mutations()) return 1;
   if (!test_closed_frontend_barriers()) return 1;
   if (!test_typed_interpolation_value_tree()) return 1;
+  if (!test_constant_output_nested_interpolation()) return 1;
   if (!test_builtin_display_value_tree()) return 1;
   if (!test_typed_immutable_binding_values()) return 1;
   if (!test_local_unit_call_and_parameter_reads()) return 1;

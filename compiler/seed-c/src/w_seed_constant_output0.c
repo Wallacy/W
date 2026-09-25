@@ -376,9 +376,19 @@ static bool eval_interpolation(constant_output0_context *context,
         return false;
     } else if (segment->kind == W_SEED_HIR0_INTERPOLATION_VALUE) {
       uint32_t child_index = W_SEED_HIR0_NONE;
+      const size_t child_string_start = context->string_byte_count;
       if (segment->value_index >= program->value_count ||
           !eval_value(context, segment->value_index, frame, depth + 1u,
-                      &child_index) ||
+                      &child_index))
+        return false;
+      const constant_output0_value *child = &context->values[child_index];
+      const bool child_already_appended =
+          child->kind == CONSTANT_OUTPUT0_VALUE_STRING &&
+          child->as.string.bytes ==
+              context->string_bytes + child_string_start &&
+          child->as.string.length ==
+              context->string_byte_count - child_string_start;
+      if (!child_already_appended &&
           !append_value_display(context, child_index, depth + 1u, true))
         return false;
     } else {

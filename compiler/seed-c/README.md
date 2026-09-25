@@ -1290,6 +1290,11 @@ The evaluator is deliberately resource-bounded: at most 16 functions, 400
 blocks, 512 source HIR values, 128 bindings, 32 parameters/arguments per call,
 16,384 evaluation steps, 1,024 evaluated values/elements, and 4 KiB each for
 intermediate strings and final stdout. Exceeding any limit declines the fold.
+Frontend and HIR tests also preserve dense owner ranges for nested String
+interpolation and prove that an inner interpolated String contributes its
+bytes exactly once (`outer ${'${6_i64 * 7_i64}'}` becomes `outer 42\n`). This
+is evaluator correctness evidence only: the non-product native interpolation
+adapter continues to reject nested interpolation as documented by W-1525.
 
 On the accepted Linux product artifact, the output path needs no aggregate
 storage or helper frame; Windows retains one 4-byte `WriteFile` count scratch

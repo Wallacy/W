@@ -14779,6 +14779,54 @@ static bool interpolation_display_supported(frontend_simple_type type) {
          type.kind == W_SEED_FRONTEND_TYPE_STRING;
 }
 
+/* Reserve an interpolated String's own segment range before parsing nested
+ * expressions. Nested interpolated Strings append their ranges afterwards,
+ * so every owner retains one dense, non-overlapping range. */
+static bool interpolation_top_level_segment_count(
+    frontend_token_cursor cursor, size_t *count) {
+  if (count == NULL) return false;
+  size_t literal_depth = 1u;
+  size_t interpolation_depth = 0u;
+  size_t total = 0u;
+  while (true) {
+    frontend_token token;
+    if (!cursor_take(&cursor, &token)) return false;
+    if (token_is_literal_event(&token, W_SEED_LITERAL_START)) {
+      if (literal_depth == SIZE_MAX) return false;
+      literal_depth += 1u;
+      continue;
+    }
+    if (token_is_literal_event(&token, W_SEED_LITERAL_TEXT)) {
+      if (literal_depth == 1u && interpolation_depth == 0u) {
+        if (total == SIZE_MAX) return false;
+        total += 1u;
+      }
+      continue;
+    }
+    if (token_is_literal_event(&token, W_SEED_INTERPOLATION_START)) {
+      if (literal_depth == 1u && interpolation_depth == 0u) {
+        if (total == SIZE_MAX) return false;
+        total += 1u;
+      }
+      if (interpolation_depth == SIZE_MAX) return false;
+      interpolation_depth += 1u;
+      continue;
+    }
+    if (token_is_literal_event(&token, W_SEED_INTERPOLATION_END)) {
+      if (interpolation_depth == 0u) return false;
+      interpolation_depth -= 1u;
+      continue;
+    }
+    if (!token_is_literal_event(&token, W_SEED_LITERAL_END)) continue;
+    if (literal_depth == 1u && interpolation_depth == 0u) {
+      *count = total;
+      return total != 0u;
+    }
+    if (literal_depth <= 1u) return false;
+    literal_depth -= 1u;
+  }
+}
+
 static bool expression_parse_interpolated_string(
     frontend_expression_parser *parser, frontend_token start,
     frontend_expr_value *value) {
@@ -14786,7 +14834,23 @@ static bool expression_parse_interpolated_string(
       !token_is_literal_event(&start, W_SEED_LITERAL_START)) {
     return false;
   }
+  size_t reserved_segment_count = 0u;
+  if (!interpolation_top_level_segment_count(parser->cursor,
+                                             &reserved_segment_count) ||
+      reserved_segment_count > (size_t)UINT32_MAX)
+    return false;
   const size_t first_segment = parser->context->count.interpolation_segments;
+  for (size_t ordinal = 0u; ordinal < reserved_segment_count; ordinal += 1u) {
+    w_seed_frontend_interpolation_segment placeholder;
+    (void)memset(&placeholder, 0, sizeof(placeholder));
+    placeholder.owner_expression = W_SEED_FRONTEND_NONE;
+    placeholder.expression_index = W_SEED_FRONTEND_NONE;
+    placeholder.const_byte_offset = W_SEED_FRONTEND_NONE;
+    uint32_t ignored = W_SEED_FRONTEND_NONE;
+    if (!context_append_interpolation_segment(parser->context, placeholder,
+                                              &ignored))
+      return false;
+  }
   size_t segment_count = 0u;
   bool supported = start.literal_kind == W_SEED_LITERAL_STRING ||
                    start.literal_kind == W_SEED_LITERAL_MULTILINE_STRING;
@@ -14824,11 +14888,11 @@ static bool expression_parse_interpolated_string(
       } else {
         supported = false;
       }
-      uint32_t ignored = W_SEED_FRONTEND_NONE;
-      if (!context_append_interpolation_segment(parser->context, segment,
-                                                &ignored)) {
-        return false;
-      }
+      if (parser->context->emit && parser->context->output != NULL &&
+          first_segment + segment_count <
+              parser->context->output->interpolation_segment_capacity)
+        parser->context->output
+            ->interpolation_segments[first_segment + segment_count] = segment;
       segment_count += 1u;
       end_byte = token.span.end_byte;
       continue;
@@ -14878,11 +14942,11 @@ static bool expression_parse_interpolated_string(
       supported = supported && nested.supported &&
                   interpolation_display_supported(nested.type) &&
                   segment.expression_index != W_SEED_FRONTEND_NONE;
-      uint32_t ignored = W_SEED_FRONTEND_NONE;
-      if (!context_append_interpolation_segment(parser->context, segment,
-                                                &ignored)) {
-        return false;
-      }
+      if (parser->context->emit && parser->context->output != NULL &&
+          first_segment + segment_count <
+              parser->context->output->interpolation_segment_capacity)
+        parser->context->output
+            ->interpolation_segments[first_segment + segment_count] = segment;
       segment_count += 1u;
       end_byte = close.span.end_byte;
       continue;
@@ -14891,8 +14955,9 @@ static bool expression_parse_interpolated_string(
     end_byte = token.span.end_byte;
     break;
   }
-  if (first_segment > (size_t)UINT32_MAX ||
-      segment_count == 0u || segment_count > (size_t)UINT32_MAX) {
+  if (first_segment > (size_t)UINT32_MAX || segment_count == 0u ||
+      segment_count != reserved_segment_count ||
+      segment_count > (size_t)UINT32_MAX) {
     return false;
   }
   const w_seed_span span = {start.span.start_byte, end_byte};
