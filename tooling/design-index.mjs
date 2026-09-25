@@ -1329,7 +1329,6 @@ output.push("bun tooling/design-slice.mjs --rationale-heading 1.3");
 output.push("rg -n -C 4 'transaction' DESIGN.md");
 output.push("bun tooling/design-index.mjs --check");
 output.push("```");
-output.push("");
 
 const generated = `${output.join("\n")}\n`;
 const mode = process.argv[2] || "--check";
