@@ -2148,7 +2148,7 @@ static bool test_implicit_integer_widen_hir(void) {
 }
 
 static bool test_float_bits_hir(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-98") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-99") == 0);
   static const char SOURCE[] =
       "fn from32(bits: u32): f32 { let stored: f32 = f32.fromBits(bits) "
       "return stored }\n"
@@ -2383,7 +2383,7 @@ static bool test_float_bits_hir(void) {
 }
 
 static bool test_numeric_widen_hir(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-98") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-99") == 0);
   typedef struct {
     const char *source_name;
     bool source_is_float;
@@ -12240,7 +12240,7 @@ static bool test_integer_exactly_hir(void) {
       true, false, true, false, true, false, true, false, true, false};
   static const uint16_t INTEGER_WIDTHS[] = {
       8u, 8u, 16u, 16u, 32u, 32u, 64u, 64u, 64u, 64u};
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-98") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-99") == 0);
   for (size_t source = 0u;
        source < sizeof(INTEGER_TYPES) / sizeof(INTEGER_TYPES[0]);
        source += 1u) {
@@ -12410,7 +12410,7 @@ static bool test_float_to_integer_rounding_hir(void) {
   static const char *const MODE_SPELLINGS[] = {
       "nearestEven", "nearestAwayFromZero", "towardZero",
       "towardPositive", "towardNegative"};
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-98") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-99") == 0);
   for (size_t source_index = 0u;
        source_index < sizeof(SOURCE_TYPES) / sizeof(SOURCE_TYPES[0]);
        source_index += 1u) {
@@ -15879,6 +15879,254 @@ static bool test_scalar_if_fixed_integer_type_identity(void) {
   CHECK(frontend_rejects_quietly(WIDTH_MISMATCH));
   CHECK(frontend_rejects_quietly(I128_SCALAR_IF));
   CHECK(frontend_rejects_quietly(USIZE_SCALAR_IF));
+  return true;
+}
+
+static uint32_t hir_function_return_value_named(
+    const w_seed_hir0_program *program, const char *name) {
+  if (program == NULL || name == NULL) return W_SEED_HIR0_NONE;
+  for (size_t function_index = 0u;
+       function_index < program->function_count; function_index += 1u) {
+    const w_seed_hir0_function *function = &program->functions[function_index];
+    if (!hir_text_is(program, function->name, name)) continue;
+    for (uint32_t block_offset = 0u; block_offset < function->block_count;
+         block_offset += 1u) {
+      const uint32_t block_index = function->first_block + block_offset;
+      if ((size_t)block_index >= program->block_count) return W_SEED_HIR0_NONE;
+      const uint32_t terminator_index =
+          program->blocks[block_index].terminator_index;
+      if ((size_t)terminator_index >= program->terminator_count)
+        return W_SEED_HIR0_NONE;
+      const w_seed_hir0_terminator *terminator =
+          &program->terminators[terminator_index];
+      if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE)
+        return terminator->value_index;
+    }
+    return W_SEED_HIR0_NONE;
+  }
+  return W_SEED_HIR0_NONE;
+}
+
+static bool test_i128_u128_literal_flow_hir(void) {
+  static const char SOURCE[] =
+      "fn signedMax(): i128 { return "
+      "170141183460469231731687303715884105727_i128 }\n"
+      "fn signedMin(): i128 { return "
+      "-170141183460469231731687303715884105728_i128 }\n"
+      "fn signedNegativeOne(): i128 { return -1_i128 }\n"
+      "fn unsignedMax(): u128 { return "
+      "340282366920938463463374607431768211455_u128 }\n"
+      "fn boundUnsigned(): u128 { let wide: u128 = "
+      "0x80000000000000000000000000000000_u128 return wide }\n"
+      "fn echoSigned(value: i128): i128 { return value }\n"
+      "fn echoUnsigned(value: u128): u128 { return value }\n"
+      "entry { }\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->value_byte_count == 80u && program->binding_count == 1u);
+
+  uint32_t i128_type = W_SEED_HIR0_NONE;
+  uint32_t u128_type = W_SEED_HIR0_NONE;
+  for (size_t type_index = 0u; type_index < program->type_count;
+       type_index += 1u) {
+    const w_seed_hir0_type *type = &program->types[type_index];
+    if (type->kind != W_SEED_HIR0_TYPE_INTEGER ||
+        type->integer_bit_width != 128u)
+      continue;
+    if (type->integer_is_signed) {
+      CHECK(i128_type == W_SEED_HIR0_NONE &&
+            hir_text_is(program, type->name, "i128"));
+      i128_type = (uint32_t)type_index;
+    } else {
+      CHECK(u128_type == W_SEED_HIR0_NONE &&
+            hir_text_is(program, type->name, "u128"));
+      u128_type = (uint32_t)type_index;
+    }
+  }
+  CHECK(i128_type != W_SEED_HIR0_NONE && u128_type != W_SEED_HIR0_NONE);
+
+  uint8_t signed_max[16];
+  uint8_t signed_min[16] = {0u};
+  uint8_t unsigned_max[16];
+  uint8_t unsigned_high_bit[16] = {0u};
+  (void)memset(signed_max, 0xff, sizeof(signed_max));
+  (void)memset(unsigned_max, 0xff, sizeof(unsigned_max));
+  signed_max[15] = 0x7fu;
+  signed_min[15] = 0x80u;
+  unsigned_high_bit[15] = 0x80u;
+
+  const uint32_t signed_max_value =
+      hir_function_return_value_named(program, "signedMax");
+  const uint32_t signed_min_value =
+      hir_function_return_value_named(program, "signedMin");
+  const uint32_t negative_one_value =
+      hir_function_return_value_named(program, "signedNegativeOne");
+  const uint32_t unsigned_max_value =
+      hir_function_return_value_named(program, "unsignedMax");
+  const uint32_t bound_value =
+      hir_function_return_value_named(program, "boundUnsigned");
+  CHECK(signed_max_value < program->value_count &&
+        signed_min_value < program->value_count &&
+        negative_one_value < program->value_count &&
+        unsigned_max_value < program->value_count &&
+        bound_value < program->value_count);
+  const w_seed_hir0_value *signed_max_literal =
+      &program->values[signed_max_value];
+  const w_seed_hir0_value *signed_min_negation =
+      &program->values[signed_min_value];
+  const w_seed_hir0_value *negative_one_negation =
+      &program->values[negative_one_value];
+  const w_seed_hir0_value *unsigned_max_literal =
+      &program->values[unsigned_max_value];
+  CHECK(signed_max_literal->kind ==
+            W_SEED_HIR0_VALUE_CONST_INTEGER_128 &&
+        signed_max_literal->type_index == i128_type &&
+        signed_max_literal->byte_count == 16u &&
+        memcmp(program->value_bytes + signed_max_literal->byte_offset,
+               signed_max, sizeof(signed_max)) == 0 &&
+        signed_min_negation->kind ==
+            W_SEED_HIR0_VALUE_UNARY_INTEGER_128 &&
+        signed_min_negation->type_index == i128_type &&
+        signed_min_negation->unary_operator ==
+            W_SEED_HIR0_UNARY_NEGATE &&
+        signed_min_negation->left_value < program->value_count &&
+        negative_one_negation->kind ==
+            W_SEED_HIR0_VALUE_UNARY_INTEGER_128 &&
+        negative_one_negation->type_index == i128_type &&
+        negative_one_negation->unary_operator ==
+            W_SEED_HIR0_UNARY_NEGATE &&
+        negative_one_negation->left_value < program->value_count &&
+        unsigned_max_literal->kind ==
+            W_SEED_HIR0_VALUE_CONST_INTEGER_128 &&
+        unsigned_max_literal->type_index == u128_type &&
+        unsigned_max_literal->byte_count == 16u &&
+        memcmp(program->value_bytes + unsigned_max_literal->byte_offset,
+               unsigned_max, sizeof(unsigned_max)) == 0);
+  const uint32_t signed_min_magnitude = signed_min_negation->left_value;
+  const w_seed_hir0_value *signed_min_literal =
+      &program->values[signed_min_magnitude];
+  const w_seed_hir0_value *negative_one_literal =
+      &program->values[negative_one_negation->left_value];
+  uint8_t negative_one_magnitude[16] = {1u};
+  CHECK(signed_min_literal->kind ==
+            W_SEED_HIR0_VALUE_CONST_INTEGER_128 &&
+        signed_min_literal->type_index == i128_type &&
+        signed_min_literal->byte_count == 16u &&
+        memcmp(program->value_bytes + signed_min_literal->byte_offset,
+               signed_min, sizeof(signed_min)) == 0 &&
+        negative_one_literal->kind ==
+            W_SEED_HIR0_VALUE_CONST_INTEGER_128 &&
+        negative_one_literal->type_index == i128_type &&
+        negative_one_literal->byte_count == 16u &&
+        memcmp(program->value_bytes + negative_one_literal->byte_offset,
+               negative_one_magnitude, sizeof(negative_one_magnitude)) == 0 &&
+        program->values[bound_value].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ &&
+        program->values[bound_value].type_index == u128_type);
+  const w_seed_hir0_binding *binding = &program->bindings[0];
+  CHECK(!binding->is_mutable && binding->type_index == u128_type &&
+        hir_text_is(program, binding->name, "wide") &&
+        binding->initializer_value < program->value_count &&
+        program->values[binding->initializer_value].kind ==
+            W_SEED_HIR0_VALUE_CONST_INTEGER_128 &&
+        program->values[binding->initializer_value].type_index == u128_type &&
+        program->values[binding->initializer_value].byte_count == 16u &&
+        memcmp(program->value_bytes +
+                   program->values[binding->initializer_value].byte_offset,
+               unsigned_high_bit, sizeof(unsigned_high_bit)) == 0);
+
+  uint32_t echo_signed = W_SEED_HIR0_NONE;
+  uint32_t echo_unsigned = W_SEED_HIR0_NONE;
+  for (size_t function_index = 0u;
+       function_index < program->function_count; function_index += 1u) {
+    const w_seed_hir0_function *function = &program->functions[function_index];
+    if (hir_text_is(program, function->name, "echoSigned"))
+      echo_signed = (uint32_t)function_index;
+    if (hir_text_is(program, function->name, "echoUnsigned"))
+      echo_unsigned = (uint32_t)function_index;
+  }
+  CHECK(echo_signed < program->function_count &&
+        echo_unsigned < program->function_count &&
+        program->functions[echo_signed].return_type == i128_type &&
+        program->functions[echo_signed].parameter_count == 1u &&
+        program->parameters[program->functions[echo_signed].first_parameter]
+                .type_index == i128_type &&
+        program->functions[echo_unsigned].return_type == u128_type &&
+        program->functions[echo_unsigned].parameter_count == 1u &&
+        program->parameters[program->functions[echo_unsigned].first_parameter]
+                .type_index == u128_type &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const uint32_t saved_signed_max_type = signed_max_literal->type_index;
+  fixture.hir_values[signed_max_value].type_index = u128_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[signed_max_value].type_index = saved_signed_max_type;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_value saved_min_negation =
+      fixture.hir_values[signed_min_value];
+  fixture.hir_values[signed_min_value].type_index = u128_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[signed_min_value] = saved_min_negation;
+  fixture.hir_values[signed_min_value].left_value = bound_value;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[signed_min_value] = saved_min_negation;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const uint16_t saved_i128_width = fixture.hir_types[i128_type].integer_bit_width;
+  fixture.hir_types[i128_type].integer_bit_width = 64u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_types[i128_type].integer_bit_width = saved_i128_width;
+  const bool saved_i128_sign = fixture.hir_types[i128_type].integer_is_signed;
+  fixture.hir_types[i128_type].integer_is_signed = false;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_types[i128_type].integer_is_signed = saved_i128_sign;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const uint32_t saved_signed_count =
+      fixture.hir_values[signed_max_value].byte_count;
+  fixture.hir_values[signed_max_value].byte_count = 15u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[signed_max_value].byte_count = saved_signed_count;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const uint8_t saved_max_byte =
+      fixture.hir_value_bytes[signed_max_literal->byte_offset + 15u];
+  fixture.hir_value_bytes[signed_max_literal->byte_offset + 15u] = 0x80u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_value_bytes[signed_max_literal->byte_offset + 15u] =
+      saved_max_byte;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const uint8_t saved_min_low_byte =
+      fixture.hir_value_bytes[signed_min_literal->byte_offset];
+  fixture.hir_value_bytes[signed_min_literal->byte_offset] = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_value_bytes[signed_min_literal->byte_offset] =
+      saved_min_low_byte;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const uint8_t saved_identity_byte =
+      fixture.hir_value_bytes[signed_max_literal->byte_offset];
+  fixture.hir_value_bytes[signed_max_literal->byte_offset] ^= 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_value_bytes[signed_max_literal->byte_offset] =
+      saved_identity_byte;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
   return true;
 }
 
@@ -19598,7 +19846,7 @@ static bool test_explicit_integer_saturating_hir(void) {
 }
 
 static bool test_checked_integer_arithmetic_hir_matrix(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-98") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-99") == 0);
   typedef struct {
     const char *name;
     const char *suffix;
@@ -22592,6 +22840,7 @@ int main(int argc, char **argv) {
   if (!test_scalar_return_and_call_result()) return 1;
   if (!test_scalar_if_value_diamond()) return 1;
   if (!test_scalar_if_fixed_integer_type_identity()) return 1;
+  if (!test_i128_u128_literal_flow_hir()) return 1;
   if (!test_scalar_if_f32_value_diamond()) return 1;
   if (!test_nested_scalar_if_value_diamond()) return 1;
   if (!test_if_diamond_cfg()) return 1;

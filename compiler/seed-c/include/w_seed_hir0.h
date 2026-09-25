@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-98"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-99"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -74,7 +74,8 @@ typedef enum {
   W_SEED_HIR0_TYPE_U64_BOOL_TUPLE,
   /* One shared fixed-width integer record for non-canonical widths. The
    * signedness and width facts below carry the complete integer identity;
-   * i64/u64 retain their historical canonical records and numeric identity. */
+   * i64/u64 retain their historical canonical records and numeric identity.
+   * i128/u128 currently carry identity and literal payloads only. */
   W_SEED_HIR0_TYPE_INTEGER,
   /* Generic compatibility names for the two historical 64-bit records.
    * These aliases intentionally do not allocate per-width type identities. */
@@ -249,6 +250,12 @@ typedef enum {
   W_SEED_HIR0_VALUE_TUPLE = W_SEED_HIR0_VALUE_FLOAT_TO_BITS + 1,
   W_SEED_HIR0_VALUE_VALUE_STRUCT,
   W_SEED_HIR0_VALUE_VALUE_STRUCT_FIELD,
+  /* Exact 16-byte little-endian i128/u128 literal magnitude. This does not
+   * enable wide arithmetic or native lowering. */
+  W_SEED_HIR0_VALUE_CONST_INTEGER_128,
+  /* The wide unary form admitted for negative i128 literal spellings:
+   * unary negation directly over a 16-byte integer literal, not arithmetic. */
+  W_SEED_HIR0_VALUE_UNARY_INTEGER_128,
 } w_seed_hir0_value_kind;
 
 typedef enum {

@@ -1252,6 +1252,7 @@ static bool product_value_kind_supported(w_seed_hir0_value_kind kind) {
     case W_SEED_HIR0_VALUE_CONST_USIZE:
     case W_SEED_HIR0_VALUE_CONST_U64:
     case W_SEED_HIR0_VALUE_CONST_FLOAT:
+    case W_SEED_HIR0_VALUE_CONST_INTEGER_128:
     case W_SEED_HIR0_VALUE_INTEGER_SATURATING:
     case W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE:
     case W_SEED_HIR0_VALUE_EXTERNAL_MEMBER:
@@ -1262,6 +1263,7 @@ static bool product_value_kind_supported(w_seed_hir0_value_kind kind) {
     case W_SEED_HIR0_VALUE_BINARY_FLOAT:
     case W_SEED_HIR0_VALUE_UNARY_U64:
     case W_SEED_HIR0_VALUE_UNARY_FLOAT:
+    case W_SEED_HIR0_VALUE_UNARY_INTEGER_128:
     case W_SEED_HIR0_VALUE_NUMERIC_WIDEN:
     case W_SEED_HIR0_VALUE_FLOAT_FROM_BITS:
     case W_SEED_HIR0_VALUE_FLOAT_TO_BITS:

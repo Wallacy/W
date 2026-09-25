@@ -108,10 +108,12 @@ static const char HIR0_I8_NAME[] = "i8";
 static const char HIR0_I16_NAME[] = "i16";
 static const char HIR0_I32_NAME[] = "i32";
 static const char HIR0_I64_NAME[] = "i64";
+static const char HIR0_I128_NAME[] = "i128";
 static const char HIR0_U8_NAME[] = "u8";
 static const char HIR0_U16_NAME[] = "u16";
 static const char HIR0_U32_NAME[] = "u32";
 static const char HIR0_U64_NAME[] = "u64";
+static const char HIR0_U128_NAME[] = "u128";
 static const char HIR0_F32_NAME[] = "f32";
 static const char HIR0_F64_NAME[] = "f64";
 static const char HIR0_U64_BOOL_TUPLE_NAME[] = "(u64, Bool)";
@@ -254,11 +256,13 @@ static const char *hir0_fixed_integer_name(bool is_signed,
     if (bit_width == 16u) return HIR0_I16_NAME;
     if (bit_width == 32u) return HIR0_I32_NAME;
     if (bit_width == 64u) return HIR0_I64_NAME;
+    if (bit_width == 128u) return HIR0_I128_NAME;
   } else {
     if (bit_width == 8u) return HIR0_U8_NAME;
     if (bit_width == 16u) return HIR0_U16_NAME;
     if (bit_width == 32u) return HIR0_U32_NAME;
     if (bit_width == 64u) return HIR0_U64_NAME;
+    if (bit_width == 128u) return HIR0_U128_NAME;
   }
   return NULL;
 }
@@ -301,20 +305,38 @@ static bool frontend_type_is_noncanonical_integer(
   return frontend_type_is_fixed_integer(type) && type->bit_width != 64u;
 }
 
+/* HIR0 accepts i128/u128 as type identities and exact literal payloads only.
+ * Keep this separate from frontend_type_is_fixed_integer(): the latter gates
+ * every existing arithmetic, conversion, and native-selection family. */
+static bool frontend_type_is_wide_integer_identity(
+    const w_seed_frontend_type *type) {
+  return type != NULL && type->task_result_type == W_SEED_FRONTEND_NONE &&
+         type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+         type->bit_width == 128u &&
+         text_is(type->spelling,
+                 type->is_signed ? HIR0_I128_NAME : HIR0_U128_NAME);
+}
+
+static bool frontend_type_is_hir_integer_identity(
+    const w_seed_frontend_type *type) {
+  return frontend_type_is_noncanonical_integer(type) ||
+         frontend_type_is_wide_integer_identity(type);
+}
+
 static size_t frontend_fixed_integer_type_count_for(
     const w_seed_frontend_output *output,
     const w_seed_frontend_result *result) {
   if (output == NULL || result == NULL || output->types == NULL)
     return 0u;
   size_t count = 0u;
-  const uint16_t widths[] = {8u, 16u, 32u};
+  const uint16_t widths[] = {8u, 16u, 32u, 128u};
   for (size_t sign = 0u; sign < 2u; sign += 1u)
     for (size_t width = 0u; width < sizeof(widths) / sizeof(widths[0]);
          width += 1u) {
       bool present = false;
       for (size_t index = 0u; index < result->written.types; index += 1u) {
         const w_seed_frontend_type *type = &output->types[index];
-        if (frontend_type_is_noncanonical_integer(type) &&
+        if (frontend_type_is_hir_integer_identity(type) &&
             type->is_signed == (sign != 0u) &&
             type->bit_width == widths[width]) {
           present = true;
@@ -341,7 +363,7 @@ static bool frontend_fixed_integer_present(
   for (size_t index = 0u; index < input->frontend_result->written.types;
        index += 1u) {
     const w_seed_frontend_type *type = &input->frontend_output->types[index];
-    if (frontend_type_is_noncanonical_integer(type) &&
+    if (frontend_type_is_hir_integer_identity(type) &&
         type->is_signed == is_signed && type->bit_width == bit_width)
       return true;
   }
@@ -1054,6 +1076,7 @@ static bool frontend_hir_type_supported(
              frontend_type_is_fixed_integer(result)));
   }
   if (type->task_result_type != W_SEED_FRONTEND_NONE) return false;
+  if (frontend_type_is_wide_integer_identity(type)) return true;
   if (frontend_type_supported(type)) return true;
   if (frontend_type_is_u64_bool_tuple(type) ||
       frontend_flat_product_tuple_type_supported(input, type) ||
@@ -1213,6 +1236,14 @@ static bool frontend_supported_types_equal(
     const w_seed_frontend_type *left, const w_seed_frontend_type *right) {
   if (left == NULL || right == NULL || left->kind != right->kind)
     return false;
+  if (frontend_type_is_usize(left) || frontend_type_is_usize(right))
+    return frontend_type_is_usize(left) && frontend_type_is_usize(right);
+  if (frontend_type_is_wide_integer_identity(left) ||
+      frontend_type_is_wide_integer_identity(right))
+    return left->is_signed == right->is_signed &&
+           left->bit_width == right->bit_width &&
+           frontend_type_is_wide_integer_identity(left) &&
+           frontend_type_is_wide_integer_identity(right);
   if (left->kind == W_SEED_FRONTEND_TYPE_ENUM)
     return left->enum_base_index != W_SEED_FRONTEND_NONE &&
            left->enum_base_index == right->enum_base_index;
@@ -4169,6 +4200,49 @@ static bool frontend_expression_is_integer(
              &output->types[expression->inferred_type]);
 }
 
+static bool frontend_expression_is_wide_integer_identity(
+    const w_seed_frontend_output *output,
+    const w_seed_frontend_expression *expression) {
+  return output != NULL && expression != NULL &&
+         expression->inferred_type != W_SEED_FRONTEND_NONE &&
+         frontend_type_is_wide_integer_identity(
+             &output->types[expression->inferred_type]);
+}
+
+static bool frontend_wide_integer_literal_negate_ok(
+    const w_seed_hir0_input *input,
+    const w_seed_frontend_expression *value) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || value == NULL ||
+      value->kind != W_SEED_FRONTEND_EXPR_UNARY ||
+      !text_is(value->operator_text, "-") ||
+      value->left == W_SEED_FRONTEND_NONE ||
+      (size_t)value->left >= input->frontend_result->written.expressions ||
+      value->inferred_type == W_SEED_FRONTEND_NONE ||
+      (size_t)value->inferred_type >= input->frontend_result->written.types)
+    return false;
+  const w_seed_frontend_expression *operand =
+      &input->frontend_output->expressions[value->left];
+  return operand->kind == W_SEED_FRONTEND_EXPR_INTEGER &&
+         operand->inferred_type == value->inferred_type &&
+         frontend_type_is_wide_integer_identity(
+             &input->frontend_output->types[value->inferred_type]) &&
+         input->frontend_output->types[value->inferred_type].is_signed;
+}
+
+static bool frontend_wide_integer_literal_magnitude_valid(
+    const w_seed_frontend_type *type, const uint8_t magnitude[16]) {
+  if (!frontend_type_is_wide_integer_identity(type) || magnitude == NULL)
+    return false;
+  if (!type->is_signed || magnitude[15] < 0x80u) return true;
+  if (magnitude[15] != 0x80u) return false;
+  for (size_t index = 0u; index < 15u; index += 1u)
+    if (magnitude[index] != 0u) return false;
+  /* 2^127 is admitted only as the magnitude below unary `-`, and the
+   * independently verified HIR parent enforces that exact relation. */
+  return true;
+}
+
 static bool frontend_expression_is_signed_integer(
     const w_seed_frontend_output *output,
     const w_seed_frontend_expression *expression) {
@@ -4733,7 +4807,7 @@ static bool frontend_scalar_if_tree_ok(
             (numeric_negate &&
              (frontend_expression_is_signed_integer(output, value) ||
               frontend_expression_is_float(output, value))) ||
-             (bit_not && frontend_expression_is_integer(output, value))) &&
+            (bit_not && frontend_expression_is_integer(output, value))) &&
            !value->has_bool_value && !value->has_integer_value &&
            !value->has_float_value &&
            value->right == W_SEED_FRONTEND_NONE &&
@@ -4752,8 +4826,8 @@ static bool frontend_scalar_if_tree_ok(
                   output, &output->expressions[value->left])) &&
              frontend_supported_types_equal_for_input(
                  input, &output->types[value->inferred_type],
-                  &output->types[output->expressions[value->left]
-                                     .inferred_type])) ||
+                 &output->types[output->expressions[value->left]
+                                    .inferred_type])) ||
             (bit_not &&
              frontend_expression_is_integer(
                  output, &output->expressions[value->left]) &&
@@ -5231,6 +5305,8 @@ static bool frontend_value_tree_ok_impl(
     const bool logical_not = text_is(value->operator_text, "!");
     const bool numeric_negate = text_is(value->operator_text, "-");
     const bool bit_not = text_is(value->operator_text, "~");
+    const bool wide_integer_negate =
+        frontend_wide_integer_literal_negate_ok(input, value);
     if ((!logical_not && !numeric_negate && !bit_not) ||
         value->left == W_SEED_FRONTEND_NONE ||
         (size_t)value->left >= result->written.expressions ||
@@ -5247,7 +5323,8 @@ static bool frontend_value_tree_ok_impl(
                      ? !frontend_expression_is_integer(output, value)
                      : (!(frontend_expression_is_signed_integer(output,
                                                                   value) ||
-                          frontend_expression_is_float(output, value)) ||
+                          frontend_expression_is_float(output, value) ||
+                          wide_integer_negate) ||
                         !frontend_supported_types_equal_for_input(
                             input, &output->types[value->inferred_type],
                             &output->types[output->expressions[value->left]
@@ -5267,7 +5344,11 @@ static bool frontend_value_tree_ok_impl(
                                      &output->expressions[value->left]) ||
                                  frontend_expression_is_float(
                                      output,
-                                     &output->expressions[value->left])) ||
+                                     &output->expressions[value->left]) ||
+                                 (wide_integer_negate &&
+                                  frontend_expression_is_wide_integer_identity(
+                                      output,
+                                      &output->expressions[value->left]))) ||
                                !frontend_supported_types_equal_for_input(
                                    input, &output->types[value->inferred_type],
                                    &output->types[output->expressions[value->left]
@@ -5731,15 +5812,25 @@ static bool frontend_value_tree_ok_impl(
     uint64_t unsigned_value = 0u;
     if (value->inferred_type == W_SEED_FRONTEND_NONE ||
         (size_t)value->inferred_type >= result->written.types ||
-        ((!frontend_expression_is_signed_integer(output, value) ||
-          !frontend_integer_i64(value, &signed_value)) &&
-         (!frontend_expression_is_unsigned_integer(output, value) ||
-          !frontend_integer_u64(value, &unsigned_value))) ||
         !frontend_value_has_no_resolution(value) ||
         value->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
         value->const_byte_offset != W_SEED_FRONTEND_NONE ||
         value->const_byte_count != 0u || value->has_bool_value)
       return false;
+    if (frontend_expression_is_wide_integer_identity(output, value)) {
+      if (!value->has_integer_value ||
+          !frontend_wide_integer_literal_magnitude_valid(
+              &output->types[value->inferred_type], value->integer_value) ||
+          !add_size(*value_bytes, sizeof(value->integer_value), value_bytes))
+        return false;
+    } else if ((!frontend_expression_is_signed_integer(output, value) ||
+                !frontend_integer_i64(value, &signed_value)) &&
+               (!frontend_expression_is_unsigned_integer(output, value) ||
+                !frontend_integer_u64(value, &unsigned_value))) {
+      return false;
+    } else if (!value->has_integer_value) {
+      return false;
+    }
   } else if (value->kind == W_SEED_FRONTEND_EXPR_FLOAT) {
     if (value->inferred_type == W_SEED_FRONTEND_NONE ||
         (size_t)value->inferred_type >= result->written.types ||
@@ -10636,7 +10727,7 @@ static bool text_size_for_input(const w_seed_hir0_input *input, size_t *total) {
     return false;
   /* Non-canonical fixed integers are appended after the historical optional
    * tail in canonical unsigned-then-signed width order. */
-  const uint16_t fixed_widths[] = {8u, 16u, 32u};
+  const uint16_t fixed_widths[] = {8u, 16u, 32u, 128u};
   for (size_t sign = 0u; sign < 2u; sign += 1u)
     for (size_t width = 0u;
          width < sizeof(fixed_widths) / sizeof(fixed_widths[0]);
@@ -11945,15 +12036,15 @@ static uint32_t hir_type_from_frontend(const w_seed_frontend_output *output,
       has_numeric_conversion_error_type)
     return (uint32_t)(integer_type_base +
                       frontend_fixed_integer_type_count_for(output, result));
-  if (frontend_type_is_noncanonical_integer(type)) {
+  if (frontend_type_is_hir_integer_identity(type)) {
     /* Only present sign/width pairs receive a record. */
     size_t compact_ordinal = 0u;
-    const uint16_t widths[] = {8u, 16u, 32u};
+    const uint16_t widths[] = {8u, 16u, 32u, 128u};
     for (size_t sign = 0u; sign < 2u; sign += 1u)
-      for (size_t width = 0u; width < 3u; width += 1u) {
+      for (size_t width = 0u; width < 4u; width += 1u) {
         bool present = false;
         for (size_t index = 0u; index < result->written.types; index += 1u)
-          if (frontend_type_is_noncanonical_integer(&output->types[index]) &&
+          if (frontend_type_is_hir_integer_identity(&output->types[index]) &&
               output->types[index].is_signed == (sign != 0u) &&
               output->types[index].bit_width == widths[width]) {
             present = true;
@@ -18559,18 +18650,27 @@ static uint32_t hir0_emit_value_m2(
     w_seed_hir0_value *target = &context->output->values[*context->value_index];
     const bool numeric_negate = text_is(source->operator_text, "-");
     const bool bit_not = text_is(source->operator_text, "~");
+    const bool wide_integer_negate =
+        frontend_wide_integer_literal_negate_ok(
+            &(w_seed_hir0_input){
+                .frontend_input = context->frontend_input,
+                .frontend_output = context->frontend,
+                .frontend_result = context->frontend_result},
+            source);
     const bool floating = frontend_expression_is_float(context->frontend,
                                                        source);
     const bool unsigned_bit_not =
         bit_not && frontend_expression_is_unsigned_integer(
                        context->frontend, source);
     *target = (w_seed_hir0_value){
-        .kind = floating ? W_SEED_HIR0_VALUE_UNARY_FLOAT
+        .kind = wide_integer_negate
+                    ? W_SEED_HIR0_VALUE_UNARY_INTEGER_128
+                    : (floating ? W_SEED_HIR0_VALUE_UNARY_FLOAT
                          : (unsigned_bit_not
                                 ? W_SEED_HIR0_VALUE_UNARY_U64
                                 : (numeric_negate || bit_not
                                        ? W_SEED_HIR0_VALUE_UNARY_I64
-                                       : W_SEED_HIR0_VALUE_UNARY_BOOL)),
+                                       : W_SEED_HIR0_VALUE_UNARY_BOOL))),
         .owner_kind = owner_kind,
         .owner_index = owner_index,
         .owner_ordinal = owner_ordinal,
@@ -18960,7 +19060,17 @@ static uint32_t hir0_emit_value_m2(
           source->resolved_binding_statement, &target->binding_index);
     }
   } else if (source->kind == W_SEED_FRONTEND_EXPR_INTEGER) {
-    if (frontend_expression_is_usize(context->frontend,
+    if (frontend_expression_is_wide_integer_identity(
+            context->frontend, source)) {
+      target->kind = W_SEED_HIR0_VALUE_CONST_INTEGER_128;
+      target->type_index = hir_type_from_frontend(
+          context->frontend, context->frontend_result, source->inferred_type);
+      append_bytes_unchecked(source->integer_value,
+                             sizeof(source->integer_value),
+                             context->output->value_bytes,
+                             context->value_offset, &target->byte_offset,
+                             &target->byte_count);
+    } else if (frontend_expression_is_usize(context->frontend,
                                      context->frontend_result, source)) {
       target->kind = W_SEED_HIR0_VALUE_CONST_USIZE;
       target->type_index = hir_type_from_frontend(
@@ -19273,9 +19383,9 @@ static void emit_records(const w_seed_hir0_input *input,
   }
   /* Append one generic fixed-integer record per present non-canonical
    * sign/width pair. Legacy optional type indices therefore remain stable. */
-  const uint16_t fixed_widths[] = {8u, 16u, 32u};
+  const uint16_t fixed_widths[] = {8u, 16u, 32u, 128u};
   for (size_t sign = 0u; sign < 2u; sign += 1u)
-    for (size_t width = 0u; width < 3u; width += 1u) {
+    for (size_t width = 0u; width < 4u; width += 1u) {
       const bool is_signed = sign != 0u;
       const uint16_t bit_width = fixed_widths[width];
       if (!frontend_fixed_integer_present(input, is_signed, bit_width))
@@ -21083,7 +21193,8 @@ static bool hir_integer_tail_layout(const w_seed_hir0_program *program,
             W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR)
       return false;
 
-  bool seen[2][3] = {{false, false, false}, {false, false, false}};
+  bool seen[2][4] = {{false, false, false, false},
+                     {false, false, false, false}};
   size_t previous_rank = 0u;
   bool have_previous = false;
   for (size_t index = tail; index < integer_type_end; index += 1u) {
@@ -21092,7 +21203,8 @@ static bool hir_integer_tail_layout(const w_seed_hir0_program *program,
     if (type->kind != W_SEED_HIR0_TYPE_INTEGER ||
         (type->integer_bit_width != 8u &&
          type->integer_bit_width != 16u &&
-         type->integer_bit_width != 32u) ||
+         type->integer_bit_width != 32u &&
+         type->integer_bit_width != 128u) ||
         type->owner_module != W_SEED_HIR0_NONE ||
         type->external_module_index != W_SEED_HIR0_NONE ||
         type->external_symbol_index != W_SEED_HIR0_NONE ||
@@ -21107,7 +21219,9 @@ static bool hir_integer_tail_layout(const w_seed_hir0_program *program,
       width_index = 1u;
     else if (type->integer_bit_width == 32u)
       width_index = 2u;
-    const size_t rank = (type->integer_is_signed ? 3u : 0u) + width_index;
+    else if (type->integer_bit_width == 128u)
+      width_index = 3u;
+    const size_t rank = (type->integer_is_signed ? 4u : 0u) + width_index;
     if ((have_previous && rank <= previous_rank) ||
         seen[type->integer_is_signed ? 1u : 0u][width_index])
       return false;
@@ -21578,7 +21692,8 @@ static bool hir_type_index_valid(const w_seed_hir0_program *program,
   if (type_index >= integer_type_base && type_index < integer_type_end) {
     const bool valid_width =
         type->integer_bit_width == 8u || type->integer_bit_width == 16u ||
-        type->integer_bit_width == 32u;
+        type->integer_bit_width == 32u ||
+        type->integer_bit_width == 128u;
     return type->kind == W_SEED_HIR0_TYPE_INTEGER && valid_width &&
            type->owner_module == W_SEED_HIR0_NONE &&
            type->external_module_index == W_SEED_HIR0_NONE &&
@@ -21819,6 +21934,48 @@ static bool hir_integer_type_facts(const w_seed_hir0_program *program,
   *bit_width = type->integer_bit_width;
   return *bit_width == 8u || *bit_width == 16u || *bit_width == 32u ||
          *bit_width == 64u;
+}
+
+static bool hir_wide_integer_type_identity(
+    const w_seed_hir0_program *program, uint32_t type_index,
+    bool *is_signed) {
+  if (program == NULL || is_signed == NULL ||
+      !hir_type_index_valid(program, type_index))
+    return false;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  if (type->kind != W_SEED_HIR0_TYPE_INTEGER ||
+      type->integer_bit_width != 128u ||
+      !hir_text_is(program, type->name,
+                   type->integer_is_signed ? HIR0_I128_NAME
+                                           : HIR0_U128_NAME))
+    return false;
+  *is_signed = type->integer_is_signed;
+  return true;
+}
+
+static bool hir_wide_integer_literal_payload_valid(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    w_seed_hir0_value_owner_kind owner_kind, uint32_t owner_index,
+    const w_seed_hir0_value *value) {
+  bool is_signed = false;
+  if (program == NULL || value == NULL || value_index >= program->value_count ||
+      value->byte_count != 16u ||
+      !byte_slice_valid(program, value->byte_offset, value->byte_count) ||
+      !hir_wide_integer_type_identity(program, value->type_index, &is_signed))
+    return false;
+  const uint8_t *magnitude = program->value_bytes + value->byte_offset;
+  if (!is_signed || magnitude[15] < 0x80u) return true;
+  if (magnitude[15] != 0x80u) return false;
+  for (size_t index = 0u; index < 15u; index += 1u)
+    if (magnitude[index] != 0u) return false;
+  if (owner_kind != W_SEED_HIR0_VALUE_OWNER_UNARY ||
+      owner_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *parent = &program->values[owner_index];
+  return parent->kind == W_SEED_HIR0_VALUE_UNARY_INTEGER_128 &&
+         parent->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
+         parent->type_index == value->type_index &&
+         parent->left_value == value_index;
 }
 
 static uint16_t hir_float_type_width(const w_seed_hir0_program *program,
@@ -23845,6 +24002,37 @@ static bool verify_value_tree_with_cfg_impl(
     return true;
   }
 
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_INTEGER_128) {
+    bool is_signed = false;
+    if (value->unary_operator != W_SEED_HIR0_UNARY_NEGATE ||
+        !hir_wide_integer_type_identity(program, value->type_index,
+                                        &is_signed) ||
+        !is_signed || value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->call_index != W_SEED_HIR0_NONE ||
+        value->left_value == W_SEED_HIR0_NONE ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+        value->interpolation_segment_count != 0u ||
+        value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
+        value->block_argument_index != W_SEED_HIR0_NONE ||
+        value->integer_value != 0 || value->unsigned_integer_value != 0u ||
+        value->float_bits != 0u || value->bool_value ||
+        value->byte_offset != 0u || value->byte_count != 0u ||
+        !verify_value_tree_with_cfg(
+            program, value->left_value, W_SEED_HIR0_VALUE_OWNER_UNARY,
+            root_index, 0u, current_block, current_instruction, source_length,
+            depth + 1u, value_cursor, segment_cursor, byte_cursor,
+            cfg_analysis) ||
+        (size_t)root_index != *value_cursor ||
+        program->values[value->left_value].kind !=
+            W_SEED_HIR0_VALUE_CONST_INTEGER_128 ||
+        program->values[value->left_value].type_index != value->type_index)
+      return false;
+    *value_cursor += 1u;
+    return true;
+  }
+
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
     const bool overflowing =
         value->unary_operator == W_SEED_HIR0_UNARY_OVERFLOWING_NEGATE;
@@ -24120,6 +24308,17 @@ static bool verify_value_tree_with_cfg_impl(
         value->integer_value != 0 || value->bool_value ||
         (size_t)value->byte_offset != *byte_cursor ||
         !byte_slice_valid(program, value->byte_offset, value->byte_count) ||
+        !add_size(*byte_cursor, value->byte_count, byte_cursor))
+      return false;
+  } else if (value->kind == W_SEED_HIR0_VALUE_CONST_INTEGER_128) {
+    if (value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->call_index != W_SEED_HIR0_NONE ||
+        value->integer_value != 0 || value->unsigned_integer_value != 0u ||
+        value->float_bits != 0u || value->bool_value ||
+        (size_t)value->byte_offset != *byte_cursor ||
+        !hir_wide_integer_literal_payload_valid(
+            program, root_index, owner_kind, owner_index, value) ||
         !add_size(*byte_cursor, value->byte_count, byte_cursor))
       return false;
   } else if (value->kind == W_SEED_HIR0_VALUE_CONST_FLOAT) {

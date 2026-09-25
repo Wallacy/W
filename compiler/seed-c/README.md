@@ -1221,6 +1221,22 @@ component records retain the two `i64` types, and tuple construction owns two
 child values in source order. Tuple projection has an explicit ordinal rather
 than borrowing `float_bits`.
 
+### Exact i128/u128 literal identity in verified HIR0
+
+HIR0 schema `w-seed-hir0-99` carries canonical signed `i128` and unsigned
+`u128` type identities and exact literal magnitude bytes from the existing seed
+frontend. Each literal owns exactly 16 little-endian bytes; those bytes are
+included in the semantic digest and independently range-checked by the HIR
+verifier. The signed minimum uses unary negation directly over its exact
+`2^127` magnitude. Negative `i128` literals use this same
+direct-literal unary form; general unary/arithmetic operations are not admitted.
+Function parameters/returns and immutable bindings preserve the signedness and
+128-bit width. This is compiler-lifecycle HIR correctness evidence only: wide
+arithmetic, conversions, native/MLIR lowering, layout/ABI, and i128/u128
+scalar-if source support remain outside this slice. Run
+`bun tooling/check-hir0.mjs` for the focused verifier and adversarial mutation
+gate.
+
 [`flat-value-struct-pair.w`](fixtures/flat-value-struct-pair.w) uses one local,
 immutable nominal value struct with two `i64` fields. Its identity is the
 module/declaration pair. Field declarations retain canonical order, while each
