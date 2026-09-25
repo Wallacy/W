@@ -504,10 +504,11 @@ The `process-arguments-count` workload is the full public executable path for
 `Arguments.count`. Invoke the runner with `--target process-arguments-count`.
 It is a `public-end-to-end` workload, not a linkage or transient-internal lane.
 Correctness executes zero user arguments, one empty user argument, and two
-ordinary user arguments before timing. Each case must print
-`Argument count N\n`, exit `0`, and write no stderr. The timed vector is
-`[alpha, beta]`. W, C23, and Rust 2024 use the same Windows x64 MSVC target and
-the shared release profiles.
+ordinary user arguments before timing. The zero- and one-argument cases print
+`Argument count 0\n` and `Argument count 1\n`; the two-argument case prints
+`Exactly two arguments\n`. All cases exit `0` and write no stderr. The timed
+vector is `[alpha, beta]`. W, C23, and Rust 2024 use the same Windows x64 MSVC
+target and the shared release profiles.
 
 #### Private process-handler lifecycle executable measurements
 
