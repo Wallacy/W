@@ -133,6 +133,13 @@ cover subnormals and storage/copy preservation. W supplies foldable literal
 inputs while C23 and Rust 2024 retain runtime inputs. The benchmark is deferred
 until runtime work is equivalent and makes no timing or ranking claim.
 
+The separate `float-bit-runtime-roundtrip` witness binds the public process
+route to runtime data: `Arguments.count` is converted exactly to `u64`, passed
+through `f64.fromBits(bits).toBits()`, and observed as `Bits 0\n` or `Bits 1\n`
+for the zero/one-argument gates on Windows and Linux/WSL. It is registered as
+compiler-lifecycle evidence without timing; independent C23/Rust runtime
+oracles and a family-sized throughput workload remain blockers.
+
 The `checked-integer-arithmetic` witness is
 `not-performance-ready`. It covers successful fixed-input checked ordinary and
 compound `+`, `-`, `*`, `/`, and `%` over signed and unsigned 8/16/32/64-bit

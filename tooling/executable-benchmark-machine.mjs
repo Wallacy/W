@@ -62,6 +62,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "compound",
   "float-strict",
   "float-bit-representation",
+  "float-bit-runtime-roundtrip",
   "checked-integer-arithmetic",
   "integer-prefix",
   "integer-wrapping",
@@ -124,7 +125,8 @@ const WORKLOAD_FAMILY_ROWS = Object.freeze({
   ]),
   "value-aggregates": Object.freeze(["flat-value-aggregates"]),
   "floating-point": Object.freeze([
-    "float-strict", "float-bit-representation", "float-integer-rounding",
+    "float-strict", "float-bit-representation", "float-bit-runtime-roundtrip",
+    "float-integer-rounding",
   ]),
   mutation: Object.freeze([
     "linear", "mutation", "conditional-mutation",
@@ -573,6 +575,7 @@ export function processArgumentOracleFor(workloadId) {
 }
 export const PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID = "process-handler-lifecycle";
 export const FLOAT_BIT_REPRESENTATION_WORKLOAD_ID = "float-bit-representation";
+export const FLOAT_BIT_RUNTIME_ROUNDTRIP_WORKLOAD_ID = "float-bit-runtime-roundtrip";
 export const PROCESS_HANDLER_LIFECYCLE_STRUCTURE_CLASS = "integration-linkage";
 export const PROCESS_HANDLER_LIFECYCLE_EXECUTION_STRUCTURE_CLASS = "transient-internal";
 export const PROCESS_ENTRY0_EXECUTION_KIND = "private-process-handler";
@@ -1718,6 +1721,7 @@ function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PL
   if (workload?.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID) return SOURCE_ELIGIBILITY.platformMinimal;
   if (workload?.id === FLOAT_STRICT_WORKLOAD_ID ||
       workload?.id === FLOAT_BIT_REPRESENTATION_WORKLOAD_ID ||
+      workload?.id === FLOAT_BIT_RUNTIME_ROUNDTRIP_WORKLOAD_ID ||
       workload?.id === CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID ||
       workload?.id === INTEGER_PREFIX_WORKLOAD_ID ||
       workload?.id === INTEGER_WRAPPING_WORKLOAD_ID ||

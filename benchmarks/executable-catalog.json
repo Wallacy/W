@@ -2824,6 +2824,72 @@
       "family": "floating-point"
     },
     {
+      "id": "float-bit-runtime-roundtrip",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Validate one runtime-derived f64/u64 representation-bit round trip. The public process source converts Arguments.count exactly to u64, applies f64.fromBits(bits).toBits(), and prints Bits 0 or Bits 1 for the maintained zero/one-argument gates. This is compiler-lifecycle evidence until independent C23/Rust runtime oracles and a family-sized throughput workload exist.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Bits 0\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/process-float-bit-runtime.w",
+          "digest": "sha256:32dd93753f632db333cbf665bcb28523f14bbb8a0f8234b66c1acb541dd5fefa",
+          "entry": "run",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "float-bit-runtime-roundtrip-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b",
+          "runtimeClosure": {
+            "class": "freestanding",
+            "status": "unverified"
+          }
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/process-float-bit-runtime.w",
+          "digest": "sha256:32dd93753f632db333cbf665bcb28523f14bbb8a0f8234b66c1acb541dd5fefa",
+          "entry": "run",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "float-bit-runtime-roundtrip-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only",
+          "runtimeClosure": {
+            "class": "freestanding",
+            "status": "unverified"
+          }
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "independent-c23-rust-runtime-oracles",
+        "family-sized-runtime-throughput-workload"
+      ],
+      "family": "floating-point"
+    },
+    {
       "id": "checked-integer-arithmetic",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",
