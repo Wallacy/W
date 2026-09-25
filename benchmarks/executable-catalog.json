@@ -6033,6 +6033,25 @@
           }
         },
         {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/process-arguments-count.w",
+          "digest": "sha256:babeb94b3dbfa9bf9a4487dffca732ec85653ae66d3c23b84cb7579c960269b3",
+          "entry": "run",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "process-arguments-count-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only",
+          "runtimeClosure": {
+            "class": "freestanding",
+            "status": "unverified"
+          }
+        },
+        {
           "language": "c",
           "path": "benchmarks/executable/process_arguments_count.c",
           "digest": "sha256:de63b605ccef54ee692372d661fb6d2a4c417fce91fe49a2c55661361a5f297e",
@@ -6143,6 +6162,25 @@
           "artifactTarget": "x86_64-pc-windows-msvc",
           "comparability": "promotable-after-equivalence",
           "eligibility": "promotable-after-equivalence",
+          "runtimeClosure": {
+            "class": "freestanding",
+            "status": "unverified"
+          }
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/process-arguments-ordering.w",
+          "digest": "sha256:233d68f37f484de4894cfd71e4e6df1505fb9c8a0f2182e3a342ab66d2db51a0",
+          "entry": "run",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "process-arguments-ordering-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only",
           "runtimeClosure": {
             "class": "freestanding",
             "status": "unverified"
