@@ -136,9 +136,10 @@ until runtime work is equivalent and makes no timing or ranking claim.
 The separate `float-bit-runtime-roundtrip` witness binds the public process
 route to runtime data: `Arguments.count` is converted exactly to `u64`, passed
 through `f64.fromBits(bits).toBits()`, and observed as `Bits 0\n` or `Bits 1\n`
-for the zero/one-argument gates on Windows and Linux/WSL. It is registered as
-compiler-lifecycle evidence without timing; independent C23/Rust runtime
-oracles and a family-sized throughput workload remain blockers.
+for the zero/one-argument gates on Windows and Linux/WSL. Independent C23 and
+Rust 2024 references derive the same bits from their runtime argument count.
+The family is registered as correctness-only compiler-lifecycle evidence
+without timing until a family-sized runtime throughput workload exists.
 
 The `checked-integer-arithmetic` witness is
 `not-performance-ready`. It covers successful fixed-input checked ordinary and

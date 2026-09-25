@@ -1051,19 +1051,25 @@ test("runtime float-bit roundtrip is a bounded public compiler-lifecycle witness
     stdout: "Bits 0\n",
     stderr: "",
   });
-  assert.deepEqual(workload.blockedLanguages, ["c", "rust"]);
+  assert.deepEqual(workload.blockedLanguages, []);
   assert.deepEqual(workload.blockers, [
-    "independent-c23-rust-runtime-oracles",
     "family-sized-runtime-throughput-workload",
   ]);
   assert.deepEqual(workload.sources.map((source) =>
     [source.language, source.platformTarget]), [
     ["w", EXECUTABLE_PLATFORM_TARGET],
     ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
+    ["c", EXECUTABLE_PLATFORM_TARGET],
+    ["rust", EXECUTABLE_PLATFORM_TARGET],
   ]);
   assert.ok(workload.sources.every((source) =>
-    source.path === "compiler/seed-c/fixtures/process-float-bit-runtime.w" &&
     source.recipeClass === "float-bit-runtime-roundtrip-release"));
+  assert.deepEqual(workload.sources.map((source) => source.path), [
+    "compiler/seed-c/fixtures/process-float-bit-runtime.w",
+    "compiler/seed-c/fixtures/process-float-bit-runtime.w",
+    "benchmarks/executable/float_bit_runtime_roundtrip.c",
+    "benchmarks/executable/float_bit_runtime_roundtrip.rs",
+  ]);
   assert.ok(!documents.catalog.bestMetrics.entries.some((entry) =>
     entry.workloadId === FLOAT_BIT_RUNTIME_ROUNDTRIP_WORKLOAD_ID));
 });

@@ -2831,7 +2831,7 @@
       "demoEvidence": "bounded-w-demo",
       "benchmarkStatus": "not-performance-ready",
       "lane": "equivalent",
-      "scope": "Validate one runtime-derived f64/u64 representation-bit round trip. The public process source converts Arguments.count exactly to u64, applies f64.fromBits(bits).toBits(), and prints Bits 0 or Bits 1 for the maintained zero/one-argument gates. This is compiler-lifecycle evidence until independent C23/Rust runtime oracles and a family-sized throughput workload exist.",
+      "scope": "Validate one runtime-derived f64/u64 representation-bit round trip. W, C23, and Rust derive the bits from the user-argument count, round-trip through binary64 storage, and print Bits 0 for the catalog oracle; W also proves Bits 1 in the public one-argument gate. This remains correctness-only until a family-sized runtime throughput workload exists.",
       "oracle": {
         "kind": "exact-output",
         "status": "source-backed",
@@ -2877,14 +2877,48 @@
             "class": "freestanding",
             "status": "unverified"
           }
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/float_bit_runtime_roundtrip.c",
+          "digest": "sha256:460c5b10391712355053fd56d37744bf5247bbdd67d77bbef7d5027bd2f97277",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "float-bit-runtime-roundtrip-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b",
+          "runtimeClosure": {
+            "class": "hosted-crt",
+            "status": "unverified"
+          }
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/float_bit_runtime_roundtrip.rs",
+          "digest": "sha256:cb8ac2cc731be9f3059a725abc3a8562e5b115f73b1b3ed55d89d87e2531780d",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "float-bit-runtime-roundtrip-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b",
+          "runtimeClosure": {
+            "class": "hosted-crt",
+            "status": "unverified"
+          }
         }
       ],
-      "blockedLanguages": [
-        "c",
-        "rust"
-      ],
+      "blockedLanguages": [],
       "blockers": [
-        "independent-c23-rust-runtime-oracles",
         "family-sized-runtime-throughput-workload"
       ],
       "family": "floating-point"
