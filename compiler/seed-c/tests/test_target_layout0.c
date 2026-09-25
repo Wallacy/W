@@ -78,6 +78,7 @@ static void check_serialization(
   uint8_t value[16];
   uint8_t output[16];
   uint8_t expected_big[16];
+  uint8_t overlap[17];
   const size_t byte_count = (size_t)(width_bits / 8u);
   size_t index;
 
@@ -133,12 +134,32 @@ static void check_serialization(
     "unknown byte order rejected");
   check(output[0] == 0xa5u, "unknown byte order leaves output unchanged");
 
+  memset(output, 0xa5, sizeof(output));
+  check_status(w_seed_target_layout0_serialize_scalar(profile, width_bits,
+    W_SEED_TARGET_LAYOUT0_BYTE_ORDER_BIG, NULL, byte_count, output,
+    byte_count), W_SEED_TARGET_LAYOUT0_INVALID_ARGUMENT,
+    "null input rejected");
+  check(output[0] == 0xa5u, "null input leaves output unchanged");
+  check_status(w_seed_target_layout0_serialize_scalar(profile, width_bits,
+    W_SEED_TARGET_LAYOUT0_BYTE_ORDER_BIG, value, byte_count, NULL,
+    byte_count), W_SEED_TARGET_LAYOUT0_INVALID_ARGUMENT,
+    "null output rejected");
+
   memcpy(output, value, byte_count);
   check_status(w_seed_target_layout0_serialize_scalar(profile, width_bits,
     W_SEED_TARGET_LAYOUT0_BYTE_ORDER_BIG, output, byte_count, output,
     byte_count), W_SEED_TARGET_LAYOUT0_OK, "in-place serialization");
   check(memcmp(output, expected_big, byte_count) == 0,
     "in-place serialization is staged");
+
+  memset(overlap, 0xa5, sizeof(overlap));
+  memcpy(overlap, value, byte_count);
+  check_status(w_seed_target_layout0_serialize_scalar(profile, width_bits,
+    W_SEED_TARGET_LAYOUT0_BYTE_ORDER_BIG, overlap, byte_count, overlap + 1u,
+    byte_count), W_SEED_TARGET_LAYOUT0_OK,
+    "partially overlapping serialization");
+  check(memcmp(overlap + 1u, expected_big, byte_count) == 0,
+    "partially overlapping serialization is staged");
 
   (void)label;
 }
