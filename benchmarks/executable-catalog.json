@@ -5894,20 +5894,44 @@
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
       "benchmarkStatus": "not-performance-ready",
+      "benchmarkDisposition": "compiler-lifecycle",
       "lane": "equivalent",
-      "scope": "Runtime args.count selects constant 2.5_f64 (no arguments) or 3.5_f64 (one argument) for nearest-even i8 conversion, yielding Rounded 2\\n or Rounded 4\\n. The exact-output catalog oracle covers only no arguments; the one-argument result is a public fixture gate only. Both float operands are constants and conversion may fold. Runtime raw-bit float ingress and independent C23/Rust boundary oracles are absent; no performance ranking is claimed. The separate process-float-rounding-error.w gate remains the focused out-of-range failure case.",
+      "scope": "Runtime args.count selects exact binary64 raw bits before toward-zero i8 conversion. With no arguments, 42.75 converts to 42 and prints Rounded 42\\n; with one or more arguments, canonical quiet NaN reaches typed status 1 with empty stdout/stderr. W, C23, and Rust 2024 share the three pinned cases. The older literal-float success/out-of-range fixtures remain focused variants. This is correctness-only until a family-sized runtime throughput workload exists.",
       "oracle": {
-        "kind": "exact-output",
+        "kind": "argument-dependent-output",
         "status": "source-backed",
-        "exitCode": 0,
-        "stdout": "Rounded 2\n",
-        "stderr": ""
+        "timedInput": [],
+        "cases": [
+          {
+            "arguments": [],
+            "exitCode": 0,
+            "stdout": "Rounded 42\n",
+            "stderr": ""
+          },
+          {
+            "arguments": [
+              "x"
+            ],
+            "exitCode": 1,
+            "stdout": "",
+            "stderr": ""
+          },
+          {
+            "arguments": [
+              "x",
+              "y"
+            ],
+            "exitCode": 1,
+            "stdout": "",
+            "stderr": ""
+          }
+        ]
       },
       "sources": [
         {
           "language": "w",
-          "path": "compiler/seed-c/fixtures/process-float-rounding-runtime-if.w",
-          "digest": "sha256:22e5d6cbd624581fa5fdeee4f3e0921fb7eaa3f80cad8bbbdbd989e12a542ed3",
+          "path": "compiler/seed-c/fixtures/process-float-rounding-runtime-bits.w",
+          "digest": "sha256:c3ca055c4b1d25149472db25231b2781cbc09d0d727476f316757f423784abbc",
           "entry": "run",
           "status": "source-oracle-ready",
           "profile": "release",
@@ -5925,8 +5949,8 @@
         },
         {
           "language": "w",
-          "path": "compiler/seed-c/fixtures/process-float-rounding-runtime-if.w",
-          "digest": "sha256:22e5d6cbd624581fa5fdeee4f3e0921fb7eaa3f80cad8bbbdbd989e12a542ed3",
+          "path": "compiler/seed-c/fixtures/process-float-rounding-runtime-bits.w",
+          "digest": "sha256:c3ca055c4b1d25149472db25231b2781cbc09d0d727476f316757f423784abbc",
           "entry": "run",
           "status": "source-oracle-ready",
           "profile": "release",
@@ -5941,16 +5965,49 @@
             "class": "freestanding",
             "status": "unverified"
           }
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/float_integer_rounding_runtime.c",
+          "digest": "sha256:7048df61611c79f2d83b5c83e705a363d9d44308bb049e7d3e7bf283115d58d5",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "float-integer-rounding-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b",
+          "runtimeClosure": {
+            "class": "hosted-crt",
+            "status": "unverified"
+          }
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/float_integer_rounding_runtime.rs",
+          "digest": "sha256:926e9e21ee29ba2ccdb69f43bb0a60844f790dcbe5cd680751b6599469434dcb",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "float-integer-rounding-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b",
+          "runtimeClosure": {
+            "class": "hosted-crt",
+            "status": "unverified"
+          }
         }
       ],
-      "blockedLanguages": [
-        "c",
-        "rust"
-      ],
+      "blockedLanguages": [],
       "blockers": [
-        "runtime-raw-bit-float-ingress",
-        "independent-c23-rust-boundary-oracles",
-        "constant-folded-witness-not-rankable"
+        "family-sized-runtime-throughput-workload"
       ],
       "family": "floating-point"
     },

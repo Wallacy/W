@@ -131,7 +131,7 @@ The timer covers lane runs, result validation, catalog update, and catalog/docum
 | [float-strict (W)](../compiler/seed-c/fixtures/float-strict.w), [float-strict (C)](./executable/float_strict.c), [float-strict (Rust)](./executable/float_strict.rs) | Not measured | — | — | — | — | — | — | — |
 | [float-bit-representation (W)](../compiler/seed-c/fixtures/float-bit-representation.w), [float-bit-representation (C)](./executable/float_bit_representation.c), [float-bit-representation (Rust)](./executable/float_bit_representation.rs) | Not measured | — | — | — | — | — | — | — |
 | [float-bit-runtime-roundtrip (W)](../compiler/seed-c/fixtures/process-float-bit-runtime.w), [float-bit-runtime-roundtrip (C)](./executable/float_bit_runtime_roundtrip.c), [float-bit-runtime-roundtrip (Rust)](./executable/float_bit_runtime_roundtrip.rs) | Not measured | — | — | — | — | — | — | — |
-| [float-integer-rounding (W)](../compiler/seed-c/fixtures/process-float-rounding-runtime-if.w) | Not measured | — | — | — | — | — | — | — |
+| [float-integer-rounding (W)](../compiler/seed-c/fixtures/process-float-rounding-runtime-bits.w), [float-integer-rounding (C)](./executable/float_integer_rounding_runtime.c), [float-integer-rounding (Rust)](./executable/float_integer_rounding_runtime.rs) | Not measured | — | — | — | — | — | — | — |
 
 ### Mutation and linear values
 

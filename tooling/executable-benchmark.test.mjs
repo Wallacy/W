@@ -559,18 +559,30 @@ test("platform-minimal PIE Hello is a distinct measured Linux/WSL W/C/Rust workl
 test("float rounding catalog keeps runtime selection correctness-only", () => {
   const workload = documents.catalog.workloads.find((item) => item.id === "float-integer-rounding");
   assert.ok(workload);
-  assert.match(workload.scope, /args\.count selects constant/u);
-  assert.match(workload.scope, /catalog oracle covers only no arguments/u);
-  assert.match(workload.scope, /one-argument result is a public fixture gate/u);
-  assert.match(workload.scope, /Both float operands are constants/u);
-  assert.match(workload.scope, /no performance ranking/u);
-  assert.match(workload.scope, /process-float-rounding-error\.w gate/u);
+  assert.match(workload.scope, /args\.count selects exact binary64 raw bits/u);
+  assert.match(workload.scope, /canonical quiet NaN reaches typed status 1/u);
+  assert.match(workload.scope, /W, C23, and Rust 2024 share the three pinned cases/u);
   assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.equal(workload.benchmarkDisposition, "compiler-lifecycle");
   assert.equal(workload.demoEvidence, "bounded-w-demo");
+  assert.deepEqual(workload.oracle, {
+    kind: "argument-dependent-output",
+    status: "source-backed",
+    timedInput: [],
+    cases: [
+      { arguments: [], exitCode: 0, stdout: "Rounded 42\n", stderr: "" },
+      { arguments: ["x"], exitCode: 1, stdout: "", stderr: "" },
+      { arguments: ["x", "y"], exitCode: 1, stdout: "", stderr: "" },
+    ],
+  });
   assert.deepEqual(workload.sources.map((source) => source.path), [
-    "compiler/seed-c/fixtures/process-float-rounding-runtime-if.w",
-    "compiler/seed-c/fixtures/process-float-rounding-runtime-if.w",
+    "compiler/seed-c/fixtures/process-float-rounding-runtime-bits.w",
+    "compiler/seed-c/fixtures/process-float-rounding-runtime-bits.w",
+    "benchmarks/executable/float_integer_rounding_runtime.c",
+    "benchmarks/executable/float_integer_rounding_runtime.rs",
   ]);
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.blockers, ["family-sized-runtime-throughput-workload"]);
   assert.ok(workload.sources.every((source) =>
     source.digest === exactOutputDigest(readFileSync(`${ROOT}/${source.path}`, "utf8"))));
   assert.equal(documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === workload.id), false);

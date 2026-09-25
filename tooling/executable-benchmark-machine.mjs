@@ -320,6 +320,8 @@ const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
   "compiler/seed-c/fixtures/process-float-rounding-success.w": "float-integer-rounding",
   "compiler/seed-c/fixtures/process-float-rounding-error.w": "float-integer-rounding",
   "compiler/seed-c/fixtures/process-float-rounding-nonfinite.w": "float-integer-rounding",
+  "compiler/seed-c/fixtures/process-float-rounding-runtime-if.w": "float-integer-rounding",
+  "compiler/seed-c/fixtures/process-float-rounding-runtime-bits.w": "float-integer-rounding",
   "compiler/seed-c/fixtures/terminal-returns.w": "terminal-returns",
   "compiler/seed-c/fixtures/repeat.w": "repeat",
   "compiler/seed-c/fixtures/local-graph/app.w": "local-module-graph",
@@ -492,6 +494,18 @@ export const U64_MIX_ROUND_ORACLE_CASES = Object.freeze([
   Object.freeze({ arguments: U64_MIX_ROUND_CORRECTNESS_INPUTS[1], exitCode: 0, stdout: "Mix 553619412775969103\n", stderr: "" }),
   Object.freeze({ arguments: U64_MIX_ROUND_CORRECTNESS_INPUTS[2], exitCode: 0, stdout: "Mix 5608831001354178255\n", stderr: "" }),
 ]);
+export const FLOAT_INTEGER_ROUNDING_ORACLE_KIND = PROCESS_ENTRY_ORACLE_KIND;
+export const FLOAT_INTEGER_ROUNDING_TIMED_INPUT = Object.freeze([]);
+export const FLOAT_INTEGER_ROUNDING_CORRECTNESS_INPUTS = Object.freeze([
+  FLOAT_INTEGER_ROUNDING_TIMED_INPUT,
+  Object.freeze(["x"]),
+  Object.freeze(["x", "y"]),
+]);
+export const FLOAT_INTEGER_ROUNDING_ORACLE_CASES = Object.freeze([
+  Object.freeze({ arguments: FLOAT_INTEGER_ROUNDING_CORRECTNESS_INPUTS[0], exitCode: 0, stdout: "Rounded 42\n", stderr: "" }),
+  Object.freeze({ arguments: FLOAT_INTEGER_ROUNDING_CORRECTNESS_INPUTS[1], exitCode: 1, stdout: "", stderr: "" }),
+  Object.freeze({ arguments: FLOAT_INTEGER_ROUNDING_CORRECTNESS_INPUTS[2], exitCode: 1, stdout: "", stderr: "" }),
+]);
 const PROCESS_ARGUMENT_ORACLE_CONTRACTS = Object.freeze({
   [PROCESS_ENTRY_WORKLOAD_ID]: Object.freeze({
     kind: PROCESS_ENTRY_ORACLE_KIND,
@@ -541,6 +555,12 @@ const PROCESS_ARGUMENT_ORACLE_CONTRACTS = Object.freeze({
     correctnessInputs: U64_MIX_ROUND_CORRECTNESS_INPUTS,
     cases: U64_MIX_ROUND_ORACLE_CASES,
   }),
+  [FLOAT_INTEGER_ROUNDING_WORKLOAD_ID]: Object.freeze({
+    kind: FLOAT_INTEGER_ROUNDING_ORACLE_KIND,
+    timedInput: FLOAT_INTEGER_ROUNDING_TIMED_INPUT,
+    correctnessInputs: FLOAT_INTEGER_ROUNDING_CORRECTNESS_INPUTS,
+    cases: FLOAT_INTEGER_ROUNDING_ORACLE_CASES,
+  }),
 });
 export const PROCESS_ARGUMENT_WORKLOAD_IDS = Object.freeze([
   PROCESS_ENTRY_WORKLOAD_ID,
@@ -551,6 +571,7 @@ export const PROCESS_ARGUMENT_WORKLOAD_IDS = Object.freeze([
   CHECKED_INTEGER_HELPER_FAULT_WORKLOAD_ID,
   CHECKED_SCALAR_IF_JOIN_WORKLOAD_ID,
   U64_MIX_ROUND_WORKLOAD_ID,
+  FLOAT_INTEGER_ROUNDING_WORKLOAD_ID,
 ]);
 export const FLOAT_STRICT_WORKLOAD_ID = "float-strict";
 export const CHECKED_INTEGER_ARITHMETIC_WORKLOAD_ID = "checked-integer-arithmetic";
