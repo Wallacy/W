@@ -39,10 +39,13 @@ typedef struct {
   uint32_t root_first_update_statements[HIR0_MAX_BRANCH_ASSIGNMENTS];
   uint32_t root_last_update_statements[HIR0_MAX_BRANCH_ASSIGNMENTS];
   uint32_t edge_lane_ordinals[HIR0_MAX_BRANCH_ASSIGNMENTS];
+  uint32_t early_return_if_statement;
+  uint32_t early_return_statement;
   size_t root_count;
   size_t transfer_count;
   size_t break_count;
   size_t continue_count;
+  size_t early_return_count;
   size_t depth;
   size_t preheader_block;
   size_t header_block;
@@ -96,6 +99,12 @@ static bool hir_local_payload_enum_join_type_supported(
     const w_seed_hir0_program *program, uint32_t type_index);
 static bool cfg_analysis_covers_all_blocks(
     const w_seed_hir0_cfg_analysis *analysis);
+static bool hir0_cfg_requires_generic_loop_proof(
+    const w_seed_hir0_program *program, size_t function_index,
+    const w_seed_hir0_cfg_analysis *analysis);
+static bool value_tree_contains_binding_read(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t binding_index, size_t depth);
 static bool hir0_cfg_loop_exit_argument_span_ok(
     const w_seed_hir0_program *program,
     const w_seed_hir0_cfg_analysis *cfg_analysis, uint32_t current_block,
@@ -9126,8 +9135,18 @@ static bool hir0_nested_cfg_walk_chain(
           !add_size(*walk->bindings, 1u, walk->bindings))
         return false;
     } else if (statement->kind == W_SEED_FRONTEND_STMT_RETURN) {
-      if (active_frame_count != 0u ||
-          statement->next_sibling != W_SEED_FRONTEND_NONE ||
+      bool planned_early_return = false;
+      if (active_frame_count != 0u) {
+        const hir0_cfg_loop_frame *frame =
+            &plan->frames[active_frames[active_frame_count - 1u]];
+        planned_early_return =
+            active_frame_count == 1u &&
+            frame->early_return_statement == cursor &&
+            frame->early_return_count == 1u;
+      }
+      if ((active_frame_count != 0u && !planned_early_return) ||
+          (active_frame_count == 0u &&
+           statement->next_sibling != W_SEED_FRONTEND_NONE) ||
           statement->expression_index == W_SEED_FRONTEND_NONE ||
           (size_t)statement->expression_index >=
               walk->result->written.expressions) {
@@ -9145,6 +9164,20 @@ static bool hir0_nested_cfg_walk_chain(
               walk->input, &walk->output->types[returned_type],
               &walk->output->types[function_return_type]))
         return false;
+      if (planned_early_return) {
+        const hir0_cfg_loop_frame *frame =
+            &plan->frames[active_frames[active_frame_count - 1u]];
+        bool uses_root = false;
+        if (hir_type_from_frontend(
+                walk->output, walk->result, returned_type) !=
+                W_SEED_HIR0_TYPE_I64 ||
+            !frontend_loop_scalar_tree_ok(
+                walk->input, walk->module_index, walk->function_index,
+                walk->document_index, statement->expression_index,
+                frame->root_statements, frame->root_count, &uses_root, 0u) ||
+            !uses_root)
+          return false;
+      }
       if (!frontend_value_tree_ok(
               walk->input, walk->module_index, walk->function_index,
               walk->document_index, cursor, statement->expression_index, 0u,
@@ -9367,7 +9400,9 @@ static bool frontend_statement_and_expression_cfg_ok(
       bool walked = function->statement_count == 0u;
     if (function->statement_count != 0u) {
         if (function_cfg_plan.nested_or_multiple) {
-        if (function_cfg_plan.frame_count < 2u ||
+        if ((function_cfg_plan.frame_count < 2u &&
+             !(function_cfg_plan.frame_count == 1u &&
+               function_cfg_plan.frames[0].early_return_count == 1u)) ||
             function_cfg_plan.frame_count > W_SEED_HIR0_CFG_MAX_LOOPS)
           return false;
         uint32_t active_frames[HIR0_MAX_CFG_LOOP_FRAMES] = {0u};
@@ -9387,7 +9422,8 @@ static bool frontend_statement_and_expression_cfg_ok(
             walked = false;
             break;
           }
-          if (frame->transfer_count != 0u) {
+          if (frame->transfer_count != 0u ||
+              frame->early_return_count != 0u) {
             size_t edge_lanes = 0u;
             if (!add_size(frame->transfer_count, 1u, &edge_lanes) ||
                 frame->root_count > SIZE_MAX / edge_lanes ||
@@ -12538,7 +12574,9 @@ static bool hir0_cfg_plan_collect_loop_roots_chain(
                context, frame, statement->else_child, depth + 1u)))
         return false;
     } else if (statement->kind != W_SEED_FRONTEND_STMT_BREAK &&
-               statement->kind != W_SEED_FRONTEND_STMT_CONTINUE) {
+               statement->kind != W_SEED_FRONTEND_STMT_CONTINUE &&
+               !(statement->kind == W_SEED_FRONTEND_STMT_RETURN &&
+                 frame->early_return_statement == cursor)) {
       return false;
     }
     cursor = statement->next_sibling;
@@ -12994,7 +13032,7 @@ static bool hir0_loop_has_control_m2(const hir0_emit_context *context,
     const hir0_cfg_loop_frame *frame = hir0_cfg_plan_frame_for_statement(
         context->cfg_plan, loop_statement);
     return frame != NULL && frame->first_statement == first_statement &&
-           frame->transfer_count != 0u;
+           (frame->transfer_count != 0u || frame->early_return_count != 0u);
   }
   return hir0_chain_has_loop_control(context, first_statement, depth);
 }
@@ -13017,7 +13055,8 @@ static size_t hir0_region_loop_exit_adapter_count(
           hir0_cfg_plan_frame_for_statement(context->cfg_plan, cursor);
       const bool has_transfer =
           frame != NULL
-              ? frame->transfer_count != 0u
+              ? (frame->transfer_count != 0u ||
+                 frame->early_return_count != 0u)
               : hir0_chain_has_loop_control(context, statement->first_child,
                                             depth + 1u);
       if (has_transfer) {
@@ -13359,10 +13398,13 @@ static bool hir0_cfg_plan_walk_chain(
           .root_first_update_statements = {0u},
           .root_last_update_statements = {0u},
           .edge_lane_ordinals = {0u},
+          .early_return_if_statement = W_SEED_FRONTEND_NONE,
+          .early_return_statement = W_SEED_FRONTEND_NONE,
           .root_count = 0u,
           .transfer_count = 0u,
           .break_count = 0u,
           .continue_count = 0u,
+          .early_return_count = 0u,
           .depth = active_frame_count + 1u,
           .preheader_block = SIZE_MAX,
           .header_block = SIZE_MAX,
@@ -13392,6 +13434,25 @@ static bool hir0_cfg_plan_walk_chain(
               active_frame_count + 1u, depth + 1u))
         return false;
     } else if (statement->kind == W_SEED_FRONTEND_STMT_IF) {
+      if (active_frame_count != 0u &&
+          statement->first_child != W_SEED_FRONTEND_NONE &&
+          statement->else_child == W_SEED_FRONTEND_NONE &&
+          statement->child_count == 1u &&
+          (size_t)statement->first_child <
+              context->frontend_result->written.statements) {
+        const w_seed_frontend_statement *then_statement =
+            &context->frontend->statements[statement->first_child];
+        if (then_statement->kind == W_SEED_FRONTEND_STMT_RETURN &&
+            then_statement->next_sibling == W_SEED_FRONTEND_NONE) {
+          const size_t frame_index = active_frames[active_frame_count - 1u];
+          if (frame_index >= plan->frame_count) return false;
+          hir0_cfg_loop_frame *frame = &plan->frames[frame_index];
+          if (frame->early_return_count != 0u) return false;
+          frame->early_return_if_statement = cursor;
+          frame->early_return_statement = statement->first_child;
+          frame->early_return_count = 1u;
+        }
+      }
       if (!hir0_cfg_plan_walk_chain(
               context, plan, statement->first_child, active_frames,
               active_frame_count, depth + 1u) ||
@@ -13533,6 +13594,14 @@ static bool hir0_function_cfg_plan_build(
   for (size_t frame_index = 0u; frame_index < plan->frame_count;
        frame_index += 1u) {
     hir0_cfg_loop_frame *frame = &plan->frames[frame_index];
+    if (frame->early_return_count != 0u) {
+      if (plan->frame_count != 1u || frame->depth != 1u ||
+          frame->early_return_count != 1u ||
+          frame->early_return_if_statement == W_SEED_FRONTEND_NONE ||
+          frame->early_return_statement == W_SEED_FRONTEND_NONE)
+        return false;
+      plan->nested_or_multiple = true;
+    }
     if (!hir0_collect_loop_roots(&context, frame)) return false;
     for (size_t lane = 0u; lane < frame->root_count; lane += 1u) {
       const size_t source_ordinal = frontend_function_root_ordinal(
@@ -13561,7 +13630,7 @@ static bool hir0_function_cfg_plan_build(
   if (raw_count == 0u || terminal_count > raw_count) return false;
   plan->block_count = raw_count - terminal_count;
   return plan->block_count != 0u &&
-         (plan->frame_count <= 1u ||
+         (!plan->nested_or_multiple ||
           hir0_cfg_plan_emission_build(input, plan));
 }
 
@@ -14271,7 +14340,8 @@ static void hir0_emit_chain_values_m2(hir0_emit_context *context,
       const bool loop_control_flow =
           !post_test &&
           (planned_frame != NULL
-               ? planned_frame->transfer_count != 0u
+               ? (planned_frame->transfer_count != 0u ||
+                  planned_frame->early_return_count != 0u)
                : hir0_loop_has_control_m2(
                      context, cursor, statement->first_child, depth + 1u));
       const bool emit_structured_body =
@@ -14805,7 +14875,8 @@ static void hir0_emit_chain_terms_m2(hir0_emit_context *context,
       const bool loop_control_flow =
           !post_test &&
           (planned_frame != NULL
-               ? planned_frame->transfer_count != 0u
+               ? (planned_frame->transfer_count != 0u ||
+                  planned_frame->early_return_count != 0u)
                : hir0_loop_has_control_m2(
                      context, cursor, statement->first_child, depth + 1u));
       const bool emit_structured_body =
@@ -15121,7 +15192,8 @@ static bool hir0_cfg_plan_emission_layout_chain(
           !add_size(header, 1u, &body_first) ||
           !add_size(body_first, body_count - 1u, &body_last))
         return false;
-      const bool has_transfer = frame->transfer_count != 0u;
+      const bool has_transfer = frame->transfer_count != 0u ||
+                                frame->early_return_count != 0u;
       size_t exit_adapter = SIZE_MAX;
       if (has_transfer && !add_size(body_last, 1u, &exit_adapter))
         return false;
@@ -15214,6 +15286,7 @@ typedef struct {
   size_t maximum_depth;
   size_t break_counts[HIR0_MAX_CFG_LOOP_FRAMES];
   size_t continue_counts[HIR0_MAX_CFG_LOOP_FRAMES];
+  size_t early_return_counts[HIR0_MAX_CFG_LOOP_FRAMES];
   uint32_t update_counts[HIR0_MAX_CFG_LOOP_FRAMES]
                         [HIR0_MAX_BRANCH_ASSIGNMENTS];
   uint32_t first_updates[HIR0_MAX_CFG_LOOP_FRAMES]
@@ -15356,6 +15429,16 @@ static bool hir0_cfg_plan_source_verify_chain(
                           : &walk->continue_counts[target_frame];
       if (*count == SIZE_MAX) return false;
       *count += 1u;
+    } else if (statement->kind == W_SEED_FRONTEND_STMT_RETURN &&
+               walk->active_frame_count != 0u) {
+      const size_t frame_index =
+          walk->active_frames[walk->active_frame_count - 1u];
+      if (walk->active_frame_count != 1u ||
+          frame_index >= walk->plan->frame_count ||
+          walk->plan->frames[frame_index].early_return_statement != cursor ||
+          walk->early_return_counts[frame_index] == SIZE_MAX)
+        return false;
+      walk->early_return_counts[frame_index] += 1u;
     }
     cursor = statement->next_sibling;
     guard += 1u;
@@ -15438,7 +15521,8 @@ static bool hir0_cfg_plan_emission_verify_chain(
           frame->body_first_block != expected_body ||
           frame->body_last_block != expected_body_last)
         return false;
-      const bool has_transfer = frame->transfer_count != 0u;
+      const bool has_transfer = frame->transfer_count != 0u ||
+                                frame->early_return_count != 0u;
       size_t expected_adapter = SIZE_MAX;
       if (has_transfer &&
           !add_size(expected_body_last, 1u, &expected_adapter))
@@ -15495,7 +15579,9 @@ static bool hir0_cfg_plan_emission_verify(
   if (input == NULL || input->frontend_output == NULL ||
       input->frontend_result == NULL || plan == NULL ||
       plan->function_index >= input->frontend_result->written.functions ||
-      plan->frame_count <= 1u ||
+      (plan->frame_count <= 1u &&
+       (plan->frame_count == 0u ||
+        plan->frames[0].early_return_count == 0u)) ||
       plan->frame_count > HIR0_MAX_CFG_LOOP_FRAMES ||
       plan->block_count == 0u || !count_u32(plan->block_count))
     return false;
@@ -15523,6 +15609,7 @@ static bool hir0_cfg_plan_emission_verify(
       .maximum_depth = 0u,
       .break_counts = {0u},
       .continue_counts = {0u},
+      .early_return_counts = {0u},
       .update_counts = {{0u}},
       .first_updates = {{0u}},
       .last_updates = {{0u}}};
@@ -15532,7 +15619,8 @@ static bool hir0_cfg_plan_emission_verify(
       source_walk.next_frame_index != plan->frame_count ||
       source_walk.maximum_depth != plan->maximum_depth ||
       plan->nested_or_multiple !=
-          (plan->frame_count > 1u || source_walk.maximum_depth > 1u))
+          (plan->frame_count > 1u || source_walk.maximum_depth > 1u ||
+           source_walk.early_return_counts[0] != 0u))
     return false;
 
   size_t loop_block_arguments = 0u;
@@ -15549,7 +15637,9 @@ static bool hir0_cfg_plan_emission_verify(
         frame->continue_count !=
             frame->transfer_count - frame->break_count ||
         frame->break_count != source_walk.break_counts[frame_index] ||
-        frame->continue_count != source_walk.continue_counts[frame_index])
+        frame->continue_count != source_walk.continue_counts[frame_index] ||
+        frame->early_return_count !=
+            source_walk.early_return_counts[frame_index])
       return false;
     const w_seed_frontend_statement *loop =
         &frontend->statements[frame->source_statement];
@@ -15602,9 +15692,11 @@ static bool hir0_cfg_plan_emission_verify(
     }
     size_t expected_block_arguments = frame->root_count;
     const size_t expected_exit_carriers =
-        frame->transfer_count != 0u ? frame->root_count : 0u;
+        (frame->transfer_count != 0u || frame->early_return_count != 0u)
+            ? frame->root_count
+            : 0u;
     size_t edge_factor = 2u;
-    if (frame->transfer_count != 0u &&
+    if ((frame->transfer_count != 0u || frame->early_return_count != 0u) &&
         (!add_size(expected_block_arguments, expected_exit_carriers,
                    &expected_block_arguments) ||
          !add_size(edge_factor, 1u, &edge_factor)))
@@ -15646,11 +15738,11 @@ static bool hir0_cfg_plan_emission_verify(
         a->header_block + 1u != a->body_first_block ||
         a->body_first_block > a->body_last_block ||
         a->exit_block >= plan->block_count ||
-        (a->transfer_count == 0u
+        ((a->transfer_count == 0u && a->early_return_count == 0u)
              ? a->exit_adapter_block != SIZE_MAX
              : (a->exit_adapter_block != a->body_last_block + 1u ||
                 a->exit_block != a->exit_adapter_block + 1u)) ||
-        (a->transfer_count == 0u &&
+        (a->transfer_count == 0u && a->early_return_count == 0u &&
          a->exit_block != a->body_last_block + 1u))
       return false;
     if (a->parent_frame != W_SEED_FRONTEND_NONE &&
@@ -15714,7 +15806,9 @@ static bool hir0_cfg_plan_emission_build(
   if (input == NULL || input->frontend_output == NULL ||
       input->frontend_result == NULL || plan == NULL ||
       plan->function_index >= input->frontend_result->written.functions ||
-      plan->frame_count <= 1u)
+      (plan->frame_count <= 1u &&
+       (plan->frame_count == 0u ||
+        plan->frames[0].early_return_count == 0u)))
     return false;
   plan->loop_block_argument_count = 0u;
   plan->loop_edge_argument_count = 0u;
@@ -17901,14 +17995,19 @@ static uint32_t hir0_emit_value_m2(
                          (uint32_t)lane;
       } else if (local_block >= local_exit) {
         use_block_argument = true;
-        const size_t argument_block = frame->transfer_count != 0u ? exit : header;
+        const size_t argument_block =
+            frame->transfer_count != 0u || frame->early_return_count != 0u
+                ? exit
+                : header;
         argument_index =
             context->output->blocks[argument_block].first_block_argument +
             (uint32_t)lane;
       }
       if (use_block_argument) {
         const size_t argument_block =
-            local_block >= local_exit && frame->transfer_count != 0u
+            local_block >= local_exit &&
+                    (frame->transfer_count != 0u ||
+                     frame->early_return_count != 0u)
                 ? exit
                 : header;
         if (argument_block >= context->counts->blocks ||
@@ -24348,7 +24447,8 @@ static bool verify_value_tree_with_cfg_impl(
     const bool has_complete_multiple_loop_cfg =
         cfg_analysis != NULL &&
         cfg_analysis->function_index == use_block->owner_function &&
-        cfg_analysis->loop_count > 1u &&
+        hir0_cfg_requires_generic_loop_proof(
+            program, use_block->owner_function, cfg_analysis) &&
         cfg_analysis_covers_all_blocks(cfg_analysis);
     const bool available_in_block =
         binding->owner_block == current_block
@@ -25425,11 +25525,10 @@ static bool hir0_cfg_verified_loop_contains(
          (loop->member_blocks & (UINT64_C(1) << local)) != 0u;
 }
 
-/* Natural-loop reverse reachability omits terminal break/continue arms: they
- * do not reach a backedge. Admit only a direct arm block with one predecessor
- * whose owning branch is itself in the loop. This keeps lexical transfers
- * verifiable without pretending those terminal blocks are natural-loop
- * members. */
+/* Natural-loop reverse reachability omits terminal break/continue/return
+ * arms: they do not reach a backedge. Admit only a direct arm block with one
+ * predecessor whose owning branch is itself in the loop. This keeps terminal
+ * arms explicit without pretending those blocks are natural-loop members. */
 static bool hir0_cfg_verified_loop_transfer_source(
     const w_seed_hir0_program *program,
     const w_seed_hir0_cfg_analysis *analysis,
@@ -25776,7 +25875,7 @@ static bool verify_cfg_multiple_natural_loops(
     const w_seed_hir0_program *program, size_t function_index,
     const w_seed_hir0_cfg_analysis *analysis) {
   if (program == NULL || analysis == NULL ||
-      function_index >= program->function_count || analysis->loop_count < 2u ||
+      function_index >= program->function_count || analysis->loop_count == 0u ||
       analysis->loop_count > W_SEED_HIR0_CFG_MAX_LOOPS ||
       analysis->function_index != function_index ||
       !cfg_analysis_covers_all_blocks(analysis))
@@ -25977,6 +26076,11 @@ static bool verify_cfg_multiple_natural_loops(
 
   size_t update_counts[W_SEED_HIR0_CFG_MAX_LOOPS]
                       [HIR0_MAX_BRANCH_ASSIGNMENTS] = {{0u}};
+  uint32_t latest_updates[W_SEED_HIR0_CFG_MAX_LOOPS]
+                         [HIR0_MAX_BRANCH_ASSIGNMENTS] = {{0u}};
+  for (size_t loop_index = 0u; loop_index < loop_count; loop_index += 1u)
+    for (size_t lane = 0u; lane < loops[loop_index].root_count; lane += 1u)
+      latest_updates[loop_index][lane] = W_SEED_HIR0_NONE;
   for (size_t block_index = first_block; block_index < block_end;
        block_index += 1u) {
     const w_seed_hir0_block *block = &program->blocks[block_index];
@@ -26015,6 +26119,7 @@ static bool verify_cfg_multiple_natural_loops(
             !add_size(update_counts[loop_index][lane], 1u,
                       &update_counts[loop_index][lane]))
           return false;
+        latest_updates[loop_index][lane] = instruction->binding_index;
       }
       if (term->kind == W_SEED_HIR0_TERMINATOR_RETURN_UNIT ||
           term->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
@@ -26139,8 +26244,10 @@ static bool verify_cfg_multiple_natural_loops(
   }
 
   /* Source IF diamonds which terminate in a lexical break/continue keep the
-   * non-transfer arm as a forward jump to the structured join. Other IFs use
-   * the ordinary typed merge verifier. */
+   * non-transfer arm as a forward jump to the structured join. The one
+   * supported conditional return is likewise a direct terminal then-arm;
+   * every other IF uses the ordinary typed merge verifier. */
+  size_t early_return_arm_count = 0u;
   for (size_t block_index = first_block; block_index < block_end;
        block_index += 1u) {
     const w_seed_hir0_terminator *branch =
@@ -26167,6 +26274,52 @@ static bool verify_cfg_multiple_natural_loops(
         &program->terminators[then_block->terminator_index];
     const w_seed_hir0_terminator *else_term =
         &program->terminators[else_block->terminator_index];
+    const bool then_return =
+        then_term->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE;
+    const bool else_return =
+        else_term->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE;
+    if (then_return != else_return) {
+      if (!then_return || else_return || loop_count != 1u ||
+          loops[0].root_count != 1u || update_counts[0][0] != 1u ||
+          latest_updates[0][0] == W_SEED_HIR0_NONE ||
+          branch->target_block < first_block ||
+          branch->else_block < first_block ||
+          branch->target_block != block_index + 1u ||
+          branch->else_block != block_index + 2u ||
+          !hir0_cfg_verified_loop_transfer_source(
+              program, analysis, &loops[0], branch->target_block) ||
+          hir0_cfg_verified_loop_contains(
+              analysis, &loops[0], branch->target_block) ||
+          then_block->instruction_count != 0u ||
+          then_block->block_argument_count != 0u ||
+          analysis->successors[(size_t)branch->target_block - first_block] !=
+              0u ||
+          then_term->owner_block != branch->target_block ||
+          then_term->result_type != W_SEED_HIR0_TYPE_I64 ||
+          then_term->value_index == W_SEED_HIR0_NONE ||
+          then_term->value_index >= program->value_count ||
+          then_term->first_edge_argument != W_SEED_HIR0_NONE ||
+          then_term->edge_argument_count != 0u ||
+          then_term->target_block != W_SEED_HIR0_NONE ||
+          then_term->else_block != W_SEED_HIR0_NONE ||
+          program->values[then_term->value_index].type_index !=
+              W_SEED_HIR0_TYPE_I64 ||
+          else_term->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
+          else_term->owner_block != branch->else_block ||
+          else_term->target_block <= branch->else_block ||
+          else_term->target_block >= block_end ||
+          else_term->edge_argument_count != 0u ||
+          !hir0_cfg_verified_loop_contains(
+              analysis, &loops[0], else_term->target_block) ||
+          !value_tree_contains_binding_read(
+              program, then_term->value_index, latest_updates[0][0], 0u) ||
+          !hir0_cfg_verified_latest_binding_at(
+              program, analysis, loops[0].roots[0], branch->target_block,
+              then_block->terminator_index, latest_updates[0][0]))
+        return false;
+      early_return_arm_count += 1u;
+      continue;
+    }
     size_t then_target_loop = 0u;
     size_t else_target_loop = 0u;
     bool then_break = false;
@@ -26281,7 +26434,70 @@ static bool verify_cfg_multiple_natural_loops(
     }
     if (!authorized && term->edge_argument_count != 0u) return false;
   }
+  if (early_return_arm_count != 0u &&
+      (early_return_arm_count != 1u || return_count != 2u ||
+       loops[0].exit_block + 1u != block_end ||
+       program->terminators[
+           program->blocks[loops[0].exit_block].terminator_index]
+               .kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE))
+    return false;
   return return_count != 0u && has_final_return;
+}
+
+/* Route exactly a one-loop graph with a terminal return arm through the
+ * generic reducible-CFG proof. The classification is HIR-only: the source
+ * walk separately records the lexical plan, while this predicate merely
+ * selects the stricter graph verifier. */
+static bool hir0_cfg_requires_generic_loop_proof(
+    const w_seed_hir0_program *program, size_t function_index,
+    const w_seed_hir0_cfg_analysis *analysis) {
+  if (program == NULL || analysis == NULL ||
+      function_index >= program->function_count ||
+      analysis->function_index != function_index ||
+      !cfg_analysis_covers_all_blocks(analysis))
+    return false;
+  if (analysis->loop_count > 1u) return true;
+  if (analysis->loop_count != 1u) return false;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  const hir0_cfg_verified_loop loop = {
+      .header_block = analysis->loops[0].header_block,
+      .member_blocks = analysis->loops[0].member_blocks};
+  const size_t first_block = function->first_block;
+  const size_t block_end = first_block + function->block_count;
+  if (analysis->first_block != first_block ||
+      analysis->block_count != function->block_count ||
+      analysis->loops[0].header_block < first_block ||
+      analysis->loops[0].header_block >= block_end ||
+      program->terminators[
+          program->blocks[analysis->loops[0].header_block].terminator_index]
+              .kind != W_SEED_HIR0_TERMINATOR_BRANCH)
+    return false;
+  for (size_t block = first_block; block < block_end; block += 1u) {
+    const size_t local = block - first_block;
+    if (hir0_cfg_verified_loop_contains(analysis, &loop, (uint32_t)block))
+      continue;
+    const w_seed_hir0_terminator *term =
+        &program->terminators[program->blocks[block].terminator_index];
+    if (term->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
+        analysis->successors[local] != 0u)
+      continue;
+    for (size_t predecessor = first_block; predecessor < block_end;
+         predecessor += 1u) {
+      const size_t predecessor_local = predecessor - first_block;
+      if ((analysis->successors[predecessor_local] &
+           (UINT64_C(1) << local)) == 0u ||
+          predecessor == loop.header_block ||
+          !hir0_cfg_verified_loop_contains(
+              analysis, &loop, (uint32_t)predecessor))
+        continue;
+      const w_seed_hir0_terminator *predecessor_term =
+          &program->terminators[
+              program->blocks[predecessor].terminator_index];
+      if (predecessor_term->kind == W_SEED_HIR0_TERMINATOR_BRANCH)
+        return true;
+    }
+  }
+  return false;
 }
 
 /* The exit-side continuation is intentionally narrower than the ordinary HIR
@@ -28370,7 +28586,8 @@ static bool verify_cfg_function(const w_seed_hir0_program *program,
   w_seed_hir0_cfg_analysis multiple_loop_analysis;
   if (w_seed_hir0_cfg_analyze(program, function_index,
                               &multiple_loop_analysis) &&
-      multiple_loop_analysis.loop_count > 1u)
+      hir0_cfg_requires_generic_loop_proof(
+          program, function_index, &multiple_loop_analysis))
     return verify_cfg_multiple_natural_loops(
         program, function_index, &multiple_loop_analysis);
   if (control_flow_loop_candidate(program, function_index))
@@ -28440,7 +28657,8 @@ static bool verify_logical_join_membership(
   w_seed_hir0_cfg_analysis multiple_loop_analysis;
   if (w_seed_hir0_cfg_analyze(program, function_index,
                               &multiple_loop_analysis) &&
-      multiple_loop_analysis.loop_count > 1u)
+      hir0_cfg_requires_generic_loop_proof(
+          program, function_index, &multiple_loop_analysis))
     return verify_cfg_multiple_natural_loops(
         program, function_index, &multiple_loop_analysis);
   if (control_flow_loop_candidate(program, function_index))
@@ -30100,7 +30318,7 @@ static bool hir0_cfg_multiple_loop_carrier_available(
     const w_seed_hir0_program *program,
     const w_seed_hir0_cfg_analysis *analysis, uint32_t candidate_block,
     uint32_t use_block) {
-  if (program == NULL || analysis == NULL || analysis->loop_count < 2u ||
+  if (program == NULL || analysis == NULL || analysis->loop_count == 0u ||
       analysis->loop_count > W_SEED_HIR0_CFG_MAX_LOOPS ||
       !cfg_analysis_covers_all_blocks(analysis) ||
       candidate_block >= program->block_count ||
@@ -30163,7 +30381,10 @@ static bool hir0_cfg_multiple_loop_proof_for_function(
     hir0_cfg_analysis_cache *cache) {
   const w_seed_hir0_cfg_analysis *analysis =
       cfg_analysis_for_function(program, function_index, cache);
-  if (analysis == NULL || analysis->loop_count < 2u) return false;
+  if (analysis == NULL ||
+      !hir0_cfg_requires_generic_loop_proof(program, function_index,
+                                           analysis))
+    return false;
   if (!cache->multiple_loop_proof_attempted) {
     cache->multiple_loop_proof_attempted = true;
     cache->multiple_loop_proof_available =
@@ -30460,7 +30681,8 @@ static bool verify_records(const w_seed_hir0_program *program) {
         const bool has_complete_multiple_loop_cfg =
             cfg_analysis != NULL &&
             cfg_analysis->function_index == block->owner_function &&
-            cfg_analysis->loop_count > 1u &&
+            hir0_cfg_requires_generic_loop_proof(
+                program, block->owner_function, cfg_analysis) &&
             cfg_analysis_covers_all_blocks(cfg_analysis);
         const bool source_dominated =
             cfg_analysis != NULL &&
@@ -30900,7 +31122,8 @@ static bool verify_records(const w_seed_hir0_program *program) {
         const bool has_complete_multiple_loop_cfg =
             cfg_analysis != NULL &&
             cfg_analysis->function_index == owner_function_index &&
-            cfg_analysis->loop_count > 1u &&
+            hir0_cfg_requires_generic_loop_proof(
+                program, owner_function_index, cfg_analysis) &&
             cfg_analysis_covers_all_blocks(cfg_analysis);
         const bool available_in_block =
             binding->owner_block == item->owner_block
