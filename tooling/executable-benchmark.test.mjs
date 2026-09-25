@@ -62,6 +62,7 @@ import {
   PROCESS_HANDLER_LIFECYCLE_STRUCTURE_CLASS,
   PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID,
   FLOAT_BIT_REPRESENTATION_WORKLOAD_ID,
+  FLOAT_BIT_RUNTIME_ROUNDTRIP_WORKLOAD_ID,
   FLOAT_STRICT_WORKLOAD_ID,
   INTEGER_PREFIX_WORKLOAD_ID,
   INTEGER_WRAPPING_WORKLOAD_ID,
@@ -1034,6 +1035,37 @@ test("f32/f64 bit-representation family is correctness-only and deferred", () =>
   assert.match(rust, /\.to_bits\(\)/u);
   assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
   assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
+});
+
+test("runtime float-bit roundtrip is a bounded public compiler-lifecycle witness", () => {
+  const workload = documents.catalog.workloads.find((item) =>
+    item.id === FLOAT_BIT_RUNTIME_ROUNDTRIP_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.family, "floating-point");
+  assert.equal(workload.demoEvidence, "bounded-w-demo");
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.deepEqual(workload.oracle, {
+    kind: "exact-output",
+    status: "source-backed",
+    exitCode: 0,
+    stdout: "Bits 0\n",
+    stderr: "",
+  });
+  assert.deepEqual(workload.blockedLanguages, ["c", "rust"]);
+  assert.deepEqual(workload.blockers, [
+    "independent-c23-rust-runtime-oracles",
+    "family-sized-runtime-throughput-workload",
+  ]);
+  assert.deepEqual(workload.sources.map((source) =>
+    [source.language, source.platformTarget]), [
+    ["w", EXECUTABLE_PLATFORM_TARGET],
+    ["w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL],
+  ]);
+  assert.ok(workload.sources.every((source) =>
+    source.path === "compiler/seed-c/fixtures/process-float-bit-runtime.w" &&
+    source.recipeClass === "float-bit-runtime-roundtrip-release"));
+  assert.ok(!documents.catalog.bestMetrics.entries.some((entry) =>
+    entry.workloadId === FLOAT_BIT_RUNTIME_ROUNDTRIP_WORKLOAD_ID));
 });
 
 test("checked fixed-width integer arithmetic is one correctness-only family", () => {
