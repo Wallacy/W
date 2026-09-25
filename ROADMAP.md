@@ -871,10 +871,13 @@ physical scheduler experiments:
    joins. Checked arithmetic, shifts, conversions, ABI/layout, serialization,
    and native execution remain open. HIR now proves the two ordinary wide
    helpers non-suspending and the async process entry direct-entry-capable
-   without relaxing effectful or malformed value trees. The next boundary is
-   the exact i128/u128 local-helper and value closure in ProductClosure0 and
-   NativeSubset0, followed by direct MLIR `i128` SSA lowering; this is not
-   permission to widen the bounded process CFG. After the
+   without relaxing effectful or malformed value trees. ProductClosure0 schema
+   7 now closes the exact reachable local-helper/value closure for this family,
+   omits dead supported wide helpers, binds live wide bytes and operators into
+   its semantic digest, and rejects recursion, effects, unsupported operations,
+   and checked faults without a published relation. The next boundary is the
+   corresponding NativeSubset0 admission and direct MLIR `i128` SSA lowering;
+   this is not permission to widen the bounded process CFG. After the
    current 64-bit/f32/f64 packages, rank 1 takes only fixed scalar work:
    i128/u128 and strict f16/bf16/f128 semantics, including target rejection or
    an explicitly permitted W-owned fallback. Configured f4/f6/f8 remain

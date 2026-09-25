@@ -222,11 +222,15 @@ still enforces that exact shape. This lets the helper-based process witness
 prove both wide helpers `suspension=NEVER` and its async entry
 `direct_entry=AVAILABLE` (async entries remain `suspension=MAY`). NativeSubset0
 still returns `UNSUPPORTED`: its process value/call and helper-signature
-admission does not yet lower `i128`/`u128` values. ProductClosure's current
-downstream type/value shape also rejects the wide operation records; this
-slice provides no positive ProductClosure proof. No public executable fixture
-or runtime oracle is claimed; native lowering, ABI/layout, and serialization
-remain unsupported.
+admission does not yet lower `i128`/`u128` values. ProductClosure0 schema 7 now
+admits this exact non-throwing process root and its reachable, direct,
+non-suspending wide helper graph. It preserves exact `i128`/`u128` identities,
+literal bytes, comparisons, `&`, `|`, `^`, and `~` in the reachable digest,
+omits dead supported helpers, rejects effects, recursion, conversions, shifts,
+checked arithmetic without a fault relation, and graphs with no reached wide
+helper operation, and publishes the ordinary process-owner cleanup order.
+No public executable fixture or runtime oracle is claimed; NativeSubset0,
+native lowering, ABI/layout, and serialization remain unsupported.
 The package has `compiler-lifecycle` benchmark disposition and no
 public/native benchmark row.
 
@@ -1253,9 +1257,12 @@ opaque values, effects, unknown providers, lifecycle owners, and invalid or
 forged facts remain barriers. The helper-based process witness now verifies
 both ordinary helpers as `suspension=NEVER` and the explicit async process
 entry as `direct_entry=AVAILABLE`; the async function itself remains
-`suspension=MAY`. NativeSubset0 still rejects the witness because i128/u128
-value and helper-signature lowering is unsupported, so no native artifact or
-runtime result is claimed. This is compiler-lifecycle HIR correctness
+`suspension=MAY`. ProductClosure0 schema 7 now proves the reachable helper and
+value closure for that exact process family, including digest sensitivity to
+live wide literals and digest stability when a supported wide helper is dead.
+NativeSubset0 still rejects the witness because i128/u128 value and
+helper-signature lowering is unsupported, so no native artifact or runtime
+result is claimed. This is compiler-lifecycle HIR/ProductClosure correctness
 evidence only. Run `bun tooling/check-hir0.mjs` for the focused verifier and
 adversarial mutation gate.
 

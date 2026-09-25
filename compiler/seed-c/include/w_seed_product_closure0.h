@@ -15,7 +15,7 @@ extern "C" {
  * program.  It does not copy HIR records and never owns input storage.  The
  * caller owns every output array and receives source-index to dense-closure
  * remaps (W_SEED_PRODUCT_CLOSURE0_NONE for omitted records). */
-#define W_SEED_PRODUCT_CLOSURE0_SCHEMA_VERSION "w-seed-product-closure0-6"
+#define W_SEED_PRODUCT_CLOSURE0_SCHEMA_VERSION "w-seed-product-closure0-7"
 #define W_SEED_PRODUCT_CLOSURE0_NONE UINT32_MAX
 #define W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES 32u
 #define W_SEED_PRODUCT_CLOSURE0_MAX_MODULES 32u

@@ -17,6 +17,12 @@ typedef struct {
   uint32_t exit_code_type;
 } closure0_process_root_facts;
 
+typedef enum {
+  CLOSURE0_ROOT_DIRECT = 0,
+  CLOSURE0_ROOT_TYPED,
+  CLOSURE0_ROOT_WIDE_PROCESS,
+} closure0_root_mode;
+
 typedef struct {
   bool modules[W_SEED_PRODUCT_CLOSURE0_MAX_MODULES];
   bool functions[W_SEED_PRODUCT_CLOSURE0_MAX_FUNCTIONS];
@@ -30,6 +36,7 @@ typedef struct {
   uint8_t identity_state[W_SEED_PRODUCT_CLOSURE0_MAX_IDENTITIES];
   uint8_t function_state[W_SEED_PRODUCT_CLOSURE0_MAX_FUNCTIONS];
   uint8_t value_state[W_SEED_PRODUCT_CLOSURE0_MAX_VALUES];
+  bool wide_helper_operation_seen;
   uint32_t module_remap[W_SEED_PRODUCT_CLOSURE0_MAX_MODULES];
   uint32_t function_remap[W_SEED_PRODUCT_CLOSURE0_MAX_FUNCTIONS];
   uint32_t identity_remap[W_SEED_PRODUCT_CLOSURE0_MAX_IDENTITIES];
@@ -40,6 +47,7 @@ typedef struct {
       W_SEED_PRODUCT_CLOSURE0_MAX_EXTERNAL_MODULES];
   uint32_t external_symbol_remap[W_SEED_PRODUCT_CLOSURE0_MAX_EXTERNAL_SYMBOLS];
   w_seed_product_closure0_counts counts;
+  closure0_root_mode root_mode;
   w_seed_product_closure0_root root;
   w_seed_product_closure0_outcome normal_outcome;
   w_seed_product_closure0_outcome outcome;
@@ -126,6 +134,24 @@ static bool product_numeric_integer_type(const w_seed_hir0_program *program,
          (program->types[type_index].kind == W_SEED_HIR0_TYPE_INTEGER ||
           program->types[type_index].kind == W_SEED_HIR0_TYPE_I64 ||
           program->types[type_index].kind == W_SEED_HIR0_TYPE_U64);
+}
+
+static bool product_wide_integer_type(const w_seed_hir0_program *program,
+                                      uint32_t type_index) {
+  if (program == NULL || type_index >= program->type_count) return false;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  const bool signed_type = text_is(program, type->name, "i128");
+  const bool unsigned_type = text_is(program, type->name, "u128");
+  return type->kind == W_SEED_HIR0_TYPE_INTEGER &&
+         (signed_type || unsigned_type) &&
+         type->integer_is_signed == signed_type &&
+         type->integer_bit_width == 128u &&
+         type->owner_module == W_SEED_HIR0_NONE &&
+         type->external_module_index == W_SEED_HIR0_NONE &&
+         type->external_symbol_index == W_SEED_HIR0_NONE &&
+         type->enum_index == W_SEED_HIR0_NONE &&
+         type->lifecycle == W_SEED_HIR0_LIFECYCLE_VALUE_COPY &&
+         type->release_contract == W_SEED_HIR0_RELEASE_CONTRACT_NONE;
 }
 
 static bool plan_has_integer_exact_process_root(
@@ -424,7 +450,8 @@ static bool process_count_type_valid(const w_seed_hir0_program *program,
  * outcome relation to its own verifier. */
 static bool process_root_facts_resolve(
     const w_seed_hir0_program *program, const w_seed_hir0_entry *entry,
-    bool require_count_symbol, w_seed_hir0_entry_cleanup_kind cleanup,
+    bool require_count_symbol, bool throwing,
+    w_seed_hir0_entry_cleanup_kind cleanup,
     closure0_process_root_facts *facts) {
   if (program == NULL || entry == NULL || facts == NULL ||
       program->module_count != 1u || program->external_module_count != 1u ||
@@ -456,16 +483,20 @@ static bool process_root_facts_resolve(
   if (function->module_index != entry->module_index ||
       entry->target_identity != function->identity_index ||
       function->identity_index != program->module_count + entry->target_function ||
-      function->is_const || !function->is_async || !function->is_throws ||
+      function->is_const || !function->is_async ||
+      function->is_throws != throwing ||
       function->is_unsafe || function->has_borrow_clause ||
       function->is_anonymous_entry ||
       function->suspension != W_SEED_HIR0_SUSPENSION_MAY ||
-      function->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_ABSENT ||
+      function->direct_entry !=
+          (throwing ? W_SEED_HIR0_DIRECT_ENTRY_ABSENT
+                    : W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE) ||
       function->parameter_count != 2u || function->return_type != exit_code_type ||
       function->first_parameter > program->parameter_count ||
       function->parameter_count >
           program->parameter_count - function->first_parameter ||
-      function->error_type >= program->type_count ||
+      (throwing ? function->error_type >= program->type_count
+                : function->error_type != W_SEED_HIR0_NONE) ||
       entry->cleanup_obligation != cleanup ||
       entry->first_cleanup_owner_parameter != function->first_parameter ||
       entry->cleanup_owner_parameter_count != 2u)
@@ -498,6 +529,97 @@ static bool process_root_facts_resolve(
       .exit_code_type = exit_code_type,
   };
   return true;
+}
+
+static bool wide_process_value_supported(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t root_function) {
+  if (program == NULL || value_index >= program->value_count ||
+      root_function >= program->function_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_INTEGER_128)
+    return product_wide_integer_type(program, value->type_index) &&
+           value->byte_count == 16u &&
+           value->byte_offset <= program->value_byte_count &&
+           value->byte_count <=
+               program->value_byte_count - value->byte_offset;
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_INTEGER_128)
+    return product_wide_integer_type(program, value->type_index) &&
+           program->types[value->type_index].integer_is_signed &&
+           value->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
+           value->left_value < program->value_count &&
+           program->values[value->left_value].kind ==
+               W_SEED_HIR0_VALUE_CONST_INTEGER_128 &&
+           program->values[value->left_value].type_index == value->type_index;
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_BITWISE_INTEGER_128)
+    return product_wide_integer_type(program, value->type_index) &&
+           value->unary_operator == W_SEED_HIR0_UNARY_BIT_NOT &&
+           value->left_value < program->value_count &&
+           program->values[value->left_value].type_index == value->type_index;
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_128)
+    return product_wide_integer_type(program, value->type_index) &&
+           value->binary_operator >= W_SEED_HIR0_BINARY_BIT_AND &&
+           value->binary_operator <= W_SEED_HIR0_BINARY_BIT_XOR &&
+           value->left_value < program->value_count &&
+           value->right_value < program->value_count &&
+           program->values[value->left_value].type_index == value->type_index &&
+           program->values[value->right_value].type_index == value->type_index;
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON &&
+      value->left_value < program->value_count &&
+      value->right_value < program->value_count) {
+    const uint32_t operand_type =
+        program->values[value->left_value].type_index;
+    return value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
+           value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL &&
+           value->type_index == W_SEED_HIR0_TYPE_BOOL &&
+           product_wide_integer_type(program, operand_type) &&
+           program->values[value->right_value].type_index == operand_type;
+  }
+  if (value_owner_function(program, value_index) != root_function) return false;
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_USIZE)
+    return process_count_type_valid(program, value->type_index) &&
+           value->unsigned_integer_value == 0u;
+  if (value->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER)
+    return value->type_index < program->type_count &&
+           process_count_type_valid(program, value->type_index) &&
+           value->external_module_index == 0u &&
+           value->external_symbol_index == 6u &&
+           text_is(program, value->member_name, "count") &&
+           value->left_value < program->value_count &&
+           program->values[value->left_value].kind ==
+               W_SEED_HIR0_VALUE_PARAMETER_READ &&
+           program->values[value->left_value].parameter_index ==
+               program->functions[root_function].first_parameter &&
+           program->values[value->left_value].type_index ==
+               process_nominal_type(program, 0u);
+  if (value->kind == W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON &&
+      value->type_index == W_SEED_HIR0_TYPE_BOOL &&
+      value->binary_operator == W_SEED_HIR0_BINARY_EQUAL &&
+      value->left_value < program->value_count &&
+      value->right_value < program->value_count) {
+    const w_seed_hir0_value *count = &program->values[value->left_value];
+    const w_seed_hir0_value *zero = &program->values[value->right_value];
+    return count->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER &&
+           wide_process_value_supported(program, value->left_value,
+                                        root_function) &&
+           zero->kind == W_SEED_HIR0_VALUE_CONST_USIZE &&
+           zero->type_index == count->type_index &&
+           zero->unsigned_integer_value == 0u;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE &&
+      value->type_index == process_nominal_type(program, 2u) &&
+      value->external_module_index == 0u) {
+    if (value->external_symbol_index == 3u)
+      return text_is(program, value->member_name, "success") &&
+             value->left_value == W_SEED_HIR0_NONE;
+    if (value->external_symbol_index == 5u)
+      return text_is(program, value->member_name, "failure") &&
+             value->left_value < program->value_count &&
+             program->values[value->left_value].type_index ==
+                 W_SEED_HIR0_TYPE_I64;
+  }
+  return false;
 }
 
 static bool local_payloadless_enum_valid(
@@ -553,7 +675,7 @@ static bool typed_process_numeric_exact_root_supported(
     const w_seed_hir0_program *program, const w_seed_hir0_entry *entry) {
   closure0_process_root_facts root;
   if (!process_root_facts_resolve(
-          program, entry, true,
+          program, entry, true, true,
           W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_ALL_OUTCOMES,
           &root) ||
       program->types[root.function->error_type].kind !=
@@ -896,7 +1018,7 @@ static bool typed_process_float_rounding_root_supported(
     const w_seed_hir0_program *program, const w_seed_hir0_entry *entry) {
   closure0_process_root_facts root;
   if (!process_root_facts_resolve(
-          program, entry, true,
+          program, entry, true, true,
           W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_ALL_OUTCOMES,
           &root) ||
       (root.function->block_count != 4u &&
@@ -1285,7 +1407,7 @@ static bool typed_process_throw_root_supported(
   if (typed_process_float_rounding_root_supported(program, entry)) return true;
   closure0_process_root_facts root;
   if (!process_root_facts_resolve(
-          program, entry, false,
+          program, entry, false, true,
           W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_TYPED_ERROR,
           &root) ||
       root.function->block_count != 1u ||
@@ -1680,7 +1802,10 @@ static bool product_flat_aggregate_type_supported(
  * to guess about a future/opaque family. */
 static bool product_shape_supported(const w_seed_hir0_program *program,
                                     const w_seed_hir0_entry *entry,
-                                    bool typed_throw_root) {
+                                    closure0_root_mode root_mode) {
+  const bool typed_throw_root = root_mode == CLOSURE0_ROOT_TYPED;
+  const bool wide_process_root = root_mode == CLOSURE0_ROOT_WIDE_PROCESS;
+  const bool typed_shape_root = typed_throw_root || wide_process_root;
   if (program == NULL ||
       program->parameter_count > W_SEED_PRODUCT_CLOSURE0_MAX_PARAMETERS ||
       program->block_count > W_SEED_PRODUCT_CLOSURE0_MAX_BLOCKS ||
@@ -1697,7 +1822,7 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
           W_SEED_PRODUCT_CLOSURE0_MAX_INTERPOLATION_SEGMENTS ||
       program->terminator_count > W_SEED_PRODUCT_CLOSURE0_MAX_TERMINATORS)
     return false;
-  if (!typed_throw_root) {
+  if (root_mode == CLOSURE0_ROOT_DIRECT) {
     if (program->type_count < 4u ||
         program->external_module_count != 0u ||
         program->external_symbol_count != 0u || program->enum_count != 0u ||
@@ -1734,6 +1859,8 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
          (program->external_module_count != 0u ||
           program->external_symbol_count != 0u || program->enum_count != 0u ||
           program->enum_case_count != 0u)) ||
+        (wide_process_root &&
+         (program->enum_count != 0u || program->enum_case_count != 0u)) ||
         program->enum_case_parameter_count != 0u ||
         program->enum_subset_member_count != 0u ||
         program->enum_payload_count != 0u || program->switch_edge_count != 0u ||
@@ -1775,6 +1902,10 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
       } else if (process_typed_root && type->kind == W_SEED_HIR0_TYPE_USIZE) {
         if (!process_count_type_valid(program, (uint32_t)type_index))
           return false;
+      } else if (wide_process_root &&
+                 product_wide_integer_type(program, (uint32_t)type_index)) {
+        /* The authenticated non-throwing process scalar-helper family uses
+         * only the exact internal i128/u128 identities. */
       } else if (typed_numeric_root &&
                  (type->kind == W_SEED_HIR0_TYPE_INTEGER ||
                   type->kind == W_SEED_HIR0_TYPE_U64 ||
@@ -1795,7 +1926,7 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
           return false;
   }
   const uint32_t root_function =
-      typed_throw_root ? entry->target_function : W_SEED_HIR0_NONE;
+      typed_shape_root ? entry->target_function : W_SEED_HIR0_NONE;
   const uint32_t root_terminator =
       typed_throw_root
           ? program->blocks[program->functions[root_function].first_block]
@@ -1821,17 +1952,30 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
   for (size_t function = 0u; function < program->function_count; function += 1u) {
     const w_seed_hir0_function *item = &program->functions[function];
     const bool is_typed_root = typed_throw_root && function == root_function;
-    if ((item->is_async || item->is_throws) != is_typed_root ||
+    const bool is_shape_root = typed_shape_root && function == root_function;
+    if ((!wide_process_root &&
+         (item->is_async || item->is_throws) != is_typed_root) ||
+        (wide_process_root &&
+         (is_shape_root
+              ? (!item->is_async || item->is_throws ||
+                 item->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE ||
+                 item->suspension != W_SEED_HIR0_SUSPENSION_MAY)
+              : (item->is_async || item->is_throws || item->is_const ||
+                 item->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_ABSENT ||
+                 item->suspension != W_SEED_HIR0_SUSPENSION_NEVER))) ||
         item->is_unsafe || item->has_borrow_clause ||
         item->return_type >= program->type_count || item->block_count == 0u)
       return false;
-    if (!is_typed_root) {
+    if (!is_shape_root) {
       const bool numeric_integer_return =
           typed_numeric_root &&
           product_numeric_integer_type(program, item->return_type);
+      const bool wide_integer_return =
+          wide_process_root &&
+          product_wide_integer_type(program, item->return_type);
       if ((item->return_type >= 4u &&
-           (!numeric_integer_return &&
-            (typed_throw_root ||
+           (!numeric_integer_return && !wide_integer_return &&
+            (typed_throw_root || wide_process_root ||
              !product_flat_aggregate_type_supported(program,
                                                     item->return_type)))) ||
           item->first_parameter > program->parameter_count ||
@@ -1846,9 +1990,12 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
         const bool numeric_integer_parameter =
             typed_numeric_root &&
             product_numeric_integer_type(program, parameter_type);
+        const bool wide_integer_parameter =
+            wide_process_root &&
+            product_wide_integer_type(program, parameter_type);
         if (parameter_type >= 4u &&
-            (!numeric_integer_parameter &&
-             (typed_throw_root ||
+            (!numeric_integer_parameter && !wide_integer_parameter &&
+             (typed_throw_root || wide_process_root ||
               !product_flat_aggregate_type_supported(program,
                                                      parameter_type))))
           return false;
@@ -1917,22 +2064,25 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
           ? program->terminators[numeric_conversion_terminator].value_index
           : W_SEED_HIR0_NONE;
   for (size_t block_argument = 0u;
-       block_argument < program->block_argument_count; block_argument += 1u)
-    if (program->block_arguments[block_argument].type_index >= 4u &&
+       block_argument < program->block_argument_count; block_argument += 1u) {
+    const uint32_t type_index =
+        program->block_arguments[block_argument].type_index;
+    const bool wide_type =
+        wide_process_root && product_wide_integer_type(program, type_index);
+    if (type_index >= 4u && !wide_type &&
         (!typed_numeric_root ||
-         (program->block_arguments[block_argument].type_index >=
-              program->type_count ||
-          (program->types[program->block_arguments[block_argument].type_index]
-                   .kind != W_SEED_HIR0_TYPE_INTEGER &&
-           program->types[program->block_arguments[block_argument].type_index]
+         (type_index >= program->type_count ||
+          (program->types[type_index].kind != W_SEED_HIR0_TYPE_INTEGER &&
+           program->types[type_index]
                     .kind != W_SEED_HIR0_TYPE_U64 &&
-            program->types[program->block_arguments[block_argument].type_index]
+           program->types[type_index]
                     .kind != W_SEED_HIR0_TYPE_F32 &&
-            program->types[program->block_arguments[block_argument].type_index]
+           program->types[type_index]
                     .kind != W_SEED_HIR0_TYPE_F64 &&
-            program->types[program->block_arguments[block_argument].type_index]
+           program->types[type_index]
                     .kind != W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR))))
       return false;
+  }
   for (size_t instruction = 0u; instruction < program->instruction_count;
        instruction += 1u) {
     const w_seed_hir0_instruction *item = &program->instructions[instruction];
@@ -1986,6 +2136,15 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
          value == diamond.zero_value_index) &&
         item->type_index < program->type_count &&
         program->types[item->type_index].kind == W_SEED_HIR0_TYPE_USIZE;
+    const bool authenticated_wide_value =
+        wide_process_root &&
+        wide_process_value_supported(program, (uint32_t)value, root_function);
+    if (wide_process_root &&
+        (item->kind == W_SEED_HIR0_VALUE_INTEGER_WIDEN ||
+         item->kind == W_SEED_HIR0_VALUE_INTEGER_TRUNCATING_BITS ||
+         item->kind == W_SEED_HIR0_VALUE_INTEGER_SATURATING ||
+         item->kind == W_SEED_HIR0_VALUE_NUMERIC_WIDEN))
+      return false;
     if (item->kind == W_SEED_HIR0_VALUE_ENUM_CASE) {
       if (!typed_throw_root || value != root_value) return false;
     } else if (typed_numeric_root && value == numeric_normal_value &&
@@ -2013,6 +2172,7 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
                !verified_numeric_helper_constant &&
                !verified_numeric_external_member &&
                !checked_integer_operation &&
+               !authenticated_wide_value &&
                !product_value_kind_supported(item->kind)) {
       return false;
     }
@@ -2030,6 +2190,16 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
                 W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR &&
             program->types[item->type_index].kind !=
                 W_SEED_HIR0_TYPE_NOMINAL)))
+        return false;
+    } else if (wide_process_root) {
+      if (item->kind != W_SEED_HIR0_VALUE_ENUM_CASE &&
+          item->type_index >= 4u &&
+          !product_wide_integer_type(program, item->type_index) &&
+          !(item->type_index < program->type_count &&
+            program->types[item->type_index].kind == W_SEED_HIR0_TYPE_NOMINAL &&
+            program->types[item->type_index].external_module_index == 0u &&
+            program->types[item->type_index].external_symbol_index < 3u) &&
+          !process_count_type_valid(program, item->type_index))
         return false;
     } else if (item->kind != W_SEED_HIR0_VALUE_ENUM_CASE &&
                item->type_index >= 4u && !authenticated_diamond_usize &&
@@ -2159,11 +2329,19 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
           product_process_i8_type(
               program,
               program->functions[checked_i8_join_helper].return_type);
+      const bool wide_integer_operands =
+          wide_process_root && item->left_value < program->value_count &&
+          item->right_value < program->value_count &&
+          program->values[item->left_value].type_index ==
+              program->values[item->right_value].type_index &&
+          product_wide_integer_type(
+              program, program->values[item->left_value].type_index);
       if (item->binary_operator < W_SEED_HIR0_BINARY_EQUAL ||
           item->binary_operator > W_SEED_HIR0_BINARY_GREATER_EQUAL ||
           item->type_index >= program->type_count ||
           program->types[item->type_index].kind != W_SEED_HIR0_TYPE_BOOL ||
-          (!legacy_i64_operands && !checked_i8_join_operands) ||
+          (!legacy_i64_operands && !checked_i8_join_operands &&
+           !wide_integer_operands) ||
           program->values[item->left_value].type_index >= program->type_count ||
           program->values[item->right_value].type_index >= program->type_count)
         return false;
@@ -2174,6 +2352,12 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
     if (item->callee_identity >= program->identity_count) return false;
     const w_seed_hir0_identity *identity =
         &program->identities[item->callee_identity];
+    if (wide_process_root &&
+        (item->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
+         item->owner_block >= program->block_count ||
+         (identity->kind == W_SEED_HIR0_IDENTITY_HOST_PRELUDE &&
+          program->blocks[item->owner_block].owner_function != root_function)))
+      return false;
     if (identity->kind == W_SEED_HIR0_IDENTITY_HOST_PRELUDE) {
       if (!host_print_identity_valid(program, item->callee_identity)) return false;
     } else if (identity->kind != W_SEED_HIR0_IDENTITY_FUNCTION) {
@@ -2248,7 +2432,9 @@ static void set_failure(w_seed_product_closure0_result *result,
 }
 
 static bool input_valid(const w_seed_product_closure0_input *input,
-                        w_seed_product_closure0_result *result) {
+                        w_seed_product_closure0_result *result,
+                        closure0_root_mode *root_mode) {
+  if (root_mode == NULL) return false;
   if (input == NULL || input->program == NULL || input->hir_result == NULL) {
     set_failure(result, W_SEED_PRODUCT_CLOSURE0_INVALID,
                 W_SEED_PRODUCT_CLOSURE0_FAILURE_POINTER);
@@ -2298,24 +2484,34 @@ static bool input_valid(const w_seed_product_closure0_input *input,
   const bool direct_float_root =
       typed_direct_float_rounding_root_supported(program, entry);
   if (entry->adapter_kind == W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS) {
+    closure0_root_mode process_mode = CLOSURE0_ROOT_TYPED;
+    closure0_process_root_facts wide_root;
     if (!typed_process_throw_root_supported(program, entry)) {
-      set_failure(result, W_SEED_PRODUCT_CLOSURE0_UNSUPPORTED,
-                  W_SEED_PRODUCT_CLOSURE0_FAILURE_ROOT);
-      return false;
+      if (!process_root_facts_resolve(
+              program, entry, true, false,
+              W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS,
+              &wide_root)) {
+        set_failure(result, W_SEED_PRODUCT_CLOSURE0_UNSUPPORTED,
+                    W_SEED_PRODUCT_CLOSURE0_FAILURE_ROOT);
+        return false;
+      }
+      process_mode = CLOSURE0_ROOT_WIDE_PROCESS;
     }
-    if (!product_shape_supported(program, entry, true)) {
+    if (!product_shape_supported(program, entry, process_mode)) {
       set_failure(result, W_SEED_PRODUCT_CLOSURE0_UNSUPPORTED,
                   W_SEED_PRODUCT_CLOSURE0_FAILURE_UNSUPPORTED);
       return false;
     }
+    *root_mode = process_mode;
     return true;
   }
   if (direct_float_root) {
-    if (!product_shape_supported(program, entry, true)) {
+    if (!product_shape_supported(program, entry, CLOSURE0_ROOT_TYPED)) {
       set_failure(result, W_SEED_PRODUCT_CLOSURE0_UNSUPPORTED,
                   W_SEED_PRODUCT_CLOSURE0_FAILURE_UNSUPPORTED);
       return false;
     }
+    *root_mode = CLOSURE0_ROOT_TYPED;
     return true;
   }
   if (entry->adapter_kind != W_SEED_HIR0_ENTRY_ADAPTER_DEFAULT_UNIT ||
@@ -2328,11 +2524,12 @@ static bool input_valid(const w_seed_product_closure0_input *input,
                 W_SEED_PRODUCT_CLOSURE0_FAILURE_ROOT);
     return false;
   }
-  if (!product_shape_supported(program, entry, false)) {
+  if (!product_shape_supported(program, entry, CLOSURE0_ROOT_DIRECT)) {
     set_failure(result, W_SEED_PRODUCT_CLOSURE0_UNSUPPORTED,
                 W_SEED_PRODUCT_CLOSURE0_FAILURE_UNSUPPORTED);
     return false;
   }
+  *root_mode = CLOSURE0_ROOT_DIRECT;
   return true;
 }
 
@@ -2521,7 +2718,22 @@ static bool mark_value(closure0_plan *plan,
   plan->value_state[value_index] = 1u;
   plan->values[value_index] = true;
   const w_seed_hir0_value *value = &program->values[value_index];
+  if (plan->root_mode == CLOSURE0_ROOT_WIDE_PROCESS &&
+      product_checked_fault_value(value))
+    return false;
   if (!mark_type(plan, program, value->type_index)) return false;
+  if (plan->root_mode == CLOSURE0_ROOT_WIDE_PROCESS &&
+      (value->kind == W_SEED_HIR0_VALUE_UNARY_INTEGER_128 ||
+       value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_128 ||
+       value->kind == W_SEED_HIR0_VALUE_UNARY_BITWISE_INTEGER_128 ||
+       (value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON &&
+        value->left_value < program->value_count &&
+        product_wide_integer_type(
+            program, program->values[value->left_value].type_index)))) {
+    const uint32_t owner = value_owner_function(program, value_index);
+    if (owner < program->function_count && owner != plan->root.function_index)
+      plan->wide_helper_operation_seen = true;
+  }
   if (value->kind == W_SEED_HIR0_VALUE_ENUM_CASE &&
       (plan->outcome.kind != W_SEED_PRODUCT_CLOSURE0_OUTCOME_TYPED_THROW ||
        value_index != plan->outcome.value_index ||
@@ -2577,6 +2789,16 @@ static bool mark_value(closure0_plan *plan,
       return false;
   } else if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
     return false;
+  } else if (value->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_128 ||
+             value->kind == W_SEED_HIR0_VALUE_UNARY_INTEGER_128 ||
+             value->kind == W_SEED_HIR0_VALUE_UNARY_BITWISE_INTEGER_128) {
+    if (!wide_process_value_supported(program, value_index,
+                                      plan->root.function_index) ||
+        (value->left_value != W_SEED_HIR0_NONE &&
+         !mark_value(plan, program, value->left_value, depth + 1u)) ||
+        (value->right_value != W_SEED_HIR0_NONE &&
+         !mark_value(plan, program, value->right_value, depth + 1u)))
+      return false;
     } else if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
                value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL ||
                value->kind == W_SEED_HIR0_VALUE_UNARY_I64 ||
@@ -2767,9 +2989,21 @@ static bool mark_function(closure0_plan *plan,
     return false;
   plan->identities[function->identity_index] = true;
   const bool typed_root =
-      plan->outcome.kind == W_SEED_PRODUCT_CLOSURE0_OUTCOME_TYPED_THROW &&
+      plan->root_mode == CLOSURE0_ROOT_TYPED &&
       function_index == plan->root.function_index;
-  if ((function->is_async || function->is_throws) != typed_root ||
+  const bool wide_root =
+      plan->root_mode == CLOSURE0_ROOT_WIDE_PROCESS &&
+      function_index == plan->root.function_index;
+  if ((!wide_root &&
+       (function->is_async || function->is_throws) != typed_root) ||
+      (wide_root &&
+       (!function->is_async || function->is_throws ||
+        function->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE ||
+        function->suspension != W_SEED_HIR0_SUSPENSION_MAY)) ||
+      (plan->root_mode == CLOSURE0_ROOT_WIDE_PROCESS && !wide_root &&
+       (function->is_async || function->is_throws || function->is_const ||
+        function->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_ABSENT ||
+        function->suspension != W_SEED_HIR0_SUSPENSION_NEVER)) ||
       function->is_unsafe || function->has_borrow_clause)
     return false;
   if (typed_root &&
@@ -2834,7 +3068,7 @@ static bool build_plan(const w_seed_product_closure0_input *input,
   outcome_init(&plan->non_finite_outcome);
   outcome_init(&plan->out_of_range_outcome);
   checked_fault_relation_init(&plan->checked_fault_relation);
-  if (!input_valid(input, failure_result)) return false;
+  if (!input_valid(input, failure_result, &plan->root_mode)) return false;
   const w_seed_hir0_program *program = input->program;
   for (size_t index = 0u; index < W_SEED_PRODUCT_CLOSURE0_MAX_MODULES; index += 1u)
     plan->module_remap[index] = W_SEED_PRODUCT_CLOSURE0_NONE;
@@ -2871,7 +3105,8 @@ static bool build_plan(const w_seed_product_closure0_input *input,
       .cleanup_release_parameters = {W_SEED_PRODUCT_CLOSURE0_NONE,
                                      W_SEED_PRODUCT_CLOSURE0_NONE},
   };
-  if (entry->adapter_kind == W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS) {
+  if (entry->adapter_kind == W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS &&
+      plan->root_mode != CLOSURE0_ROOT_WIDE_PROCESS) {
     const w_seed_hir0_function *function =
         &program->functions[entry->target_function];
     const w_seed_hir0_block *block =
@@ -2995,6 +3230,14 @@ static bool build_plan(const w_seed_product_closure0_input *input,
           .error_enum_index = value->enum_index,
           .error_case_index = value->enum_case_index};
     }
+  } else if (entry->adapter_kind ==
+             W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS) {
+    const w_seed_hir0_function *function =
+        &program->functions[entry->target_function];
+    plan->root.cleanup_release_parameter_count = 2u;
+    plan->root.cleanup_release_parameters[0] =
+        function->first_parameter + 1u;
+    plan->root.cleanup_release_parameters[1] = function->first_parameter;
   } else if (typed_direct_float_rounding_root_supported(program, entry)) {
     const w_seed_hir0_function *function =
         &program->functions[entry->target_function];
@@ -3068,6 +3311,13 @@ static bool build_plan(const w_seed_product_closure0_input *input,
     set_failure(failure_result, W_SEED_PRODUCT_CLOSURE0_UNSUPPORTED,
                 W_SEED_PRODUCT_CLOSURE0_FAILURE_UNSUPPORTED);
     return false;
+  }
+  if (plan->root_mode == CLOSURE0_ROOT_WIDE_PROCESS) {
+    if (!plan->wide_helper_operation_seen) {
+      set_failure(failure_result, W_SEED_PRODUCT_CLOSURE0_UNSUPPORTED,
+                  W_SEED_PRODUCT_CLOSURE0_FAILURE_UNSUPPORTED);
+      return false;
+    }
   }
   if (plan_has_integer_exact_process_root(plan, program)) {
     const uint32_t split_index =
@@ -3774,6 +4024,7 @@ static void digest_value(w_seed_sha256_state *state,
       break;
     case W_SEED_HIR0_VALUE_BINARY_I64:
     case W_SEED_HIR0_VALUE_BINARY_U64:
+    case W_SEED_HIR0_VALUE_BINARY_INTEGER_128:
       digest_u32(state, (uint32_t)value->binary_operator);
       digest_u32(state, value->left_value < program->value_count
                              ? plan->value_remap[value->left_value]
@@ -3793,6 +4044,8 @@ static void digest_value(w_seed_sha256_state *state,
       break;
     case W_SEED_HIR0_VALUE_UNARY_BOOL:
     case W_SEED_HIR0_VALUE_UNARY_I64:
+    case W_SEED_HIR0_VALUE_UNARY_INTEGER_128:
+    case W_SEED_HIR0_VALUE_UNARY_BITWISE_INTEGER_128:
       digest_u32(state, (uint32_t)value->unary_operator);
       digest_u32(state, value->left_value < program->value_count
                              ? plan->value_remap[value->left_value]
@@ -3844,6 +4097,19 @@ static void digest_value(w_seed_sha256_state *state,
                              : W_SEED_PRODUCT_CLOSURE0_NONE);
       digest_text(state, program, value->member_name);
       break;
+    case W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE:
+      if (value->external_module_index < program->external_module_count)
+        digest_text(state, program,
+                    program->external_modules[value->external_module_index]
+                        .module_id);
+      else
+        digest_u32(state, W_SEED_PRODUCT_CLOSURE0_NONE);
+      digest_external_symbol(state, program, value->external_symbol_index);
+      digest_text(state, program, value->member_name);
+      digest_u32(state, value->left_value < program->value_count
+                             ? plan->value_remap[value->left_value]
+                             : W_SEED_PRODUCT_CLOSURE0_NONE);
+      break;
     case W_SEED_HIR0_VALUE_CONST_STRING:
       if (value->byte_offset <= program->value_byte_count &&
           value->byte_count <= program->value_byte_count - value->byte_offset)
@@ -3857,6 +4123,26 @@ static void digest_value(w_seed_sha256_state *state,
       break;
     case W_SEED_HIR0_VALUE_CONST_U64:
       digest_u64(state, value->unsigned_integer_value);
+      break;
+    case W_SEED_HIR0_VALUE_CONST_USIZE:
+      digest_u64(state, value->unsigned_integer_value);
+      break;
+    case W_SEED_HIR0_VALUE_CONST_INTEGER_128:
+      if (value->byte_offset <= program->value_byte_count &&
+          value->byte_count <= program->value_byte_count - value->byte_offset)
+        digest_bytes(state, program->value_bytes + value->byte_offset,
+                     value->byte_count);
+      else
+        digest_u32(state, W_SEED_PRODUCT_CLOSURE0_NONE);
+      break;
+    case W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON:
+      digest_u32(state, (uint32_t)value->binary_operator);
+      digest_u32(state, value->left_value < program->value_count
+                             ? plan->value_remap[value->left_value]
+                             : W_SEED_PRODUCT_CLOSURE0_NONE);
+      digest_u32(state, value->right_value < program->value_count
+                             ? plan->value_remap[value->right_value]
+                             : W_SEED_PRODUCT_CLOSURE0_NONE);
       break;
     case W_SEED_HIR0_VALUE_CONST_BOOL:
       digest_bool(state, value->bool_value);
@@ -3919,8 +4205,12 @@ static void compute_digest(const w_seed_hir0_program *program,
   compute_checked_fault_operation_digest(program, plan);
   w_seed_sha256_state state;
   w_seed_sha256_init(&state);
-  static const uint8_t tag[] = "w-seed-product-closure0-semantic-v6\0";
-  w_seed_sha256_update(&state, tag, sizeof(tag) - 1u);
+  static const uint8_t tag_v6[] = "w-seed-product-closure0-semantic-v6\0";
+  static const uint8_t tag_v7[] = "w-seed-product-closure0-semantic-v7\0";
+  if (plan->root_mode == CLOSURE0_ROOT_WIDE_PROCESS)
+    w_seed_sha256_update(&state, tag_v7, sizeof(tag_v7) - 1u);
+  else
+    w_seed_sha256_update(&state, tag_v6, sizeof(tag_v6) - 1u);
   const w_seed_hir0_entry *root_entry = &program->entries[plan->root.entry_index];
   digest_text(&state, program,
               program->modules[plan->root.module_index].module_id);

@@ -492,6 +492,12 @@ static bool test_reachable_and_omitted(void) {
   return true;
 }
 
+static bool replace_process_source_once(const char *source, const char *before,
+                                        const char *after, char *output,
+                                        size_t capacity);
+static bool expect_wide_process_product_unsupported(const char *source);
+static bool expect_wide_process_source_rejected(const char *source);
+
 static bool test_native_process_typed_throw(void) {
   static const char SOURCE[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
@@ -646,6 +652,303 @@ static bool test_native_process_typed_throw(void) {
   *mutable_term = saved_term;
   reseal_process_hir(&fixture);
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_native_process_wide_scalar_helpers(void) {
+  static const char SOURCE[] =
+      "import std.process\n"
+      "fn chooseWide(zeroArgs: Bool): i128 { return if zeroArgs { "
+      "-170141183460469231731687303715884105728_i128 } else { -1_i128 } }\n"
+      "fn wideCore(zeroArgs: Bool): i128 {\n"
+      "  let signedValue = chooseWide(zeroArgs: zeroArgs)\n"
+      "  let signedLess = signedValue < 0_i128\n"
+      "  let signedMask: i128 = 1_i128\n"
+      "  let signedBits = ((signedValue & signedMask) | 1_i128) ^ 1_i128\n"
+      "  let signedNotTwice = ~(~signedValue)\n"
+      "  let unsignedValue: u128 = "
+      "340282366920938463463374607431768211455_u128\n"
+      "  let unsignedGreater = unsignedValue > 2_u128\n"
+      "  let unsignedMask: u128 = 1_u128\n"
+      "  let unsignedBits = ((unsignedValue & unsignedMask) | 1_u128) ^ "
+      "1_u128\n"
+      "  let unsignedNotTwice = ~(~unsignedValue)\n"
+      "  let checks = signedLess && unsignedGreater && "
+      "signedBits == 0_i128 && signedNotTwice == signedValue && "
+      "unsignedBits == 0_u128 && unsignedNotTwice == unsignedValue\n"
+      "  return if checks { signedValue } else { 0_i128 }\n"
+      "}\n"
+      "async fn run(args: Arguments, ctx: Context): ExitCode {\n"
+      "  let zeroArgs = args.count == 0\n"
+      "  let signedValue = wideCore(zeroArgs: zeroArgs)\n"
+      "  if signedValue < 0_i128 { print(\"wide core\") return .success } "
+      "else { print(\"wide core failure\") return .failure(1) }\n"
+      "}\nentry(run)\n";
+  static multidoc_fixture fixture;
+  static product_storage storage;
+  static product_storage saved_storage;
+  static multidoc_fixture variant_fixture;
+  static product_storage variant_storage;
+  CHECK(prepare_process_fixture(&fixture, SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  const uint32_t root_function = program->entries[0].target_function;
+  CHECK(root_function < program->function_count &&
+        program->functions[root_function].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE &&
+        program->functions[root_function].suspension ==
+            W_SEED_HIR0_SUSPENSION_MAY &&
+        program->functions[root_function].error_type == W_SEED_HIR0_NONE);
+  bool found_i128 = false;
+  bool found_u128 = false;
+  for (size_t type = 0u; type < program->type_count; type += 1u) {
+    const w_seed_hir0_type *item = &program->types[type];
+    if (item->kind != W_SEED_HIR0_TYPE_INTEGER ||
+        item->integer_bit_width != 128u)
+      continue;
+    const bool named_i128 = item->name.count == 4u &&
+        memcmp(program->text_bytes + item->name.offset, "i128", 4u) == 0;
+    const bool named_u128 = item->name.count == 4u &&
+        memcmp(program->text_bytes + item->name.offset, "u128", 4u) == 0;
+    CHECK((named_i128 && item->integer_is_signed) ||
+          (named_u128 && !item->integer_is_signed));
+    found_i128 = found_i128 || named_i128;
+    found_u128 = found_u128 || named_u128;
+  }
+  CHECK(found_i128 && found_u128);
+
+  const w_seed_product_closure0_input input =
+      {program, &fixture.hir_result};
+  (void)memset(&storage, 0xa5, sizeof(storage));
+  const w_seed_product_closure0_output output = product_output(&storage);
+  w_seed_product_closure0_result result = {0};
+  CHECK(w_seed_product_closure0_run(&input, &output, &result) ==
+        W_SEED_PRODUCT_CLOSURE0_OK);
+  CHECK(result.root.function_index == root_function &&
+        result.root.adapter_kind == W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS &&
+        result.outcome.kind == W_SEED_PRODUCT_CLOSURE0_OUTCOME_NONE &&
+        result.normal_outcome.kind == W_SEED_PRODUCT_CLOSURE0_OUTCOME_NONE &&
+        result.root.cleanup_obligation ==
+            W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS &&
+        result.root.cleanup_release_parameter_count == 2u &&
+        result.root.cleanup_release_parameters[0] ==
+            program->functions[root_function].first_parameter + 1u &&
+        result.root.cleanup_release_parameters[1] ==
+            program->functions[root_function].first_parameter &&
+        result.written.reachable_functions > 0u &&
+        result.written.omitted_functions == 0u);
+  bool cross_check[PRODUCT_FUNCTIONS] = {false};
+  for (size_t ordinal = 0u; ordinal < result.written.reachable_functions;
+       ordinal += 1u) {
+    const uint32_t function = storage.reachable_functions[ordinal];
+    CHECK(function < program->function_count);
+    cross_check[function] = true;
+  }
+  CHECK(w_seed_product_closure0_cross_check_functions(
+      program, &fixture.hir_result, cross_check, PRODUCT_FUNCTIONS));
+
+  bool saw_wide_const = false;
+  bool saw_wide_negate = false;
+  bool saw_wide_binary = false;
+  bool saw_wide_bit_not = false;
+  bool saw_process_count = false;
+  bool saw_process_case = false;
+  for (size_t ordinal = 0u; ordinal < result.written.reachable_values;
+       ordinal += 1u) {
+    const w_seed_product_closure0_value_fact *fact =
+        &storage.value_facts[ordinal];
+    saw_wide_const = saw_wide_const ||
+        fact->kind == W_SEED_HIR0_VALUE_CONST_INTEGER_128;
+    saw_wide_negate = saw_wide_negate ||
+        fact->kind == W_SEED_HIR0_VALUE_UNARY_INTEGER_128;
+    saw_wide_binary = saw_wide_binary ||
+        fact->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_128;
+    saw_wide_bit_not = saw_wide_bit_not ||
+        fact->kind == W_SEED_HIR0_VALUE_UNARY_BITWISE_INTEGER_128;
+    saw_process_count = saw_process_count ||
+        fact->kind == W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON;
+    saw_process_case = saw_process_case ||
+        fact->kind == W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE;
+  }
+  CHECK(saw_wide_const && saw_wide_negate && saw_wide_binary &&
+        saw_wide_bit_not && saw_process_count && saw_process_case);
+  CHECK(w_seed_product_closure0_verify(&input, &output, &result));
+  w_seed_product_closure0_counts measured_counts = {0};
+  w_seed_product_closure0_result measured_result = {0};
+  CHECK(w_seed_product_closure0_measure(&input, &measured_counts,
+                                         &measured_result) ==
+        W_SEED_PRODUCT_CLOSURE0_OK);
+  CHECK(memcmp(&measured_counts, &result.required, sizeof(measured_counts)) ==
+            0 &&
+        memcmp(&measured_result, &result, sizeof(measured_result)) == 0);
+
+  saved_storage = storage;
+  const w_seed_product_closure0_result saved_result = result;
+  w_seed_product_closure0_output limited = product_output(&storage);
+  CHECK(result.required.reachable_external_symbols > 0u);
+  limited.reachable_external_symbol_capacity =
+      result.required.reachable_external_symbols - 1u;
+  CHECK(w_seed_product_closure0_run(&input, &limited, &result) ==
+        W_SEED_PRODUCT_CLOSURE0_CAPACITY);
+  CHECK(memcmp(&storage, &saved_storage, sizeof(storage)) == 0 &&
+        memcmp(&result, &saved_result, sizeof(result)) == 0);
+
+  uint32_t wide_type_index = W_SEED_HIR0_NONE;
+  uint32_t wide_binary_index = W_SEED_HIR0_NONE;
+  for (size_t type = 0u; type < program->type_count; type += 1u)
+    if (program->types[type].kind == W_SEED_HIR0_TYPE_INTEGER &&
+        program->types[type].integer_bit_width == 128u) {
+      wide_type_index = (uint32_t)type;
+      break;
+    }
+  for (size_t value = 0u; value < program->value_count; value += 1u)
+    if (program->values[value].kind ==
+        W_SEED_HIR0_VALUE_BINARY_INTEGER_128) {
+      wide_binary_index = (uint32_t)value;
+      break;
+    }
+  CHECK(wide_type_index < program->type_count &&
+        wide_binary_index < program->value_count);
+  w_seed_hir0_type *mutable_types =
+      (w_seed_hir0_type *)(void *)program->types;
+  w_seed_hir0_value *mutable_values =
+      (w_seed_hir0_value *)(void *)program->values;
+  const uint16_t saved_width = mutable_types[wide_type_index].integer_bit_width;
+  mutable_types[wide_type_index].integer_bit_width = 127u;
+  reseal_process_hir(&fixture);
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  CHECK(w_seed_product_closure0_run(&input, &output, &result) ==
+        W_SEED_PRODUCT_CLOSURE0_INVALID);
+  CHECK(memcmp(&storage, &saved_storage, sizeof(storage)) == 0 &&
+        memcmp(&result, &saved_result, sizeof(result)) == 0);
+  mutable_types[wide_type_index].integer_bit_width = saved_width;
+  reseal_process_hir(&fixture);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_binary_operator saved_operator =
+      mutable_values[wide_binary_index].binary_operator;
+  mutable_values[wide_binary_index].binary_operator =
+      W_SEED_HIR0_BINARY_SHIFT_LEFT;
+  reseal_process_hir(&fixture);
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  CHECK(w_seed_product_closure0_run(&input, &output, &result) ==
+        W_SEED_PRODUCT_CLOSURE0_INVALID);
+  CHECK(memcmp(&storage, &saved_storage, sizeof(storage)) == 0 &&
+        memcmp(&result, &saved_result, sizeof(result)) == 0);
+  mutable_values[wide_binary_index].binary_operator = saved_operator;
+  reseal_process_hir(&fixture);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const uint32_t saved_owner = mutable_values[wide_binary_index].owner_index;
+  mutable_values[wide_binary_index].owner_index = W_SEED_HIR0_NONE;
+  reseal_process_hir(&fixture);
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  CHECK(w_seed_product_closure0_run(&input, &output, &result) ==
+        W_SEED_PRODUCT_CLOSURE0_INVALID);
+  CHECK(memcmp(&storage, &saved_storage, sizeof(storage)) == 0 &&
+        memcmp(&result, &saved_result, sizeof(result)) == 0);
+  mutable_values[wide_binary_index].owner_index = saved_owner;
+  reseal_process_hir(&fixture);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  static char mutated[8192];
+  CHECK(replace_process_source_once(
+      SOURCE, "entry(run)\n",
+      "fn deadWide(value: i128): i128 { return ~(~value) }\nentry(run)\n",
+      mutated, sizeof(mutated)));
+  CHECK(prepare_process_fixture(&variant_fixture, mutated));
+  const w_seed_product_closure0_input dead_wide_input = {
+      &variant_fixture.hir_program, &variant_fixture.hir_result};
+  (void)memset(&variant_storage, 0, sizeof(variant_storage));
+  const w_seed_product_closure0_output dead_wide_output =
+      product_output(&variant_storage);
+  w_seed_product_closure0_result dead_wide_result = {0};
+  CHECK(w_seed_product_closure0_run(&dead_wide_input, &dead_wide_output,
+                                    &dead_wide_result) ==
+        W_SEED_PRODUCT_CLOSURE0_OK);
+  CHECK(dead_wide_result.written.omitted_functions == 1u &&
+        variant_storage.omitted_functions[0] <
+            variant_fixture.hir_program.function_count &&
+        variant_storage.function_remap[
+            variant_storage.omitted_functions[0]] ==
+            W_SEED_PRODUCT_CLOSURE0_NONE &&
+        memcmp(dead_wide_result.reachable_semantic_digest,
+               saved_result.reachable_semantic_digest,
+               W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES) == 0 &&
+        w_seed_product_closure0_verify(&dead_wide_input, &dead_wide_output,
+                                       &dead_wide_result));
+
+  CHECK(replace_process_source_once(SOURCE, "else { -1_i128 }",
+                                    "else { -2_i128 }", mutated,
+                                    sizeof(mutated)));
+  CHECK(prepare_process_fixture(&variant_fixture, mutated));
+  const w_seed_product_closure0_input literal_input = {
+      &variant_fixture.hir_program, &variant_fixture.hir_result};
+  (void)memset(&variant_storage, 0, sizeof(variant_storage));
+  const w_seed_product_closure0_output literal_output =
+      product_output(&variant_storage);
+  w_seed_product_closure0_result literal_result = {0};
+  CHECK(w_seed_product_closure0_run(&literal_input, &literal_output,
+                                    &literal_result) ==
+        W_SEED_PRODUCT_CLOSURE0_OK);
+  CHECK(memcmp(literal_result.reachable_semantic_digest,
+               saved_result.reachable_semantic_digest,
+               W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES) != 0 &&
+        w_seed_product_closure0_verify(&literal_input, &literal_output,
+                                       &literal_result));
+
+  CHECK(replace_process_source_once(
+      SOURCE, "chooseWide(zeroArgs: zeroArgs)",
+      "wideCore(zeroArgs: zeroArgs)", mutated, sizeof(mutated)));
+  CHECK(expect_wide_process_product_unsupported(mutated));
+  CHECK(replace_process_source_once(
+      SOURCE, "fn chooseWide(zeroArgs: Bool): i128 { return if",
+      "fn chooseWide(zeroArgs: Bool): i128 { print(\"helper effect\") return if",
+      mutated, sizeof(mutated)));
+  CHECK(expect_wide_process_product_unsupported(mutated));
+  CHECK(replace_process_source_once(
+      SOURCE, "((signedValue & signedMask) | 1_i128) ^ 1_i128",
+      "signedValue + signedMask", mutated, sizeof(mutated)));
+  CHECK(expect_wide_process_source_rejected(mutated));
+  CHECK(replace_process_source_once(
+      SOURCE, "((signedValue & signedMask) | 1_i128) ^ 1_i128",
+      "signedValue << 1_i128", mutated, sizeof(mutated)));
+  CHECK(expect_wide_process_source_rejected(mutated));
+  CHECK(replace_process_source_once(
+      SOURCE, "let signedLess = signedValue < 0_i128",
+      "let signedLess = signedValue < 0_u128", mutated, sizeof(mutated)));
+  CHECK(expect_wide_process_source_rejected(mutated));
+  CHECK(replace_process_source_once(
+      SOURCE,
+      "let unsignedValue: u128 = 340282366920938463463374607431768211455_u128",
+      "let unsignedValue: u128 = u128(signedValue)", mutated,
+      sizeof(mutated)));
+  CHECK(expect_wide_process_source_rejected(mutated));
+  CHECK(replace_process_source_once(
+      SOURCE, "return .failure(1)", "return .failure(1_i128)", mutated,
+      sizeof(mutated)));
+  CHECK(expect_wide_process_source_rejected(mutated));
+  CHECK(replace_process_source_once(
+      SOURCE, "  let checks = signedLess && unsignedGreater && ",
+      "  let checkedInteger = 1 + 2\n"
+      "  let checks = checkedInteger == 3 && signedLess && "
+      "unsignedGreater && ",
+      mutated, sizeof(mutated)));
+  CHECK(expect_wide_process_product_unsupported(mutated));
+  static const char CONST_ONLY_WIDE_HELPER_SOURCE[] =
+      "import std.process\n"
+      "fn wideLiteral(): i128 { return 1_i128 }\n"
+      "async fn run(args: Arguments, ctx: Context): ExitCode {\n"
+      "  let value = wideLiteral()\n"
+      "  if value < 0_i128 { print(\"wide core\") return .success } "
+      "else { print(\"wide core failure\") return .failure(1) }\n"
+      "}\nentry(run)\n";
+  CHECK(expect_wide_process_product_unsupported(
+      CONST_ONLY_WIDE_HELPER_SOURCE));
+  CHECK(replace_process_source_once(
+      SOURCE, "entry(run)\n",
+      "fn deadWide(value: u64): u64 { return ~value }\nentry(run)\n",
+      mutated, sizeof(mutated)));
+  CHECK(expect_wide_process_product_unsupported(mutated));
   return true;
 }
 
@@ -1711,6 +2014,71 @@ static bool expect_process_product_status(
   return true;
 }
 
+static bool replace_process_source_once(const char *source, const char *before,
+                                       const char *after, char *output,
+                                       size_t capacity) {
+  if (source == NULL || before == NULL || after == NULL || output == NULL ||
+      capacity == 0u)
+    return false;
+  const char *match = strstr(source, before);
+  if (match == NULL || strstr(match + strlen(before), before) != NULL)
+    return false;
+  const size_t prefix = (size_t)(match - source);
+  const size_t before_length = strlen(before);
+  const size_t after_length = strlen(after);
+  const size_t suffix_length = strlen(match + before_length);
+  if (prefix >= capacity || after_length > capacity - prefix ||
+      suffix_length >= capacity - prefix - after_length)
+    return false;
+  (void)memcpy(output, source, prefix);
+  (void)memcpy(output + prefix, after, after_length);
+  (void)memcpy(output + prefix + after_length, match + before_length,
+               suffix_length + 1u);
+  return true;
+}
+
+static bool expect_wide_process_product_unsupported(const char *source) {
+  static multidoc_fixture fixture;
+  static product_storage storage;
+  static product_storage saved_storage;
+  CHECK(prepare_process_fixture(&fixture, source));
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  const w_seed_product_closure0_input input =
+      {&fixture.hir_program, &fixture.hir_result};
+  (void)memset(&storage, 0xa5, sizeof(storage));
+  const w_seed_product_closure0_output output = product_output(&storage);
+  w_seed_product_closure0_result result;
+  (void)memset(&result, 0xb2, sizeof(result));
+  const w_seed_product_closure0_result saved_result = result;
+  saved_storage = storage;
+  CHECK(w_seed_product_closure0_run(&input, &output, &result) ==
+        W_SEED_PRODUCT_CLOSURE0_UNSUPPORTED);
+  CHECK(memcmp(&storage, &saved_storage, sizeof(storage)) == 0 &&
+        memcmp(&result, &saved_result, sizeof(result)) == 0);
+  return true;
+}
+
+static bool expect_wide_process_source_rejected(const char *source) {
+  static multidoc_fixture fixture;
+  static product_storage storage;
+  static product_storage saved_storage;
+  if (!prepare_process_fixture(&fixture, source)) return true;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  const w_seed_product_closure0_input input =
+      {&fixture.hir_program, &fixture.hir_result};
+  (void)memset(&storage, 0x5a, sizeof(storage));
+  const w_seed_product_closure0_output output = product_output(&storage);
+  w_seed_product_closure0_result result;
+  (void)memset(&result, 0xc3, sizeof(result));
+  const w_seed_product_closure0_result saved_result = result;
+  saved_storage = storage;
+  CHECK(w_seed_product_closure0_run(&input, &output, &result) ==
+        W_SEED_PRODUCT_CLOSURE0_UNSUPPORTED);
+  CHECK(memcmp(&storage, &saved_storage, sizeof(storage)) == 0 &&
+        memcmp(&result, &saved_result, sizeof(result)) == 0);
+  return true;
+}
+
 static bool expect_unit_product_status(
     const char *root_source, const char *library_source,
     w_seed_product_closure0_status expected_status) {
@@ -1975,6 +2343,7 @@ int main(void) {
   if (!test_digest_and_measure()) return 1;
   if (!test_transaction_barriers()) return 1;
   if (!test_native_process_typed_throw()) return 1;
+  if (!test_native_process_wide_scalar_helpers()) return 1;
   if (!test_native_process_numeric_split()) return 1;
   if (!test_native_process_checked_local_helper()) return 1;
   if (!test_native_process_checked_scalar_if_join()) return 1;
