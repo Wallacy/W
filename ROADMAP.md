@@ -552,8 +552,8 @@ order:
 
 | Lane | Bounded package | May advance independently | Integration gate |
 | --- | --- | --- | --- |
-| CFG proof | Bounded two-loop HIR emission, reachability, dominance, typed carriers and adversarial lineage checks | Native selection and MLIR may consume only this verified graph, without another source-shape recognizer | Execute the pinned nested-loop witness through public CRT-free Windows and Linux/WSL products |
-| Product values | Flat two-`i64` tuple and one local immutable two-`i64` value struct remain HIR-only; independent C23/Rust correctness oracles | Source→frontend→measured/emitted HIR→output bridge→independent verifier; no native or performance claim for aggregates | Extend a later native consumer from verified HIR only after layout/ABI policy and exact native witnesses are selected |
+| CFG proof | Bounded two-loop HIR emission, reachability, dominance, typed carriers and adversarial lineage checks now reach public CRT-free products, including one single-loop conditional early return | Native selection and MLIR consume only the verified graph, without another source-shape recognizer | Broaden beyond the pinned two-loop and single-loop early-return shapes while preserving lexical source equivalence and independent graph proof |
+| Product values | Flat two-`i64` tuple and one local immutable two-`i64` value struct reach exact public native execution; independent C23/Rust correctness oracles remain non-ranking references | Source→frontend→measured/emitted HIR→independent verifier→NativeSubset0/ProductClosure0→MLIR/native, with virtual constructors erased when unobservable | Add stable layout/ABI or a new aggregate shape only with its own executable witness; current evidence remains bounded and correctness-only |
 | Enum value flow | One local scalar-payload enum crosses one typed value-`if` join, a local call boundary, and an exhaustive switch; Bool/i64 payload domain, with physical representation internal | Verified nominal HIR, NativeSubset0 and MLIR0 route; exact CRT-free Windows and Linux/WSL correctness witnesses | Broaden only with a distinct proved CFG/value boundary; stable layout/ABI, nested aggregates, ownership, loops and general mixed CFG remain open |
 | Native output | Exact output storage, Hello-minimal layout and dependency-closure receipts | Product-value work uses an isolated checkout while current products are measured | Refresh every affected live public-product receipt before treating the catalog as current |
 
@@ -577,9 +577,11 @@ verification cost when integrated, without adding a separate executable
 performance row for an internal analysis.
 The verifier now caches that analysis once per function while checking values:
 dominance can justify a binding read across branches, and analyzed loop headers
-can justify their carrier reads. Bounded HIR emission and verification now
-cover at most two natural loops with typed `i64` carriers; general CFG and the
-source-backed native nested-loop witness remain open.
+can justify their carrier reads. Bounded HIR emission and verification cover at
+most two natural loops with typed `i64` carriers, and the pinned nested-loop,
+terminal-return and single-loop conditional-early-return shapes now execute as
+public native products. General CFG, nested early returns and other carrier
+types remain open.
 
 Ranks order the next integration proof, not a prohibition on parallel work. The
 fundamental `i8`–`u64` and `f32`/`f64` scalar path must feed ranks 2–3, but
