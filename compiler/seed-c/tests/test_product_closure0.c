@@ -58,6 +58,8 @@ typedef struct {
   w_seed_product_closure0_type_fact type_facts[PRODUCT_TYPES];
   w_seed_product_closure0_requirement_fact requirement_facts[
       PRODUCT_REQUIREMENTS];
+  w_seed_product_closure0_checked_fault_operation checked_fault_operations[
+      PRODUCT_VALUES];
 } product_storage;
 
 static w_seed_product_closure0_output product_output(product_storage *storage) {
@@ -103,7 +105,9 @@ static w_seed_product_closure0_output product_output(product_storage *storage) {
       .type_facts = storage->type_facts,
       .type_fact_capacity = PRODUCT_TYPES,
       .requirement_facts = storage->requirement_facts,
-      .requirement_fact_capacity = PRODUCT_REQUIREMENTS};
+      .requirement_fact_capacity = PRODUCT_REQUIREMENTS,
+      .checked_fault_operations = storage->checked_fault_operations,
+      .checked_fault_operation_capacity = PRODUCT_VALUES};
 }
 
 static bool configure_print_host(multidoc_fixture *fixture) {
@@ -991,6 +995,163 @@ static bool test_native_process_numeric_split(void) {
   return true;
 }
 
+static bool test_native_process_checked_local_helper(void) {
+  static const char SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "fn checkedOffset(value: u8): u8 { return value + 255_u8 }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let count = try u8(exactly: args.count)\n"
+      "print(\"Begin ${checkedOffset(value: count)}\")\n"
+      "return .success }\n"
+      "entry(run)\n";
+  static multidoc_fixture fixture;
+  static product_storage storage;
+  static product_storage storage_before;
+  CHECK(prepare_process_fixture(&fixture, SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  const w_seed_product_closure0_input input =
+      {program, &fixture.hir_result};
+  (void)memset(&storage, 0, sizeof(storage));
+  const w_seed_product_closure0_output output = product_output(&storage);
+  w_seed_product_closure0_result result = {0};
+  CHECK(w_seed_product_closure0_run(&input, &output, &result) ==
+        W_SEED_PRODUCT_CLOSURE0_OK);
+  const uint32_t split_index =
+      program->blocks[program->functions[program->entries[0].target_function]
+                          .first_block]
+          .terminator_index;
+  const w_seed_hir0_terminator *split = &program->terminators[split_index];
+  uint32_t helper_function = W_SEED_HIR0_NONE;
+  for (size_t call_index = 0u; call_index < program->call_count; call_index++) {
+    const w_seed_hir0_call *call = &program->calls[call_index];
+    if (call->callee_identity < program->identity_count &&
+        program->identities[call->callee_identity].kind ==
+            W_SEED_HIR0_IDENTITY_FUNCTION &&
+        program->identities[call->callee_identity].target_index !=
+            program->entries[0].target_function)
+      helper_function =
+          program->identities[call->callee_identity].target_index;
+  }
+  CHECK(helper_function < program->function_count &&
+        result.checked_fault_relation.present &&
+        result.checked_fault_relation.source_conversion_terminator_index ==
+            split_index &&
+        result.checked_fault_relation.normal_successor_block_index ==
+            split->target_block &&
+        result.checked_fault_relation.conversion_failure_status == 1u &&
+        result.checked_fault_relation.arithmetic_failure_status == 2u &&
+        result.checked_fault_relation.operation_count == 1u &&
+        result.required.reachable_checked_fault_operations == 1u);
+  const w_seed_product_closure0_checked_fault_operation saved_operation =
+      storage.checked_fault_operations[0];
+  CHECK(saved_operation.source_value_index < program->value_count &&
+        saved_operation.owner_function_index == helper_function &&
+        saved_operation.type_index < program->type_count &&
+        program->types[saved_operation.type_index].kind ==
+            W_SEED_HIR0_TYPE_INTEGER &&
+        !program->types[saved_operation.type_index].integer_is_signed &&
+        program->types[saved_operation.type_index].integer_bit_width == 8u &&
+        saved_operation.binary_operator == W_SEED_HIR0_BINARY_ADD &&
+        program->values[saved_operation.source_value_index].kind ==
+            W_SEED_HIR0_VALUE_BINARY_U64 &&
+        w_seed_product_closure0_verify(&input, &output, &result));
+
+  const w_seed_product_closure0_result saved_result = result;
+  w_seed_product_closure0_checked_fault_operation mutations[4] = {
+      saved_operation, saved_operation, saved_operation, saved_operation};
+  mutations[0].source_value_index =
+      program->values[saved_operation.source_value_index].left_value;
+  mutations[1].owner_function_index =
+      program->entries[0].target_function;
+  mutations[2].type_index = W_SEED_HIR0_NONE;
+  for (size_t type_index = 0u; type_index < program->type_count; type_index++)
+    if (type_index != saved_operation.type_index) {
+      mutations[2].type_index = (uint32_t)type_index;
+      break;
+    }
+  mutations[3].binary_operator = W_SEED_HIR0_BINARY_SUBTRACT;
+  CHECK(mutations[0].source_value_index < program->value_count &&
+        mutations[0].source_value_index != saved_operation.source_value_index &&
+        mutations[1].owner_function_index < program->function_count &&
+        mutations[1].owner_function_index != saved_operation.owner_function_index &&
+        mutations[2].type_index < program->type_count &&
+        mutations[2].type_index != saved_operation.type_index &&
+        mutations[3].binary_operator != saved_operation.binary_operator);
+  for (size_t mutation_index = 0u; mutation_index < 4u; mutation_index++) {
+    storage.checked_fault_operations[0] = mutations[mutation_index];
+    (void)memcpy(&storage_before, &storage, sizeof(storage));
+    result = saved_result;
+    CHECK(!w_seed_product_closure0_verify(&input, &output, &result) &&
+          memcmp(&storage_before, &storage, sizeof(storage)) == 0 &&
+          memcmp(&result, &saved_result, sizeof(saved_result)) == 0);
+  }
+  storage.checked_fault_operations[0] = saved_operation;
+  result.checked_fault_relation.arithmetic_failure_status = 1u;
+  CHECK(!w_seed_product_closure0_verify(&input, &output, &result));
+  result = saved_result;
+  result.checked_fault_relation.present = false;
+  result.checked_fault_relation.operation_count = 0u;
+  CHECK(!w_seed_product_closure0_verify(&input, &output, &result));
+  result = saved_result;
+  result.checked_fault_relation.normal_successor_block_index =
+      split->else_block;
+  CHECK(!w_seed_product_closure0_verify(&input, &output, &result));
+  result = saved_result;
+  storage.checked_fault_operations[0].binary_operator =
+      W_SEED_HIR0_BINARY_SUBTRACT;
+  CHECK(!w_seed_product_closure0_verify(&input, &output, &result));
+  storage.checked_fault_operations[0] = saved_operation;
+  CHECK(w_seed_product_closure0_verify(&input, &output, &result));
+
+  w_seed_product_closure0_output limited_output = output;
+  limited_output.checked_fault_operation_capacity = 0u;
+  w_seed_product_closure0_result atomic_result = saved_result;
+  (void)memcpy(&storage_before, &storage, sizeof(storage));
+  CHECK(w_seed_product_closure0_run(&input, &limited_output, &atomic_result) ==
+            W_SEED_PRODUCT_CLOSURE0_CAPACITY &&
+        memcmp(&atomic_result, &saved_result, sizeof(saved_result)) == 0 &&
+        memcmp(&storage_before, &storage, sizeof(storage)) == 0);
+  w_seed_product_closure0_output aliased_output = output;
+  aliased_output.checked_fault_operations =
+      (w_seed_product_closure0_checked_fault_operation *)(void *)program->values;
+  aliased_output.checked_fault_operation_capacity = 1u;
+  (void)memcpy(&storage_before, &storage, sizeof(storage));
+  CHECK(w_seed_product_closure0_run(&input, &aliased_output, &atomic_result) ==
+            W_SEED_PRODUCT_CLOSURE0_INVALID &&
+        memcmp(&atomic_result, &saved_result, sizeof(saved_result)) == 0 &&
+        memcmp(&storage_before, &storage, sizeof(storage)) == 0);
+
+  /* Exact same-start and partial byte-range overlap between two published
+   * output projections must reject before changing any output or the result. */
+  aliased_output = output;
+  aliased_output.checked_fault_operations =
+      (w_seed_product_closure0_checked_fault_operation *)(void *)
+          storage.value_facts;
+  aliased_output.checked_fault_operation_capacity = 1u;
+  (void)memcpy(&storage_before, &storage, sizeof(storage));
+  atomic_result = saved_result;
+  CHECK(w_seed_product_closure0_run(&input, &aliased_output, &atomic_result) ==
+            W_SEED_PRODUCT_CLOSURE0_INVALID &&
+        memcmp(&atomic_result, &saved_result, sizeof(saved_result)) == 0 &&
+        memcmp(&storage_before, &storage, sizeof(storage)) == 0);
+
+  aliased_output = output;
+  aliased_output.checked_fault_operations =
+      (w_seed_product_closure0_checked_fault_operation *)(void *)(
+          (unsigned char *)(void *)storage.value_facts +
+          sizeof(storage.value_facts[0]));
+  aliased_output.checked_fault_operation_capacity = 1u;
+  (void)memcpy(&storage_before, &storage, sizeof(storage));
+  atomic_result = saved_result;
+  CHECK(w_seed_product_closure0_run(&input, &aliased_output, &atomic_result) ==
+            W_SEED_PRODUCT_CLOSURE0_INVALID &&
+        memcmp(&atomic_result, &saved_result, sizeof(saved_result)) == 0 &&
+        memcmp(&storage_before, &storage, sizeof(storage)) == 0);
+  return true;
+}
+
 static bool test_native_process_float_rounding_split(void) {
   static const char SOURCE[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
@@ -1675,6 +1836,7 @@ int main(void) {
   if (!test_transaction_barriers()) return 1;
   if (!test_native_process_typed_throw()) return 1;
   if (!test_native_process_numeric_split()) return 1;
+  if (!test_native_process_checked_local_helper()) return 1;
   if (!test_native_process_float_rounding_split()) return 1;
   if (!test_native_process_float_rounding_diamond()) return 1;
   if (!test_direct_float_rounding_product()) return 1;

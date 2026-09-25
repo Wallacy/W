@@ -41,6 +41,11 @@ import {
   U64_MIX_ROUND_RECIPE_CLASS,
   U64_MIX_ROUND_TIMED_INPUT,
   U64_MIX_ROUND_WORKLOAD_ID,
+  CHECKED_INTEGER_HELPER_FAULT_CORRECTNESS_INPUTS,
+  CHECKED_INTEGER_HELPER_FAULT_ORACLE_CASES,
+  CHECKED_INTEGER_HELPER_FAULT_RECIPE_CLASS,
+  CHECKED_INTEGER_HELPER_FAULT_TIMED_INPUT,
+  CHECKED_INTEGER_HELPER_FAULT_WORKLOAD_ID,
   PROCESS_ENTRY0_CORRECTNESS_INPUTS,
   PROCESS_ENTRY0_EXECUTION_KIND,
   PROCESS_ENTRY0_FAULT_CASES,
@@ -653,6 +658,45 @@ test("runtime fixed-integer arithmetic remains correctness-only despite equivale
   assert.ok(EXECUTABLE_RUN_TARGETS.includes(workload.id));
   assert.equal(documents.catalog.bestMetrics.entries.some(
     (entry) => entry.workloadId === workload.id), false);
+});
+
+test("checked integer helper fault is a correctness-only runtime process witness", () => {
+  const workload = documents.catalog.workloads.find(
+    (item) => item.id === CHECKED_INTEGER_HELPER_FAULT_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.benchmarkDisposition, "compiler-lifecycle");
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.equal(workload.oracle.kind, "argument-dependent-output");
+  assert.deepEqual(workload.oracle.timedInput, CHECKED_INTEGER_HELPER_FAULT_TIMED_INPUT);
+  assert.deepEqual(workload.oracle.cases, CHECKED_INTEGER_HELPER_FAULT_ORACLE_CASES);
+  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.arguments),
+    CHECKED_INTEGER_HELPER_FAULT_CORRECTNESS_INPUTS);
+  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.exitCode), [0, 2, 1]);
+  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.stdout),
+    ["Begin 255\n", "", ""]);
+  assert.deepEqual(workload.sources.map((source) => source.language),
+    ["w", "w", "c", "rust"]);
+  assert.deepEqual(workload.sources.slice(0, 2).map((source) => source.platformTarget),
+    [EXECUTABLE_PLATFORM_TARGET, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL]);
+  assert.ok(workload.sources.every((source) =>
+    source.recipeClass === CHECKED_INTEGER_HELPER_FAULT_RECIPE_CLASS));
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.blockers, ["compiler-lifecycle-only"]);
+  assert.ok(EXECUTABLE_RUN_TARGETS.includes(workload.id));
+  assert.equal(documents.catalog.bestMetrics.entries.some(
+    (entry) => entry.workloadId === workload.id), false);
+
+  const w = readFileSync(`${ROOT}/compiler/seed-c/fixtures/checked-integer-helper-fault.w`, "utf8");
+  const c = readFileSync(`${ROOT}/benchmarks/executable/checked_integer_helper_fault.c`, "utf8");
+  const rust = readFileSync(`${ROOT}/benchmarks/executable/checked_integer_helper_fault.rs`, "utf8");
+  assert.match(w, /fn checkedOffset\(value: u8\): u8 \{\s+return value \+ 255_u8/u);
+  assert.match(w, /try u8\(exactly: args\.count\)/u);
+  assert.match(w, /print\("Begin \$\{checkedOffset\(value: count\)\}"\)/u);
+  assert.match(c, /const unsigned int sum = \(unsigned int\)left \+ \(unsigned int\)right/u);
+  assert.match(c, /sum > \(unsigned int\)UINT8_MAX/u);
+  assert.match(rust, /args_os\(\)\.skip\(1\)\.count\(\)/u);
+  assert.match(rust, /value\.checked_add\(rhs\)/u);
+  assert.match(rust, /u8::try_from\(user_argument_count\)/u);
 });
 
 test("local module graph identity covers the complete source set", () => {

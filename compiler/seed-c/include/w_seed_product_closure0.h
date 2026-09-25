@@ -15,7 +15,7 @@ extern "C" {
  * program.  It does not copy HIR records and never owns input storage.  The
  * caller owns every output array and receives source-index to dense-closure
  * remaps (W_SEED_PRODUCT_CLOSURE0_NONE for omitted records). */
-#define W_SEED_PRODUCT_CLOSURE0_SCHEMA_VERSION "w-seed-product-closure0-5"
+#define W_SEED_PRODUCT_CLOSURE0_SCHEMA_VERSION "w-seed-product-closure0-6"
 #define W_SEED_PRODUCT_CLOSURE0_NONE UINT32_MAX
 #define W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES 32u
 #define W_SEED_PRODUCT_CLOSURE0_MAX_MODULES 32u
@@ -127,6 +127,7 @@ typedef struct {
   size_t reachable_requirements;
   size_t reachable_external_modules;
   size_t reachable_external_symbols;
+  size_t reachable_checked_fault_operations;
   /* Remap arrays are source-indexed, so these requirements are the complete
    * source array lengths rather than just the number of retained records. */
   size_t module_remap;
@@ -159,6 +160,29 @@ typedef struct {
   uint32_t closure_index;
   uint32_t owner_identity;
 } w_seed_product_closure0_requirement_fact;
+
+/* A checked operation is an independently published arithmetic-fault edge
+ * fact. Source indices are retained for adapter use; owner/type/operator are
+ * re-derived from verified HIR during ProductClosure verification. */
+typedef struct {
+  uint32_t source_value_index;
+  uint32_t owner_function_index;
+  uint32_t type_index;
+  w_seed_hir0_binary_operator binary_operator;
+} w_seed_product_closure0_checked_fault_operation;
+
+/* This relation is separate from NumericConversionError: the conversion's
+ * typed failure is status 1, while each reachable checked integer operation
+ * reached after the conversion's normal edge maps to status 2. */
+typedef struct {
+  bool present;
+  uint32_t source_conversion_terminator_index;
+  uint32_t normal_successor_block_index;
+  uint32_t conversion_failure_status;
+  uint32_t arithmetic_failure_status;
+  size_t operation_count;
+  uint8_t operation_digest[W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES];
+} w_seed_product_closure0_checked_fault_relation;
 
 typedef struct {
   /* Retained and omitted source indices are always in ascending declaration
@@ -212,6 +236,8 @@ typedef struct {
   size_t type_fact_capacity;
   w_seed_product_closure0_requirement_fact *requirement_facts;
   size_t requirement_fact_capacity;
+  w_seed_product_closure0_checked_fault_operation *checked_fault_operations;
+  size_t checked_fault_operation_capacity;
 } w_seed_product_closure0_output;
 
 typedef struct {
@@ -228,6 +254,7 @@ typedef struct {
   w_seed_product_closure0_outcome outcome;
   w_seed_product_closure0_outcome non_finite_outcome;
   w_seed_product_closure0_outcome out_of_range_outcome;
+  w_seed_product_closure0_checked_fault_relation checked_fault_relation;
   uint8_t reachable_semantic_digest[W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES];
 } w_seed_product_closure0_result;
 

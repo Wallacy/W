@@ -189,6 +189,7 @@ static const w_seed_mlir0_target WINDOWS_TARGET = {
 static bool process_frontend_mode;
 static bool process_input_frontend_mode;
 static bool process_input_float_rounding_mode;
+static bool process_input_checked_integer_helper_mode;
 static void configure_process_external(void);
 static void configure_process_input_external(void);
 static bool resolve_process_import(void);
@@ -619,7 +620,9 @@ static bool lower_process_hir(const uint8_t *source_bytes,
       process_input_frontend_mode ? 7u : 4u;
   const size_t expected_types =
       (process_input_frontend_mode
-           ? (process_input_float_rounding_mode ? 11u : 8u)
+           ? (process_input_float_rounding_mode
+                  ? 11u
+                  : (process_input_checked_integer_helper_mode ? 10u : 8u))
            : 7u) +
       (has_panic ? 1u : 0u);
   CHECK(counts.external_modules == 1u &&
@@ -652,7 +655,11 @@ static bool lower_process_input_hir(const uint8_t *source_bytes,
   return fixture.hir_program.external_module_count == 1u &&
          fixture.hir_program.external_symbol_count == 7u &&
          fixture.hir_program.type_count ==
-             (float_rounding ? 11u : (has_never ? 9u : 8u));
+             (float_rounding
+                  ? 11u
+                  : (process_input_checked_integer_helper_mode
+                         ? 10u
+                         : (has_never ? 9u : 8u)));
 }
 
 static w_seed_mlir0_input mlir_input(void) {
@@ -1011,6 +1018,171 @@ static bool test_process_panic_mlir(void) {
                        "    llvm.unreachable\n") &&
         !contains_bytes(artifact, result.written.mlir_bytes, "process branch"));
 
+  return true;
+}
+
+static bool test_process_checked_integer_helper_fault_mlir(void) {
+  static const uint8_t source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "fn checkedOffset(value: u8): u8 { return value + 255_u8 }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let count = try u8(exactly: args.count)\n"
+      "print(\"Begin ${checkedOffset(value: count)}\")\n"
+      "return .success }\n"
+      "entry(run)\n";
+  process_input_checked_integer_helper_mode = true;
+  const bool lowered =
+      lower_process_input_hir(source, sizeof(source) - 1u);
+  process_input_checked_integer_helper_mode = false;
+  CHECK(lowered);
+  const w_seed_mlir0_input input = {
+      &fixture.hir_program, &fixture.hir_result,
+      W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE};
+  w_seed_native_subset0_process selection;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_integer_exactly &&
+        selection.checked_fault_relation.present &&
+        selection.checked_fault_relation.conversion_failure_status == 1u &&
+        selection.checked_fault_relation.arithmetic_failure_status == 2u &&
+        selection.checked_fault_relation.operation_count == 1u &&
+        w_seed_native_subset0_verify_process_checked_fault_relation(
+            &fixture.hir_program, &fixture.hir_result, &selection));
+  w_seed_native_subset0_process forged_selection = selection;
+  forged_selection.checked_fault_relation.arithmetic_failure_status = 1u;
+  CHECK(!w_seed_native_subset0_verify_process_checked_fault_relation(
+      &fixture.hir_program, &fixture.hir_result, &forged_selection));
+  forged_selection = selection;
+  (void)memset(&forged_selection.checked_fault_relation, 0,
+               sizeof(forged_selection.checked_fault_relation));
+  forged_selection.checked_fault_relation.source_conversion_terminator_index =
+      W_SEED_HIR0_NONE;
+  forged_selection.checked_fault_relation.normal_successor_block_index =
+      W_SEED_HIR0_NONE;
+  CHECK(!w_seed_native_subset0_verify_process_checked_fault_relation(
+      &fixture.hir_program, &fixture.hir_result, &forged_selection));
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result result;
+  CHECK(w_seed_mlir0_measure(&input, &TARGET, &counts, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(result.written.mlir_bytes == counts.mlir_bytes);
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes,
+                       "@w_seed_process_checked_add_u64(%left: i64, %right: i64, %width: i64, %fault: !llvm.ptr) -> i64"));
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.store %process_fault_one, %fault : i64, !llvm.ptr"));
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes,
+                       ", %fault_address) : (i64, i64, i64, !llvm.ptr) -> i64"));
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes,
+                       "%process_checked_fault_status = llvm.mlir.constant(2 : i32)"));
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.store %process_zero, %process_fault_address"));
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes,
+                       "\\42\\65\\67\\69\\6e\\20"));
+  CHECK(!contains_bytes(artifact, result.written.mlir_bytes,
+                        "@w_seed_checked_add_u64"));
+  CHECK(!contains_bytes(artifact, result.written.mlir_bytes,
+                        "llvm.intr.trap"));
+  size_t context_release = find_bytes(
+      artifact, result.written.mlir_bytes,
+      "llvm.call @w_seed_process_context_drop(", 0u);
+  size_t arguments_release = find_bytes(
+      artifact, result.written.mlir_bytes,
+      "llvm.call @w_seed_process_arguments_drop(", 0u);
+  size_t root_finalize = find_bytes(
+      artifact, result.written.mlir_bytes,
+      "llvm.call @w_seed_process_root_finalize(", 0u);
+  size_t stdout_write = find_bytes(artifact, result.written.mlir_bytes,
+                                   "llvm.call @write(", 0u);
+  CHECK(count_bytes(artifact, result.written.mlir_bytes,
+                    "llvm.call @w_seed_process_context_drop(") == 1u &&
+        count_bytes(artifact, result.written.mlir_bytes,
+                    "llvm.call @w_seed_process_arguments_drop(") == 1u &&
+        count_bytes(artifact, result.written.mlir_bytes,
+                    "llvm.call @w_seed_process_root_finalize(") == 1u &&
+        context_release < arguments_release &&
+        arguments_release < root_finalize && root_finalize < stdout_write);
+  CHECK(w_seed_mlir0_measure(&input, &WINDOWS_TARGET, &counts, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &input, &WINDOWS_TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(result.written.mlir_bytes == counts.mlir_bytes);
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes,
+                       "@w_seed_process_checked_add_u64(%left: i64, %right: i64, %width: i64, %fault: !llvm.ptr) -> i64"));
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.store %process_fault_one, %fault : i64, !llvm.ptr"));
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes,
+                       ", %fault_address) : (i64, i64, i64, !llvm.ptr) -> i64"));
+  CHECK(!contains_bytes(artifact, result.written.mlir_bytes,
+                        "@w_seed_checked_add_u64"));
+  CHECK(!contains_bytes(artifact, result.written.mlir_bytes,
+                        "llvm.intr.trap"));
+  context_release = find_bytes(artifact, result.written.mlir_bytes,
+                               "llvm.call @w_seed_process_context_drop(",
+                               0u);
+  arguments_release = find_bytes(
+      artifact, result.written.mlir_bytes,
+      "llvm.call @w_seed_process_arguments_drop(", 0u);
+  root_finalize = find_bytes(
+      artifact, result.written.mlir_bytes,
+      "llvm.call @w_seed_process_root_finalize(", 0u);
+  stdout_write = find_bytes(artifact, result.written.mlir_bytes,
+                            "llvm.call @write(", 0u);
+  CHECK(count_bytes(artifact, result.written.mlir_bytes,
+                    "llvm.call @w_seed_process_context_drop(") == 1u &&
+        count_bytes(artifact, result.written.mlir_bytes,
+                    "llvm.call @w_seed_process_arguments_drop(") == 1u &&
+        count_bytes(artifact, result.written.mlir_bytes,
+                    "llvm.call @w_seed_process_root_finalize(") == 1u &&
+        context_release < arguments_release &&
+        arguments_release < root_finalize && root_finalize < stdout_write);
+
+  static const uint8_t signed_source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "fn checkedOffset(value: i8): i8 { return value + 127_i8 }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let count = try i8(exactly: args.count)\n"
+      "print(\"Begin ${checkedOffset(value: count)}\")\n"
+      "return .success }\n"
+      "entry(run)\n";
+  process_input_checked_integer_helper_mode = true;
+  const bool signed_lowered =
+      lower_process_input_hir(signed_source, sizeof(signed_source) - 1u);
+  process_input_checked_integer_helper_mode = false;
+  CHECK(signed_lowered);
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.checked_fault_relation.present &&
+        selection.checked_fault_relation.operation_count == 1u);
+  const w_seed_mlir0_input signed_input = {
+      &fixture.hir_program, &fixture.hir_result,
+      W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE};
+  CHECK(w_seed_mlir0_measure(&signed_input, &TARGET, &counts, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &signed_input, &TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes,
+                       "@w_seed_process_checked_add_i64(%left: i64, %right: i64, %width: i64, %fault: !llvm.ptr) -> i64"));
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes,
+                       ", %fault_address) : (i64, i64, i64, !llvm.ptr) -> i64"));
+  CHECK(!contains_bytes(artifact, result.written.mlir_bytes,
+                        "@w_seed_checked_add_i64"));
+  CHECK(!contains_bytes(artifact, result.written.mlir_bytes,
+                        "llvm.intr.trap"));
   return true;
 }
 
@@ -9312,6 +9484,7 @@ int main(int argc, char **argv) {
   if (argc != 1) return 2;
   if (!test_reachable_panic_mlir()) return 1;
   if (!test_process_panic_mlir()) return 1;
+  if (!test_process_checked_integer_helper_fault_mlir()) return 1;
   if (!test_process_float_rounding_native_subset()) return 1;
   if (!test_process_float_rounding_join_mlir()) return 1;
   if (!test_process_hir_is_closed_to_mlir()) return 1;

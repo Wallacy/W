@@ -445,9 +445,18 @@ arithmetic as cleanup-safe. A numeric fault boundary can be promoted only when
 the maintained W route also proves exactly-once teardown for every resource
 that can reach that boundary; a catalog label or compiler-owned subset does not
 cover custom allocators, foreign owners/leases, or callback/provider resources.
-Next propagate the same distinct outcome through local calls and general CFG,
-cover unsigned and shift/power policies, and make ProductClosure publish the
-fault relation before replacing remaining trap-only routes.
+The next bounded step adds one source-local synchronous helper with one checked
+unsigned `u8` addition after the existing exact `args.count -> u8` split.
+ProductClosure now publishes the reachable operation facts (value, owner,
+type, operator); NativeSubset carries and reauthenticates them; process-aware
+MLIR lowering threads the private fault slot through that helper. Zero user
+arguments print `Begin 255\n`, one reaches status 2, and 256 reaches typed
+conversion status 1; every failure keeps stdout/stderr empty after
+`Context`-then-`Arguments` release and root finalization. C23/Rust are independent
+correctness oracles only, and the witness is compiler-lifecycle evidence with
+no performance row. It does not enable general CFG, shifts/power process
+faults, user cleanup, or broader unsigned runtime claims; those remain later
+ranked work.
 
 The first target-layout evidence slice now binds the exact Windows MSVC x64 and
 Linux GNU x64 LLVM data layouts to explicit toolchain identity. It validates

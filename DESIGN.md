@@ -43290,12 +43290,26 @@ stdout for counts 0 and 126, empty stdout/stderr for both abnormal outcomes,
 and their distinct statuses. The C23 and Rust references mirror the same
 observable cases as correctness oracles; no timing row is introduced.
 
+The separate neutral
+[`checked-integer-helper-fault.w`](compiler/seed-c/fixtures/checked-integer-helper-fault.w)
+witness carries the same outcome distinction through the existing exact `u8`
+conversion and one synchronous local helper performing checked unsigned
+`value + 255_u8`. Zero user arguments print exactly `Begin 255\n`; one reaches
+status 2; 256 fails conversion first with status 1. ProductClosure0 publishes
+facts for reachable checked values and their source value, owner function,
+integer type, and operator. NativeSubset0 carries and reauthenticates that
+relation, while process-aware MLIR threads the fault slot through the helper.
+Both failures retain empty stdout/stderr after compiler-owned release,
+finalization, and normal-only buffer publication. Independent C23 and Rust
+2024 references check the same runtime cases without relying on C overflow.
+
 This is a deliberately bounded implementation claim. It does not cover
-unsigned checked helpers, shifts, power, local-call propagation, general CFG,
-arbitrary effects after a fault, user cleanup, a public `PanicEvent`, general
-ProductClosure fault outcomes, or other hosts/targets. Those routes continue
-to fail closed or use their existing trap boundary until they carry an
-equivalent structured outcome. `benchmarkDisposition: compiler-lifecycle`.
+general helper graphs, result-bearing conditional joins, shifts/power at the
+process boundary, arbitrary effects after a fault, general CFG, user cleanup,
+a public `PanicEvent`, or other hosts/targets. Shift/power process lowering
+remains fail-closed; general ProductClosure fault outcomes and cleanup-safe
+user resources are not claimed. This is compiler-lifecycle evidence with no
+performance row. `benchmarkDisposition: compiler-lifecycle`.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

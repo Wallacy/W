@@ -12923,6 +12923,22 @@ static bool test_process_integer_exactly_observation_hir(void) {
   return true;
 }
 
+static bool test_process_checked_local_helper_interpolation_hir(void) {
+  static const char SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "fn checkedOffset(value: u8): u8 { return value + 255_u8 }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let count = try u8(exactly: args.count)\n"
+      "print(\"Begin ${checkedOffset(value: count)}\")\n"
+      "return .success }\n"
+      "entry(run)\n";
+  CHECK(lower_process_input0_generic(SOURCE));
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_process_float_rounding_hir(void) {
   static const char SOURCE[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
@@ -22388,6 +22404,7 @@ int main(int argc, char **argv) {
   if (!test_float_to_integer_rounding_hir()) return 1;
   if (!test_integer_exactly_continuation_hir()) return 1;
   if (!test_process_integer_exactly_observation_hir()) return 1;
+  if (!test_process_checked_local_helper_interpolation_hir()) return 1;
   if (!test_process_float_rounding_hir()) return 1;
   if (!test_process_float_rounding_hir_constant()) return 1;
   if (!test_local_enum_payload_declarations_hir()) return 1;

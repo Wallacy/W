@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:f909e4307e7e27fb084f6f7d85c187871aceb1c3b34aa35215b32b43f0bbb289",
+  "corpusDigest": "sha256:61427ebe57a6565cf5e6d62b5750d20aabd160ffd0d51a252a38d71ee6ae014a",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -6641,6 +6641,66 @@
       ]
     },
     {
+      "id": "R0-hir25-enum-cfg-value-flow",
+      "task": {
+        "utf8Bytes": 208,
+        "codePoints": 208,
+        "nonWhitespaceCodePoints": 179,
+        "lines": 1,
+        "surfaceLexemes": 39
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:93b750583e96db821aad6efbfb8a016289c0abcd6fd249219ec7de4074bd0704",
+        "metrics": {
+          "utf8Bytes": 588,
+          "codePoints": 588,
+          "nonWhitespaceCodePoints": 478,
+          "lines": 21,
+          "surfaceLexemes": 142
+        }
+      },
+      "alternatives": [
+        {
+          "name": "process-specific-selector",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:6c8ac0e7ea9abc0f944581f12755758add214074962f1d76d1360bbeac302dde",
+          "metrics": {
+            "utf8Bytes": 74,
+            "codePoints": 74,
+            "nonWhitespaceCodePoints": 64,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "source-shape-recognizer",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:2d17ef35748abc010762886d85e6069d4ebe34dd5ee6137e773fcb9062a553e1",
+          "metrics": {
+            "utf8Bytes": 88,
+            "codePoints": 88,
+            "nonWhitespaceCodePoints": 74,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        },
+        {
+          "name": "raw-tag-or-precomputed-output",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:68a4d28a2c5c482c2781b443b3687defc1d016a799e16577691cea2e03d8a769",
+          "metrics": {
+            "utf8Bytes": 57,
+            "codePoints": 57,
+            "nonWhitespaceCodePoints": 48,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        }
+      ]
+    },
+    {
       "id": "R0-hir22-same-module-product-closure",
       "task": {
         "utf8Bytes": 133,
@@ -12127,22 +12187,22 @@
     {
       "id": "R0-native-process-checked-numeric-fault",
       "task": {
-        "utf8Bytes": 419,
-        "codePoints": 419,
-        "nonWhitespaceCodePoints": 366,
+        "utf8Bytes": 711,
+        "codePoints": 711,
+        "nonWhitespaceCodePoints": 623,
         "lines": 1,
-        "surfaceLexemes": 75
+        "surfaceLexemes": 123
       },
       "selected": {
         "name": "selected",
         "language": "w",
-        "sourceDigest": "sha256:8ee85b81e926f98d63675accaa3a8042eb6008b569ea6792d26e09fa3b5ace81",
+        "sourceDigest": "sha256:de073a875f1c4149b1e099e038595ea699bd865df17542f57e89837ad62d7f98",
         "metrics": {
-          "utf8Bytes": 81,
-          "codePoints": 81,
-          "nonWhitespaceCodePoints": 72,
-          "lines": 2,
-          "surfaceLexemes": 16
+          "utf8Bytes": 143,
+          "codePoints": 143,
+          "nonWhitespaceCodePoints": 125,
+          "lines": 3,
+          "surfaceLexemes": 32
         }
       },
       "alternatives": [
@@ -12173,13 +12233,13 @@
         {
           "name": "premature-general-panic-runtime",
           "language": "w-internal-rejected",
-          "sourceDigest": "sha256:004d13045e2095ce08f9787276a715ab0b9663030682e000b50bf919715b1236",
+          "sourceDigest": "sha256:b5667dd796299d0a0de15d7a6a64fc8f5f3a7871ed9e87cc23ed3cc27f989aa3",
           "metrics": {
-            "utf8Bytes": 107,
-            "codePoints": 107,
-            "nonWhitespaceCodePoints": 93,
+            "utf8Bytes": 106,
+            "codePoints": 106,
+            "nonWhitespaceCodePoints": 91,
             "lines": 1,
-            "surfaceLexemes": 20
+            "surfaceLexemes": 19
           }
         }
       ]

@@ -85,6 +85,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "process-entry",
   "fixed-integer-runtime-arithmetic",
   "u64-mix-round",
+  "checked-integer-helper-fault",
   "float-integer-rounding",
   "process-enum-payload",
   "process-arguments-count",
@@ -116,6 +117,7 @@ const WORKLOAD_FAMILY_ROWS = Object.freeze({
     "uint-overflowing-family", "uint-saturating-policy",
     "fixed-integer-bit-primitives", "uint-bitwise", "uint-compound",
     "unsigned", "fixed-integer-runtime-arithmetic", "u64-mix-round",
+    "checked-integer-helper-fault",
   ]),
   "value-aggregates": Object.freeze(["flat-value-aggregates"]),
   "floating-point": Object.freeze([
@@ -306,6 +308,8 @@ const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
   "compiler/seed-c/fixtures/process-arguments-ordering.w": "process-arguments-ordering",
   "compiler/seed-c/fixtures/process-integer-exact-success.w": "fixed-integer-runtime-arithmetic",
   "compiler/seed-c/fixtures/process-integer-exact-error.w": "fixed-integer-runtime-arithmetic",
+  "compiler/seed-c/fixtures/checked-integer-helper-fault.w":
+    "checked-integer-helper-fault",
   "compiler/seed-c/fixtures/process-float-rounding-success.w": "float-integer-rounding",
   "compiler/seed-c/fixtures/process-float-rounding-error.w": "float-integer-rounding",
   "compiler/seed-c/fixtures/terminal-returns.w": "terminal-returns",
@@ -435,6 +439,21 @@ export const FIXED_INTEGER_RUNTIME_ARITHMETIC_ORACLE_CASES = Object.freeze([
   Object.freeze({ arguments: FIXED_INTEGER_RUNTIME_ARITHMETIC_CORRECTNESS_INPUTS[1], exitCode: 2, stdout: "", stderr: "" }),
   Object.freeze({ arguments: FIXED_INTEGER_RUNTIME_ARITHMETIC_CORRECTNESS_INPUTS[2], exitCode: 1, stdout: "", stderr: "" }),
 ]);
+export const CHECKED_INTEGER_HELPER_FAULT_WORKLOAD_ID =
+  "checked-integer-helper-fault";
+export const CHECKED_INTEGER_HELPER_FAULT_RECIPE_CLASS =
+  "checked-integer-helper-fault-release";
+export const CHECKED_INTEGER_HELPER_FAULT_TIMED_INPUT = Object.freeze([]);
+export const CHECKED_INTEGER_HELPER_FAULT_CORRECTNESS_INPUTS = Object.freeze([
+  CHECKED_INTEGER_HELPER_FAULT_TIMED_INPUT,
+  Object.freeze(["x"]),
+  Object.freeze(Array.from({ length: 256 }, () => "x")),
+]);
+export const CHECKED_INTEGER_HELPER_FAULT_ORACLE_CASES = Object.freeze([
+  Object.freeze({ arguments: CHECKED_INTEGER_HELPER_FAULT_CORRECTNESS_INPUTS[0], exitCode: 0, stdout: "Begin 255\n", stderr: "" }),
+  Object.freeze({ arguments: CHECKED_INTEGER_HELPER_FAULT_CORRECTNESS_INPUTS[1], exitCode: 2, stdout: "", stderr: "" }),
+  Object.freeze({ arguments: CHECKED_INTEGER_HELPER_FAULT_CORRECTNESS_INPUTS[2], exitCode: 1, stdout: "", stderr: "" }),
+]);
 export const U64_MIX_ROUND_WORKLOAD_ID = "u64-mix-round";
 export const U64_MIX_ROUND_ORACLE_KIND = PROCESS_ENTRY_ORACLE_KIND;
 export const U64_MIX_ROUND_RECIPE_CLASS = "u64-mix-round-release";
@@ -480,6 +499,12 @@ const PROCESS_ARGUMENT_ORACLE_CONTRACTS = Object.freeze({
     correctnessInputs: FIXED_INTEGER_RUNTIME_ARITHMETIC_CORRECTNESS_INPUTS,
     cases: FIXED_INTEGER_RUNTIME_ARITHMETIC_ORACLE_CASES,
   }),
+  [CHECKED_INTEGER_HELPER_FAULT_WORKLOAD_ID]: Object.freeze({
+    kind: PROCESS_ENTRY_ORACLE_KIND,
+    timedInput: CHECKED_INTEGER_HELPER_FAULT_TIMED_INPUT,
+    correctnessInputs: CHECKED_INTEGER_HELPER_FAULT_CORRECTNESS_INPUTS,
+    cases: CHECKED_INTEGER_HELPER_FAULT_ORACLE_CASES,
+  }),
   [U64_MIX_ROUND_WORKLOAD_ID]: Object.freeze({
     kind: U64_MIX_ROUND_ORACLE_KIND,
     timedInput: U64_MIX_ROUND_TIMED_INPUT,
@@ -493,6 +518,7 @@ export const PROCESS_ARGUMENT_WORKLOAD_IDS = Object.freeze([
   PROCESS_ARGUMENTS_COUNT_WORKLOAD_ID,
   PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID,
   FIXED_INTEGER_RUNTIME_ARITHMETIC_WORKLOAD_ID,
+  CHECKED_INTEGER_HELPER_FAULT_WORKLOAD_ID,
   U64_MIX_ROUND_WORKLOAD_ID,
 ]);
 export const FLOAT_STRICT_WORKLOAD_ID = "float-strict";
@@ -1244,6 +1270,7 @@ function checkSource(source, location, workload, root, errors) {
   if (workload?.id === PROCESS_ARGUMENTS_COUNT_WORKLOAD_ID && source.recipeClass !== PROCESS_ARGUMENTS_COUNT_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-arguments-count release class.");
   if (workload?.id === PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID && source.recipeClass !== PROCESS_ARGUMENTS_ORDERING_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-arguments-ordering release class.");
   if (workload?.id === FIXED_INTEGER_RUNTIME_ARITHMETIC_WORKLOAD_ID && source.recipeClass !== FIXED_INTEGER_RUNTIME_ARITHMETIC_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the fixed-integer runtime arithmetic release class.");
+  if (workload?.id === CHECKED_INTEGER_HELPER_FAULT_WORKLOAD_ID && source.recipeClass !== CHECKED_INTEGER_HELPER_FAULT_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the checked-integer helper fault release class.");
   if (workload?.id === FLOAT_INTEGER_ROUNDING_WORKLOAD_ID && source.recipeClass !== FLOAT_INTEGER_ROUNDING_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the float-integer rounding release class.");
   if (source.status !== "source-oracle-ready") push(errors, location + ".status must be source-oracle-ready for a materialized source.");
   if (!MEASUREMENT_PROFILES.includes(source.profile) || source.profile !== "release") push(errors, location + ".profile must be release for M3a sources.");

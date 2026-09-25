@@ -7,6 +7,7 @@
 #include "w_seed_cooperative_selection0.h"
 #include "w_seed_hir0.h"
 #include "w_seed_parallel_selection0.h"
+#include "w_seed_product_closure0.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -159,6 +160,9 @@ typedef struct {
    * accepting a concrete target. */
   bool exact_source_is_target_usize;
   bool has_integer_exactly;
+  /* ProductClosure-authenticated checked arithmetic relation for operations
+   * reachable after the exact-conversion normal edge. */
+  w_seed_product_closure0_checked_fault_relation checked_fault_relation;
   /* The bounded native-process rounding root is a separate typed-error
    * relation.  These borrowed HIR facts preserve the source constant, the
    * three typed successor roles, and the closed rounding/type facts without
@@ -309,6 +313,13 @@ w_seed_native_subset0_select_process_executable(
     const w_seed_hir0_program *program,
     const w_seed_hir0_result *hir_result,
     w_seed_native_subset0_process *selection);
+
+/* Re-check the copied fault relation at downstream artifact boundaries by
+ * reusing ProductClosure's generic verified-HIR relation derivation. */
+bool w_seed_native_subset0_verify_process_checked_fault_relation(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    const w_seed_native_subset0_process *selection);
 
 /* Select the same complete process-input witness while admitting exactly one
  * independently verified PARSEL0 parallel dispatch in its root body. The

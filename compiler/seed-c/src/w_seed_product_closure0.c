@@ -16,6 +16,7 @@ typedef struct {
   bool identities[W_SEED_PRODUCT_CLOSURE0_MAX_IDENTITIES];
   bool types[W_SEED_PRODUCT_CLOSURE0_MAX_TYPES];
   bool values[W_SEED_PRODUCT_CLOSURE0_MAX_VALUES];
+  bool checked_fault_values[W_SEED_PRODUCT_CLOSURE0_MAX_VALUES];
   bool requirements[W_SEED_PRODUCT_CLOSURE0_MAX_REQUIREMENTS];
   bool external_modules[W_SEED_PRODUCT_CLOSURE0_MAX_EXTERNAL_MODULES];
   bool external_symbols[W_SEED_PRODUCT_CLOSURE0_MAX_EXTERNAL_SYMBOLS];
@@ -37,8 +38,12 @@ typedef struct {
   w_seed_product_closure0_outcome outcome;
   w_seed_product_closure0_outcome non_finite_outcome;
   w_seed_product_closure0_outcome out_of_range_outcome;
+  w_seed_product_closure0_checked_fault_relation checked_fault_relation;
   uint8_t digest[W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES];
 } closure0_plan;
+
+static uint32_t value_owner_function(const w_seed_hir0_program *program,
+                                     uint32_t value_index);
 
 static bool size_mul(size_t left, size_t right, size_t *out) {
   if (out == NULL || (right != 0u && left > SIZE_MAX / right)) return false;
@@ -84,6 +89,50 @@ static bool text_is(const w_seed_hir0_program *program, w_seed_hir0_text text,
   return text.count == length && text_valid(program, text) &&
          (length == 0u ||
           memcmp(program->text_bytes + text.offset, literal, length) == 0);
+}
+
+static bool product_checked_fault_operator(
+    w_seed_hir0_binary_operator operation) {
+  return operation == W_SEED_HIR0_BINARY_ADD ||
+         operation == W_SEED_HIR0_BINARY_SUBTRACT ||
+         operation == W_SEED_HIR0_BINARY_MULTIPLY ||
+         operation == W_SEED_HIR0_BINARY_DIVIDE ||
+         operation == W_SEED_HIR0_BINARY_REMAINDER ||
+         operation == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
+         operation == W_SEED_HIR0_BINARY_SHIFT_RIGHT ||
+         operation == W_SEED_HIR0_BINARY_POWER;
+}
+
+/* HIR verification owns operand typing and operation-shape invariants. This
+ * predicate classifies only the ordinary integer operations whose verified
+ * evaluation has a checked arithmetic-fault edge. */
+static bool product_checked_fault_value(const w_seed_hir0_value *value) {
+  return value != NULL &&
+         (value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
+          value->kind == W_SEED_HIR0_VALUE_BINARY_U64) &&
+         product_checked_fault_operator(value->binary_operator);
+}
+
+static bool product_numeric_integer_type(const w_seed_hir0_program *program,
+                                         uint32_t type_index) {
+  return program != NULL && type_index < program->type_count &&
+         (program->types[type_index].kind == W_SEED_HIR0_TYPE_INTEGER ||
+          program->types[type_index].kind == W_SEED_HIR0_TYPE_I64 ||
+          program->types[type_index].kind == W_SEED_HIR0_TYPE_U64);
+}
+
+static bool plan_has_integer_exact_process_root(
+    const closure0_plan *plan, const w_seed_hir0_program *program) {
+  return plan != NULL && program != NULL &&
+         plan->root.adapter_kind ==
+             W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS &&
+         plan->normal_outcome.kind ==
+             W_SEED_PRODUCT_CLOSURE0_OUTCOME_NORMAL &&
+         plan->normal_outcome.source_terminator_index <
+             program->terminator_count &&
+         program->terminators[
+             plan->normal_outcome.source_terminator_index]
+                 .kind == W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY;
 }
 
 static bool host_print_identity_valid(const w_seed_hir0_program *program,
@@ -430,13 +479,14 @@ static bool typed_process_numeric_exact_root_supported(
       (program->types[program->values[split_term->value_index].type_index].kind !=
                W_SEED_HIR0_TYPE_INTEGER &&
        program->types[program->values[split_term->value_index].type_index].kind !=
-           W_SEED_HIR0_TYPE_I64) ||
+           W_SEED_HIR0_TYPE_I64 &&
+       program->types[program->values[split_term->value_index].type_index].kind !=
+           W_SEED_HIR0_TYPE_USIZE) ||
       split_term->result_type >= program->type_count ||
       program->types[split_term->result_type].kind !=
           W_SEED_HIR0_TYPE_INTEGER)
     return false;
-  if ((normal->instruction_count != 1u &&
-       normal->instruction_count != 2u) ||
+  if (normal->instruction_count == 0u ||
       error->instruction_count != 0u ||
       normal->first_instruction >= program->instruction_count ||
       normal->instruction_count >
@@ -463,33 +513,6 @@ static bool typed_process_numeric_exact_root_supported(
       initializer->type_index != split_term->result_type ||
       initializer->block_argument_index != normal->first_block_argument)
     return false;
-  if (normal->instruction_count == 2u) {
-    const w_seed_hir0_instruction *observation = instruction + 1;
-    if (observation->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
-        observation->owner_block != normal_block ||
-        observation->ordinal != 1u ||
-        observation->call_index >= program->call_count)
-      return false;
-    const w_seed_hir0_call *print = &program->calls[observation->call_index];
-    if (print->owner_instruction != normal->first_instruction + 1u ||
-        print->owner_terminator != W_SEED_HIR0_NONE ||
-        print->owner_block != normal_block || print->ordinal != 1u ||
-        print->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
-        print->placement != W_SEED_HIR0_CALL_PLACEMENT_NONE ||
-        !host_print_identity_valid(program, print->callee_identity) ||
-        print->first_argument >= program->argument_count ||
-        print->argument_count != 1u || print->result_type != 0u)
-      return false;
-    const w_seed_hir0_argument *message =
-        &program->arguments[print->first_argument];
-    if (message->owner_call != observation->call_index ||
-        message->ordinal != 0u || message->parameter_ordinal != 0u ||
-        message->type_index != W_SEED_HIR0_TYPE_STRING ||
-        message->value_index >= program->value_count ||
-        program->values[message->value_index].kind !=
-            W_SEED_HIR0_VALUE_INTERPOLATED_STRING)
-      return false;
-  }
   if (normal->terminator_index >= program->terminator_count ||
       error->terminator_index >= program->terminator_count)
     return false;
@@ -1449,6 +1472,11 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
                   W_SEED_HIR0_TERMINATOR_THROW
           ? program->terminators[root_terminator].value_index
           : W_SEED_HIR0_NONE;
+  const bool typed_numeric_root =
+      typed_throw_root && root_function < program->function_count &&
+      program->functions[root_function].error_type < program->type_count &&
+      program->types[program->functions[root_function].error_type].kind ==
+          W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR;
   for (size_t function = 0u; function < program->function_count; function += 1u) {
     const w_seed_hir0_function *item = &program->functions[function];
     const bool is_typed_root = typed_throw_root && function == root_function;
@@ -1457,31 +1485,35 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
         item->return_type >= program->type_count || item->block_count == 0u)
       return false;
     if (!is_typed_root) {
+      const bool numeric_integer_return =
+          typed_numeric_root &&
+          product_numeric_integer_type(program, item->return_type);
       if ((item->return_type >= 4u &&
-           (typed_throw_root ||
-            !product_flat_aggregate_type_supported(program,
-                                                   item->return_type))) ||
+           (!numeric_integer_return &&
+            (typed_throw_root ||
+             !product_flat_aggregate_type_supported(program,
+                                                    item->return_type)))) ||
           item->first_parameter > program->parameter_count ||
           item->parameter_count >
               program->parameter_count - item->first_parameter)
         return false;
       for (size_t parameter = 0u; parameter < item->parameter_count;
-           parameter += 1u)
-        if (program->parameters[(size_t)item->first_parameter + parameter]
-                    .type_index >= 4u &&
-            (typed_throw_root ||
-             !product_flat_aggregate_type_supported(
-                 program,
-                 program->parameters[(size_t)item->first_parameter + parameter]
-                     .type_index)))
+           parameter += 1u) {
+        const uint32_t parameter_type =
+            program->parameters[(size_t)item->first_parameter + parameter]
+                .type_index;
+        const bool numeric_integer_parameter =
+            typed_numeric_root &&
+            product_numeric_integer_type(program, parameter_type);
+        if (parameter_type >= 4u &&
+            (!numeric_integer_parameter &&
+             (typed_throw_root ||
+              !product_flat_aggregate_type_supported(program,
+                                                     parameter_type))))
           return false;
+      }
     }
   }
-  const bool typed_numeric_root =
-      typed_throw_root && root_function < program->function_count &&
-      program->functions[root_function].error_type < program->type_count &&
-      program->types[program->functions[root_function].error_type].kind ==
-          W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR;
   const uint32_t numeric_conversion_terminator =
       typed_numeric_root
           ? typed_process_numeric_conversion_terminator_index(program,
@@ -1589,6 +1621,15 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
     return false;
   for (size_t value = 0u; value < program->value_count; value += 1u) {
     const w_seed_hir0_value *item = &program->values[value];
+    const bool numeric_process_root =
+        typed_numeric_root && entry->adapter_kind ==
+                                  W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS;
+    const bool verified_numeric_helper_constant =
+        numeric_process_root && item->kind == W_SEED_HIR0_VALUE_CONST_U64;
+    const bool verified_numeric_external_member =
+        numeric_process_root && item->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER;
+    const bool checked_integer_operation =
+        numeric_process_root && product_checked_fault_value(item);
     const bool authenticated_diamond_usize =
         numeric_rounding_diamond_root &&
         (value == diamond.count_value_index ||
@@ -1613,7 +1654,10 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
                 value == diamond.arm_values[1])) {
       /* The independently checked count guard and two f64 arm literals are
        * the complete additional value vocabulary of this exact diamond. */
-    } else if (!product_value_kind_supported(item->kind)) {
+    } else if (!verified_numeric_helper_constant &&
+               !verified_numeric_external_member &&
+               !checked_integer_operation &&
+               !product_value_kind_supported(item->kind)) {
       return false;
     }
     if (typed_throw_root) {
@@ -1625,6 +1669,7 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
             program->types[item->type_index].kind != W_SEED_HIR0_TYPE_U64 &&
             program->types[item->type_index].kind != W_SEED_HIR0_TYPE_F32 &&
             program->types[item->type_index].kind != W_SEED_HIR0_TYPE_F64 &&
+            program->types[item->type_index].kind != W_SEED_HIR0_TYPE_USIZE &&
             program->types[item->type_index].kind !=
                 W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR &&
             program->types[item->type_index].kind !=
@@ -1801,6 +1846,14 @@ static void outcome_init(w_seed_product_closure0_outcome *outcome) {
   outcome->error_case_index = W_SEED_PRODUCT_CLOSURE0_NONE;
 }
 
+static void checked_fault_relation_init(
+    w_seed_product_closure0_checked_fault_relation *relation) {
+  if (relation == NULL) return;
+  (void)memset(relation, 0, sizeof(*relation));
+  relation->source_conversion_terminator_index = W_SEED_PRODUCT_CLOSURE0_NONE;
+  relation->normal_successor_block_index = W_SEED_PRODUCT_CLOSURE0_NONE;
+}
+
 static void result_init(w_seed_product_closure0_result *result) {
   if (result == NULL) return;
   (void)memset(result, 0, sizeof(*result));
@@ -1811,6 +1864,7 @@ static void result_init(w_seed_product_closure0_result *result) {
   outcome_init(&result->outcome);
   outcome_init(&result->non_finite_outcome);
   outcome_init(&result->out_of_range_outcome);
+  checked_fault_relation_init(&result->checked_fault_relation);
 }
 
 static void set_failure(w_seed_product_closure0_result *result,
@@ -2113,8 +2167,13 @@ static bool mark_value(closure0_plan *plan,
       return false;
   } else if (value->kind == W_SEED_HIR0_VALUE_CALL_RESULT) {
     if (!mark_call(plan, program, value->call_index, depth + 1u)) return false;
-  } else if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64 ||
-             value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
+  } else if (value->kind == W_SEED_HIR0_VALUE_BINARY_U64) {
+    if (!plan_has_integer_exact_process_root(plan, program) ||
+        !product_checked_fault_value(value) ||
+        !mark_value(plan, program, value->left_value, depth + 1u) ||
+        !mark_value(plan, program, value->right_value, depth + 1u))
+      return false;
+  } else if (value->kind == W_SEED_HIR0_VALUE_UNARY_U64) {
     return false;
     } else if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
                value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL ||
@@ -2372,6 +2431,7 @@ static bool build_plan(const w_seed_product_closure0_input *input,
   outcome_init(&plan->outcome);
   outcome_init(&plan->non_finite_outcome);
   outcome_init(&plan->out_of_range_outcome);
+  checked_fault_relation_init(&plan->checked_fault_relation);
   if (!input_valid(input, failure_result)) return false;
   const w_seed_hir0_program *program = input->program;
   for (size_t index = 0u; index < W_SEED_PRODUCT_CLOSURE0_MAX_MODULES; index += 1u)
@@ -2606,6 +2666,36 @@ static bool build_plan(const w_seed_product_closure0_input *input,
     set_failure(failure_result, W_SEED_PRODUCT_CLOSURE0_UNSUPPORTED,
                 W_SEED_PRODUCT_CLOSURE0_FAILURE_UNSUPPORTED);
     return false;
+  }
+  if (plan_has_integer_exact_process_root(plan, program)) {
+    const uint32_t split_index =
+        plan->normal_outcome.source_terminator_index;
+    const w_seed_hir0_terminator *split =
+        &program->terminators[split_index];
+    for (size_t value = 0u; value < program->value_count; value += 1u) {
+      if (!plan->values[value] ||
+          !product_checked_fault_value(&program->values[value]))
+        continue;
+      const uint32_t owner = value_owner_function(program, (uint32_t)value);
+      if (owner >= program->function_count || !plan->functions[owner]) {
+        set_failure(failure_result, W_SEED_PRODUCT_CLOSURE0_INVALID,
+                    W_SEED_PRODUCT_CLOSURE0_FAILURE_OWNERSHIP);
+        return false;
+      }
+      plan->checked_fault_values[value] = true;
+      plan->checked_fault_relation.operation_count += 1u;
+    }
+    if (plan->checked_fault_relation.operation_count != 0u) {
+      plan->checked_fault_relation.present = true;
+      plan->checked_fault_relation.source_conversion_terminator_index =
+          split_index;
+      plan->checked_fault_relation.normal_successor_block_index =
+          split->target_block;
+      plan->checked_fault_relation.conversion_failure_status = 1u;
+      plan->checked_fault_relation.arithmetic_failure_status = 2u;
+      plan->counts.reachable_checked_fault_operations =
+          plan->checked_fault_relation.operation_count;
+    }
   }
   for (size_t function = 0u; function < program->function_count; function += 1u)
     if (plan->functions[function]) {
@@ -3015,6 +3105,66 @@ static void digest_reachable_external_records(
   }
 }
 
+static void digest_function_owner(w_seed_sha256_state *state,
+                                  const w_seed_hir0_program *program,
+                                  uint32_t function_index);
+static void digest_block_reference(w_seed_sha256_state *state,
+                                   const w_seed_hir0_program *program,
+                                   uint32_t block_index);
+static void digest_terminator_reference(w_seed_sha256_state *state,
+                                        const w_seed_hir0_program *program,
+                                        uint32_t terminator_index);
+
+static bool checked_fault_operation_fact(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    w_seed_product_closure0_checked_fault_operation *fact) {
+  if (program == NULL || fact == NULL || value_index >= program->value_count ||
+      !product_checked_fault_value(&program->values[value_index]))
+    return false;
+  const uint32_t owner = value_owner_function(program, value_index);
+  if (owner >= program->function_count) return false;
+  *fact = (w_seed_product_closure0_checked_fault_operation){
+      .source_value_index = value_index,
+      .owner_function_index = owner,
+      .type_index = program->values[value_index].type_index,
+      .binary_operator = program->values[value_index].binary_operator};
+  return true;
+}
+
+static void compute_checked_fault_operation_digest(
+    const w_seed_hir0_program *program, closure0_plan *plan) {
+  if (program == NULL || plan == NULL) return;
+  w_seed_product_closure0_checked_fault_relation *relation =
+      &plan->checked_fault_relation;
+  w_seed_sha256_state state;
+  w_seed_sha256_init(&state);
+  static const uint8_t tag[] = "w-seed-checked-fault-relation-v1\0";
+  w_seed_sha256_update(&state, tag, sizeof(tag) - 1u);
+  digest_bool(&state, relation->present);
+  if (relation->present) {
+    digest_terminator_reference(
+        &state, program, relation->source_conversion_terminator_index);
+    digest_block_reference(&state, program,
+                           relation->normal_successor_block_index);
+    digest_u32(&state, relation->conversion_failure_status);
+    digest_u32(&state, relation->arithmetic_failure_status);
+    digest_u64(&state, relation->operation_count);
+    for (size_t value = 0u; value < program->value_count; value += 1u) {
+      if (!plan->checked_fault_values[value]) continue;
+      w_seed_product_closure0_checked_fault_operation fact;
+      if (!checked_fault_operation_fact(program, (uint32_t)value, &fact)) {
+        digest_u32(&state, W_SEED_PRODUCT_CLOSURE0_NONE);
+        continue;
+      }
+      digest_function_owner(&state, program, fact.owner_function_index);
+      digest_type(&state, program, fact.type_index, plan);
+      digest_u32(&state, (uint32_t)fact.binary_operator);
+      digest_u32(&state, plan->value_remap[fact.source_value_index]);
+    }
+  }
+  w_seed_sha256_final(&state, relation->operation_digest);
+}
+
 /* Outcome records expose source indices to callers, but those indices are
  * storage coordinates rather than semantic identity.  Keep them out of the
  * reachable digest: dead HIR records may be inserted before a live record
@@ -3221,6 +3371,7 @@ static void digest_value(w_seed_sha256_state *state,
         digest_u32(state, W_SEED_PRODUCT_CLOSURE0_NONE);
       break;
     case W_SEED_HIR0_VALUE_BINARY_I64:
+    case W_SEED_HIR0_VALUE_BINARY_U64:
       digest_u32(state, (uint32_t)value->binary_operator);
       digest_u32(state, value->left_value < program->value_count
                              ? plan->value_remap[value->left_value]
@@ -3278,6 +3429,19 @@ static void digest_value(w_seed_sha256_state *state,
     case W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ:
       digest_block_argument_reference(state, program, value->block_argument_index);
       break;
+    case W_SEED_HIR0_VALUE_EXTERNAL_MEMBER:
+      if (value->external_module_index < program->external_module_count)
+        digest_text(state, program,
+                    program->external_modules[value->external_module_index]
+                        .module_id);
+      else
+        digest_u32(state, W_SEED_PRODUCT_CLOSURE0_NONE);
+      digest_external_symbol(state, program, value->external_symbol_index);
+      digest_u32(state, value->left_value < program->value_count
+                             ? plan->value_remap[value->left_value]
+                             : W_SEED_PRODUCT_CLOSURE0_NONE);
+      digest_text(state, program, value->member_name);
+      break;
     case W_SEED_HIR0_VALUE_CONST_STRING:
       if (value->byte_offset <= program->value_byte_count &&
           value->byte_count <= program->value_byte_count - value->byte_offset)
@@ -3288,6 +3452,9 @@ static void digest_value(w_seed_sha256_state *state,
       break;
     case W_SEED_HIR0_VALUE_CONST_I64:
       digest_u64(state, (uint64_t)value->integer_value);
+      break;
+    case W_SEED_HIR0_VALUE_CONST_U64:
+      digest_u64(state, value->unsigned_integer_value);
       break;
     case W_SEED_HIR0_VALUE_CONST_BOOL:
       digest_bool(state, value->bool_value);
@@ -3345,11 +3512,12 @@ static void digest_value(w_seed_sha256_state *state,
 }
 
 static void compute_digest(const w_seed_hir0_program *program,
-                           const closure0_plan *plan,
+                           closure0_plan *plan,
                            uint8_t digest[W_SEED_PRODUCT_CLOSURE0_DIGEST_BYTES]) {
+  compute_checked_fault_operation_digest(program, plan);
   w_seed_sha256_state state;
   w_seed_sha256_init(&state);
-  static const uint8_t tag[] = "w-seed-product-closure0-semantic-v5\0";
+  static const uint8_t tag[] = "w-seed-product-closure0-semantic-v6\0";
   w_seed_sha256_update(&state, tag, sizeof(tag) - 1u);
   const w_seed_hir0_entry *root_entry = &program->entries[plan->root.entry_index];
   digest_text(&state, program,
@@ -3389,6 +3557,23 @@ static void compute_digest(const w_seed_hir0_program *program,
   digest_outcome(&state, program, plan, &plan->non_finite_outcome);
   digest_outcome(&state, program, plan, &plan->out_of_range_outcome);
   digest_outcome(&state, program, plan, &plan->outcome);
+  digest_bool(&state, plan->checked_fault_relation.present);
+  if (plan->checked_fault_relation.present) {
+    digest_terminator_reference(
+        &state, program,
+        plan->checked_fault_relation.source_conversion_terminator_index);
+    digest_block_reference(
+        &state, program,
+        plan->checked_fault_relation.normal_successor_block_index);
+    digest_u32(&state,
+               plan->checked_fault_relation.conversion_failure_status);
+    digest_u32(&state,
+               plan->checked_fault_relation.arithmetic_failure_status);
+    digest_u64(&state, plan->checked_fault_relation.operation_count);
+    w_seed_sha256_update(&state,
+                         plan->checked_fault_relation.operation_digest,
+                         sizeof(plan->checked_fault_relation.operation_digest));
+  }
   digest_u32(&state, (uint32_t)plan->counts.reachable_modules);
   for (size_t module = 0u; module < program->module_count; module += 1u)
     if (plan->modules[module]) {
@@ -3520,6 +3705,7 @@ static void finish_plan_result(const closure0_plan *plan,
   result->non_finite_outcome = plan->non_finite_outcome;
   result->out_of_range_outcome = plan->out_of_range_outcome;
   result->outcome = plan->outcome;
+  result->checked_fault_relation = plan->checked_fault_relation;
   (void)memcpy(result->reachable_semantic_digest, plan->digest,
                sizeof(result->reachable_semantic_digest));
 }
@@ -3595,7 +3781,15 @@ static bool output_capacity_valid(const w_seed_product_closure0_output *output,
        output->requirement_fact_capacity == 0u) ||
       (output->requirement_facts != NULL &&
        output->requirement_fact_capacity >= counts->reachable_requirements);
-  return values_ok && types_ok && requirements_ok;
+  const bool checked_fault_operations_ok =
+      (output->checked_fault_operations == NULL &&
+       output->checked_fault_operation_capacity == 0u &&
+       counts->reachable_checked_fault_operations == 0u) ||
+      (output->checked_fault_operations != NULL &&
+       output->checked_fault_operation_capacity >=
+           counts->reachable_checked_fault_operations);
+  return values_ok && types_ok && requirements_ok &&
+         checked_fault_operations_ok;
 }
 
 static bool input_ranges_build(const w_seed_product_closure0_input *input,
@@ -3771,7 +3965,10 @@ static bool output_aliases_input(
       ADD_OUT(output->type_facts, output->type_fact_capacity,
               sizeof(*output->type_facts)) ||
       ADD_OUT(output->requirement_facts, output->requirement_fact_capacity,
-              sizeof(*output->requirement_facts))) {
+              sizeof(*output->requirement_facts)) ||
+      ADD_OUT(output->checked_fault_operations,
+              output->checked_fault_operation_capacity,
+              sizeof(*output->checked_fault_operations))) {
 #undef ADD_OUT
     return true;
   }
@@ -3797,6 +3994,7 @@ static void copy_plan_to_output(const w_seed_hir0_program *program,
   size_t reachable_requirement = 0u;
   size_t reachable_external_module = 0u;
   size_t reachable_external_symbol = 0u;
+  size_t reachable_checked_fault_operation = 0u;
   for (size_t index = 0u; index < program->module_count; index += 1u) {
     if (plan->modules[index])
       output->reachable_modules[reachable_module++] = (uint32_t)index;
@@ -3862,6 +4060,13 @@ static void copy_plan_to_output(const w_seed_hir0_program *program,
           (uint32_t)index;
     output->external_symbol_remap[index] = plan->external_symbol_remap[index];
   }
+  for (size_t index = 0u; index < program->value_count; index += 1u)
+    if (plan->checked_fault_values[index]) {
+      w_seed_product_closure0_checked_fault_operation fact;
+      if (checked_fault_operation_fact(program, (uint32_t)index, &fact))
+        output->checked_fault_operations[
+            reachable_checked_fault_operation++] = fact;
+    }
 }
 
 static bool output_matches_plan(const w_seed_hir0_program *program,
@@ -3881,6 +4086,9 @@ static bool output_matches_plan(const w_seed_hir0_program *program,
       memcmp(&result->out_of_range_outcome, &plan->out_of_range_outcome,
              sizeof(plan->out_of_range_outcome)) != 0 ||
       memcmp(&result->outcome, &plan->outcome, sizeof(plan->outcome)) != 0 ||
+      memcmp(&result->checked_fault_relation,
+             &plan->checked_fault_relation,
+             sizeof(plan->checked_fault_relation)) != 0 ||
       memcmp(result->reachable_semantic_digest, plan->digest,
              sizeof(plan->digest)) != 0 || !output_capacity_valid(output, &plan->counts))
     return false;
@@ -3941,6 +4149,7 @@ static bool output_matches_plan(const w_seed_hir0_program *program,
       reachable_type += 1u;
     }
   size_t reachable_value = 0u;
+  size_t reachable_checked_fault_operation = 0u;
   for (size_t index = 0u; index < program->value_count; index += 1u)
     if (plan->values[index]) {
       if (output->reachable_values[reachable_value] != index) return false;
@@ -3956,6 +4165,20 @@ static bool output_matches_plan(const w_seed_hir0_program *program,
                program->values[index].kind))
         return false;
       reachable_value += 1u;
+    }
+  for (size_t index = 0u; index < program->value_count; index += 1u)
+    if (plan->checked_fault_values[index]) {
+      w_seed_product_closure0_checked_fault_operation expected;
+      if (!checked_fault_operation_fact(program, (uint32_t)index, &expected))
+        return false;
+      const w_seed_product_closure0_checked_fault_operation *actual =
+          &output->checked_fault_operations[
+              reachable_checked_fault_operation++];
+      if (actual->source_value_index != expected.source_value_index ||
+          actual->owner_function_index != expected.owner_function_index ||
+          actual->type_index != expected.type_index ||
+          actual->binary_operator != expected.binary_operator)
+        return false;
     }
   size_t reachable_requirement = 0u;
   for (size_t index = 0u; index < program->requirement_count; index += 1u)

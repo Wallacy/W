@@ -207,6 +207,9 @@ const processFloatRoundingErrorFixture = resolve(seedDirectory, "fixtures",
   "process-float-rounding-error.w")
 const processIntegerExactRuntimeFixture = resolve(seedDirectory, "fixtures",
   "process-fixed-integer-arithmetic.w")
+const checkedIntegerHelperFaultFixture = resolve(seedDirectory, "fixtures",
+  "checked-integer-helper-fault.w")
+const checkedIntegerHelperFaultOutput = Buffer.from("Begin 255\n", "utf8")
 const u64MixRoundFixture = resolve(seedDirectory, "fixtures",
   "u64_mix_round.w")
 const u64MixRoundOutput = Buffer.from("Mix 5608831001354178255\n", "utf8")
@@ -1520,6 +1523,15 @@ try {
   expectExact(binary, ["run", processIntegerExactRuntimeFixture, "--",
     ...Array.from({ length: 128 }, () => "x")], 1, Buffer.alloc(0),
   "public runtime exact integer conversion out of range")
+  expectExact(binary, ["run", checkedIntegerHelperFaultFixture], 0,
+    checkedIntegerHelperFaultOutput,
+    "public checked integer helper success")
+  expectExact(binary, ["run", checkedIntegerHelperFaultFixture, "--", "x"],
+    2, Buffer.alloc(0),
+    "public checked integer helper arithmetic fault")
+  expectExact(binary, ["run", checkedIntegerHelperFaultFixture, "--",
+    ...Array.from({ length: 256 }, () => "x")], 1, Buffer.alloc(0),
+    "public checked integer helper conversion precedence")
   expectExact(binary, ["run", u64MixRoundFixture, "--",
     "alpha", "beta", "gamma"], 0, u64MixRoundOutput,
   "Windows public runtime u64 mix-round with three user arguments")
@@ -1592,6 +1604,8 @@ try {
     "process-float-rounding-error-build.exe")
   const buildProcessIntegerExactRuntime = join(fixtureDirectory,
     "process-fixed-integer-arithmetic-build.exe")
+  const buildCheckedIntegerHelperFault = join(fixtureDirectory,
+    "checked-integer-helper-fault-build.exe")
   const buildU64MixRound = join(fixtureDirectory,
     "u64-mix-round-build.exe")
   const buildProcessArgumentsCount = join(fixtureDirectory,
@@ -1822,6 +1836,22 @@ try {
   expectExact(buildProcessIntegerExactRuntime,
     Array.from({ length: 128 }, () => "x"), 1, Buffer.alloc(0),
   "execute built runtime exact integer conversion out of range")
+  expectExact(binary, ["build", checkedIntegerHelperFaultFixture, "--target",
+    targetTriple, "--output", buildCheckedIntegerHelperFault], 0,
+  Buffer.alloc(0), "build checked integer helper fault fixture")
+  assertPeX64(await readFile(buildCheckedIntegerHelperFault),
+    "built checked integer helper fault artifact")
+  assertKernel32OnlyImports(await readFile(buildCheckedIntegerHelperFault),
+    "built checked integer helper fault artifact",
+    { usesProcessArgumentAdapter: true, writesStdout: true })
+  expectExact(buildCheckedIntegerHelperFault, [], 0,
+    checkedIntegerHelperFaultOutput,
+    "execute built checked integer helper success")
+  expectExact(buildCheckedIntegerHelperFault, ["x"], 2, Buffer.alloc(0),
+    "execute built checked integer helper arithmetic fault")
+  expectExact(buildCheckedIntegerHelperFault,
+    Array.from({ length: 256 }, () => "x"), 1, Buffer.alloc(0),
+    "execute built checked integer helper conversion precedence")
   expectExact(binary, ["build", u64MixRoundFixture, "--target",
     targetTriple, "--output", buildU64MixRound], 0, Buffer.alloc(0),
   "build Windows runtime u64 mix-round fixture")

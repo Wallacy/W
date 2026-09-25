@@ -75,6 +75,9 @@ const processFloatRoundingErrorFixture = resolve(seedDirectory, "fixtures",
   "process-float-rounding-error.w")
 const processIntegerExactRuntimeFixture = resolve(seedDirectory, "fixtures",
   "process-fixed-integer-arithmetic.w")
+const checkedIntegerHelperFaultFixture = resolve(seedDirectory, "fixtures",
+  "checked-integer-helper-fault.w")
+const checkedIntegerHelperFaultOutput = Buffer.from("Begin 255\n", "utf8")
 const u64MixRoundFixture = resolve(seedDirectory, "fixtures",
   "u64_mix_round.w")
 const u64MixRoundOutput = Buffer.from("Mix 5608831001354178255\n", "utf8")
@@ -1732,6 +1735,15 @@ try {
   expectExact(binary, ["run", toWsl(processIntegerExactRuntimeFixture), "--",
     ...Array.from({ length: 128 }, () => "x")], 1, Buffer.alloc(0),
   "Linux public runtime exact integer conversion out of range")
+  expectExact(binary, ["run", toWsl(checkedIntegerHelperFaultFixture)], 0,
+    checkedIntegerHelperFaultOutput,
+    "Linux public checked integer helper success")
+  expectExact(binary, ["run", toWsl(checkedIntegerHelperFaultFixture), "--",
+    "x"], 2, Buffer.alloc(0),
+    "Linux public checked integer helper arithmetic fault")
+  expectExact(binary, ["run", toWsl(checkedIntegerHelperFaultFixture), "--",
+    ...Array.from({ length: 256 }, () => "x")], 1, Buffer.alloc(0),
+    "Linux public checked integer helper conversion precedence")
   expectExact(binary, ["run", toWsl(u64MixRoundFixture), "--",
     "alpha", "beta", "gamma"], 0, u64MixRoundOutput,
   "Linux public runtime u64 mix-round with three user arguments")
@@ -1809,6 +1821,8 @@ try {
     "process-float-rounding-error-build")
   const buildProcessIntegerExactRuntime = buildOutput(
     "process-fixed-integer-arithmetic-build")
+  const buildCheckedIntegerHelperFault = buildOutput(
+    "checked-integer-helper-fault-build")
   const buildU64MixRound = buildOutput("u64-mix-round-build")
   const u64MixRoundAudit = buildOutput("u64-mix-round-audit")
   const buildProcessArgumentsCount = buildOutput("process-arguments-count-build")
@@ -2074,6 +2088,19 @@ try {
   expectExact(buildProcessIntegerExactRuntime,
     Array.from({ length: 128 }, () => "x"), 1, Buffer.alloc(0),
   "execute built Linux runtime exact integer conversion out of range")
+  expectSuccess(binary, ["build", toWsl(checkedIntegerHelperFaultFixture),
+    "--target", targetTriple, "--output", buildCheckedIntegerHelperFault],
+  Buffer.alloc(0), "build Linux checked integer helper fault fixture")
+  assertCrtFreeElf(await readBuildArtifact(buildCheckedIntegerHelperFault))
+  assertElfNoExecutableStack(await readBuildArtifact(buildCheckedIntegerHelperFault))
+  expectExact(buildCheckedIntegerHelperFault, [], 0,
+    checkedIntegerHelperFaultOutput,
+    "execute built Linux checked integer helper success")
+  expectExact(buildCheckedIntegerHelperFault, ["x"], 2, Buffer.alloc(0),
+    "execute built Linux checked integer helper arithmetic fault")
+  expectExact(buildCheckedIntegerHelperFault,
+    Array.from({ length: 256 }, () => "x"), 1, Buffer.alloc(0),
+    "execute built Linux checked integer helper conversion precedence")
   expectSuccess(binary, ["build", toWsl(u64MixRoundFixture), "--target",
     targetTriple, "--output", buildU64MixRound, "--audit-dir",
     u64MixRoundAudit], Buffer.alloc(0),

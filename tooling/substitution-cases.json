@@ -12265,12 +12265,13 @@
       "decisions": [
         "W-1653"
       ],
-      "task": "Preserve checked arithmetic fault as a private outcome distinct from typed NumericConversionError and normal ExitCode, carry the bounded signed straight-line process route through compiler-owned reverse-order release and root finalization, discard buffered output, and adapt only at native-process@1 status 2. Keep general CFG, local-call propagation, user cleanup, public PanicEvent, and other hosts outside the claim.",
+      "task": "Preserve checked arithmetic fault as a private outcome distinct from typed NumericConversionError and normal ExitCode. Extend the maintained native-process route from its signed straight-line witness through one synchronous local helper performing checked unsigned u8 addition after exact args.count conversion. Publish and reauthenticate the generic reachable checked-operation relation, carry the fault through compiler-owned Context-then-Arguments release and root finalization, discard buffered output, and adapt only at native-process@1 status 2. Keep general helper graphs, result-bearing CFG joins, user cleanup, public PanicEvent, shifts/power at the process boundary, and other hosts outside the claim.",
       "selected": {
         "language": "w",
         "source": [
-          "let narrowed = try i8(exactly: args.count)",
-          "print(\"Arithmetic ${narrowed + 1_i8}\")"
+          "let count = try u8(exactly: args.count)",
+          "fn checkedOffset(value: u8): u8 { return value + 255_u8 }",
+          "print(\"Begin ${checkedOffset(value: count)}\")"
         ]
       },
       "alternatives": [
@@ -12294,9 +12295,9 @@
           "name": "premature-general-panic-runtime",
           "language": "w-internal-rejected",
           "source": [
-            "claim arbitrary CFG, local-call propagation, user cleanup, or public PanicEvent from the private fault slot"
+            "claim general helper graphs, arbitrary CFG, user cleanup, or public PanicEvent from the private fault slot"
           ],
-          "expectedDifference": "W-1653 is restricted to the authenticated straight-line signed process witness and publishes no general panic ABI."
+          "expectedDifference": "W-1653 covers only the authenticated signed straight-line and one-helper unsigned-u8 process witnesses, and publishes no general panic ABI."
         }
       ],
       "sourceRefs": [
@@ -12306,9 +12307,29 @@
           "claim": "The public fixture declares two normal outputs, status-2 checked overflow, and status-1 typed conversion failure."
         },
         {
+          "path": "compiler/seed-c/fixtures/checked-integer-helper-fault.w",
+          "symbol": "Expected cases and checkedOffset",
+          "claim": "The neutral fixture carries an exact u8 conversion into one reachable checked unsigned helper; its zero/one/256 cases distinguish normal, arithmetic fault, and typed conversion outcomes."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_product_closure0.c",
+          "symbol": "test_native_process_checked_local_helper",
+          "claim": "ProductClosure publishes and authenticates checked-fault operation facts from the verified reachable helper relation, including coordinate mutations, missing relation, overlap, capacity, and failure atomicity."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "w_seed_native_subset0_verify_process_checked_fault_relation",
+          "claim": "NativeSubset carries the ProductClosure relation and rederives it at the downstream trust boundary."
+        },
+        {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "symbol": "MLIR0_PROCESS_CHECKED_I64_ADD_HELPER / build_process_executable_artifact",
-          "claim": "Process-executable v6 retains the private fault kind through compiler-owned release and root finalization before status adaptation."
+          "symbol": "append_process_checked_u64_helpers / build_process_executable_artifact",
+          "claim": "Process-executable lowering threads the checked unsigned helper fault through one local call and adapts it only after release and finalization."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_process_checked_integer_helper_fault_mlir",
+          "claim": "The artifact test proves the process-aware unsigned helper and exactly-once Context-then-Arguments release plus root finalization before the platform write on both targets."
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
@@ -12317,20 +12338,30 @@
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "symbol": "process fixed integer arithmetic cases",
-          "claim": "The Windows public route executes normal, numeric-fault, and typed-error outcomes with exact status and output."
+          "symbol": "checked integer helper fault cases",
+          "claim": "The Windows public route executes the exact normal, checked-fault, and typed-conversion cases through run and build."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "symbol": "process fixed integer arithmetic cases",
-          "claim": "The Linux/WSL public route executes the same normal, numeric-fault, and typed-error outcomes."
+          "symbol": "checked integer helper fault cases",
+          "claim": "The Linux/WSL public route executes the exact normal, checked-fault, and typed-conversion cases through run and build."
+        },
+        {
+          "path": "benchmarks/executable/checked_integer_helper_fault.c",
+          "symbol": "checked_add_u8",
+          "claim": "The independent C23 reference widens the unsigned addition before range-checking, avoiding signed or unsigned overflow."
+        },
+        {
+          "path": "benchmarks/executable/checked_integer_helper_fault.rs",
+          "symbol": "checked_add_u8",
+          "claim": "The independent Rust 2024 reference uses checked_add and exact u8 conversion for the runtime cases."
         }
       ],
       "checks": [
         "The private checked-fault kind is distinct from typed error and normal ExitCode until native-process@1 adaptation.",
         "Compiler-owned Context and Arguments release plus root finalization precede status mapping.",
         "Only normal success reaches the platform write; status-2 arithmetic fault and status-1 typed error have empty stdout and stderr.",
-        "The claim remains bounded to signed +, -, *, /, and % in the restricted straight-line process root."
+        "The claim remains bounded to the existing signed straight-line family plus one checked unsigned u8 addition in one synchronous helper; arbitrary helper graphs and shifts/power process lowering remain outside scope."
       ],
       "measures": [
         "semantic-correctness",

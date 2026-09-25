@@ -2503,6 +2503,24 @@ static const char *checked_u64_binary_helper(
   }
 }
 
+static const char *process_checked_u64_binary_helper(
+    w_seed_hir0_binary_operator operation) {
+  switch (operation) {
+    case W_SEED_HIR0_BINARY_ADD:
+      return "@w_seed_process_checked_add_u64";
+    case W_SEED_HIR0_BINARY_SUBTRACT:
+      return "@w_seed_process_checked_subtract_u64";
+    case W_SEED_HIR0_BINARY_MULTIPLY:
+      return "@w_seed_process_checked_multiply_u64";
+    case W_SEED_HIR0_BINARY_DIVIDE:
+      return "@w_seed_process_checked_divide_u64";
+    case W_SEED_HIR0_BINARY_REMAINDER:
+      return "@w_seed_process_checked_remainder_u64";
+    default:
+      return NULL;
+  }
+}
+
 static const char *u64_binary_operation(
     w_seed_hir0_binary_operator operation) {
   switch (operation) {
@@ -2917,6 +2935,61 @@ static bool append_checked_u64_helpers(
                       MLIR0_CHECKED_U64_REMAINDER_HELPER))
     return false;
   return true;
+}
+
+static bool append_process_checked_u64_helper(
+    const char *ordinary_helper, const char *operation, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
+  static const char trap_block[] =
+      "    \"llvm.intr.trap\"() : () -> ()\n"
+      "    llvm.unreachable\n";
+  if (ordinary_helper == NULL || operation == NULL || artifact == NULL ||
+      offset == NULL)
+    return false;
+  const char *body = strchr(ordinary_helper, '\n');
+  if (body == NULL) return false;
+  body += 1u;
+  const char *fault = strstr(body, trap_block);
+  if (fault == NULL || strstr(fault + sizeof(trap_block) - 1u, trap_block) !=
+                           NULL ||
+      !append_literal(artifact, capacity, offset,
+                      "  llvm.func internal @w_seed_process_checked_") ||
+      !append_literal(artifact, capacity, offset, operation) ||
+      !append_literal(artifact, capacity, offset,
+                      "_u64(%left: i64, %right: i64, %width: i64, "
+                      "%fault: !llvm.ptr) -> i64 {\n") ||
+      !append_bytes(artifact, capacity, offset, body,
+                    (size_t)(fault - body)) ||
+      !append_literal(artifact, capacity, offset,
+                      "    %process_fault_one = llvm.mlir.constant(1 : i64) : i64\n"
+                      "    %process_fault_zero = llvm.mlir.constant(0 : i64) : i64\n"
+                      "    llvm.store %process_fault_one, %fault : i64, !llvm.ptr\n"
+                      "    llvm.return %process_fault_zero : i64\n") ||
+      !append_bytes(artifact, capacity, offset,
+                    fault + sizeof(trap_block) - 1u,
+                    strlen(fault + sizeof(trap_block) - 1u)))
+    return false;
+  return true;
+}
+
+static bool append_process_checked_u64_helpers(
+    bool has_add, bool has_subtract, bool has_multiply, bool has_divide,
+    bool has_remainder, uint8_t *artifact, size_t capacity, size_t *offset) {
+  return (!has_add || append_process_checked_u64_helper(
+                          MLIR0_CHECKED_U64_ADD_HELPER, "add", artifact,
+                          capacity, offset)) &&
+         (!has_subtract || append_process_checked_u64_helper(
+                               MLIR0_CHECKED_U64_SUBTRACT_HELPER, "subtract",
+                               artifact, capacity, offset)) &&
+         (!has_multiply || append_process_checked_u64_helper(
+                               MLIR0_CHECKED_U64_MULTIPLY_HELPER, "multiply",
+                               artifact, capacity, offset)) &&
+         (!has_divide || append_process_checked_u64_helper(
+                             MLIR0_CHECKED_U64_DIVIDE_HELPER, "divide",
+                             artifact, capacity, offset)) &&
+         (!has_remainder || append_process_checked_u64_helper(
+                                MLIR0_CHECKED_U64_REMAINDER_HELPER,
+                                "remainder", artifact, capacity, offset));
 }
 
 /* The process adapter lowers Args/Context as private pointer handles and
@@ -4397,6 +4470,11 @@ static bool append_binary_u64_value_operation(
   const bool checked_division =
       value->binary_operator == W_SEED_HIR0_BINARY_DIVIDE ||
       value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER;
+  if (helper != NULL && (checked_arithmetic || checked_division) &&
+      process != NULL && process->has_structured_checked_arithmetic) {
+    helper = process_checked_u64_binary_helper(value->binary_operator);
+    if (helper == NULL) return false;
+  }
   if (helper != NULL && shift)
     return append_checked_shift_operation_in_loop(
         program, value_index, function_index, process, NULL, helper, artifact,
@@ -4530,12 +4608,18 @@ static bool append_binary_u64_value_operation(
                                       function_index, process, artifact,
                                       capacity, offset))
       return false;
-    if (checked_arithmetic || checked_division)
-      return append_literal(artifact, capacity, offset, ", ") &&
-             append_checked_integer_width_operand(
-                 value_index, artifact, capacity, offset) &&
-             append_literal(artifact, capacity, offset,
+    if (checked_arithmetic || checked_division) {
+      if (!append_literal(artifact, capacity, offset, ", ") ||
+          !append_checked_integer_width_operand(
+              value_index, artifact, capacity, offset))
+        return false;
+      if (process != NULL && process->has_structured_checked_arithmetic)
+        return append_literal(
+            artifact, capacity, offset,
+            ", %fault_address) : (i64, i64, i64, !llvm.ptr) -> i64\n");
+      return append_literal(artifact, capacity, offset,
                             ") : (i64, i64, i64) -> i64\n");
+    }
     return append_literal(artifact, capacity, offset,
                           ") : (i64, i64) -> i64\n");
   }
@@ -8686,7 +8770,9 @@ static bool append_program_local_call(
       !append_literal(artifact, capacity, offset, "(") ||
       !append_literal(artifact, capacity, offset, buffer_name) ||
       !append_literal(artifact, capacity, offset, ", ") ||
-      !append_literal(artifact, capacity, offset, cursor_name))
+      !append_literal(artifact, capacity, offset, cursor_name) ||
+      (process != NULL && process->has_structured_checked_arithmetic &&
+       !append_literal(artifact, capacity, offset, ", %fault_address")))
     return false;
   for (size_t parameter = 0u; parameter < call->argument_count;
        parameter += 1u)
@@ -8698,6 +8784,9 @@ static bool append_program_local_call(
       return false;
   if (!append_literal(artifact, capacity, offset,
                       ") : (!llvm.ptr, !llvm.ptr"))
+    return false;
+  if (process != NULL && process->has_structured_checked_arithmetic &&
+      !append_literal(artifact, capacity, offset, ", !llvm.ptr"))
     return false;
   for (size_t parameter = 0u; parameter < target->parameter_count;
        parameter += 1u) {
@@ -11108,10 +11197,12 @@ static bool process_plan_observes_only_arguments_count(
 
 static bool build_process_executable_artifact(
     const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
     const w_seed_native_subset0_process *selection,
     const w_seed_mlir0_target *target, uint8_t *artifact, size_t capacity,
     size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
-  if (program == NULL || selection == NULL || !target_is_supported(target) ||
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      !target_is_supported(target) ||
       artifact == NULL || written == NULL || digest == NULL ||
       selection->function_index >= program->function_count ||
       selection->function != &program->functions[selection->function_index] ||
@@ -11123,7 +11214,9 @@ static bool build_process_executable_artifact(
       selection->context_parameter_ordinal >= 2u ||
       selection->arguments_parameter_ordinal ==
           selection->context_parameter_ordinal ||
-      selection->maximum_stdout_bytes > MLIR0_MAX_STDOUT_BYTES)
+      selection->maximum_stdout_bytes > MLIR0_MAX_STDOUT_BYTES ||
+      !w_seed_native_subset0_verify_process_checked_fault_relation(
+          program, hir_result, selection))
     return false;
   const size_t first_parameter = selection->function->first_parameter;
   if (selection->arguments_parameter !=
@@ -11135,9 +11228,29 @@ static bool build_process_executable_artifact(
     return false;
 
   mlir0_program_plan plan;
+  /* Process CFG lowering is outside the scalar ProductClosure shape route;
+   * reauthenticate its copied fault relation directly at this boundary. */
   if (!build_program_plan(program, NULL, &plan, true, false) ||
       !plan.reachable_functions[selection->function_index] ||
       plan.has_reachable_panic != selection->has_reachable_panic)
+    return false;
+  const bool has_checked_operation =
+      plan.has_checked_add || plan.has_checked_subtract ||
+      plan.has_checked_multiply || plan.has_checked_divide ||
+      plan.has_checked_remainder || plan.has_checked_u64_add ||
+      plan.has_checked_u64_subtract || plan.has_checked_u64_multiply ||
+      plan.has_checked_u64_divide || plan.has_checked_u64_remainder ||
+      plan.has_checked_shifts || plan.has_checked_power;
+  const bool has_checked_ordinary_operation =
+      plan.has_checked_add || plan.has_checked_subtract ||
+      plan.has_checked_multiply || plan.has_checked_divide ||
+      plan.has_checked_remainder || plan.has_checked_u64_add ||
+      plan.has_checked_u64_subtract || plan.has_checked_u64_multiply ||
+      plan.has_checked_u64_divide || plan.has_checked_u64_remainder;
+  if (selection->checked_fault_relation.present !=
+          has_checked_ordinary_operation ||
+      (has_checked_operation &&
+       (plan.has_checked_shifts || plan.has_checked_power)))
     return false;
   size_t buffer_bytes = 0u;
   if (!output_buffer_capacity(selection->maximum_stdout_bytes,
@@ -11160,10 +11273,7 @@ static bool build_process_executable_artifact(
   process.has_float_to_integer_rounding =
       selection->has_float_to_integer_rounding;
   process.has_structured_checked_arithmetic =
-      selection->has_integer_exactly &&
-      (plan.has_checked_add || plan.has_checked_subtract ||
-       plan.has_checked_multiply || plan.has_checked_divide ||
-       plan.has_checked_remainder);
+      selection->checked_fault_relation.present && has_checked_operation;
   /* Every currently supported public process target is x86-64.  Select the
    * i64 physical carrier only here, after target validation; HIR retains the
    * distinct logical USIZE identity rather than pretending it is u64. */
@@ -11246,10 +11356,16 @@ static bool build_process_executable_artifact(
                    plan.has_checked_add, plan.has_checked_subtract,
                    plan.has_checked_multiply, plan.has_checked_divide,
                    plan.has_checked_remainder, artifact, capacity, &offset)) ||
-      !append_checked_u64_helpers(
-          plan.has_checked_u64_add, plan.has_checked_u64_subtract,
-          plan.has_checked_u64_multiply, plan.has_checked_u64_divide,
-          plan.has_checked_u64_remainder, artifact, capacity, &offset) ||
+      !(process.has_structured_checked_arithmetic
+            ? append_process_checked_u64_helpers(
+                  plan.has_checked_u64_add, plan.has_checked_u64_subtract,
+                  plan.has_checked_u64_multiply, plan.has_checked_u64_divide,
+                  plan.has_checked_u64_remainder, artifact, capacity, &offset)
+            : append_checked_u64_helpers(
+                  plan.has_checked_u64_add, plan.has_checked_u64_subtract,
+                  plan.has_checked_u64_multiply, plan.has_checked_u64_divide,
+                  plan.has_checked_u64_remainder, artifact, capacity,
+                  &offset)) ||
       (plan.has_checked_power &&
        !append_literal(artifact, capacity, &offset,
                        MLIR0_CHECKED_POWER_HELPERS)) ||
@@ -11325,8 +11441,11 @@ static bool build_process_executable_artifact(
     if (!plan.omitted_functions[function] &&
         !append_program_function(
             program, &plan, function, selection->natural_loop_functions[function],
-            selection->post_test_loop_functions[function],
-            false, function == selection->function_index ? &process : NULL,
+            selection->post_test_loop_functions[function], false,
+            (function == selection->function_index ||
+             process.has_structured_checked_arithmetic)
+                ? &process
+                : NULL,
             artifact, capacity, &offset))
       return false;
   if (count_only_arguments) {
@@ -11933,7 +12052,7 @@ w_seed_mlir0_status w_seed_mlir0_measure(
       return W_SEED_MLIR0_INVALID_HIR;
   } else if (process_executable) {
     if (!build_process_executable_artifact(
-            input->program, &process_selection, target, artifact,
+            input->program, input->hir_result, &process_selection, target, artifact,
             sizeof(artifact), &written, digest))
       return W_SEED_MLIR0_INVALID_HIR;
   } else if (program_selection.has_local_calls || program_selection.has_cfg ||
@@ -12028,7 +12147,7 @@ w_seed_mlir0_status w_seed_mlir0_emit(
       return W_SEED_MLIR0_INVALID_HIR;
   } else if (process_executable) {
     if (!build_process_executable_artifact(
-            input->program, &process_selection, target, artifact,
+            input->program, input->hir_result, &process_selection, target, artifact,
             sizeof(artifact), &written, digest))
       return W_SEED_MLIR0_INVALID_HIR;
   } else if (program_selection.has_local_calls || program_selection.has_cfg ||

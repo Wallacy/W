@@ -208,7 +208,7 @@
           }
         },
         {
-          "if": { "properties": { "id": { "enum": ["process-entry", "process-enum-payload", "process-arguments-count", "process-arguments-ordering", "u64-mix-round"] } } },
+          "if": { "properties": { "id": { "enum": ["process-entry", "process-enum-payload", "process-arguments-count", "process-arguments-ordering", "checked-integer-helper-fault", "u64-mix-round"] } } },
           "then": { "properties": { "oracle": { "$ref": "#/$defs/processEntryOracle" } } },
           "else": { "properties": { "oracle": { "$ref": "#/$defs/oracle" } } }
         }

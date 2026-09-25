@@ -8128,6 +8128,194 @@ static bool process_function_body_supported(
   return true;
 }
 
+static bool process_checked_fault_operation_candidate(
+    w_seed_hir0_binary_operator operation) {
+  return operation == W_SEED_HIR0_BINARY_ADD ||
+         operation == W_SEED_HIR0_BINARY_SUBTRACT ||
+         operation == W_SEED_HIR0_BINARY_MULTIPLY ||
+         operation == W_SEED_HIR0_BINARY_DIVIDE ||
+         operation == W_SEED_HIR0_BINARY_REMAINDER ||
+         operation == W_SEED_HIR0_BINARY_SHIFT_LEFT ||
+         operation == W_SEED_HIR0_BINARY_SHIFT_RIGHT ||
+         operation == W_SEED_HIR0_BINARY_POWER;
+}
+
+static uint32_t process_value_owner_function(
+    const w_seed_hir0_program *program, uint32_t value_index) {
+  if (program == NULL || value_index >= program->value_count)
+    return W_SEED_HIR0_NONE;
+  uint32_t current = value_index;
+  for (size_t depth = 0u; depth <= W_SEED_HIR0_MAX_NESTING; depth += 1u) {
+    if (current >= program->value_count) return W_SEED_HIR0_NONE;
+    const w_seed_hir0_value *value = &program->values[current];
+    if (value->owner_kind == W_SEED_HIR0_VALUE_OWNER_ARGUMENT) {
+      if (value->owner_index >= program->argument_count)
+        return W_SEED_HIR0_NONE;
+      const uint32_t call = program->arguments[value->owner_index].owner_call;
+      if (call >= program->call_count) return W_SEED_HIR0_NONE;
+      const uint32_t block = program->calls[call].owner_block;
+      return block < program->block_count
+                 ? program->blocks[block].owner_function
+                 : W_SEED_HIR0_NONE;
+    }
+    if (value->owner_kind == W_SEED_HIR0_VALUE_OWNER_BINDING) {
+      if (value->owner_index >= program->binding_count)
+        return W_SEED_HIR0_NONE;
+      const uint32_t block =
+          program->bindings[value->owner_index].owner_block;
+      return block < program->block_count
+                 ? program->blocks[block].owner_function
+                 : W_SEED_HIR0_NONE;
+    }
+    if (value->owner_kind == W_SEED_HIR0_VALUE_OWNER_TERMINATOR) {
+      if (value->owner_index >= program->terminator_count)
+        return W_SEED_HIR0_NONE;
+      const uint32_t block =
+          program->terminators[value->owner_index].owner_block;
+      return block < program->block_count
+                 ? program->blocks[block].owner_function
+                 : W_SEED_HIR0_NONE;
+    }
+    if (value->owner_kind == W_SEED_HIR0_VALUE_OWNER_BINARY ||
+        value->owner_kind == W_SEED_HIR0_VALUE_OWNER_UNARY ||
+        value->owner_kind == W_SEED_HIR0_VALUE_OWNER_EXTERNAL_MEMBER ||
+        value->owner_kind == W_SEED_HIR0_VALUE_OWNER_EXTERNAL_ENUM_CASE) {
+      if (value->owner_index == W_SEED_HIR0_NONE) return W_SEED_HIR0_NONE;
+      current = value->owner_index;
+      continue;
+    }
+    if (value->owner_kind ==
+        W_SEED_HIR0_VALUE_OWNER_INTERPOLATION_SEGMENT) {
+      if (value->owner_index >= program->interpolation_segment_count)
+        return W_SEED_HIR0_NONE;
+      current = program->interpolation_segments[value->owner_index].owner_value;
+      continue;
+    }
+    if (value->owner_kind == W_SEED_HIR0_VALUE_OWNER_ENUM_PAYLOAD) {
+      if (value->owner_index >= program->enum_payload_count)
+        return W_SEED_HIR0_NONE;
+      current = program->enum_payloads[value->owner_index].owner_value;
+      continue;
+    }
+    return W_SEED_HIR0_NONE;
+  }
+  return W_SEED_HIR0_NONE;
+}
+
+static bool process_has_reachable_checked_fault_candidate(
+    const w_seed_hir0_program *program,
+    const w_seed_native_subset0_process *process, bool *has_candidate,
+    bool *has_unsupported_candidate) {
+  if (has_candidate != NULL) *has_candidate = false;
+  if (has_unsupported_candidate != NULL) *has_unsupported_candidate = false;
+  if (program == NULL || process == NULL || has_candidate == NULL ||
+      has_unsupported_candidate == NULL ||
+      process->function_index >= program->function_count ||
+      program->function_count > W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS)
+    return false;
+  bool reachable[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS] = {false};
+  reachable[process->function_index] = true;
+  for (size_t pass = 0u; pass < program->function_count; pass += 1u) {
+    bool changed = false;
+    for (size_t call_index = 0u; call_index < program->call_count;
+         call_index += 1u) {
+      const w_seed_hir0_call *call = &program->calls[call_index];
+      if (call->owner_block >= program->block_count ||
+          call->callee_identity >= program->identity_count)
+        return false;
+      const uint32_t owner_function =
+          program->blocks[call->owner_block].owner_function;
+      if (owner_function >= program->function_count)
+        return false;
+      if (!reachable[owner_function]) continue;
+      const w_seed_hir0_identity *callee =
+          &program->identities[call->callee_identity];
+      if (callee->kind != W_SEED_HIR0_IDENTITY_FUNCTION) continue;
+      if (callee->target_index >= program->function_count) return false;
+      if (!reachable[callee->target_index]) {
+        reachable[callee->target_index] = true;
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u) {
+    const w_seed_hir0_value *value = &program->values[value_index];
+    if ((value->kind != W_SEED_HIR0_VALUE_BINARY_I64 &&
+         value->kind != W_SEED_HIR0_VALUE_BINARY_U64) ||
+        !process_checked_fault_operation_candidate(value->binary_operator))
+      continue;
+    const uint32_t owner_function = process_value_owner_function(
+        program, (uint32_t)value_index);
+    if (owner_function == W_SEED_HIR0_NONE ||
+        owner_function >= program->function_count)
+      return false;
+    if (reachable[owner_function]) {
+      *has_candidate = true;
+      native_integer_facts facts;
+      const bool supported_operator =
+          value->binary_operator == W_SEED_HIR0_BINARY_ADD ||
+          value->binary_operator == W_SEED_HIR0_BINARY_SUBTRACT ||
+          value->binary_operator == W_SEED_HIR0_BINARY_MULTIPLY ||
+          value->binary_operator == W_SEED_HIR0_BINARY_DIVIDE ||
+          value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER;
+      const bool operation_is_signed =
+          value->kind == W_SEED_HIR0_VALUE_BINARY_I64;
+      if (!native_integer_type_facts(program, value->type_index, &facts) ||
+          facts.is_signed != operation_is_signed || !supported_operator)
+        *has_unsupported_candidate = true;
+    }
+  }
+  return true;
+}
+
+static bool process_checked_fault_relation_derive(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    const w_seed_native_subset0_process *process,
+    w_seed_product_closure0_checked_fault_relation *relation) {
+  if (program == NULL || hir_result == NULL || process == NULL ||
+      relation == NULL)
+    return false;
+  bool has_candidate = false;
+  bool has_unsupported_candidate = false;
+  if (!process_has_reachable_checked_fault_candidate(program, process,
+                                                     &has_candidate,
+                                                     &has_unsupported_candidate) ||
+      has_unsupported_candidate)
+    return false;
+  (void)memset(relation, 0, sizeof(*relation));
+  relation->source_conversion_terminator_index = W_SEED_HIR0_NONE;
+  relation->normal_successor_block_index = W_SEED_HIR0_NONE;
+  if (!has_candidate) return true;
+  const w_seed_product_closure0_input input = {program, hir_result};
+  w_seed_product_closure0_counts counts = {0};
+  w_seed_product_closure0_result result = {0};
+  if (w_seed_product_closure0_measure(&input, &counts, &result) !=
+      W_SEED_PRODUCT_CLOSURE0_OK)
+    return false;
+  *relation = result.checked_fault_relation;
+  return true;
+}
+
+static bool process_checked_fault_relation_equal(
+    const w_seed_product_closure0_checked_fault_relation *left,
+    const w_seed_product_closure0_checked_fault_relation *right) {
+  return left != NULL && right != NULL && left->present == right->present &&
+         left->source_conversion_terminator_index ==
+             right->source_conversion_terminator_index &&
+         left->normal_successor_block_index ==
+             right->normal_successor_block_index &&
+         left->conversion_failure_status ==
+             right->conversion_failure_status &&
+         left->arithmetic_failure_status ==
+             right->arithmetic_failure_status &&
+         left->operation_count == right->operation_count &&
+         memcmp(left->operation_digest, right->operation_digest,
+                sizeof(left->operation_digest)) == 0;
+}
+
 static w_seed_native_subset0_status
 select_process_executable_mode(
     const w_seed_hir0_program *program,
@@ -8355,6 +8543,12 @@ select_process_executable_mode(
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
   }
 
+  if (candidate.has_integer_exactly &&
+      !process_checked_fault_relation_derive(
+          program, hir_result, &candidate,
+          &candidate.checked_fault_relation))
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+
   /* All non-entry functions remain on the ordinary, nominal-free lowering
    * path.  A local call back into the async process entry is rejected there;
    * the process body itself is checked with its explicit nominal context. */
@@ -8415,6 +8609,21 @@ w_seed_native_subset0_select_process_executable(
     const w_seed_hir0_result *hir_result,
     w_seed_native_subset0_process *selection) {
   return select_process_executable_mode(program, hir_result, NULL, selection);
+}
+
+bool w_seed_native_subset0_verify_process_checked_fault_relation(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    const w_seed_native_subset0_process *selection) {
+  if (program == NULL || hir_result == NULL || selection == NULL) return false;
+  if (!selection->has_integer_exactly)
+    return !selection->checked_fault_relation.present &&
+           selection->checked_fault_relation.operation_count == 0u;
+  w_seed_product_closure0_checked_fault_relation expected;
+  return process_checked_fault_relation_derive(program, hir_result, selection,
+                                                &expected) &&
+         process_checked_fault_relation_equal(
+             &selection->checked_fault_relation, &expected);
 }
 
 w_seed_native_subset0_status

@@ -3206,10 +3206,40 @@ The output cursor is loaded and flushed only on the normal successor after
 both owner releases and root finalization. The constant success/error fixtures remain focused
 correctness inputs.
 This remains compiler-lifecycle correctness evidence. The structured numeric
-fault path is restricted to the straight-line signed process shape: unsigned
+fault path here remains the straight-line signed process shape; unsigned
 operations, shifts, power, local-call propagation, general CFG, user cleanup,
-public panic ABI, and performance remain unsupported or unclaimed.
+public panic ABI, and performance remain outside that witness.
 `benchmarkDisposition: compiler-lifecycle`.
+
+### Checked unsigned helper fault at the process boundary
+
+[`fixtures/checked-integer-helper-fault.w`](fixtures/checked-integer-helper-fault.w)
+is a separate neutral witness; the process-fixed-integer-arithmetic fixture
+and its oracle remain unchanged. It exactly converts runtime `args.count` to
+`u8`, then calls one synchronous local helper from an interpolation. The
+helper's ordinary checked `u8` addition evaluates `value + 255_u8`. Zero user
+arguments print exactly `Begin 255\n`; one argument overflows and exits 2;
+256 arguments fail conversion first and exit 1. Both failure cases have empty
+stdout and stderr, including the source's literal `Begin ` prefix.
+
+ProductClosure0 publishes the checked-fault relation from the verified
+reachable call graph, with one fact per reachable operation binding source
+value, owner function, integer type, and operator. NativeSubset0 carries and
+rechecks that relation; the process artifact builder reauthenticates the
+handoff before emission. MLIR uses a process-aware unsigned helper and a
+threaded private fault slot, so the helper's failure stays distinct from the
+typed conversion error until after exactly-once `Context`, then `Arguments`
+release and root finalization. The normal output buffer is committed only on
+the success path. The C23 reference uses a widened unsigned intermediate to
+avoid C undefined behavior; Rust uses `u8::checked_add`. Both are correctness
+oracles only.
+
+Public Windows x64 and Linux/WSL x64 `w run` and `w build` gates execute all
+three argument-count cases. This remains compiler-lifecycle evidence with no
+performance row. It proves one reachable unsigned `u8` addition through one
+local helper and one interpolated print; it does not enable general CFG,
+multiple-helper fault chains, shifts/power at the process boundary, user
+cleanup, or other hosts/targets.
 
 ### Runtime u64 mix-round composition
 
