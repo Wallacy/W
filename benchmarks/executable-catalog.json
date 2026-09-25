@@ -21059,6 +21059,330 @@
         "$schema": "./executable-benchmark.schema.json",
         "schema": "w-executable-benchmark-best-metrics/2",
         "kind": "executable-best-metric",
+        "id": "best-fba803ca8c36562f09f6aff185ca9aad6be7f29426b4ac7ba107d7b6195aaf39",
+        "status": "current",
+        "categoryId": "category-d9d88656f0ca4d82a73e178b68f9ede30a9118de8826fd82a77c076072911bc2",
+        "workloadId": "process-arguments-count",
+        "language": "w",
+        "equivalenceKey": "sha256:8c195e00098e85565fc047d421b9d598e86cfe784001a732c174724e3ae378e3",
+        "platformTarget": "linux-wsl-x64",
+        "artifactTarget": "x86_64-unknown-linux-gnu",
+        "abi": "x86_64-unknown-linux-gnu",
+        "profile": "release",
+        "host": "linux-linux-6.18.33.2-microsoft-standard-wsl2-f90b9bfc569ec2a0",
+        "recipeClass": "process-arguments-count-release",
+        "runtimeClosure": {
+          "class": "freestanding",
+          "status": "unverified"
+        },
+        "comparability": "same-physical-hardware-diagnostic-only",
+        "eligibility": "same-physical-hardware-diagnostic-only",
+        "metric": "artifact-size",
+        "unit": "bytes",
+        "statistic": "single-artifact",
+        "value": "2024",
+        "toolchain": "w-public-build-release-8772532195f37790521ddff23022bb9dee96464429dcdd28a70e6ceb2c07c7e0-x86_64-unknown-linux-gnu",
+        "recipe": "public-w-build-release",
+        "provenance": {
+          "recordId": "process-arguments-count-w-linux-wsl-x64-48ac7dc0e7ae",
+          "commit": "48ac7dc0e7ae7cf969af646a05762b11c5b0177a",
+          "observedAt": "2026-09-25T10:28:35.323Z",
+          "sourceDigest": "sha256:babeb94b3dbfa9bf9a4487dffca732ec85653ae66d3c23b84cb7579c960269b3",
+          "artifactDigest": "sha256:ec594c3d6a055dd2c10d3341c75883aa63ed29791a8f7700230c2a83e31184bb",
+          "recipeDigest": "sha256:358d8a21d136c63aadbab784d9e30560f2d6e419e8d396cc75afc7c055369915",
+          "toolchainDigest": "sha256:8d842393109ffe9ba32f5385ea023bd222bc5e98297bb8db8fd2c62db50859b4",
+          "runnerDigest": "sha256:39c03ea732355baf88a01921309f0db83700207980f51c5da0fc1491eb9f15c9",
+          "catalogDigest": "sha256:bb7fbd4aaa6f4f267ed19fd28c11a53fb23e3d14a481762e7a23a3eecfa506ed",
+          "artifactCleanliness": "verified-clean",
+          "platformEvidence": {
+            "hostMode": "wsl2",
+            "comparisonPurpose": "same-physical-hardware-diagnostic-only",
+            "rankability": "same-host-only"
+          }
+        },
+        "elfLayout": {
+          "class": "ELF64",
+          "data": "little-endian",
+          "machine": "x86-64",
+          "type": "pie",
+          "sections": [
+            {
+              "name": ".dynsym",
+              "sizeBytes": "24"
+            },
+            {
+              "name": ".gnu.hash",
+              "sizeBytes": "28"
+            },
+            {
+              "name": ".dynstr",
+              "sizeBytes": "1"
+            },
+            {
+              "name": ".rodata",
+              "sizeBytes": "16"
+            },
+            {
+              "name": ".eh_frame",
+              "sizeBytes": "68"
+            },
+            {
+              "name": ".text",
+              "sizeBytes": "360"
+            },
+            {
+              "name": ".dynamic",
+              "sizeBytes": "128"
+            },
+            {
+              "name": ".relro_padding",
+              "sizeBytes": "3000"
+            },
+            {
+              "name": ".comment",
+              "sizeBytes": "129"
+            },
+            {
+              "name": ".shstrtab",
+              "sizeBytes": "94"
+            }
+          ]
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/2",
+        "kind": "executable-best-metric",
+        "id": "best-d92d914503fcb8f69f60d34a7257f3fa7d3abafd24f7cf7fa73300c43d0fab3b",
+        "status": "current",
+        "categoryId": "category-d9d88656f0ca4d82a73e178b68f9ede30a9118de8826fd82a77c076072911bc2",
+        "workloadId": "process-arguments-count",
+        "language": "w",
+        "equivalenceKey": "sha256:8c195e00098e85565fc047d421b9d598e86cfe784001a732c174724e3ae378e3",
+        "platformTarget": "linux-wsl-x64",
+        "artifactTarget": "x86_64-unknown-linux-gnu",
+        "abi": "x86_64-unknown-linux-gnu",
+        "profile": "release",
+        "host": "linux-linux-6.18.33.2-microsoft-standard-wsl2-f90b9bfc569ec2a0",
+        "recipeClass": "process-arguments-count-release",
+        "runtimeClosure": {
+          "class": "freestanding",
+          "status": "unverified"
+        },
+        "comparability": "same-physical-hardware-diagnostic-only",
+        "eligibility": "same-physical-hardware-diagnostic-only",
+        "metric": "compile-latency",
+        "unit": "nanoseconds",
+        "statistic": "median",
+        "value": "246505000",
+        "toolchain": "w-public-build-release-8772532195f37790521ddff23022bb9dee96464429dcdd28a70e6ceb2c07c7e0-x86_64-unknown-linux-gnu",
+        "recipe": "public-w-build-release",
+        "provenance": {
+          "recordId": "process-arguments-count-w-linux-wsl-x64-48ac7dc0e7ae",
+          "commit": "48ac7dc0e7ae7cf969af646a05762b11c5b0177a",
+          "observedAt": "2026-09-25T10:28:35.323Z",
+          "sourceDigest": "sha256:babeb94b3dbfa9bf9a4487dffca732ec85653ae66d3c23b84cb7579c960269b3",
+          "artifactDigest": "sha256:ec594c3d6a055dd2c10d3341c75883aa63ed29791a8f7700230c2a83e31184bb",
+          "recipeDigest": "sha256:358d8a21d136c63aadbab784d9e30560f2d6e419e8d396cc75afc7c055369915",
+          "toolchainDigest": "sha256:8d842393109ffe9ba32f5385ea023bd222bc5e98297bb8db8fd2c62db50859b4",
+          "runnerDigest": "sha256:39c03ea732355baf88a01921309f0db83700207980f51c5da0fc1491eb9f15c9",
+          "catalogDigest": "sha256:bb7fbd4aaa6f4f267ed19fd28c11a53fb23e3d14a481762e7a23a3eecfa506ed",
+          "artifactCleanliness": "verified-clean",
+          "platformEvidence": {
+            "hostMode": "wsl2",
+            "comparisonPurpose": "same-physical-hardware-diagnostic-only",
+            "rankability": "same-host-only"
+          }
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/2",
+        "kind": "executable-best-metric",
+        "id": "best-cf6a1daa4ad9ba9e0c885ef2aa23ca5a3c8c8766aae73aeb619e6bdca49f2f26",
+        "status": "current",
+        "categoryId": "category-d9d88656f0ca4d82a73e178b68f9ede30a9118de8826fd82a77c076072911bc2",
+        "workloadId": "process-arguments-count",
+        "language": "w",
+        "equivalenceKey": "sha256:8c195e00098e85565fc047d421b9d598e86cfe784001a732c174724e3ae378e3",
+        "platformTarget": "linux-wsl-x64",
+        "artifactTarget": "x86_64-unknown-linux-gnu",
+        "abi": "x86_64-unknown-linux-gnu",
+        "profile": "release",
+        "host": "linux-linux-6.18.33.2-microsoft-standard-wsl2-f90b9bfc569ec2a0",
+        "recipeClass": "process-arguments-count-release",
+        "runtimeClosure": {
+          "class": "freestanding",
+          "status": "unverified"
+        },
+        "comparability": "same-physical-hardware-diagnostic-only",
+        "eligibility": "same-physical-hardware-diagnostic-only",
+        "metric": "cpu-time",
+        "unit": "microseconds",
+        "statistic": "arithmeticMean",
+        "value": "87",
+        "toolchain": "w-public-build-release-8772532195f37790521ddff23022bb9dee96464429dcdd28a70e6ceb2c07c7e0-x86_64-unknown-linux-gnu",
+        "recipe": "public-w-build-release",
+        "provenance": {
+          "recordId": "process-arguments-count-w-linux-wsl-x64-48ac7dc0e7ae",
+          "commit": "48ac7dc0e7ae7cf969af646a05762b11c5b0177a",
+          "observedAt": "2026-09-25T10:28:35.323Z",
+          "sourceDigest": "sha256:babeb94b3dbfa9bf9a4487dffca732ec85653ae66d3c23b84cb7579c960269b3",
+          "artifactDigest": "sha256:ec594c3d6a055dd2c10d3341c75883aa63ed29791a8f7700230c2a83e31184bb",
+          "recipeDigest": "sha256:358d8a21d136c63aadbab784d9e30560f2d6e419e8d396cc75afc7c055369915",
+          "toolchainDigest": "sha256:8d842393109ffe9ba32f5385ea023bd222bc5e98297bb8db8fd2c62db50859b4",
+          "runnerDigest": "sha256:39c03ea732355baf88a01921309f0db83700207980f51c5da0fc1491eb9f15c9",
+          "catalogDigest": "sha256:bb7fbd4aaa6f4f267ed19fd28c11a53fb23e3d14a481762e7a23a3eecfa506ed",
+          "artifactCleanliness": "verified-clean",
+          "platformEvidence": {
+            "hostMode": "wsl2",
+            "comparisonPurpose": "same-physical-hardware-diagnostic-only",
+            "rankability": "same-host-only"
+          }
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/2",
+        "kind": "executable-best-metric",
+        "id": "best-e7946cf88bdc052400ade5dbdccfa46090e7f8626689b8b228d4d94cdf33f01e",
+        "status": "current",
+        "categoryId": "category-d9d88656f0ca4d82a73e178b68f9ede30a9118de8826fd82a77c076072911bc2",
+        "workloadId": "process-arguments-count",
+        "language": "w",
+        "equivalenceKey": "sha256:8c195e00098e85565fc047d421b9d598e86cfe784001a732c174724e3ae378e3",
+        "platformTarget": "linux-wsl-x64",
+        "artifactTarget": "x86_64-unknown-linux-gnu",
+        "abi": "x86_64-unknown-linux-gnu",
+        "profile": "release",
+        "host": "linux-linux-6.18.33.2-microsoft-standard-wsl2-f90b9bfc569ec2a0",
+        "recipeClass": "process-arguments-count-release",
+        "runtimeClosure": {
+          "class": "freestanding",
+          "status": "unverified"
+        },
+        "comparability": "same-physical-hardware-diagnostic-only",
+        "eligibility": "same-physical-hardware-diagnostic-only",
+        "metric": "peak-working-set",
+        "unit": "bytes",
+        "statistic": "median",
+        "value": "802816",
+        "toolchain": "w-public-build-release-8772532195f37790521ddff23022bb9dee96464429dcdd28a70e6ceb2c07c7e0-x86_64-unknown-linux-gnu",
+        "recipe": "public-w-build-release",
+        "provenance": {
+          "recordId": "process-arguments-count-w-linux-wsl-x64-48ac7dc0e7ae",
+          "commit": "48ac7dc0e7ae7cf969af646a05762b11c5b0177a",
+          "observedAt": "2026-09-25T10:28:35.323Z",
+          "sourceDigest": "sha256:babeb94b3dbfa9bf9a4487dffca732ec85653ae66d3c23b84cb7579c960269b3",
+          "artifactDigest": "sha256:ec594c3d6a055dd2c10d3341c75883aa63ed29791a8f7700230c2a83e31184bb",
+          "recipeDigest": "sha256:358d8a21d136c63aadbab784d9e30560f2d6e419e8d396cc75afc7c055369915",
+          "toolchainDigest": "sha256:8d842393109ffe9ba32f5385ea023bd222bc5e98297bb8db8fd2c62db50859b4",
+          "runnerDigest": "sha256:39c03ea732355baf88a01921309f0db83700207980f51c5da0fc1491eb9f15c9",
+          "catalogDigest": "sha256:bb7fbd4aaa6f4f267ed19fd28c11a53fb23e3d14a481762e7a23a3eecfa506ed",
+          "artifactCleanliness": "verified-clean",
+          "platformEvidence": {
+            "hostMode": "wsl2",
+            "comparisonPurpose": "same-physical-hardware-diagnostic-only",
+            "rankability": "same-host-only"
+          }
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/2",
+        "kind": "executable-best-metric",
+        "id": "best-ff264b7838e45652e301a0ae242a648b4aaee45887ec7d79e8f8c60dc350bb26",
+        "status": "current",
+        "categoryId": "category-d9d88656f0ca4d82a73e178b68f9ede30a9118de8826fd82a77c076072911bc2",
+        "workloadId": "process-arguments-count",
+        "language": "w",
+        "equivalenceKey": "sha256:8c195e00098e85565fc047d421b9d598e86cfe784001a732c174724e3ae378e3",
+        "platformTarget": "linux-wsl-x64",
+        "artifactTarget": "x86_64-unknown-linux-gnu",
+        "abi": "x86_64-unknown-linux-gnu",
+        "profile": "release",
+        "host": "linux-linux-6.18.33.2-microsoft-standard-wsl2-f90b9bfc569ec2a0",
+        "recipeClass": "process-arguments-count-release",
+        "runtimeClosure": {
+          "class": "freestanding",
+          "status": "unverified"
+        },
+        "comparability": "same-physical-hardware-diagnostic-only",
+        "eligibility": "same-physical-hardware-diagnostic-only",
+        "metric": "run-wall-p95",
+        "unit": "nanoseconds",
+        "statistic": "p95",
+        "value": "320941",
+        "toolchain": "w-public-build-release-8772532195f37790521ddff23022bb9dee96464429dcdd28a70e6ceb2c07c7e0-x86_64-unknown-linux-gnu",
+        "recipe": "public-w-build-release",
+        "provenance": {
+          "recordId": "process-arguments-count-w-linux-wsl-x64-48ac7dc0e7ae",
+          "commit": "48ac7dc0e7ae7cf969af646a05762b11c5b0177a",
+          "observedAt": "2026-09-25T10:28:35.323Z",
+          "sourceDigest": "sha256:babeb94b3dbfa9bf9a4487dffca732ec85653ae66d3c23b84cb7579c960269b3",
+          "artifactDigest": "sha256:ec594c3d6a055dd2c10d3341c75883aa63ed29791a8f7700230c2a83e31184bb",
+          "recipeDigest": "sha256:358d8a21d136c63aadbab784d9e30560f2d6e419e8d396cc75afc7c055369915",
+          "toolchainDigest": "sha256:8d842393109ffe9ba32f5385ea023bd222bc5e98297bb8db8fd2c62db50859b4",
+          "runnerDigest": "sha256:39c03ea732355baf88a01921309f0db83700207980f51c5da0fc1491eb9f15c9",
+          "catalogDigest": "sha256:bb7fbd4aaa6f4f267ed19fd28c11a53fb23e3d14a481762e7a23a3eecfa506ed",
+          "artifactCleanliness": "verified-clean",
+          "platformEvidence": {
+            "hostMode": "wsl2",
+            "comparisonPurpose": "same-physical-hardware-diagnostic-only",
+            "rankability": "same-host-only"
+          }
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/2",
+        "kind": "executable-best-metric",
+        "id": "best-bb26c4cbfdeda6241f59bafb7872cdf7964e2e1761e562d57f793161158ca0e9",
+        "status": "current",
+        "categoryId": "category-d9d88656f0ca4d82a73e178b68f9ede30a9118de8826fd82a77c076072911bc2",
+        "workloadId": "process-arguments-count",
+        "language": "w",
+        "equivalenceKey": "sha256:8c195e00098e85565fc047d421b9d598e86cfe784001a732c174724e3ae378e3",
+        "platformTarget": "linux-wsl-x64",
+        "artifactTarget": "x86_64-unknown-linux-gnu",
+        "abi": "x86_64-unknown-linux-gnu",
+        "profile": "release",
+        "host": "linux-linux-6.18.33.2-microsoft-standard-wsl2-f90b9bfc569ec2a0",
+        "recipeClass": "process-arguments-count-release",
+        "runtimeClosure": {
+          "class": "freestanding",
+          "status": "unverified"
+        },
+        "comparability": "same-physical-hardware-diagnostic-only",
+        "eligibility": "same-physical-hardware-diagnostic-only",
+        "metric": "run-wall-time",
+        "unit": "nanoseconds",
+        "statistic": "median",
+        "value": "135793",
+        "toolchain": "w-public-build-release-8772532195f37790521ddff23022bb9dee96464429dcdd28a70e6ceb2c07c7e0-x86_64-unknown-linux-gnu",
+        "recipe": "public-w-build-release",
+        "provenance": {
+          "recordId": "process-arguments-count-w-linux-wsl-x64-48ac7dc0e7ae",
+          "commit": "48ac7dc0e7ae7cf969af646a05762b11c5b0177a",
+          "observedAt": "2026-09-25T10:28:35.323Z",
+          "sourceDigest": "sha256:babeb94b3dbfa9bf9a4487dffca732ec85653ae66d3c23b84cb7579c960269b3",
+          "artifactDigest": "sha256:ec594c3d6a055dd2c10d3341c75883aa63ed29791a8f7700230c2a83e31184bb",
+          "recipeDigest": "sha256:358d8a21d136c63aadbab784d9e30560f2d6e419e8d396cc75afc7c055369915",
+          "toolchainDigest": "sha256:8d842393109ffe9ba32f5385ea023bd222bc5e98297bb8db8fd2c62db50859b4",
+          "runnerDigest": "sha256:39c03ea732355baf88a01921309f0db83700207980f51c5da0fc1491eb9f15c9",
+          "catalogDigest": "sha256:bb7fbd4aaa6f4f267ed19fd28c11a53fb23e3d14a481762e7a23a3eecfa506ed",
+          "artifactCleanliness": "verified-clean",
+          "platformEvidence": {
+            "hostMode": "wsl2",
+            "comparisonPurpose": "same-physical-hardware-diagnostic-only",
+            "rankability": "same-host-only"
+          }
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/2",
+        "kind": "executable-best-metric",
         "id": "best-a13e312403acc35922443dc9e39e26a2640e27a8bc1a941d923530f79847002a",
         "status": "current",
         "categoryId": "category-e7468c9247a6fe861f64ebdd76d03af85a9922a8d60658364c9827bae26e6d55",
@@ -21609,6 +21933,330 @@
           "runnerDigest": "sha256:880a69582517c892312367c3e9be9c3b41451ce122ec0f22682f442623180105",
           "catalogDigest": "sha256:52e3447104e4969a3f0be65c9fa9c8e7a140f5863beb8e093e3323c14e0cb1ab",
           "artifactCleanliness": "verified-clean"
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/2",
+        "kind": "executable-best-metric",
+        "id": "best-823d51b5b85e24c338a48086645b6cc4481de65cc249d4a5697825d76c3c9f9e",
+        "status": "current",
+        "categoryId": "category-4a5b2dd42c4e2aa822e0092777682c727b0292a6432c506b2707bd2d6016abc6",
+        "workloadId": "process-arguments-ordering",
+        "language": "w",
+        "equivalenceKey": "sha256:e02ebd6972aa3dbcb14b1747e64aa298cde3db730d33ac96cecf17dfa318d972",
+        "platformTarget": "linux-wsl-x64",
+        "artifactTarget": "x86_64-unknown-linux-gnu",
+        "abi": "x86_64-unknown-linux-gnu",
+        "profile": "release",
+        "host": "linux-linux-6.18.33.2-microsoft-standard-wsl2-f90b9bfc569ec2a0",
+        "recipeClass": "process-arguments-ordering-release",
+        "runtimeClosure": {
+          "class": "freestanding",
+          "status": "unverified"
+        },
+        "comparability": "same-physical-hardware-diagnostic-only",
+        "eligibility": "same-physical-hardware-diagnostic-only",
+        "metric": "artifact-size",
+        "unit": "bytes",
+        "statistic": "single-artifact",
+        "value": "2056",
+        "toolchain": "w-public-build-release-3385fc84833c75aed779f6638a6b60e1dc10d77062dea7c0c6700b2f7788d1f9-x86_64-unknown-linux-gnu",
+        "recipe": "public-w-build-release",
+        "provenance": {
+          "recordId": "process-arguments-ordering-w-linux-wsl-x64-48ac7dc0e7ae",
+          "commit": "48ac7dc0e7ae7cf969af646a05762b11c5b0177a",
+          "observedAt": "2026-09-25T10:29:18.803Z",
+          "sourceDigest": "sha256:233d68f37f484de4894cfd71e4e6df1505fb9c8a0f2182e3a342ab66d2db51a0",
+          "artifactDigest": "sha256:e845af0b9328489113c0dac97e0439c8105cabb271280edd29bef7d21983d60d",
+          "recipeDigest": "sha256:358d8a21d136c63aadbab784d9e30560f2d6e419e8d396cc75afc7c055369915",
+          "toolchainDigest": "sha256:bbc1fde1f2ad9239416c27f7aaeb0215f12a82cd30e8383e65e3582a8c7766ef",
+          "runnerDigest": "sha256:39c03ea732355baf88a01921309f0db83700207980f51c5da0fc1491eb9f15c9",
+          "catalogDigest": "sha256:bb7fbd4aaa6f4f267ed19fd28c11a53fb23e3d14a481762e7a23a3eecfa506ed",
+          "artifactCleanliness": "verified-clean",
+          "platformEvidence": {
+            "hostMode": "wsl2",
+            "comparisonPurpose": "same-physical-hardware-diagnostic-only",
+            "rankability": "same-host-only"
+          }
+        },
+        "elfLayout": {
+          "class": "ELF64",
+          "data": "little-endian",
+          "machine": "x86-64",
+          "type": "pie",
+          "sections": [
+            {
+              "name": ".dynsym",
+              "sizeBytes": "24"
+            },
+            {
+              "name": ".gnu.hash",
+              "sizeBytes": "28"
+            },
+            {
+              "name": ".dynstr",
+              "sizeBytes": "1"
+            },
+            {
+              "name": ".rodata",
+              "sizeBytes": "16"
+            },
+            {
+              "name": ".eh_frame",
+              "sizeBytes": "68"
+            },
+            {
+              "name": ".text",
+              "sizeBytes": "392"
+            },
+            {
+              "name": ".dynamic",
+              "sizeBytes": "128"
+            },
+            {
+              "name": ".relro_padding",
+              "sizeBytes": "2968"
+            },
+            {
+              "name": ".comment",
+              "sizeBytes": "129"
+            },
+            {
+              "name": ".shstrtab",
+              "sizeBytes": "94"
+            }
+          ]
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/2",
+        "kind": "executable-best-metric",
+        "id": "best-8588328d1ade7ecd5b636e4c0c2813d3c5c24a35c09f0e83c6cba3e43328bf59",
+        "status": "current",
+        "categoryId": "category-4a5b2dd42c4e2aa822e0092777682c727b0292a6432c506b2707bd2d6016abc6",
+        "workloadId": "process-arguments-ordering",
+        "language": "w",
+        "equivalenceKey": "sha256:e02ebd6972aa3dbcb14b1747e64aa298cde3db730d33ac96cecf17dfa318d972",
+        "platformTarget": "linux-wsl-x64",
+        "artifactTarget": "x86_64-unknown-linux-gnu",
+        "abi": "x86_64-unknown-linux-gnu",
+        "profile": "release",
+        "host": "linux-linux-6.18.33.2-microsoft-standard-wsl2-f90b9bfc569ec2a0",
+        "recipeClass": "process-arguments-ordering-release",
+        "runtimeClosure": {
+          "class": "freestanding",
+          "status": "unverified"
+        },
+        "comparability": "same-physical-hardware-diagnostic-only",
+        "eligibility": "same-physical-hardware-diagnostic-only",
+        "metric": "compile-latency",
+        "unit": "nanoseconds",
+        "statistic": "median",
+        "value": "249875100",
+        "toolchain": "w-public-build-release-3385fc84833c75aed779f6638a6b60e1dc10d77062dea7c0c6700b2f7788d1f9-x86_64-unknown-linux-gnu",
+        "recipe": "public-w-build-release",
+        "provenance": {
+          "recordId": "process-arguments-ordering-w-linux-wsl-x64-48ac7dc0e7ae",
+          "commit": "48ac7dc0e7ae7cf969af646a05762b11c5b0177a",
+          "observedAt": "2026-09-25T10:29:18.803Z",
+          "sourceDigest": "sha256:233d68f37f484de4894cfd71e4e6df1505fb9c8a0f2182e3a342ab66d2db51a0",
+          "artifactDigest": "sha256:e845af0b9328489113c0dac97e0439c8105cabb271280edd29bef7d21983d60d",
+          "recipeDigest": "sha256:358d8a21d136c63aadbab784d9e30560f2d6e419e8d396cc75afc7c055369915",
+          "toolchainDigest": "sha256:bbc1fde1f2ad9239416c27f7aaeb0215f12a82cd30e8383e65e3582a8c7766ef",
+          "runnerDigest": "sha256:39c03ea732355baf88a01921309f0db83700207980f51c5da0fc1491eb9f15c9",
+          "catalogDigest": "sha256:bb7fbd4aaa6f4f267ed19fd28c11a53fb23e3d14a481762e7a23a3eecfa506ed",
+          "artifactCleanliness": "verified-clean",
+          "platformEvidence": {
+            "hostMode": "wsl2",
+            "comparisonPurpose": "same-physical-hardware-diagnostic-only",
+            "rankability": "same-host-only"
+          }
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/2",
+        "kind": "executable-best-metric",
+        "id": "best-8340dc6fa1fb30d263475aba57e0e93eecd1c74daf6108a64c3d587e6be750c2",
+        "status": "current",
+        "categoryId": "category-4a5b2dd42c4e2aa822e0092777682c727b0292a6432c506b2707bd2d6016abc6",
+        "workloadId": "process-arguments-ordering",
+        "language": "w",
+        "equivalenceKey": "sha256:e02ebd6972aa3dbcb14b1747e64aa298cde3db730d33ac96cecf17dfa318d972",
+        "platformTarget": "linux-wsl-x64",
+        "artifactTarget": "x86_64-unknown-linux-gnu",
+        "abi": "x86_64-unknown-linux-gnu",
+        "profile": "release",
+        "host": "linux-linux-6.18.33.2-microsoft-standard-wsl2-f90b9bfc569ec2a0",
+        "recipeClass": "process-arguments-ordering-release",
+        "runtimeClosure": {
+          "class": "freestanding",
+          "status": "unverified"
+        },
+        "comparability": "same-physical-hardware-diagnostic-only",
+        "eligibility": "same-physical-hardware-diagnostic-only",
+        "metric": "cpu-time",
+        "unit": "microseconds",
+        "statistic": "arithmeticMean",
+        "value": "78",
+        "toolchain": "w-public-build-release-3385fc84833c75aed779f6638a6b60e1dc10d77062dea7c0c6700b2f7788d1f9-x86_64-unknown-linux-gnu",
+        "recipe": "public-w-build-release",
+        "provenance": {
+          "recordId": "process-arguments-ordering-w-linux-wsl-x64-48ac7dc0e7ae",
+          "commit": "48ac7dc0e7ae7cf969af646a05762b11c5b0177a",
+          "observedAt": "2026-09-25T10:29:18.803Z",
+          "sourceDigest": "sha256:233d68f37f484de4894cfd71e4e6df1505fb9c8a0f2182e3a342ab66d2db51a0",
+          "artifactDigest": "sha256:e845af0b9328489113c0dac97e0439c8105cabb271280edd29bef7d21983d60d",
+          "recipeDigest": "sha256:358d8a21d136c63aadbab784d9e30560f2d6e419e8d396cc75afc7c055369915",
+          "toolchainDigest": "sha256:bbc1fde1f2ad9239416c27f7aaeb0215f12a82cd30e8383e65e3582a8c7766ef",
+          "runnerDigest": "sha256:39c03ea732355baf88a01921309f0db83700207980f51c5da0fc1491eb9f15c9",
+          "catalogDigest": "sha256:bb7fbd4aaa6f4f267ed19fd28c11a53fb23e3d14a481762e7a23a3eecfa506ed",
+          "artifactCleanliness": "verified-clean",
+          "platformEvidence": {
+            "hostMode": "wsl2",
+            "comparisonPurpose": "same-physical-hardware-diagnostic-only",
+            "rankability": "same-host-only"
+          }
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/2",
+        "kind": "executable-best-metric",
+        "id": "best-0f397d21e332d3b8b6c8515199f7f9073be233dde9f42e073b88c6477efc1945",
+        "status": "current",
+        "categoryId": "category-4a5b2dd42c4e2aa822e0092777682c727b0292a6432c506b2707bd2d6016abc6",
+        "workloadId": "process-arguments-ordering",
+        "language": "w",
+        "equivalenceKey": "sha256:e02ebd6972aa3dbcb14b1747e64aa298cde3db730d33ac96cecf17dfa318d972",
+        "platformTarget": "linux-wsl-x64",
+        "artifactTarget": "x86_64-unknown-linux-gnu",
+        "abi": "x86_64-unknown-linux-gnu",
+        "profile": "release",
+        "host": "linux-linux-6.18.33.2-microsoft-standard-wsl2-f90b9bfc569ec2a0",
+        "recipeClass": "process-arguments-ordering-release",
+        "runtimeClosure": {
+          "class": "freestanding",
+          "status": "unverified"
+        },
+        "comparability": "same-physical-hardware-diagnostic-only",
+        "eligibility": "same-physical-hardware-diagnostic-only",
+        "metric": "peak-working-set",
+        "unit": "bytes",
+        "statistic": "median",
+        "value": "802816",
+        "toolchain": "w-public-build-release-3385fc84833c75aed779f6638a6b60e1dc10d77062dea7c0c6700b2f7788d1f9-x86_64-unknown-linux-gnu",
+        "recipe": "public-w-build-release",
+        "provenance": {
+          "recordId": "process-arguments-ordering-w-linux-wsl-x64-48ac7dc0e7ae",
+          "commit": "48ac7dc0e7ae7cf969af646a05762b11c5b0177a",
+          "observedAt": "2026-09-25T10:29:18.803Z",
+          "sourceDigest": "sha256:233d68f37f484de4894cfd71e4e6df1505fb9c8a0f2182e3a342ab66d2db51a0",
+          "artifactDigest": "sha256:e845af0b9328489113c0dac97e0439c8105cabb271280edd29bef7d21983d60d",
+          "recipeDigest": "sha256:358d8a21d136c63aadbab784d9e30560f2d6e419e8d396cc75afc7c055369915",
+          "toolchainDigest": "sha256:bbc1fde1f2ad9239416c27f7aaeb0215f12a82cd30e8383e65e3582a8c7766ef",
+          "runnerDigest": "sha256:39c03ea732355baf88a01921309f0db83700207980f51c5da0fc1491eb9f15c9",
+          "catalogDigest": "sha256:bb7fbd4aaa6f4f267ed19fd28c11a53fb23e3d14a481762e7a23a3eecfa506ed",
+          "artifactCleanliness": "verified-clean",
+          "platformEvidence": {
+            "hostMode": "wsl2",
+            "comparisonPurpose": "same-physical-hardware-diagnostic-only",
+            "rankability": "same-host-only"
+          }
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/2",
+        "kind": "executable-best-metric",
+        "id": "best-a93433966f31fe947a344d10ab9d4e5dba09c462adfd459e393984efd563dc45",
+        "status": "current",
+        "categoryId": "category-4a5b2dd42c4e2aa822e0092777682c727b0292a6432c506b2707bd2d6016abc6",
+        "workloadId": "process-arguments-ordering",
+        "language": "w",
+        "equivalenceKey": "sha256:e02ebd6972aa3dbcb14b1747e64aa298cde3db730d33ac96cecf17dfa318d972",
+        "platformTarget": "linux-wsl-x64",
+        "artifactTarget": "x86_64-unknown-linux-gnu",
+        "abi": "x86_64-unknown-linux-gnu",
+        "profile": "release",
+        "host": "linux-linux-6.18.33.2-microsoft-standard-wsl2-f90b9bfc569ec2a0",
+        "recipeClass": "process-arguments-ordering-release",
+        "runtimeClosure": {
+          "class": "freestanding",
+          "status": "unverified"
+        },
+        "comparability": "same-physical-hardware-diagnostic-only",
+        "eligibility": "same-physical-hardware-diagnostic-only",
+        "metric": "run-wall-p95",
+        "unit": "nanoseconds",
+        "statistic": "p95",
+        "value": "265178",
+        "toolchain": "w-public-build-release-3385fc84833c75aed779f6638a6b60e1dc10d77062dea7c0c6700b2f7788d1f9-x86_64-unknown-linux-gnu",
+        "recipe": "public-w-build-release",
+        "provenance": {
+          "recordId": "process-arguments-ordering-w-linux-wsl-x64-48ac7dc0e7ae",
+          "commit": "48ac7dc0e7ae7cf969af646a05762b11c5b0177a",
+          "observedAt": "2026-09-25T10:29:18.803Z",
+          "sourceDigest": "sha256:233d68f37f484de4894cfd71e4e6df1505fb9c8a0f2182e3a342ab66d2db51a0",
+          "artifactDigest": "sha256:e845af0b9328489113c0dac97e0439c8105cabb271280edd29bef7d21983d60d",
+          "recipeDigest": "sha256:358d8a21d136c63aadbab784d9e30560f2d6e419e8d396cc75afc7c055369915",
+          "toolchainDigest": "sha256:bbc1fde1f2ad9239416c27f7aaeb0215f12a82cd30e8383e65e3582a8c7766ef",
+          "runnerDigest": "sha256:39c03ea732355baf88a01921309f0db83700207980f51c5da0fc1491eb9f15c9",
+          "catalogDigest": "sha256:bb7fbd4aaa6f4f267ed19fd28c11a53fb23e3d14a481762e7a23a3eecfa506ed",
+          "artifactCleanliness": "verified-clean",
+          "platformEvidence": {
+            "hostMode": "wsl2",
+            "comparisonPurpose": "same-physical-hardware-diagnostic-only",
+            "rankability": "same-host-only"
+          }
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/2",
+        "kind": "executable-best-metric",
+        "id": "best-9b504e84abe1e56d0fd05f21c626d89eb5018f605994aa0973c447a130fc573a",
+        "status": "current",
+        "categoryId": "category-4a5b2dd42c4e2aa822e0092777682c727b0292a6432c506b2707bd2d6016abc6",
+        "workloadId": "process-arguments-ordering",
+        "language": "w",
+        "equivalenceKey": "sha256:e02ebd6972aa3dbcb14b1747e64aa298cde3db730d33ac96cecf17dfa318d972",
+        "platformTarget": "linux-wsl-x64",
+        "artifactTarget": "x86_64-unknown-linux-gnu",
+        "abi": "x86_64-unknown-linux-gnu",
+        "profile": "release",
+        "host": "linux-linux-6.18.33.2-microsoft-standard-wsl2-f90b9bfc569ec2a0",
+        "recipeClass": "process-arguments-ordering-release",
+        "runtimeClosure": {
+          "class": "freestanding",
+          "status": "unverified"
+        },
+        "comparability": "same-physical-hardware-diagnostic-only",
+        "eligibility": "same-physical-hardware-diagnostic-only",
+        "metric": "run-wall-time",
+        "unit": "nanoseconds",
+        "statistic": "median",
+        "value": "149904",
+        "toolchain": "w-public-build-release-3385fc84833c75aed779f6638a6b60e1dc10d77062dea7c0c6700b2f7788d1f9-x86_64-unknown-linux-gnu",
+        "recipe": "public-w-build-release",
+        "provenance": {
+          "recordId": "process-arguments-ordering-w-linux-wsl-x64-48ac7dc0e7ae",
+          "commit": "48ac7dc0e7ae7cf969af646a05762b11c5b0177a",
+          "observedAt": "2026-09-25T10:29:18.803Z",
+          "sourceDigest": "sha256:233d68f37f484de4894cfd71e4e6df1505fb9c8a0f2182e3a342ab66d2db51a0",
+          "artifactDigest": "sha256:e845af0b9328489113c0dac97e0439c8105cabb271280edd29bef7d21983d60d",
+          "recipeDigest": "sha256:358d8a21d136c63aadbab784d9e30560f2d6e419e8d396cc75afc7c055369915",
+          "toolchainDigest": "sha256:bbc1fde1f2ad9239416c27f7aaeb0215f12a82cd30e8383e65e3582a8c7766ef",
+          "runnerDigest": "sha256:39c03ea732355baf88a01921309f0db83700207980f51c5da0fc1491eb9f15c9",
+          "catalogDigest": "sha256:bb7fbd4aaa6f4f267ed19fd28c11a53fb23e3d14a481762e7a23a3eecfa506ed",
+          "artifactCleanliness": "verified-clean",
+          "platformEvidence": {
+            "hostMode": "wsl2",
+            "comparisonPurpose": "same-physical-hardware-diagnostic-only",
+            "rankability": "same-host-only"
+          }
         }
       },
       {

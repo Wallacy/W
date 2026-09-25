@@ -154,9 +154,11 @@ The timer covers lane runs, result validation, catalog update, and catalog/docum
 | [process-enum-payload (W)](../compiler/seed-c/fixtures/process-enum-payload.w) | Windows · no CRT (recipe-derived) | W | 3072 B (3.0 KiB) | 230.8603 ms | 13.0175 ms | 13.7338 ms | 9.282 ms | 3162112 B (3.02 MiB) |
 | [process-arguments-count (C)](./executable/process_arguments_count.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 138.2289 ms | 18.0142 ms | 19.327 ms | 13.459 ms | 4820992 B (4.60 MiB) |
 | [process-arguments-count (Rust)](./executable/process_arguments_count.rs) | Windows · CRT | Rust | 116224 B (113.5 KiB) | 1.1620732 s | 18.2839 ms | 19.2817 ms | 13.459 ms | 4878336 B (4.65 MiB) |
+| [process-arguments-count (W)](../compiler/seed-c/fixtures/process-arguments-count.w) | WSL · no CRT (recipe-derived) · diagnostic | W | 2024 B (2.0 KiB) | 246.505 ms | 135.793 µs | 320.941 µs | 87 µs | 802816 B (784.0 KiB) |
 | [process-arguments-count (W)](../compiler/seed-c/fixtures/process-arguments-count.w) | Windows · no CRT (recipe-derived) | W | 2560 B (2.5 KiB) | 228.8241 ms | — | — | — | — |
 | [process-arguments-ordering (C)](./executable/process_arguments_ordering.c) | Windows · CRT | C | 9216 B (9.0 KiB) | 140.64 ms | 17.9715 ms | 19.4399 ms | 14.077 ms | 4845568 B (4.62 MiB) |
 | [process-arguments-ordering (Rust)](./executable/process_arguments_ordering.rs) | Windows · CRT | Rust | 116224 B (113.5 KiB) | 1.1626488 s | 18.3843 ms | 19.6057 ms | 13.923 ms | 4890624 B (4.66 MiB) |
+| [process-arguments-ordering (W)](../compiler/seed-c/fixtures/process-arguments-ordering.w) | WSL · no CRT (recipe-derived) · diagnostic | W | 2056 B (2.0 KiB) | 249.8751 ms | 149.904 µs | 265.178 µs | 78 µs | 802816 B (784.0 KiB) |
 | [process-arguments-ordering (W)](../compiler/seed-c/fixtures/process-arguments-ordering.w) | Windows · no CRT (recipe-derived) | W | 2560 B (2.5 KiB) | 240.8864 ms | — | — | — | — |
 | [process-handler-lifecycle (C)](./executable/process_entry0.c) | Windows · CRT · private | C | 20480 B (20.0 KiB) | 994.2651 ms | 17.9129 ms | 18.9302 ms | 12.685 ms | 4751360 B (4.53 MiB) |
 | [process-handler-lifecycle (Rust)](./executable/process_entry0.rs) | Windows · CRT · private | Rust | 21504 B (21.0 KiB) | 1.0045717 s | 17.93 ms | 18.2697 ms | 11.757 ms | 4751360 B (4.53 MiB) |

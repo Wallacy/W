@@ -519,13 +519,19 @@ ordinary user arguments before timing. The zero- and one-argument cases print
 the literal `Exactly two arguments\n` (not `Argument count 2\n`). All cases
 exit `0` and write no stderr. The timed
 vector is `[alpha, beta]`. W, C23, and Rust 2024 use the same Windows x64 MSVC
-target and the shared release profiles.
+release target for the baseline comparison. A separate W-only WSL x64 lane uses
+the same source/oracle with the `x86_64-unknown-linux-gnu` artifact target and
+remains same-host diagnostic evidence.
 
 The current Windows W lanes for `process-arguments-count` and
 `process-arguments-ordering` retain current artifact-size and compile-latency
-cells only. Their cold-launch samples were diagnostic and are not published as
-live runtime metrics; the catalog declares no Linux/WSL source lanes for these
-workloads.
+cells only; their cold-launch samples are not published as live runtime
+metrics. The WSL lanes cross-build with the Windows-host W compiler, then time
+fresh Linux process invocations in a WSL-native helper batch on `/tmp`, outside
+WSL startup and DrvFS access. Compile latency is a Windows-host process
+observation; compile CPU/RSS counters are not promoted into live best cells.
+Runtime CPU/RSS describe the Linux root process. The W `freestanding` closure
+is recipe-derived and remains unverified for emitted imports or dependencies.
 
 #### Private process-handler lifecycle executable measurements
 

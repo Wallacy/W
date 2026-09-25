@@ -122,6 +122,16 @@ function assertCurrentMetricLanes(workload, entries, message) {
       `${message}: ${laneId} must use current source evidence`);
   }
 }
+function assertUniqueSourceLanguagesPerLane(sources, message) {
+  const keys = sources.map((source) => JSON.stringify([
+    source.platformTarget,
+    source.profile,
+    source.runtimeClosure,
+    source.language,
+  ]));
+  assert.equal(new Set(keys).size, keys.length,
+    `${message}: each language may have one source per platform/profile/runtime-closure lane`);
+}
 const VALID_PE_LAYOUT = {
   fileAlignment: "512",
   sectionAlignment: "4096",
@@ -2347,7 +2357,12 @@ test("process-arguments-ordering catalog pins the count-dependent argument-mode 
   ]);
   assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.arguments), [[], [""], ["alpha", "beta"], ["alpha", "beta", "gamma"]]);
   assert.ok(workload.sources.every((source) => source.recipeClass === PROCESS_ARGUMENTS_ORDERING_RECIPE_CLASS));
-  assert.deepEqual(workload.sources.map((source) => source.language), EXECUTABLE_LANGUAGES);
+  assertUniqueSourceLanguagesPerLane(workload.sources, "process-arguments-ordering");
+  assert.deepEqual(
+    workload.sources.filter((source) => source.platformTarget === EXECUTABLE_PLATFORM_TARGET)
+      .map((source) => source.language),
+    EXECUTABLE_LANGUAGES,
+  );
   assert.equal(workload.sources.find((source) => source.language === "w").entry, "run");
   assert.equal(workload.sources.find((source) => source.language === "c").entry, "main");
   assert.equal(workload.sources.find((source) => source.language === "rust").entry, "main");
