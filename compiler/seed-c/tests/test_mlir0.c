@@ -1472,15 +1472,23 @@ static bool test_process_arguments_count_comparison_mlir(void) {
         contains_bytes(output, result.written.mlir_bytes,
                        "llvm.call @w_seed_process_argc()") &&
         contains_bytes(output, result.written.mlir_bytes,
-                       "llvm.call @w_seed_process_argv()") &&
+                       "llvm.func internal @w_seed_process_count_arguments(%argument_count: i64) -> i64") &&
         contains_bytes(output, result.written.mlir_bytes,
-                       "llvm.func internal @w_seed_process_count_arguments(%argument_count: i64, %argv: !llvm.ptr) -> i64") &&
+                       "llvm.call @w_seed_process_count_arguments(%process_argc)") &&
         contains_bytes(output, result.written.mlir_bytes,
-                       "llvm.call @w_seed_process_count_arguments(%process_argc, %process_argv)") &&
+                       "llvm.icmp \"ult\" %argument_count, %one : i64") &&
         contains_bytes(output, result.written.mlir_bytes,
-                       "llvm.icmp \"eq\" %item_data, %null : !llvm.ptr") &&
+                       "llvm.icmp \"ugt\" %argument_count, %max_total : i64") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.sub %argument_count, %one : i64") &&
         contains_bytes(output, result.written.mlir_bytes,
                        "llvm.store %process_zero, %process_vector_items_address") &&
+        !contains_bytes(output, result.written.mlir_bytes,
+                        "w_seed_process_argv") &&
+        !contains_bytes(output, result.written.mlir_bytes,
+                        "%argv_address") &&
+        !contains_bytes(output, result.written.mlir_bytes,
+                        "%item_data") &&
         !contains_bytes(output, result.written.mlir_bytes,
                         "@w_seed_process_items") &&
         !contains_bytes(output, result.written.mlir_bytes,

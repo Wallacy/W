@@ -158,18 +158,21 @@ async function verifyLinuxAuditTrace(directory, finalArtifact, wsl) {
   const inputMlir = artifacts.get("input.mlir").toString("utf8")
   const optimizedIr = artifacts.get("optimized.ll").toString("utf8")
   assert(!inputMlir.includes("@w_seed_process_items") &&
+    !inputMlir.includes("w_seed_process_argv") &&
     !optimizedIr.includes("w_seed_process_items") &&
+    !optimizedIr.includes("w_seed_process_argv") &&
+    !/\bload\s+ptr\s*,\s*ptr\b/u.test(optimizedIr) &&
     !optimizedIr.includes("strlen") &&
     !optimizedIr.includes("scan_data") &&
     !optimizedIr.includes("byte_address"),
-  "Linux count-only lowering retained descriptors or argv byte scanning")
+  "Linux count-only lowering retained argv reads, pointer scanning, descriptors, or byte scanning")
   const declarations = [...optimizedIr.matchAll(
     /^\s*declare\b[^\n]*?@(?:"([^"]+)"|([^\s(]+))\s*\(/gmu,
   )].map((match) => match[1] ?? match[2])
     .filter((name) => !name.startsWith("llvm."))
     .sort()
   assert(JSON.stringify(declarations) === JSON.stringify([
-    "w_seed_process_argc", "w_seed_process_argv", "write",
+    "w_seed_process_argc", "write",
   ]), `post-opt Linux count-only externals differ: ${declarations.join(",")}`)
 
   const readUndefined = (name, allowStrippedNoSymbols = false) => {
@@ -187,7 +190,7 @@ async function verifyLinuxAuditTrace(directory, finalArtifact, wsl) {
       .map((line) => line.split(/\s+/u).at(-1)).sort()
   }
   assert(JSON.stringify(readUndefined("output.obj")) === JSON.stringify([
-    "w_seed_process_argc", "w_seed_process_argv", "write",
+    "w_seed_process_argc", "write",
   ]), "Linux count-only output object has a non-WRT undefined symbol")
   assert(JSON.stringify(readUndefined("wrt0.obj")) === JSON.stringify(["main"]),
     "Linux count-only WRT0 object has an unexpected undefined symbol")
@@ -207,6 +210,11 @@ async function verifyLinuxAuditTrace(directory, finalArtifact, wsl) {
   const finalBytes = await readFile(finalArtifact)
   assertCrtFreeElf(finalBytes)
   assertElfNoExecutableStack(finalBytes)
+  return {
+    optimizedIrBytes: artifacts.get("optimized.ll").length,
+    outputObjectBytes: artifacts.get("output.obj").length,
+    finalElfBytes: finalBytes.length,
+  }
 }
 
 export async function checkProcessArgumentCountParity(w,
@@ -244,6 +252,8 @@ export async function checkProcessArgumentCountParity(w,
     await writeFile(fullLanePath, fullLaneSource, { flag: "wx" })
     build(compilerPath, fullLanePath, fullLaneOutput)
 
+    let linuxBuildMs = 0
+    let linuxAuditSizes
     for (const { label, rawTail, count } of rawCommandLineCases) {
       assert(countOnlyPath.length + (rawTail?.length ?? 0) + 4 <
         maxWindowsCommandLineChars,
@@ -278,9 +288,13 @@ export async function checkProcessArgumentCountParity(w,
       assert(wsl, "WSL2 is required for the public Linux count-only witness")
       const linuxOutput = join(temporaryDirectory, "count-only-linux")
       const linuxAudit = join(temporaryDirectory, "count-only-linux-audit")
+      const linuxBuildStartedAt = process.hrtime.bigint()
       build(compilerPath, processArgumentsCountFixture, linuxOutput,
         linuxTargetTriple, linuxAudit)
-      await verifyLinuxAuditTrace(linuxAudit, linuxOutput, wsl)
+      linuxBuildMs = Number(process.hrtime.bigint() -
+        linuxBuildStartedAt) / 1e6
+      linuxAuditSizes = await verifyLinuxAuditTrace(linuxAudit,
+        linuxOutput, wsl)
       const linuxCountCases = [
         ["without user arguments", []],
         ["with one user argument", ["alpha"]],
@@ -310,7 +324,9 @@ export async function checkProcessArgumentCountParity(w,
     console.log(includeLinuxChecks
       ? `process argument-count parity: ${rawCommandLineCases.length} raw ` +
         `Windows commands, seven WSL vectors; post-opt/object/final CRT-free ` +
-        `receipts passed (${Math.round(elapsedMs)} ms)`
+        `receipts passed (Release optimizedIR=${linuxAuditSizes?.optimizedIrBytes}B ` +
+        `object=${linuxAuditSizes?.outputObjectBytes}B ELF=${linuxAuditSizes?.finalElfBytes}B; ` +
+        `Linux build=${Math.round(linuxBuildMs)} ms; total=${Math.round(elapsedMs)} ms)`
       : `process argument-count parity: ${rawCommandLineCases.length} raw ` +
         `Windows commands; Linux receipts unchanged from focused gate ` +
         `(${Math.round(elapsedMs)} ms)`)

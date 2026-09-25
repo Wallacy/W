@@ -10786,44 +10786,22 @@ static const char MLIR0_PROCESS_EXECUTABLE_LINUX_HELPERS[] =
     "  }\n"
     "  llvm.func internal @w_seed_process_root_init(%vector: !llvm.ptr, %root: !llvm.ptr, %arguments: !llvm.ptr, %context: !llvm.ptr) -> i1 {\n";
 
-/* Linux argv is already tokenized by the kernel. Count-only adaptation uses
- * argc as the count source and validates the same user-argument pointer slots
- * that descriptor construction previously required, without reading a byte
- * of any argument string. */
+/* Linux argv is already tokenized by the kernel. When the verified body only
+ * observes Arguments.count, the target-owned startup argc is sufficient; keep
+ * its range checks explicit so argc - 1 cannot underflow or admit >256 users. */
 static const char MLIR0_PROCESS_EXECUTABLE_COUNT_ONLY_LINUX_HELPERS[] =
     "  llvm.func @w_seed_process_argc() -> i64\n"
-    "  llvm.func @w_seed_process_argv() -> !llvm.ptr\n"
-    "  llvm.func internal @w_seed_process_count_arguments(%argument_count: i64, %argv: !llvm.ptr) -> i64 {\n"
-    "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "  llvm.func internal @w_seed_process_count_arguments(%argument_count: i64) -> i64 {\n"
     "    %one = llvm.mlir.constant(1 : i64) : i64\n"
-    "    %eight = llvm.mlir.constant(8 : i64) : i64\n"
     "    %max_total = llvm.mlir.constant(257 : i64) : i64\n"
     "    %minus_one = llvm.mlir.constant(-1 : i64) : i64\n"
-    "    %null = llvm.inttoptr %zero : i64 to !llvm.ptr\n"
     "    %too_few = llvm.icmp \"ult\" %argument_count, %one : i64\n"
     "    %too_many = llvm.icmp \"ugt\" %argument_count, %max_total : i64\n"
-    "    %invalid_count = llvm.or %too_few, %too_many : i1\n"
-    "    %argv_missing = llvm.icmp \"eq\" %argv, %null : !llvm.ptr\n"
-    "    %invalid = llvm.or %invalid_count, %argv_missing : i1\n"
+    "    %invalid = llvm.or %too_few, %too_many : i1\n"
     "    llvm.cond_br %invalid, ^invalid, ^begin\n"
     "  ^begin:\n"
     "    %user_count = llvm.sub %argument_count, %one : i64\n"
-    "    llvm.br ^item(%zero, %user_count : i64, i64)\n"
-    "  ^item(%item_index: i64, %item_user_count: i64):\n"
-    "    %done = llvm.icmp \"eq\" %item_index, %item_user_count : i64\n"
-    "    llvm.cond_br %done, ^valid_count(%item_user_count : i64), ^check_item(%item_index, %item_user_count : i64, i64)\n"
-    "  ^check_item(%check_index: i64, %check_user_count: i64):\n"
-    "    %argv_index = llvm.add %check_index, %one : i64\n"
-    "    %argv_byte_offset = llvm.mul %argv_index, %eight : i64\n"
-    "    %argv_address = llvm.getelementptr %argv[%argv_byte_offset] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
-    "    %item_data = llvm.load %argv_address : !llvm.ptr -> !llvm.ptr\n"
-    "    %item_missing = llvm.icmp \"eq\" %item_data, %null : !llvm.ptr\n"
-    "    llvm.cond_br %item_missing, ^invalid, ^next_item(%check_index, %check_user_count : i64, i64)\n"
-    "  ^next_item(%next_index: i64, %next_user_count: i64):\n"
-    "    %item_index_next = llvm.add %next_index, %one : i64\n"
-    "    llvm.br ^item(%item_index_next, %next_user_count : i64, i64)\n"
-    "  ^valid_count(%valid_argument_count: i64):\n"
-    "    llvm.return %valid_argument_count : i64\n"
+    "    llvm.return %user_count : i64\n"
     "  ^invalid:\n"
     "    llvm.return %minus_one : i64\n"
     "  }\n"
@@ -11057,8 +11035,7 @@ static const char MLIR0_PROCESS_EXECUTABLE_COUNT_ONLY_LINUX_ROOT[] =
     "    %process_cursor_address = llvm.alloca %process_cursor_count x i64 : (i64) -> !llvm.ptr\n"
     "    %process_fault_address = llvm.alloca %process_cursor_count x i64 : (i64) -> !llvm.ptr\n"
     "    %process_argc = llvm.call @w_seed_process_argc() : () -> i64\n"
-    "    %process_argv = llvm.call @w_seed_process_argv() : () -> !llvm.ptr\n"
-    "    %process_argument_count = llvm.call @w_seed_process_count_arguments(%process_argc, %process_argv) : (i64, !llvm.ptr) -> i64\n"
+    "    %process_argument_count = llvm.call @w_seed_process_count_arguments(%process_argc) : (i64) -> i64\n"
     "    %process_parse_failed = llvm.icmp \"eq\" %process_argument_count, %process_minus_one : i64\n"
     "    llvm.cond_br %process_parse_failed, ^process_early_fault, ^process_vector_ready\n"
     "  ^process_vector_ready:\n"

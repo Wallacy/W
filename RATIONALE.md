@@ -12141,6 +12141,14 @@ observable as one zero-length descriptor. Root initialization now copies the
 vector encoding instead of embedding the Windows UTF-16 value, allowing the
 same verified owner and cleanup machinery to serve both targets.
 
+When the verified reachable-value plan proves that the process body observes
+only `Arguments.count`, the Linux adapter uses WRT0's target-owned `argc`
+directly. It checks the total range 1 through 257 before subtracting one, so
+underflow and the 257-user-argument case fail closed without reading `argv`;
+the full-arguments descriptor path remains unchanged. This relies only on the
+kernel-created x86_64 ELF entry stack captured by WRT0, not a source or fixture
+classification.
+
 The acceptance lane executes the existing process-input and enum-payload fixtures
 from source and as built ELF files for absent, empty, and ordinary arguments. It also
 executes the count fixture at zero, one empty, two ordinary, and 256 arguments,

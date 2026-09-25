@@ -4090,9 +4090,13 @@ On Windows, the specialized adapter still performs a bounded command-line
 quoting/count scan (at most 32,767 UTF-16 code units), but allocates no argument
 descriptor table. It preserves the current adapter's quote-toggling behavior;
 backslash-before-quote decoding is not claimed to match the Windows CRT. On
-Linux, the adapter derives the user count from trusted `argc`, checks the
-`argv` pointer and each user-argument pointer slot, and reads no argument-string
-bytes. Both routes accept 0 through 256 user arguments and reject 257 before
+Linux, the count-only adapter derives the user count from WRT0's target-owned
+`argc` and checks the total range 1 through 257 before subtracting one. This
+prevents underflow and rejects more than 256 user arguments; it does not load
+`argv` or enumerate pointer slots. The assumption is specific to the native
+x86_64 ELF entry path, where WRT0 captures the kernel-created initial stack.
+The full-arguments lane retains its existing `argv` and descriptor validation.
+Both routes accept 0 through 256 user arguments and reject 257 before
 publishing output (exit 3, empty stdout).
 
 The focused Windows gate compares 12 raw command lines—including whitespace,
