@@ -728,7 +728,7 @@
     {
       "path": "tooling/studies/wvui0-web-ui-providers/study.json",
       "kind": "study",
-      "digest": "sha256:8726e7d8a6c482c953aaa1d16bccc1e66d3413c82168354b90197bfca9043f4e",
+      "digest": "sha256:e633feb7216ca1bbad9839c4fc5d3a1d9ea7b3ceeabc3aa710c4244389b203fa",
       "status": "design-oracle-input",
       "id": "WVUI0"
     }

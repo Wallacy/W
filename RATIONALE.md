@@ -2743,6 +2743,16 @@ e o
 informam strong failure, resize in-place e relocation. W deixa fallback e
 commit no caller e registra origem por receipt.
 
+Rust's accepted [Allocators 1.0 goal](https://goals.rust-lang.org/2026/allocators-1.0.html)
+also confirms four concerns that W must keep separate: stabilizing the minimal
+allocator contract, making collections fallible, modeling deallocator/origin,
+and integrating the capability with the language without prematurely freezing
+a physical representation. Rust's long API uncertainty is evidence against
+copying its generic parameter or trait literally, not against custom
+allocators. W keeps `AllocatorPlan`, a structured lease, explicit failure, and
+`AllocationOriginMap`; future collections must preserve origin across move,
+swap, growth, and drop before the stable surface expands.
+
 ASC0 substitui a antiga surface `Arena` por uma declaração lexical:
 `allocator scratch: .fixed<capacity: N> { ... }` ou
 `allocator .fixed<capacity: N> { ... }`. O bloco cria owner, lease e scope.
