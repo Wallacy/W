@@ -445,17 +445,25 @@ arithmetic as cleanup-safe. A numeric fault boundary can be promoted only when
 the maintained W route also proves exactly-once teardown for every resource
 that can reach that boundary; a catalog label or compiler-owned subset does not
 cover custom allocators, foreign owners/leases, or callback/provider resources.
-The next bounded step adds one source-local synchronous helper with one checked
-unsigned `u8` addition after the existing exact `args.count -> u8` split.
-ProductClosure now publishes the reachable operation facts (value, owner,
-type, operator); NativeSubset carries and reauthenticates them; process-aware
-MLIR lowering threads the private fault slot through that helper. Zero user
-arguments print `Begin 255\n`, one reaches status 2, and 256 reaches typed
-conversion status 1; every failure keeps stdout/stderr empty after
-`Context`-then-`Arguments` release and root finalization. C23/Rust are independent
-correctness oracles only, and the witness is compiler-lifecycle evidence with
-no performance row. It does not enable general CFG, shifts/power process
-faults, user cleanup, or broader unsigned runtime claims; those remain later
+The next bounded step is complete: alongside the straight-line signed family
+and unsigned `u8` helper, one neutral process witness now returns a checked
+signed-`i8` scalar `if` join from a synchronous local helper. ProductClosure,
+NativeSubset, and process-aware MLIR admit this added four-block comparison
+diamond with exact typed arm edges and one-block result join; existing
+straight-line and one-block checked-helper support remains intact, while
+nested/wider joins and additional multi-block helper shapes fail closed. Zero
+and one user arguments print `Joined -1\n` and
+`Joined 0\n`; two reaches arithmetic-fault status 2, and 128 reaches typed
+conversion status 1, with both failures keeping stdout/stderr empty after
+`Context`-then-`Arguments` release and root finalization. Public Windows and
+Linux/WSL `w run` and Release `w build` gates execute the W source on the same
+four cases. Independent C23 and Rust 2024 reference binaries are separately
+compiled and executed against that oracle matrix; the W public gates do not
+execute those references. The frontend/HIR type-identity
+rule is family-general for existing signed/unsigned 8/16/32/64-bit facts, but
+this process execution remains i8-only. This is compiler-lifecycle evidence
+with no performance row; general helper graphs, nested/wider process joins,
+shifts/power process faults, and cleanup-safe user arithmetic remain later
 ranked work.
 
 The first target-layout evidence slice now binds the exact Windows MSVC x64 and

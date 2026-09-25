@@ -46,6 +46,11 @@ import {
   CHECKED_INTEGER_HELPER_FAULT_RECIPE_CLASS,
   CHECKED_INTEGER_HELPER_FAULT_TIMED_INPUT,
   CHECKED_INTEGER_HELPER_FAULT_WORKLOAD_ID,
+  CHECKED_SCALAR_IF_JOIN_CORRECTNESS_INPUTS,
+  CHECKED_SCALAR_IF_JOIN_ORACLE_CASES,
+  CHECKED_SCALAR_IF_JOIN_RECIPE_CLASS,
+  CHECKED_SCALAR_IF_JOIN_TIMED_INPUT,
+  CHECKED_SCALAR_IF_JOIN_WORKLOAD_ID,
   PROCESS_ENTRY0_CORRECTNESS_INPUTS,
   PROCESS_ENTRY0_EXECUTION_KIND,
   PROCESS_ENTRY0_FAULT_CASES,
@@ -697,6 +702,46 @@ test("checked integer helper fault is a correctness-only runtime process witness
   assert.match(rust, /args_os\(\)\.skip\(1\)\.count\(\)/u);
   assert.match(rust, /value\.checked_add\(rhs\)/u);
   assert.match(rust, /u8::try_from\(user_argument_count\)/u);
+});
+
+test("checked scalar-if join pins the bounded i8 process witness", () => {
+  const workload = documents.catalog.workloads.find(
+    (item) => item.id === CHECKED_SCALAR_IF_JOIN_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.benchmarkDisposition, "compiler-lifecycle");
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.equal(workload.oracle.kind, "argument-dependent-output");
+  assert.deepEqual(workload.oracle.timedInput, CHECKED_SCALAR_IF_JOIN_TIMED_INPUT);
+  assert.deepEqual(workload.oracle.cases, CHECKED_SCALAR_IF_JOIN_ORACLE_CASES);
+  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.arguments),
+    CHECKED_SCALAR_IF_JOIN_CORRECTNESS_INPUTS);
+  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.exitCode),
+    [0, 0, 2, 1]);
+  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.stdout),
+    ["Joined -1\n", "Joined 0\n", "", ""]);
+  assert.deepEqual(workload.sources.map((source) => source.language),
+    ["w", "w", "c", "rust"]);
+  assert.deepEqual(workload.sources.slice(0, 2).map((source) => source.platformTarget),
+    [EXECUTABLE_PLATFORM_TARGET, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL]);
+  assert.ok(workload.sources.every((source) =>
+    source.recipeClass === CHECKED_SCALAR_IF_JOIN_RECIPE_CLASS));
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.blockers, ["compiler-lifecycle-only"]);
+  assert.ok(EXECUTABLE_RUN_TARGETS.includes(workload.id));
+  assert.equal(documents.catalog.bestMetrics.entries.some(
+    (entry) => entry.workloadId === workload.id), false);
+
+  const w = readFileSync(`${ROOT}/compiler/seed-c/fixtures/checked-scalar-if-join.w`, "utf8");
+  const c = readFileSync(`${ROOT}/benchmarks/executable/checked_scalar_if_join.c`, "utf8");
+  const rust = readFileSync(`${ROOT}/benchmarks/executable/checked_scalar_if_join.rs`, "utf8");
+  assert.match(w, /fn choose\(value: i8\): i8 \{\s+return if value == 2_i8 \{ value \* 127_i8 \} else \{ value - 1_i8 \}\s*\}/u);
+  assert.match(w, /try i8\(exactly: args\.count\)/u);
+  assert.match(w, /print\("Joined \$\{choose\(value: count\)\}"\)/u);
+  assert.match(c, /product < INT8_MIN \|\| product > INT8_MAX/u);
+  assert.match(c, /difference < INT8_MIN \|\| difference > INT8_MAX/u);
+  assert.match(rust, /value\.checked_mul\(127\)/u);
+  assert.match(rust, /value\.checked_sub\(1\)/u);
+  assert.match(rust, /i8::try_from\(user_argument_count\)/u);
 });
 
 test("local module graph identity covers the complete source set", () => {

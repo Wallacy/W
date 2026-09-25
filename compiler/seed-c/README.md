@@ -1488,12 +1488,16 @@ The first scalar-value cut accepts the existing
 `if condition { scalar } else { scalar }` form only in an immutable `let`
 initializer or a scalar `return`. The condition is Bool, each arm is one
 nonnested side-effect-free expression from the existing bounded literal,
-parameter or immutable-read subset, and both arms have the same type `i64` or
-Bool. Missing `else` retains `W-PARSE-0021`; a non-Bool condition is
+parameter or immutable-read subset, and both arms have the exact same type:
+Bool, an existing signed/unsigned fixed-width integer (`i8`/`u8`, `i16`/`u16`,
+`i32`/`u32`, `i64`/`u64`), or `f32`/`f64`. Existing aliases use their current
+canonical type facts. Missing `else` retains `W-PARSE-0021`; a non-Bool condition is
 `W-SEM-0001`; mismatched arm types are `W-TYPE-0120`. String/enum/aggregate
 arms, declarations, calls/effects, nested or `else if` scalar values,
-mutation and loops remain unsupported. Runtime `+`/`-` remains behind W-390
-checked-overflow semantics and is not admitted by this cut.
+mutation and loops remain unsupported. Runtime `+`/`-` retains W-390
+checked-overflow semantics. This frontend/HIR type generalization does not
+promote arbitrary checked operation arms or helper CFG at the process boundary;
+the separate W-1653 witness below admits one exact signed-i8 helper join only.
 
 HIR0 `w-seed-hir0-11` gives the branch its yielded type: `result_type == 0`
 for Unit statement-if, `3` with logical metadata for BOOL0, and `2`/`3` for
@@ -3240,6 +3244,28 @@ performance row. It proves one reachable unsigned `u8` addition through one
 local helper and one interpolated print; it does not enable general CFG,
 multiple-helper fault chains, shifts/power at the process boundary, user
 cleanup, or other hosts/targets.
+
+### Checked scalar-if join at the process boundary
+
+[`fixtures/checked-scalar-if-join.w`](fixtures/checked-scalar-if-join.w) is a
+neutral W-1653 witness for one synchronous signed-`i8` helper returning a typed
+scalar `if` join. The helper has one comparison branch, one checked operation
+in each arm, and one shared typed result argument. It is admitted structurally,
+without a source-name or fixture recognizer; ProductClosure and NativeSubset
+reject nested, wider, or additional multi-block helper CFG and retain the exact
+two-operation fault relation.
+
+The source-local oracle pins 0 arguments to exit 0 and `Joined -1\n`, 1 to exit
+0 and `Joined 0\n`, 2 to status 2 with no output, and 128 to status 1 with no
+output. Public Windows x64 and Linux/WSL x64 `w run` and `w build` gates execute
+the W source on all four cases. Separate C23 and Rust 2024 reference binaries
+are independently compiled and run against the same exact oracle matrix;
+those references are not executed by the public W gates. Failures are adapted
+only after `Context` then `Arguments` release and root finalization, and
+buffered output is committed only on success. This new scalar-if process join
+remains i8-only and four-block-only; nested/wider joins, additional multi-block
+helpers, user cleanup, and performance remain gaps. `benchmarkDisposition:
+compiler-lifecycle`.
 
 ### Runtime u64 mix-round composition
 

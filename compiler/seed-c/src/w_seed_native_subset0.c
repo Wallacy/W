@@ -8299,6 +8299,164 @@ static bool process_checked_fault_relation_derive(
   return true;
 }
 
+/* Keep checked arithmetic inside a local CFG helper on the first native
+ * process witness only: one synchronous signed-i8 value diamond. ProductClosure
+ * independently proves the detailed source/owner and arm-operation relation;
+ * this executable gate binds it to the exact four-block shape consumed by
+ * NativeSubset/MLIR and rejects additional helper CFGs. */
+static bool process_checked_i8_join_shape_supported(
+    const w_seed_hir0_program *program,
+    const w_seed_native_subset0_process *process,
+    const w_seed_product_closure0_checked_fault_relation *relation) {
+  if (program == NULL || process == NULL || relation == NULL ||
+      process->function_index >= program->function_count)
+    return false;
+  uint32_t helper_function = W_SEED_HIR0_NONE;
+  size_t checked_operation_count = 0u;
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u) {
+    const w_seed_hir0_value *value = &program->values[value_index];
+    if ((value->kind != W_SEED_HIR0_VALUE_BINARY_I64 &&
+         value->kind != W_SEED_HIR0_VALUE_BINARY_U64) ||
+        !process_checked_fault_operation_candidate(value->binary_operator))
+      continue;
+    const uint32_t owner =
+        process_value_owner_function(program, (uint32_t)value_index);
+    if (owner >= program->function_count) return false;
+    checked_operation_count += 1u;
+    if (owner == process->function_index ||
+        program->functions[owner].block_count <= 1u)
+      continue;
+    if (helper_function != W_SEED_HIR0_NONE && helper_function != owner)
+      return false;
+    helper_function = owner;
+  }
+  if (helper_function == W_SEED_HIR0_NONE) return true;
+  if (!relation->present || relation->operation_count != 2u ||
+      checked_operation_count != 2u ||
+      program->functions[helper_function].block_count != 4u ||
+      program->functions[helper_function].parameter_count != 1u ||
+      program->functions[helper_function].return_type >= program->type_count ||
+      program->types[program->functions[helper_function].return_type].kind !=
+          W_SEED_HIR0_TYPE_INTEGER ||
+      !program->types[program->functions[helper_function].return_type]
+           .integer_is_signed ||
+      program->types[program->functions[helper_function].return_type]
+              .integer_bit_width != 8u)
+    return false;
+  const w_seed_hir0_function *helper =
+      &program->functions[helper_function];
+  for (size_t function_index = 0u; function_index < program->function_count;
+       function_index += 1u)
+    if (function_index != process->function_index &&
+        function_index != helper_function &&
+        program->functions[function_index].block_count > 1u)
+      return false;
+  if (helper->first_parameter >= program->parameter_count ||
+      helper->first_block >= program->block_count ||
+      helper->block_count > program->block_count - helper->first_block)
+    return false;
+  const uint32_t type_index = helper->return_type;
+  const w_seed_hir0_parameter *parameter =
+      &program->parameters[helper->first_parameter];
+  if (parameter->owner_function != helper_function || parameter->ordinal != 0u ||
+      parameter->type_index != type_index)
+    return false;
+  const uint32_t branch_index = helper->first_block;
+  const uint32_t then_index = branch_index + 1u;
+  const uint32_t else_index = branch_index + 2u;
+  const uint32_t join_index = branch_index + 3u;
+  const w_seed_hir0_block *branch_block = &program->blocks[branch_index];
+  const w_seed_hir0_block *then_block = &program->blocks[then_index];
+  const w_seed_hir0_block *else_block = &program->blocks[else_index];
+  const w_seed_hir0_block *join_block = &program->blocks[join_index];
+  if (branch_block->owner_function != helper_function ||
+      then_block->owner_function != helper_function ||
+      else_block->owner_function != helper_function ||
+      join_block->owner_function != helper_function ||
+      branch_block->ordinal != 0u || then_block->ordinal != 1u ||
+      else_block->ordinal != 2u || join_block->ordinal != 3u ||
+      branch_block->instruction_count != 0u ||
+      then_block->instruction_count != 0u || else_block->instruction_count != 0u ||
+      join_block->instruction_count != 0u ||
+      branch_block->block_argument_count != 0u ||
+      then_block->block_argument_count != 0u ||
+      else_block->block_argument_count != 0u ||
+      join_block->block_argument_count != 1u ||
+      join_block->first_block_argument >= program->block_argument_count)
+    return false;
+  const w_seed_hir0_terminator *branch =
+      &program->terminators[branch_block->terminator_index];
+  if (branch->owner_block != branch_index ||
+      branch->kind != W_SEED_HIR0_TERMINATOR_BRANCH ||
+      branch->target_block != then_index || branch->else_block != else_index ||
+      branch->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
+      branch->value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *condition = &program->values[branch->value_index];
+  if (condition->kind != W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON ||
+      condition->binary_operator != W_SEED_HIR0_BINARY_EQUAL ||
+      condition->type_index != W_SEED_HIR0_TYPE_BOOL ||
+      condition->left_value >= program->value_count ||
+      condition->right_value >= program->value_count ||
+      program->values[condition->left_value].type_index != type_index ||
+      program->values[condition->right_value].type_index != type_index)
+    return false;
+  const w_seed_hir0_terminator *then_jump =
+      &program->terminators[then_block->terminator_index];
+  const w_seed_hir0_terminator *else_jump =
+      &program->terminators[else_block->terminator_index];
+  const w_seed_hir0_terminator *join_return =
+      &program->terminators[join_block->terminator_index];
+  if (then_jump->owner_block != then_index ||
+      then_jump->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
+      then_jump->target_block != join_index ||
+      then_jump->edge_argument_count != 1u ||
+      then_jump->first_edge_argument >= program->edge_argument_count ||
+      else_jump->owner_block != else_index ||
+      else_jump->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
+      else_jump->target_block != join_index ||
+      else_jump->edge_argument_count != 1u ||
+      else_jump->first_edge_argument >= program->edge_argument_count ||
+      join_return->owner_block != join_index ||
+      join_return->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
+      join_return->value_index >= program->value_count)
+    return false;
+  const uint32_t join_argument_index = join_block->first_block_argument;
+  const w_seed_hir0_block_argument *join_argument =
+      &program->block_arguments[join_argument_index];
+  const w_seed_hir0_value *join_value =
+      &program->values[join_return->value_index];
+  const w_seed_hir0_edge_argument *then_edge =
+      &program->edge_arguments[then_jump->first_edge_argument];
+  const w_seed_hir0_edge_argument *else_edge =
+      &program->edge_arguments[else_jump->first_edge_argument];
+  if (join_argument->owner_block != join_index || join_argument->ordinal != 0u ||
+      join_argument->type_index != type_index ||
+      then_edge->type_index != type_index || else_edge->type_index != type_index ||
+      then_edge->value_index >= program->value_count ||
+      else_edge->value_index >= program->value_count ||
+      program->values[then_edge->value_index].type_index != type_index ||
+      program->values[else_edge->value_index].type_index != type_index ||
+      join_value->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+      join_value->type_index != type_index ||
+      join_value->block_argument_index != join_argument_index)
+    return false;
+  size_t helper_call_count = 0u;
+  for (size_t call_index = 0u; call_index < program->call_count; call_index += 1u) {
+    const w_seed_hir0_call *call = &program->calls[call_index];
+    if (call->callee_identity != helper->identity_index) continue;
+    if (call->owner_block >= program->block_count ||
+        program->blocks[call->owner_block].owner_function !=
+            process->function_index ||
+        call->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
+        call->argument_count != 1u)
+      return false;
+    helper_call_count += 1u;
+  }
+  return helper_call_count == 1u;
+}
+
 static bool process_checked_fault_relation_equal(
     const w_seed_product_closure0_checked_fault_relation *left,
     const w_seed_product_closure0_checked_fault_relation *right) {
@@ -8547,6 +8705,10 @@ select_process_executable_mode(
       !process_checked_fault_relation_derive(
           program, hir_result, &candidate,
           &candidate.checked_fault_relation))
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+  if (candidate.has_integer_exactly &&
+      !process_checked_i8_join_shape_supported(
+          program, &candidate, &candidate.checked_fault_relation))
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
 
   /* All non-entry functions remain on the ordinary, nominal-free lowering

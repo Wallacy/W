@@ -12939,6 +12939,111 @@ static bool test_process_checked_local_helper_interpolation_hir(void) {
   return true;
 }
 
+static bool test_process_checked_scalar_if_join_hir(void) {
+  static const char SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "fn choose(value: i8): i8 { return if value == 2_i8 { "
+      "value * 127_i8 } else { value - 1_i8 } }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let count = try i8(exactly: args.count)\n"
+      "print(\"Joined ${choose(value: count)}\")\n"
+      "return .success }\n"
+      "entry(run)\n";
+  CHECK(lower_process_input0_generic(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  CHECK(program->function_count == 2u);
+  uint32_t helper_index = W_SEED_HIR0_NONE;
+  for (size_t function = 0u; function < program->function_count; function += 1u)
+    if (hir_text_is(program, program->functions[function].name, "choose"))
+      helper_index = (uint32_t)function;
+  CHECK(helper_index < program->function_count);
+  const w_seed_hir0_function *helper = &program->functions[helper_index];
+  CHECK(helper->parameter_count == 1u && helper->block_count == 4u &&
+        helper->return_type < program->type_count &&
+        program->types[helper->return_type].kind == W_SEED_HIR0_TYPE_INTEGER &&
+        program->types[helper->return_type].integer_is_signed &&
+        program->types[helper->return_type].integer_bit_width == 8u);
+  const uint32_t branch_index = helper->first_block;
+  const uint32_t then_index = branch_index + 1u;
+  const uint32_t else_index = branch_index + 2u;
+  const uint32_t join_index = branch_index + 3u;
+  const w_seed_hir0_block *branch_block = &program->blocks[branch_index];
+  const w_seed_hir0_block *then_block = &program->blocks[then_index];
+  const w_seed_hir0_block *else_block = &program->blocks[else_index];
+  const w_seed_hir0_block *join_block = &program->blocks[join_index];
+  CHECK(branch_block->owner_function == helper_index &&
+        branch_block->instruction_count == 0u &&
+        then_block->owner_function == helper_index &&
+        then_block->instruction_count == 0u &&
+        else_block->owner_function == helper_index &&
+        else_block->instruction_count == 0u &&
+        join_block->owner_function == helper_index &&
+        join_block->instruction_count == 0u &&
+        join_block->block_argument_count == 1u &&
+        join_block->first_block_argument < program->block_argument_count);
+  const w_seed_hir0_terminator *branch =
+      &program->terminators[branch_block->terminator_index];
+  CHECK(branch->kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        branch->target_block == then_index && branch->else_block == else_index &&
+        branch->value_index < program->value_count);
+  const w_seed_hir0_value *condition = &program->values[branch->value_index];
+  CHECK(condition->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON &&
+        condition->binary_operator == W_SEED_HIR0_BINARY_EQUAL &&
+        condition->left_value < program->value_count &&
+        condition->right_value < program->value_count &&
+        program->values[condition->left_value].kind ==
+            W_SEED_HIR0_VALUE_PARAMETER_READ &&
+        program->values[condition->left_value].type_index == helper->return_type &&
+        program->values[condition->right_value].kind ==
+            W_SEED_HIR0_VALUE_CONST_I64 &&
+        program->values[condition->right_value].type_index == helper->return_type &&
+        program->values[condition->right_value].integer_value == 2);
+  const w_seed_hir0_terminator *then_jump =
+      &program->terminators[then_block->terminator_index];
+  const w_seed_hir0_terminator *else_jump =
+      &program->terminators[else_block->terminator_index];
+  CHECK(then_jump->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        else_jump->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        then_jump->target_block == join_index &&
+        else_jump->target_block == join_index &&
+        then_jump->edge_argument_count == 1u &&
+        else_jump->edge_argument_count == 1u &&
+        then_jump->first_edge_argument < program->edge_argument_count &&
+        else_jump->first_edge_argument < program->edge_argument_count);
+  const w_seed_hir0_edge_argument *then_edge =
+      &program->edge_arguments[then_jump->first_edge_argument];
+  const w_seed_hir0_edge_argument *else_edge =
+      &program->edge_arguments[else_jump->first_edge_argument];
+  CHECK(program->block_arguments[join_block->first_block_argument].type_index ==
+            helper->return_type &&
+        then_edge->type_index == helper->return_type &&
+        else_edge->type_index == helper->return_type &&
+        then_edge->value_index < program->value_count &&
+        else_edge->value_index < program->value_count);
+  const w_seed_hir0_value *then_value = &program->values[then_edge->value_index];
+  const w_seed_hir0_value *else_value = &program->values[else_edge->value_index];
+  CHECK(then_value->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        then_value->binary_operator == W_SEED_HIR0_BINARY_MULTIPLY &&
+        then_value->type_index == helper->return_type &&
+        else_value->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        else_value->binary_operator == W_SEED_HIR0_BINARY_SUBTRACT &&
+        else_value->type_index == helper->return_type);
+  const w_seed_hir0_terminator *join_return =
+      &program->terminators[join_block->terminator_index];
+  CHECK(join_return->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        join_return->value_index < program->value_count &&
+        program->values[join_return->value_index].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        program->values[join_return->value_index].type_index ==
+            helper->return_type &&
+        program->values[join_return->value_index].block_argument_index ==
+            join_block->first_block_argument);
+  return true;
+}
+
 static bool test_process_float_rounding_hir(void) {
   static const char SOURCE[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
@@ -15715,6 +15820,65 @@ static bool test_scalar_if_value_diamond(void) {
   fixture.hir_values[program->bindings[0].initializer_value].block_argument_index =
       saved_read;
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_scalar_if_fixed_integer_type_identity(void) {
+  static const char SOURCE[] =
+      "fn selectWide(condition: Bool, left: u16, right: u16): u16 { "
+      "return if condition { left } else { right } }\n"
+      "entry(selectWide)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 1u && program->block_count == 4u &&
+        program->terminators[0].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[0].result_type < program->type_count &&
+        program->types[program->terminators[0].result_type].kind ==
+            W_SEED_HIR0_TYPE_INTEGER &&
+        !program->types[program->terminators[0].result_type].integer_is_signed &&
+        program->types[program->terminators[0].result_type].integer_bit_width ==
+            16u &&
+        program->blocks[3].block_argument_count == 1u &&
+        program->block_arguments[0].type_index ==
+            program->terminators[0].result_type &&
+        program->edge_arguments[0].type_index ==
+            program->terminators[0].result_type &&
+        program->edge_arguments[1].type_index ==
+            program->terminators[0].result_type &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+
+  static const char UINT_ALIAS[] =
+      "fn selectAlias(condition: Bool, left: UInt, right: UInt): UInt { "
+      "return if condition { left } else { right } }\n"
+      "entry(selectAlias)\n";
+  CHECK(lower(UINT_ALIAS));
+  const uint32_t uint_alias_result_type =
+      fixture.hir_program.terminators[0].result_type;
+  CHECK(uint_alias_result_type < fixture.hir_program.type_count &&
+        fixture.hir_program.types[uint_alias_result_type].kind ==
+            W_SEED_HIR0_TYPE_U64 &&
+        w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  static const char SIGNEDNESS_MISMATCH[] =
+      "fn mismatchSigned(condition: Bool, left: i8, right: u8): i8 { "
+      "return if condition { left } else { right } }\n"
+      "entry(mismatchSigned)\n";
+  static const char WIDTH_MISMATCH[] =
+      "fn mismatchWidth(condition: Bool, left: i16, right: i8): i8 { "
+      "return if condition { left } else { right } }\n"
+      "entry(mismatchWidth)\n";
+  static const char I128_SCALAR_IF[] =
+      "fn selectWide(condition: Bool, left: i128, right: i128): i128 { "
+      "return if condition { left } else { right } }\n"
+      "entry(selectWide)\n";
+  static const char USIZE_SCALAR_IF[] =
+      "fn selectSize(condition: Bool, left: usize, right: usize): usize { "
+      "return if condition { left } else { right } }\n"
+      "entry(selectSize)\n";
+  CHECK(frontend_rejects_quietly(SIGNEDNESS_MISMATCH));
+  CHECK(frontend_rejects_quietly(WIDTH_MISMATCH));
+  CHECK(frontend_rejects_quietly(I128_SCALAR_IF));
+  CHECK(frontend_rejects_quietly(USIZE_SCALAR_IF));
   return true;
 }
 
@@ -22405,6 +22569,7 @@ int main(int argc, char **argv) {
   if (!test_integer_exactly_continuation_hir()) return 1;
   if (!test_process_integer_exactly_observation_hir()) return 1;
   if (!test_process_checked_local_helper_interpolation_hir()) return 1;
+  if (!test_process_checked_scalar_if_join_hir()) return 1;
   if (!test_process_float_rounding_hir()) return 1;
   if (!test_process_float_rounding_hir_constant()) return 1;
   if (!test_local_enum_payload_declarations_hir()) return 1;
@@ -22426,6 +22591,7 @@ int main(int argc, char **argv) {
   if (!test_local_unit_call_and_parameter_reads()) return 1;
   if (!test_scalar_return_and_call_result()) return 1;
   if (!test_scalar_if_value_diamond()) return 1;
+  if (!test_scalar_if_fixed_integer_type_identity()) return 1;
   if (!test_scalar_if_f32_value_diamond()) return 1;
   if (!test_nested_scalar_if_value_diamond()) return 1;
   if (!test_if_diamond_cfg()) return 1;

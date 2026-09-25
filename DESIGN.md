@@ -38283,10 +38283,13 @@ W-1539 defines the first bounded scalar-value `if` cut. In value context, the
 existing syntax `if condition { scalar } else { scalar }` is accepted only as
 one immutable `let` initializer or as a scalar `return` value. `condition`
 must be Bool. In this first cut each arm is exactly one nonnested,
-side-effect-free expression from the already verified scalar subset. W-1549
+side-effect-free expression from the already verified scalar subset. Both
+arms must have exactly the same type: Bool, a supported fixed-width integer
+(signed or unsigned 8/16/32/64-bit, including only aliases whose canonical
+type facts already exist), or `f32`/`f64`. Width and signedness are never
+joined by implicit branch selection. W-1549
 supersedes only that former nesting exclusion with the bounded recursive form
-defined below. Both arms must have the same type,
-either signed `i64` or Bool. The required `else` is part of the value form.
+defined below. The required `else` is part of the value form.
 The cut rejects String, enum and aggregate arms, declarations, calls or other
 effects, `else if`, `var`, mutation and loops. Nested scalar `if` remains
 rejected by this cut; W-1549 supersedes that exclusion only for its bounded
@@ -38300,21 +38303,22 @@ fn selectedCount(isOpen: Bool, openCount: i64, closedCount: i64): i64 {
 }
 ```
 
-The scalar arm subset is deliberately narrower than general W expressions.
-Literals, parameters and already verified immutable scalar reads are eligible
-when the existing bounded value rules prove them. Runtime arithmetic is not
-opened by this decision: arbitrary `+`/`-` remains subject to W-390 checked
-overflow semantics and is not a scalar-if witness. In particular, the earlier
-`seats + 1`/`seats - 1` Restaurant sketch is rejected by the existing native
-arithmetic barrier; the executable witness carries direct `openCount` and
-`closedCount` parameters instead.
+The scalar arm subset remains deliberately narrower than general W
+expressions. Literals, parameters and already verified immutable scalar reads
+are eligible when the existing bounded value rules prove them. Checked fixed-
+width integer operations retain W-390 semantics. W-1653 separately admits one
+source-local synchronous `i8` helper whose two checked operation arms feed
+one typed value join; this is not general process CFG or fault propagation.
+String, effectful calls, declarations, mutation and loops remain outside this
+cut.
 
 HIR0 advances to `w-seed-hir0-11`. `BRANCH.result_type` is the produced join
 type: `0` means a Unit statement-if and has no join argument; `3` means the
 existing logical Bool form when `logical_operator` is set; and scalar value-if
-uses `2` for `i64` or `3` for Bool with `logical_operator` unset. A verified
-scalar diamond has exactly one typed join block argument and one typed incoming
-value from each arm, with the same type as the branch result. The verifier
+uses the canonical type index for the exact arm type with `logical_operator`
+unset. A verified scalar diamond has exactly one typed join block argument
+and one typed incoming value from each arm, with the same type as the branch
+result. The verifier
 retains owner, ordinal, source-span, dominance, range, join-target,
 caller-owned capacity, alias, receipt, digest, malformed-input and
 all-or-nothing barriers. The incoming span is the arm value's source span;
@@ -38322,13 +38326,13 @@ the jump may retain the enclosing `if` span.
 
 MLIR0 advances to `w-seed-mlir0-14`, with Windows label
 `w-seed-mlir0-windows-5`. It emits a real `llvm.cond_br`, arm-local value
-operations, and typed `llvm.br ^join(%operand : i64)` or
-`llvm.br ^join(%operand : i1)`. The join declares and reads that one typed
+operations, and typed `llvm.br ^join(%operand : iN)` edges matching the exact
+joined scalar type. The join declares and reads that one typed
 argument. It does not use `llvm.select`, precompute both arms, or evaluate an
 unselected arm. Native0 remains `w-seed-native0-6` because its public record
 and receipt schema do not change. The focused frontend14, HIR11 and MLIR14
-units cover positive i64/Bool return and immutable-let forms plus the required
-negative and forged-record boundaries.
+units cover positive integer/Bool/float value forms, a non-`i8` unsigned
+fixed-width join, exact type mismatches, and forged-record boundaries.
 
 The source-backed compiler witness is
 `compiler/seed-c/fixtures/scalar-if.w`; its two calls exercise both
@@ -38842,9 +38846,10 @@ path because value-block semantics, not the parser node name, determine its
 role. The frontend can normalize this form beyond the native seed boundary.
 HIR0 and Native0 apply the same `W_SEED_HIR0_MAX_NESTING` limit. The bounded
 route accepts depth 64 and rejects depth 65 before it writes HIR output. Every
-condition is Bool. Every leaf arm is one pure expression from the
-signed-`i64`/Bool scalar subset. The root, both arms, and every join have the
-same type. Calls and effects in arms, String, enum or
+condition is Bool. Every leaf arm is one pure expression from the supported
+fixed-width integer/Bool/float scalar subset. The root, both arms, and every
+join have the same exact type, including integer width and signedness. Calls
+and effects in arms, String, enum or
 aggregate values, declarations, `var`, mutation, loops, `else if`, terminal
 returns inside arms, and general CFG remain outside this cut.
 
@@ -43303,9 +43308,27 @@ Both failures retain empty stdout/stderr after compiler-owned release,
 finalization, and normal-only buffer publication. Independent C23 and Rust
 2024 references check the same runtime cases without relying on C overflow.
 
+The separate neutral
+[`checked-scalar-if-join.w`](compiler/seed-c/fixtures/checked-scalar-if-join.w)
+witness adds one synchronous local signed-`i8` helper with a four-block
+comparison diamond and one exact typed value join. Its two branch-local checked
+operations reuse the ProductClosure relation; the helper is not recognized by
+source name or fixture identity. Counts zero and one print `Joined -1\n` and
+`Joined 0\n`; count two reaches arithmetic-fault status 2 without output, and
+128 reaches typed-conversion status 1 without output. Public Windows and
+Linux/WSL gates execute the W source with both `w run` and Release `w build`.
+Separate C23 and Rust 2024 reference binaries are independently compiled and
+run against the same exact matrix; the public W gates do not execute them.
+Frontend/HIR scalar-if type identity is generalized to the existing
+signed/unsigned 8/16/32/64-bit family, but this added process scalar-if join
+admits only the bounded i8 four-block helper/value shape. Existing
+straight-line and one-block checked-helper support is unchanged. Nested/wider
+joins, additional multi-block helper shapes, user cleanup, and general
+fault-propagation remain outside the implementation.
+
 This is a deliberately bounded implementation claim. It does not cover
-general helper graphs, result-bearing conditional joins, shifts/power at the
-process boundary, arbitrary effects after a fault, general CFG, user cleanup,
+general helper graphs, nested or wider checked conditional joins, shifts/power
+at the process boundary, arbitrary effects after a fault, general CFG, user cleanup,
 a public `PanicEvent`, or other hosts/targets. Shift/power process lowering
 remains fail-closed; general ProductClosure fault outcomes and cleanup-safe
 user resources are not claimed. This is compiler-lifecycle evidence with no

@@ -210,6 +210,10 @@ const processIntegerExactRuntimeFixture = resolve(seedDirectory, "fixtures",
 const checkedIntegerHelperFaultFixture = resolve(seedDirectory, "fixtures",
   "checked-integer-helper-fault.w")
 const checkedIntegerHelperFaultOutput = Buffer.from("Begin 255\n", "utf8")
+const checkedScalarIfJoinFixture = resolve(seedDirectory, "fixtures",
+  "checked-scalar-if-join.w")
+const checkedScalarIfJoinZeroOutput = Buffer.from("Joined -1\n", "utf8")
+const checkedScalarIfJoinOneOutput = Buffer.from("Joined 0\n", "utf8")
 const u64MixRoundFixture = resolve(seedDirectory, "fixtures",
   "u64_mix_round.w")
 const u64MixRoundOutput = Buffer.from("Mix 5608831001354178255\n", "utf8")
@@ -1532,6 +1536,15 @@ try {
   expectExact(binary, ["run", checkedIntegerHelperFaultFixture, "--",
     ...Array.from({ length: 256 }, () => "x")], 1, Buffer.alloc(0),
     "public checked integer helper conversion precedence")
+  expectExact(binary, ["run", checkedScalarIfJoinFixture], 0,
+    checkedScalarIfJoinZeroOutput, "public checked scalar-if join zero case")
+  expectExact(binary, ["run", checkedScalarIfJoinFixture, "--", "x"], 0,
+    checkedScalarIfJoinOneOutput, "public checked scalar-if join one case")
+  expectExact(binary, ["run", checkedScalarIfJoinFixture, "--", "x", "x"],
+    2, Buffer.alloc(0), "public checked scalar-if join arithmetic fault")
+  expectExact(binary, ["run", checkedScalarIfJoinFixture, "--",
+    ...Array.from({ length: 128 }, () => "x")], 1, Buffer.alloc(0),
+    "public checked scalar-if join conversion precedence")
   expectExact(binary, ["run", u64MixRoundFixture, "--",
     "alpha", "beta", "gamma"], 0, u64MixRoundOutput,
   "Windows public runtime u64 mix-round with three user arguments")
@@ -1606,6 +1619,8 @@ try {
     "process-fixed-integer-arithmetic-build.exe")
   const buildCheckedIntegerHelperFault = join(fixtureDirectory,
     "checked-integer-helper-fault-build.exe")
+  const buildCheckedScalarIfJoin = join(fixtureDirectory,
+    "checked-scalar-if-join-build.exe")
   const buildU64MixRound = join(fixtureDirectory,
     "u64-mix-round-build.exe")
   const buildProcessArgumentsCount = join(fixtureDirectory,
@@ -1852,6 +1867,25 @@ try {
   expectExact(buildCheckedIntegerHelperFault,
     Array.from({ length: 256 }, () => "x"), 1, Buffer.alloc(0),
     "execute built checked integer helper conversion precedence")
+  expectExact(binary, ["build", checkedScalarIfJoinFixture, "--target",
+    targetTriple, "--output", buildCheckedScalarIfJoin], 0,
+    Buffer.alloc(0), "build checked scalar-if join fixture")
+  const checkedScalarIfJoinBytes = await readFile(buildCheckedScalarIfJoin)
+  assertPeX64(checkedScalarIfJoinBytes,
+    "built checked scalar-if join artifact")
+  assertKernel32OnlyImports(checkedScalarIfJoinBytes,
+    "built checked scalar-if join artifact",
+    { usesProcessArgumentAdapter: true, writesStdout: true })
+  expectExact(buildCheckedScalarIfJoin, [], 0, checkedScalarIfJoinZeroOutput,
+    "execute built checked scalar-if join zero case")
+  expectExact(buildCheckedScalarIfJoin, ["x"], 0,
+    checkedScalarIfJoinOneOutput,
+    "execute built checked scalar-if join one case")
+  expectExact(buildCheckedScalarIfJoin, ["x", "x"], 2, Buffer.alloc(0),
+    "execute built checked scalar-if join arithmetic fault")
+  expectExact(buildCheckedScalarIfJoin,
+    Array.from({ length: 128 }, () => "x"), 1, Buffer.alloc(0),
+    "execute built checked scalar-if join conversion precedence")
   expectExact(binary, ["build", u64MixRoundFixture, "--target",
     targetTriple, "--output", buildU64MixRound], 0, Buffer.alloc(0),
   "build Windows runtime u64 mix-round fixture")

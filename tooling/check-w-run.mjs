@@ -78,6 +78,10 @@ const processIntegerExactRuntimeFixture = resolve(seedDirectory, "fixtures",
 const checkedIntegerHelperFaultFixture = resolve(seedDirectory, "fixtures",
   "checked-integer-helper-fault.w")
 const checkedIntegerHelperFaultOutput = Buffer.from("Begin 255\n", "utf8")
+const checkedScalarIfJoinFixture = resolve(seedDirectory, "fixtures",
+  "checked-scalar-if-join.w")
+const checkedScalarIfJoinZeroOutput = Buffer.from("Joined -1\n", "utf8")
+const checkedScalarIfJoinOneOutput = Buffer.from("Joined 0\n", "utf8")
 const u64MixRoundFixture = resolve(seedDirectory, "fixtures",
   "u64_mix_round.w")
 const u64MixRoundOutput = Buffer.from("Mix 5608831001354178255\n", "utf8")
@@ -1744,6 +1748,18 @@ try {
   expectExact(binary, ["run", toWsl(checkedIntegerHelperFaultFixture), "--",
     ...Array.from({ length: 256 }, () => "x")], 1, Buffer.alloc(0),
     "Linux public checked integer helper conversion precedence")
+  expectExact(binary, ["run", toWsl(checkedScalarIfJoinFixture)], 0,
+    checkedScalarIfJoinZeroOutput,
+    "Linux public checked scalar-if join zero case")
+  expectExact(binary, ["run", toWsl(checkedScalarIfJoinFixture), "--", "x"],
+    0, checkedScalarIfJoinOneOutput,
+    "Linux public checked scalar-if join one case")
+  expectExact(binary, ["run", toWsl(checkedScalarIfJoinFixture), "--",
+    "x", "x"], 2, Buffer.alloc(0),
+    "Linux public checked scalar-if join arithmetic fault")
+  expectExact(binary, ["run", toWsl(checkedScalarIfJoinFixture), "--",
+    ...Array.from({ length: 128 }, () => "x")], 1, Buffer.alloc(0),
+    "Linux public checked scalar-if join conversion precedence")
   expectExact(binary, ["run", toWsl(u64MixRoundFixture), "--",
     "alpha", "beta", "gamma"], 0, u64MixRoundOutput,
   "Linux public runtime u64 mix-round with three user arguments")
@@ -1823,6 +1839,8 @@ try {
     "process-fixed-integer-arithmetic-build")
   const buildCheckedIntegerHelperFault = buildOutput(
     "checked-integer-helper-fault-build")
+  const buildCheckedScalarIfJoin = buildOutput(
+    "checked-scalar-if-join-build")
   const buildU64MixRound = buildOutput("u64-mix-round-build")
   const u64MixRoundAudit = buildOutput("u64-mix-round-audit")
   const buildProcessArgumentsCount = buildOutput("process-arguments-count-build")
@@ -2101,6 +2119,22 @@ try {
   expectExact(buildCheckedIntegerHelperFault,
     Array.from({ length: 256 }, () => "x"), 1, Buffer.alloc(0),
     "execute built Linux checked integer helper conversion precedence")
+  expectSuccess(binary, ["build", toWsl(checkedScalarIfJoinFixture),
+    "--target", targetTriple, "--output", buildCheckedScalarIfJoin],
+  Buffer.alloc(0), "build Linux checked scalar-if join fixture")
+  const checkedScalarIfJoinBytes = await readBuildArtifact(buildCheckedScalarIfJoin)
+  assertCrtFreeElf(checkedScalarIfJoinBytes)
+  assertElfNoExecutableStack(checkedScalarIfJoinBytes)
+  expectExact(buildCheckedScalarIfJoin, [], 0, checkedScalarIfJoinZeroOutput,
+    "execute built Linux checked scalar-if join zero case")
+  expectExact(buildCheckedScalarIfJoin, ["x"], 0,
+    checkedScalarIfJoinOneOutput,
+    "execute built Linux checked scalar-if join one case")
+  expectExact(buildCheckedScalarIfJoin, ["x", "x"], 2, Buffer.alloc(0),
+    "execute built Linux checked scalar-if join arithmetic fault")
+  expectExact(buildCheckedScalarIfJoin,
+    Array.from({ length: 128 }, () => "x"), 1, Buffer.alloc(0),
+    "execute built Linux checked scalar-if join conversion precedence")
   expectSuccess(binary, ["build", toWsl(u64MixRoundFixture), "--target",
     targetTriple, "--output", buildU64MixRound, "--audit-dir",
     u64MixRoundAudit], Buffer.alloc(0),

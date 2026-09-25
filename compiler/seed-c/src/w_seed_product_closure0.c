@@ -1290,6 +1290,205 @@ static bool product_terminator_kind_supported(w_seed_hir0_terminator_kind kind) 
   return false;
 }
 
+static bool product_process_i8_type(const w_seed_hir0_program *program,
+                                    uint32_t type_index) {
+  return program != NULL && type_index < program->type_count &&
+         program->types[type_index].kind == W_SEED_HIR0_TYPE_INTEGER &&
+         program->types[type_index].integer_is_signed &&
+         program->types[type_index].integer_bit_width == 8u;
+}
+
+static bool product_process_i8_parameter_read(
+    const w_seed_hir0_program *program, uint32_t function_index,
+    uint32_t type_index, uint32_t value_index) {
+  if (program == NULL || function_index >= program->function_count ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  if (value->kind != W_SEED_HIR0_VALUE_PARAMETER_READ ||
+      value->type_index != type_index ||
+      value->parameter_index < function->first_parameter ||
+      value->parameter_index >=
+          (size_t)function->first_parameter + function->parameter_count)
+    return false;
+  const w_seed_hir0_parameter *parameter =
+      &program->parameters[value->parameter_index];
+  return parameter->owner_function == function_index &&
+         parameter->ordinal == 0u && parameter->type_index == type_index;
+}
+
+static bool product_process_i8_literal(const w_seed_hir0_program *program,
+                                       uint32_t type_index,
+                                       uint32_t value_index) {
+  return program != NULL && value_index < program->value_count &&
+         program->values[value_index].kind == W_SEED_HIR0_VALUE_CONST_I64 &&
+         program->values[value_index].type_index == type_index;
+}
+
+static bool product_process_i8_checked_operation(
+    const w_seed_hir0_program *program, uint32_t function_index,
+    uint32_t type_index, uint32_t value_index) {
+  if (program == NULL || value_index >= program->value_count) return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  const bool supported_operator =
+      value->binary_operator == W_SEED_HIR0_BINARY_ADD ||
+      value->binary_operator == W_SEED_HIR0_BINARY_SUBTRACT ||
+      value->binary_operator == W_SEED_HIR0_BINARY_MULTIPLY ||
+      value->binary_operator == W_SEED_HIR0_BINARY_DIVIDE ||
+      value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER;
+  return value->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+         value->type_index == type_index && supported_operator &&
+         product_process_i8_parameter_read(program, function_index,
+                                           type_index, value->left_value) &&
+         product_process_i8_literal(program, type_index, value->right_value);
+}
+
+/* ProductClosure admits one additional process helper CFG: a synchronous
+ * signed-i8 comparison diamond whose two direct checked operations join one
+ * typed value. HIR verification proves the canonical edge/type identities;
+ * this narrower adapter proof authenticates the complete four-block shape
+ * and ensures no extra checked operation is smuggled into that product. */
+static bool product_process_checked_i8_join_helper(
+    const w_seed_hir0_program *program, uint32_t root_function,
+    uint32_t *helper_index) {
+  if (program == NULL || helper_index == NULL ||
+      root_function >= program->function_count)
+    return false;
+  *helper_index = W_SEED_PRODUCT_CLOSURE0_NONE;
+  for (size_t function_index = 0u; function_index < program->function_count;
+       function_index += 1u) {
+    const w_seed_hir0_function *function =
+        &program->functions[function_index];
+    if (function_index == root_function || function->block_count == 1u)
+      continue;
+    if (*helper_index != W_SEED_PRODUCT_CLOSURE0_NONE ||
+        function->block_count != 4u || function->parameter_count != 1u ||
+        function->is_async || function->is_throws || function->is_unsafe ||
+        function->has_borrow_clause || function->return_type >= program->type_count ||
+        !product_process_i8_type(program, function->return_type) ||
+        function->first_parameter >= program->parameter_count ||
+        function->first_block > program->block_count ||
+        function->block_count > program->block_count - function->first_block)
+      return false;
+    const uint32_t type_index = function->return_type;
+    const w_seed_hir0_parameter *parameter =
+        &program->parameters[function->first_parameter];
+    if (parameter->owner_function != function_index || parameter->ordinal != 0u ||
+        parameter->type_index != type_index)
+      return false;
+    const uint32_t branch_index = function->first_block;
+    const uint32_t then_index = branch_index + 1u;
+    const uint32_t else_index = branch_index + 2u;
+    const uint32_t join_index = branch_index + 3u;
+    const w_seed_hir0_block *branch_block = &program->blocks[branch_index];
+    const w_seed_hir0_block *then_block = &program->blocks[then_index];
+    const w_seed_hir0_block *else_block = &program->blocks[else_index];
+    const w_seed_hir0_block *join_block = &program->blocks[join_index];
+    if (branch_block->owner_function != function_index ||
+        then_block->owner_function != function_index ||
+        else_block->owner_function != function_index ||
+        join_block->owner_function != function_index ||
+        branch_block->ordinal != 0u || then_block->ordinal != 1u ||
+        else_block->ordinal != 2u || join_block->ordinal != 3u ||
+        branch_block->instruction_count != 0u ||
+        then_block->instruction_count != 0u || else_block->instruction_count != 0u ||
+        join_block->instruction_count != 0u ||
+        branch_block->block_argument_count != 0u ||
+        then_block->block_argument_count != 0u ||
+        else_block->block_argument_count != 0u ||
+        join_block->block_argument_count != 1u ||
+        join_block->first_block_argument >= program->block_argument_count)
+      return false;
+    const w_seed_hir0_terminator *branch =
+        &program->terminators[branch_block->terminator_index];
+    if (branch->owner_block != branch_index ||
+        branch->kind != W_SEED_HIR0_TERMINATOR_BRANCH ||
+        branch->target_block != then_index || branch->else_block != else_index ||
+        branch->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
+        branch->value_index >= program->value_count)
+      return false;
+    const w_seed_hir0_value *condition = &program->values[branch->value_index];
+    if (condition->kind != W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON ||
+        condition->binary_operator != W_SEED_HIR0_BINARY_EQUAL ||
+        condition->type_index != W_SEED_HIR0_TYPE_BOOL ||
+        !product_process_i8_parameter_read(program, (uint32_t)function_index,
+                                           type_index, condition->left_value) ||
+        !product_process_i8_literal(program, type_index,
+                                   condition->right_value))
+      return false;
+    const w_seed_hir0_terminator *then_jump =
+        &program->terminators[then_block->terminator_index];
+    const w_seed_hir0_terminator *else_jump =
+        &program->terminators[else_block->terminator_index];
+    const w_seed_hir0_terminator *join_return =
+        &program->terminators[join_block->terminator_index];
+    if (then_jump->owner_block != then_index ||
+        then_jump->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
+        then_jump->target_block != join_index ||
+        then_jump->edge_argument_count != 1u ||
+        then_jump->first_edge_argument >= program->edge_argument_count ||
+        else_jump->owner_block != else_index ||
+        else_jump->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
+        else_jump->target_block != join_index ||
+        else_jump->edge_argument_count != 1u ||
+        else_jump->first_edge_argument >= program->edge_argument_count ||
+        join_return->owner_block != join_index ||
+        join_return->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
+        join_return->value_index >= program->value_count)
+      return false;
+    const uint32_t join_argument_index = join_block->first_block_argument;
+    const w_seed_hir0_block_argument *join_argument =
+        &program->block_arguments[join_argument_index];
+    const w_seed_hir0_value *join_value =
+        &program->values[join_return->value_index];
+    const w_seed_hir0_edge_argument *then_edge =
+        &program->edge_arguments[then_jump->first_edge_argument];
+    const w_seed_hir0_edge_argument *else_edge =
+        &program->edge_arguments[else_jump->first_edge_argument];
+    if (join_argument->owner_block != join_index || join_argument->ordinal != 0u ||
+        join_argument->type_index != type_index ||
+        join_value->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+        join_value->type_index != type_index ||
+        join_value->block_argument_index != join_argument_index ||
+        then_edge->type_index != type_index || else_edge->type_index != type_index ||
+        !product_process_i8_checked_operation(program, (uint32_t)function_index,
+                                              type_index, then_edge->value_index) ||
+        !product_process_i8_checked_operation(program, (uint32_t)function_index,
+                                              type_index, else_edge->value_index))
+      return false;
+    size_t checked_operation_count = 0u;
+    for (size_t value_index = 0u; value_index < program->value_count;
+         value_index += 1u) {
+      const w_seed_hir0_value *value = &program->values[value_index];
+      if (!product_checked_fault_value(value)) continue;
+      const uint32_t owner = value_owner_function(program, (uint32_t)value_index);
+      if (owner >= program->function_count || owner != function_index ||
+          !product_process_i8_checked_operation(
+              program, (uint32_t)function_index, type_index,
+              (uint32_t)value_index))
+        return false;
+      checked_operation_count += 1u;
+    }
+    if (checked_operation_count != 2u) return false;
+    size_t helper_call_count = 0u;
+    const uint32_t helper_identity = function->identity_index;
+    for (size_t call_index = 0u; call_index < program->call_count; call_index += 1u) {
+      const w_seed_hir0_call *call = &program->calls[call_index];
+      if (call->callee_identity != helper_identity) continue;
+      if (call->owner_block >= program->block_count ||
+          program->blocks[call->owner_block].owner_function != root_function ||
+          call->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
+          call->argument_count != 1u)
+        return false;
+      helper_call_count += 1u;
+    }
+    if (helper_call_count != 1u) return false;
+    *helper_index = (uint32_t)function_index;
+  }
+  return true;
+}
+
 static bool product_flat_aggregate_type_supported(
     const w_seed_hir0_program *program, uint32_t type_index) {
   if (program == NULL || type_index >= program->type_count) return false;
@@ -1477,6 +1676,12 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
       program->functions[root_function].error_type < program->type_count &&
       program->types[program->functions[root_function].error_type].kind ==
           W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR;
+  uint32_t checked_i8_join_helper = W_SEED_PRODUCT_CLOSURE0_NONE;
+  if (typed_numeric_root &&
+      entry->adapter_kind == W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS &&
+      !product_process_checked_i8_join_helper(
+          program, root_function, &checked_i8_join_helper))
+    return false;
   for (size_t function = 0u; function < program->function_count; function += 1u) {
     const w_seed_hir0_function *item = &program->functions[function];
     const bool is_typed_root = typed_throw_root && function == root_function;
@@ -1783,18 +1988,33 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
         return false;
     }
     if (item->kind == W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON) {
+      const uint32_t owner = value_owner_function(program, (uint32_t)value);
+      const bool legacy_i64_operands =
+          item->left_value < program->value_count &&
+          item->right_value < program->value_count &&
+          program->values[item->left_value].type_index ==
+              W_SEED_HIR0_TYPE_I64 &&
+          program->values[item->right_value].type_index ==
+              W_SEED_HIR0_TYPE_I64;
+      const bool checked_i8_join_operands =
+          checked_i8_join_helper < program->function_count &&
+          owner == checked_i8_join_helper &&
+          item->left_value < program->value_count &&
+          item->right_value < program->value_count &&
+          program->values[item->left_value].type_index ==
+              program->functions[checked_i8_join_helper].return_type &&
+          program->values[item->right_value].type_index ==
+              program->functions[checked_i8_join_helper].return_type &&
+          product_process_i8_type(
+              program,
+              program->functions[checked_i8_join_helper].return_type);
       if (item->binary_operator < W_SEED_HIR0_BINARY_EQUAL ||
           item->binary_operator > W_SEED_HIR0_BINARY_GREATER_EQUAL ||
           item->type_index >= program->type_count ||
           program->types[item->type_index].kind != W_SEED_HIR0_TYPE_BOOL ||
-          item->left_value >= program->value_count ||
-          item->right_value >= program->value_count ||
+          (!legacy_i64_operands && !checked_i8_join_operands) ||
           program->values[item->left_value].type_index >= program->type_count ||
-          program->values[item->right_value].type_index >= program->type_count ||
-          program->types[program->values[item->left_value].type_index].kind !=
-              W_SEED_HIR0_TYPE_I64 ||
-          program->types[program->values[item->right_value].type_index].kind !=
-              W_SEED_HIR0_TYPE_I64)
+          program->values[item->right_value].type_index >= program->type_count)
         return false;
     }
   }

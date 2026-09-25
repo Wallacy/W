@@ -1152,6 +1152,75 @@ static bool test_native_process_checked_local_helper(void) {
   return true;
 }
 
+static bool test_native_process_checked_scalar_if_join(void) {
+  static const char SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "fn choose(value: i8): i8 { return if value == 2_i8 { "
+      "value * 127_i8 } else { value - 1_i8 } }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let count = try i8(exactly: args.count)\n"
+      "print(\"Joined ${choose(value: count)}\")\n"
+      "return .success }\n"
+      "entry(run)\n";
+  static multidoc_fixture fixture;
+  static product_storage storage;
+  CHECK(prepare_process_fixture(&fixture, SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  const w_seed_product_closure0_input input = {program, &fixture.hir_result};
+  (void)memset(&storage, 0, sizeof(storage));
+  const w_seed_product_closure0_output output = product_output(&storage);
+  w_seed_product_closure0_result result = {0};
+  CHECK(w_seed_product_closure0_run(&input, &output, &result) ==
+        W_SEED_PRODUCT_CLOSURE0_OK);
+  CHECK(result.checked_fault_relation.present &&
+        result.checked_fault_relation.conversion_failure_status == 1u &&
+        result.checked_fault_relation.arithmetic_failure_status == 2u &&
+        result.checked_fault_relation.operation_count == 2u &&
+        result.required.reachable_checked_fault_operations == 2u);
+
+  uint32_t helper_function = W_SEED_HIR0_NONE;
+  const uint32_t process_function = program->entries[0].target_function;
+  for (size_t call_index = 0u; call_index < program->call_count; call_index++) {
+    const w_seed_hir0_call *call = &program->calls[call_index];
+    if (call->owner_block >= program->block_count ||
+        program->blocks[call->owner_block].owner_function != process_function ||
+        call->callee_identity >= program->identity_count)
+      continue;
+    const w_seed_hir0_identity *callee =
+        &program->identities[call->callee_identity];
+    if (callee->kind == W_SEED_HIR0_IDENTITY_FUNCTION)
+      helper_function = callee->target_index;
+  }
+  CHECK(helper_function < program->function_count &&
+        program->functions[helper_function].block_count == 4u);
+  bool saw_multiply = false;
+  bool saw_subtract = false;
+  for (size_t operation_index = 0u; operation_index < 2u; operation_index++) {
+    const w_seed_product_closure0_checked_fault_operation *operation =
+        &storage.checked_fault_operations[operation_index];
+    CHECK(operation->source_value_index < program->value_count &&
+          operation->owner_function_index == helper_function &&
+          operation->type_index < program->type_count &&
+          program->types[operation->type_index].kind ==
+              W_SEED_HIR0_TYPE_INTEGER &&
+          program->types[operation->type_index].integer_is_signed &&
+          program->types[operation->type_index].integer_bit_width == 8u &&
+          program->values[operation->source_value_index].kind ==
+              W_SEED_HIR0_VALUE_BINARY_I64);
+    if (operation->binary_operator == W_SEED_HIR0_BINARY_MULTIPLY)
+      saw_multiply = true;
+    else if (operation->binary_operator == W_SEED_HIR0_BINARY_SUBTRACT)
+      saw_subtract = true;
+    else
+      CHECK(false);
+  }
+  CHECK(saw_multiply && saw_subtract &&
+        w_seed_product_closure0_verify(&input, &output, &result));
+  return true;
+}
+
 static bool test_native_process_float_rounding_split(void) {
   static const char SOURCE[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
@@ -1837,6 +1906,7 @@ int main(void) {
   if (!test_native_process_typed_throw()) return 1;
   if (!test_native_process_numeric_split()) return 1;
   if (!test_native_process_checked_local_helper()) return 1;
+  if (!test_native_process_checked_scalar_if_join()) return 1;
   if (!test_native_process_float_rounding_split()) return 1;
   if (!test_native_process_float_rounding_diamond()) return 1;
   if (!test_direct_float_rounding_product()) return 1;

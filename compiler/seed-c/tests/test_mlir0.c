@@ -1186,6 +1186,119 @@ static bool test_process_checked_integer_helper_fault_mlir(void) {
   return true;
 }
 
+static bool test_process_checked_scalar_if_join_mlir(void) {
+  static const uint8_t source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "fn choose(value: i8): i8 { return if value == 2_i8 { "
+      "value * 127_i8 } else { value - 1_i8 } }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let count = try i8(exactly: args.count)\n"
+      "print(\"Joined ${choose(value: count)}\")\n"
+      "return .success }\n"
+      "entry(run)\n";
+  process_input_checked_integer_helper_mode = true;
+  const bool lowered = lower_process_input_hir(source, sizeof(source) - 1u);
+  process_input_checked_integer_helper_mode = false;
+  CHECK(lowered);
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  w_seed_native_subset0_process selection;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_integer_exactly &&
+        selection.checked_fault_relation.present &&
+        selection.checked_fault_relation.conversion_failure_status == 1u &&
+        selection.checked_fault_relation.arithmetic_failure_status == 2u &&
+        selection.checked_fault_relation.operation_count == 2u &&
+        w_seed_native_subset0_verify_process_checked_fault_relation(
+            program, &fixture.hir_result, &selection));
+
+  const w_seed_mlir0_input input = {
+      program, &fixture.hir_result,
+      W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE};
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result result;
+  CHECK(w_seed_mlir0_measure(&input, &TARGET, &counts, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(result.written.mlir_bytes == counts.mlir_bytes);
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.func internal @w_fn_0(%buffer: !llvm.ptr, %cursor_address: !llvm.ptr, %fault_address: !llvm.ptr, %p0: i64) -> i64"));
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes,
+                       "@w_seed_process_checked_multiply_i64(%left: i64, %right: i64, %width: i64, %fault: !llvm.ptr) -> i64"));
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes,
+                       "@w_seed_process_checked_subtract_i64(%left: i64, %right: i64, %width: i64, %fault: !llvm.ptr) -> i64"));
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes, "^w_fn_0_b_1:"));
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes, "^w_fn_0_b_2:"));
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes, "^w_fn_0_b_3("));
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes, "llvm.cond_br"));
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.br ^w_fn_0_b_3("));
+  CHECK(!contains_bytes(artifact, result.written.mlir_bytes,
+                        "@w_seed_checked_multiply_i64") &&
+        !contains_bytes(artifact, result.written.mlir_bytes,
+                        "@w_seed_checked_subtract_i64") &&
+        !contains_bytes(artifact, result.written.mlir_bytes,
+                        "llvm.intr.trap"));
+  const size_t context_release = find_bytes(
+      artifact, result.written.mlir_bytes,
+      "llvm.call @w_seed_process_context_drop(", 0u);
+  const size_t arguments_release = find_bytes(
+      artifact, result.written.mlir_bytes,
+      "llvm.call @w_seed_process_arguments_drop(", 0u);
+  const size_t root_finalize = find_bytes(
+      artifact, result.written.mlir_bytes,
+      "llvm.call @w_seed_process_root_finalize(", 0u);
+  const size_t stdout_write = find_bytes(
+      artifact, result.written.mlir_bytes, "llvm.call @write(", 0u);
+  CHECK(context_release < arguments_release &&
+        arguments_release < root_finalize && root_finalize < stdout_write &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "%process_checked_fault_status = llvm.mlir.constant(2 : i32)"));
+
+  CHECK(w_seed_mlir0_measure(&input, &WINDOWS_TARGET, &counts, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &input, &WINDOWS_TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(result.written.mlir_bytes == counts.mlir_bytes &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "@w_seed_process_checked_multiply_i64(%left: i64, %right: i64, %width: i64, %fault: !llvm.ptr) -> i64") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "@w_seed_process_checked_subtract_i64(%left: i64, %right: i64, %width: i64, %fault: !llvm.ptr) -> i64") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.br ^w_fn_0_b_3("));
+
+  static const uint8_t extra_helper_shape[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "fn choose(value: i8): i8 { return if value == 2_i8 { "
+      "if value == 3_i8 { value * 127_i8 } else { value * 126_i8 } "
+      "} else { value - 1_i8 } }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let count = try i8(exactly: args.count)\n"
+      "print(\"Joined ${choose(value: count)}\")\n"
+      "return .success }\n"
+      "entry(run)\n";
+  process_input_checked_integer_helper_mode = true;
+  const bool extra_shape_lowered = lower_process_input_hir(
+      extra_helper_shape, sizeof(extra_helper_shape) - 1u);
+  process_input_checked_integer_helper_mode = false;
+  CHECK(extra_shape_lowered);
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_UNSUPPORTED);
+  return true;
+}
+
 static bool test_process_float_rounding_native_subset(void) {
   static const uint8_t source[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
@@ -9485,6 +9598,7 @@ int main(int argc, char **argv) {
   if (!test_reachable_panic_mlir()) return 1;
   if (!test_process_panic_mlir()) return 1;
   if (!test_process_checked_integer_helper_fault_mlir()) return 1;
+  if (!test_process_checked_scalar_if_join_mlir()) return 1;
   if (!test_process_float_rounding_native_subset()) return 1;
   if (!test_process_float_rounding_join_mlir()) return 1;
   if (!test_process_hir_is_closed_to_mlir()) return 1;

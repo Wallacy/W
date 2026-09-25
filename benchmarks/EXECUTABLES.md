@@ -115,6 +115,7 @@ The timer covers lane runs, result validation, catalog update, and catalog/docum
 | [fixed-integer-runtime-arithmetic (W)](../compiler/seed-c/fixtures/process-fixed-integer-arithmetic.w), [fixed-integer-runtime-arithmetic (C)](./executable/process_fixed_integer_arithmetic.c), [fixed-integer-runtime-arithmetic (Rust)](./executable/process_fixed_integer_arithmetic.rs) | Not measured | — | — | — | — | — | — | — |
 | [u64-mix-round (W)](../compiler/seed-c/fixtures/u64_mix_round.w), [u64-mix-round (C)](./executable/u64_mix_round.c), [u64-mix-round (Rust)](./executable/u64_mix_round.rs) | Not measured | — | — | — | — | — | — | — |
 | [checked-integer-helper-fault (W)](../compiler/seed-c/fixtures/checked-integer-helper-fault.w), [checked-integer-helper-fault (C)](./executable/checked_integer_helper_fault.c), [checked-integer-helper-fault (Rust)](./executable/checked_integer_helper_fault.rs) | Not measured | — | — | — | — | — | — | — |
+| [checked-scalar-if-join (W)](../compiler/seed-c/fixtures/checked-scalar-if-join.w), [checked-scalar-if-join (C)](./executable/checked_scalar_if_join.c), [checked-scalar-if-join (Rust)](./executable/checked_scalar_if_join.rs) | Not measured | — | — | — | — | — | — | — |
 
 ### value-aggregates
 

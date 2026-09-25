@@ -19333,8 +19333,10 @@ static bool cst_scalar_if_surface_ok(const w_seed_frontend_document *doc,
 
 static bool scalar_if_type(frontend_simple_type type) {
   return type.kind == W_SEED_FRONTEND_TYPE_BOOL ||
-         (type.kind == W_SEED_FRONTEND_TYPE_INTEGER && type.is_signed &&
-          type.bit_width == 64u) ||
+         (type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+          !text_equal(type.spelling, "usize") &&
+          (type.bit_width == 8u || type.bit_width == 16u ||
+           type.bit_width == 32u || type.bit_width == 64u)) ||
          type_is_float(type);
 }
 

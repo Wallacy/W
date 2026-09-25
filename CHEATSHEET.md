@@ -2478,7 +2478,8 @@ stdout; this is compiler-lifecycle correctness evidence, not general CFG or
 performance evidence.
 W-1539 adds the bounded scalar-if value cut: `if condition { scalar } else {
 scalar }` is valid only in scalar `return` and immutable `let` initializer
-contexts, with a Bool condition and matching `i64` or Bool arms. HIR11 carries
+contexts, with a Bool condition and exactly matching arm types: Bool, existing
+signed/unsigned `i8`/`i16`/`i32`/`i64`, or `f32`/`f64`. HIR11 carries
 one typed join argument per diamond; MLIR14/Windows5 emits real
 `llvm.cond_br`/typed `llvm.br` CFG and never `llvm.select`. The compiler
 fixture passed both conditions with exact `Open 5; closed 2\n` on the public
@@ -2487,6 +2488,14 @@ missing else/non-Bool/mismatch use `W-PARSE-0021`/`W-SEM-0001`/`W-TYPE-0120`,
 and unsupported effectful/aggregate forms remain rejected. This is
 compiler-lifecycle correctness evidence only; no general CFG, target or
 performance claim follows.
+
+W-1653 separately exercises one process-safe checked scalar join: a synchronous
+`i8` helper returns `if value == 2_i8 { value * 127_i8 } else { value - 1_i8 }`.
+The process gates pin zero/one arguments to `Joined -1\n`/`Joined 0\n`, two
+arguments to status 2 with no output, and 128 to typed-conversion status 1 with
+no output. This native process path is intentionally limited to the exact
+four-block i8 helper shape; the frontend/HIR family generalization does not
+make arbitrary helper CFG executable.
 
 <!-- w-example role=logical-contract -->
 ```w
