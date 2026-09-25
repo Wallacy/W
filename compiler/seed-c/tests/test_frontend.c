@@ -6609,6 +6609,8 @@ static bool test_i128_literal_frontend(void) {
       "0xffffffffffffffffffffffffffffffff_u128 }\n"
       "fn echoSigned(value: i128): i128 { return value }\n"
       "fn echoUnsigned(value: u128): u128 { return value }\n"
+      "fn boundUnsigned(): u128 { let wide: u128 = "
+      "0x80000000000000000000000000000000_u128 return wide }\n"
       "fn maxU8(): u8 { return 255_u8 }\n"
       "fn maxU16(): u16 { return 65535_u16 }\n"
       "fn maxU32(): u32 { return 4294967295_u32 }\n"
@@ -6642,6 +6644,7 @@ static bool test_i128_literal_frontend(void) {
                     {"unsignedHexMax", false, 128u},
                     {"echoSigned", true, 128u},
                     {"echoUnsigned", false, 128u},
+                    {"boundUnsigned", false, 128u},
                     {"maxU8", false, 8u},
                     {"maxU16", false, 16u},
                     {"maxU32", false, 32u},
@@ -6681,6 +6684,7 @@ static bool test_i128_literal_frontend(void) {
   uint8_t signed_max[16];
   uint8_t signed_min[16] = {0u};
   uint8_t unsigned_max[16];
+  uint8_t unsigned_high_bit[16] = {0u};
   uint8_t u8_max[16] = {0xffu};
   uint8_t u16_max[16] = {0xffu, 0xffu};
   uint8_t u32_max[16] = {0xffu, 0xffu, 0xffu, 0xffu};
@@ -6690,6 +6694,7 @@ static bool test_i128_literal_frontend(void) {
   (void)memset(unsigned_max, 0xff, sizeof(unsigned_max));
   signed_max[15] = 0x7fu;
   signed_min[15] = 0x80u;
+  unsigned_high_bit[15] = 0x80u;
   const struct {
     const char *spelling;
     bool is_signed;
@@ -6704,6 +6709,8 @@ static bool test_i128_literal_frontend(void) {
        unsigned_max},
       {"0xffffffffffffffffffffffffffffffff_u128", false, 128u,
        unsigned_max},
+      {"0x80000000000000000000000000000000_u128", false, 128u,
+       unsigned_high_bit},
       {"255_u8", false, 8u, u8_max},
       {"65535_u16", false, 16u, u16_max},
       {"4294967295_u32", false, 32u, u32_max},
@@ -6735,6 +6742,40 @@ static bool test_i128_literal_frontend(void) {
     }
     CHECK(found);
   }
+  uint32_t bound_literal = W_SEED_FRONTEND_NONE;
+  bool found_bound_read = false;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_INTEGER &&
+        frontend_text_is(expression->spelling,
+                         "0x80000000000000000000000000000000_u128")) {
+      bound_literal = (uint32_t)index;
+      CHECK(expression->supported && expression->has_integer_value &&
+            memcmp(expression->integer_value, unsigned_high_bit,
+                   sizeof(unsigned_high_bit)) == 0);
+      continue;
+    }
+    if (expression->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER ||
+        !frontend_text_is(expression->spelling, "wide"))
+      continue;
+    CHECK(expression->supported &&
+          expression->resolved_binding_statement != W_SEED_FRONTEND_NONE &&
+          expression->resolved_binding_statement <
+              value->result.written.statements &&
+          expression->inferred_type < value->result.written.types);
+    const w_seed_frontend_statement *binding =
+        &value->statements[expression->resolved_binding_statement];
+    const w_seed_frontend_type *type =
+        &value->types[expression->inferred_type];
+    CHECK(binding->kind == W_SEED_FRONTEND_STMT_LET &&
+          binding->expression_index == bound_literal &&
+          binding->effective_type == expression->inferred_type &&
+          type->kind == W_SEED_FRONTEND_TYPE_INTEGER && !type->is_signed &&
+          type->bit_width == 128u);
+    found_bound_read = true;
+  }
+  CHECK(bound_literal != W_SEED_FRONTEND_NONE && found_bound_read);
   bool found_signed_min_root = false;
   for (size_t index = 0u; index < value->result.written.expressions;
        index += 1u) {
