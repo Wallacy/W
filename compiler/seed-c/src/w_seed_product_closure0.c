@@ -11,6 +11,13 @@ typedef struct {
 } closure0_range;
 
 typedef struct {
+  const w_seed_hir0_function *function;
+  uint32_t arguments_type;
+  uint32_t context_type;
+  uint32_t exit_code_type;
+} closure0_process_root_facts;
+
+typedef struct {
   bool modules[W_SEED_PRODUCT_CLOSURE0_MAX_MODULES];
   bool functions[W_SEED_PRODUCT_CLOSURE0_MAX_FUNCTIONS];
   bool identities[W_SEED_PRODUCT_CLOSURE0_MAX_IDENTITIES];
@@ -411,6 +418,88 @@ static bool process_count_type_valid(const w_seed_hir0_program *program,
          text_is(program, count->return_type, "usize");
 }
 
+/* HIR0's verifier fixes std.process to one exact dense symbol sequence, so
+ * these positional type lookups deliberately follow that canonical contract.
+ * Share the root ABI/lifecycle proof while leaving each process body's
+ * outcome relation to its own verifier. */
+static bool process_root_facts_resolve(
+    const w_seed_hir0_program *program, const w_seed_hir0_entry *entry,
+    bool require_count_symbol, w_seed_hir0_entry_cleanup_kind cleanup,
+    closure0_process_root_facts *facts) {
+  if (program == NULL || entry == NULL || facts == NULL ||
+      program->module_count != 1u || program->external_module_count != 1u ||
+      program->external_symbol_count < 3u ||
+      (require_count_symbol && program->external_symbol_count != 7u) ||
+      program->external_modules == NULL || program->external_symbols == NULL ||
+      program->entry_count != 1u || program->entries == NULL ||
+      entry != &program->entries[0] || entry->module_index != 0u ||
+      entry->adapter_kind != W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS ||
+      entry->is_body || entry->target_function >= program->function_count ||
+      entry->identity_index != program->module_count + program->function_count ||
+      entry->identity_index >= program->identity_count ||
+      entry->target_identity >= program->identity_count ||
+      !text_is(program, program->external_modules[0].module_id,
+               "std.process"))
+    return false;
+  const uint32_t arguments_type = process_nominal_type(program, 0u);
+  const uint32_t context_type = process_nominal_type(program, 1u);
+  const uint32_t exit_code_type = process_nominal_type(program, 2u);
+  if (arguments_type == W_SEED_HIR0_NONE ||
+      context_type == W_SEED_HIR0_NONE ||
+      exit_code_type == W_SEED_HIR0_NONE ||
+      !process_external_type_valid(program, arguments_type, 0u, "Arguments") ||
+      !process_external_type_valid(program, context_type, 1u, "Context") ||
+      !process_external_type_valid(program, exit_code_type, 2u, "ExitCode"))
+    return false;
+  const w_seed_hir0_function *function =
+      &program->functions[entry->target_function];
+  if (function->module_index != entry->module_index ||
+      entry->target_identity != function->identity_index ||
+      function->identity_index != program->module_count + entry->target_function ||
+      function->is_const || !function->is_async || !function->is_throws ||
+      function->is_unsafe || function->has_borrow_clause ||
+      function->is_anonymous_entry ||
+      function->suspension != W_SEED_HIR0_SUSPENSION_MAY ||
+      function->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_ABSENT ||
+      function->parameter_count != 2u || function->return_type != exit_code_type ||
+      function->first_parameter > program->parameter_count ||
+      function->parameter_count >
+          program->parameter_count - function->first_parameter ||
+      function->error_type >= program->type_count ||
+      entry->cleanup_obligation != cleanup ||
+      entry->first_cleanup_owner_parameter != function->first_parameter ||
+      entry->cleanup_owner_parameter_count != 2u)
+    return false;
+  const w_seed_hir0_parameter *arguments =
+      &program->parameters[function->first_parameter];
+  const w_seed_hir0_parameter *context =
+      &program->parameters[(size_t)function->first_parameter + 1u];
+  if (arguments->owner_function != entry->target_function ||
+      arguments->ordinal != 0u || arguments->type_index != arguments_type ||
+      context->owner_function != entry->target_function ||
+      context->ordinal != 1u || context->type_index != context_type ||
+      program->types[arguments_type].lifecycle !=
+          W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER ||
+      program->types[arguments_type].release_contract !=
+          W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE ||
+      program->types[context_type].lifecycle !=
+          W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER ||
+      program->types[context_type].release_contract !=
+          W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE ||
+      program->types[exit_code_type].lifecycle !=
+          W_SEED_HIR0_LIFECYCLE_VALUE_COPY ||
+      program->types[exit_code_type].release_contract !=
+          W_SEED_HIR0_RELEASE_CONTRACT_NONE)
+    return false;
+  *facts = (closure0_process_root_facts){
+      .function = function,
+      .arguments_type = arguments_type,
+      .context_type = context_type,
+      .exit_code_type = exit_code_type,
+  };
+  return true;
+}
+
 static bool local_payloadless_enum_valid(
     const w_seed_hir0_program *program, uint32_t enum_index) {
   if (program == NULL || enum_index >= program->enum_count) return false;
@@ -462,65 +551,16 @@ static bool local_payloadless_error_enum_valid(
  * the normal successor and its typed-error successor. */
 static bool typed_process_numeric_exact_root_supported(
     const w_seed_hir0_program *program, const w_seed_hir0_entry *entry) {
-  if (program == NULL || entry == NULL || program->module_count != 1u ||
-      program->external_module_count != 1u ||
-      program->external_symbol_count != 7u || program->entry_count != 1u ||
-      entry != &program->entries[0] || entry->module_index != 0u ||
-      entry->adapter_kind != W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS ||
-      entry->is_body || entry->target_function >= program->function_count ||
-      entry->identity_index != program->module_count + program->function_count ||
-      entry->identity_index >= program->identity_count ||
-      entry->target_identity >= program->identity_count)
-    return false;
-  const w_seed_hir0_function *function =
-      &program->functions[entry->target_function];
-  if (function->module_index != entry->module_index ||
-      entry->target_identity != function->identity_index ||
-      function->identity_index != program->module_count + entry->target_function ||
-      function->is_const || !function->is_async || !function->is_throws ||
-      function->is_unsafe || function->has_borrow_clause ||
-      function->is_anonymous_entry ||
-      function->suspension != W_SEED_HIR0_SUSPENSION_MAY ||
-      function->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_ABSENT ||
-      function->parameter_count != 2u ||
-      function->error_type >= program->type_count ||
-      program->types[function->error_type].kind !=
+  closure0_process_root_facts root;
+  if (!process_root_facts_resolve(
+          program, entry, true,
+          W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_ALL_OUTCOMES,
+          &root) ||
+      program->types[root.function->error_type].kind !=
           W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR)
     return false;
-  const uint32_t arguments_type = process_nominal_type(program, 0u);
-  const uint32_t context_type = process_nominal_type(program, 1u);
-  const uint32_t exit_code_type = process_nominal_type(program, 2u);
-  if (arguments_type == W_SEED_HIR0_NONE || context_type == W_SEED_HIR0_NONE ||
-      exit_code_type == W_SEED_HIR0_NONE ||
-      !process_external_type_valid(program, arguments_type, 0u, "Arguments") ||
-      !process_external_type_valid(program, context_type, 1u, "Context") ||
-      !process_external_type_valid(program, exit_code_type, 2u, "ExitCode") ||
-      function->return_type != exit_code_type ||
-      function->first_parameter > program->parameter_count ||
-      function->parameter_count >
-          program->parameter_count - function->first_parameter ||
-      entry->cleanup_obligation !=
-          W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_ALL_OUTCOMES ||
-      entry->first_cleanup_owner_parameter != function->first_parameter ||
-      entry->cleanup_owner_parameter_count != 2u)
-    return false;
-  const w_seed_hir0_parameter *arguments =
-      &program->parameters[function->first_parameter];
-  const w_seed_hir0_parameter *context =
-      &program->parameters[(size_t)function->first_parameter + 1u];
-  if (arguments->owner_function != entry->target_function ||
-      arguments->ordinal != 0u || arguments->type_index != arguments_type ||
-      context->owner_function != entry->target_function ||
-      context->ordinal != 1u || context->type_index != context_type ||
-      program->types[arguments_type].lifecycle !=
-          W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER ||
-      program->types[arguments_type].release_contract !=
-          W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE ||
-      program->types[context_type].lifecycle !=
-          W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER ||
-      program->types[context_type].release_contract !=
-          W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE)
-    return false;
+  const w_seed_hir0_function *function = root.function;
+  const uint32_t exit_code_type = root.exit_code_type;
   if (function->first_block >= program->block_count ||
       function->block_count != 3u ||
       function->block_count > program->block_count - function->first_block)
@@ -854,66 +894,19 @@ static bool typed_process_float_source_diamond_supported(
  * the smaller product shape for which ProductClosure0 publishes relations. */
 static bool typed_process_float_rounding_root_supported(
     const w_seed_hir0_program *program, const w_seed_hir0_entry *entry) {
-  if (program == NULL || entry == NULL || program->module_count != 1u ||
-      program->external_module_count != 1u ||
-      program->external_symbol_count != 7u || program->entry_count != 1u ||
-      entry != &program->entries[0] || entry->module_index != 0u ||
-      entry->adapter_kind != W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS ||
-      entry->is_body || entry->target_function >= program->function_count ||
-      entry->identity_index != program->module_count + program->function_count ||
-      entry->identity_index >= program->identity_count ||
-      entry->target_identity >= program->identity_count)
-    return false;
-  const w_seed_hir0_function *function =
-      &program->functions[entry->target_function];
-  if (function->module_index != entry->module_index ||
-      entry->target_identity != function->identity_index ||
-      function->identity_index != program->module_count + entry->target_function ||
-      function->is_const || !function->is_async || !function->is_throws ||
-      function->is_unsafe || function->has_borrow_clause ||
-      function->is_anonymous_entry ||
-      function->suspension != W_SEED_HIR0_SUSPENSION_MAY ||
-      function->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_ABSENT ||
-      function->parameter_count != 2u ||
-      (function->block_count != 4u && function->block_count != 7u) ||
-      function->error_type >= program->type_count ||
-      program->types[function->error_type].kind !=
+  closure0_process_root_facts root;
+  if (!process_root_facts_resolve(
+          program, entry, true,
+          W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_ALL_OUTCOMES,
+          &root) ||
+      (root.function->block_count != 4u &&
+       root.function->block_count != 7u) ||
+      program->types[root.function->error_type].kind !=
           W_SEED_HIR0_TYPE_NUMERIC_CONVERSION_ERROR)
     return false;
-  const uint32_t arguments_type = process_nominal_type(program, 0u);
-  const uint32_t context_type = process_nominal_type(program, 1u);
-  const uint32_t exit_code_type = process_nominal_type(program, 2u);
-  if (arguments_type == W_SEED_HIR0_NONE || context_type == W_SEED_HIR0_NONE ||
-      exit_code_type == W_SEED_HIR0_NONE ||
-      !process_external_type_valid(program, arguments_type, 0u, "Arguments") ||
-      !process_external_type_valid(program, context_type, 1u, "Context") ||
-      !process_external_type_valid(program, exit_code_type, 2u, "ExitCode") ||
-      function->return_type != exit_code_type ||
-      function->first_parameter > program->parameter_count ||
-      function->parameter_count >
-          program->parameter_count - function->first_parameter ||
-      entry->cleanup_obligation !=
-          W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_ALL_OUTCOMES ||
-      entry->first_cleanup_owner_parameter != function->first_parameter ||
-      entry->cleanup_owner_parameter_count != 2u)
-    return false;
-  const w_seed_hir0_parameter *arguments =
-      &program->parameters[function->first_parameter];
-  const w_seed_hir0_parameter *context =
-      &program->parameters[(size_t)function->first_parameter + 1u];
-  if (arguments->owner_function != entry->target_function ||
-      arguments->ordinal != 0u || arguments->type_index != arguments_type ||
-      context->owner_function != entry->target_function ||
-      context->ordinal != 1u || context->type_index != context_type ||
-      program->types[arguments_type].lifecycle !=
-          W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER ||
-      program->types[arguments_type].release_contract !=
-          W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE ||
-      program->types[context_type].lifecycle !=
-          W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER ||
-      program->types[context_type].release_contract !=
-          W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE)
-    return false;
+  const w_seed_hir0_function *function = root.function;
+  const uint32_t arguments_type = root.arguments_type;
+  const uint32_t exit_code_type = root.exit_code_type;
   if (function->first_block >= program->block_count ||
       function->block_count > program->block_count - function->first_block)
     return false;
@@ -1290,71 +1283,19 @@ static bool typed_process_throw_root_supported(
     const w_seed_hir0_program *program, const w_seed_hir0_entry *entry) {
   if (typed_process_numeric_exact_root_supported(program, entry)) return true;
   if (typed_process_float_rounding_root_supported(program, entry)) return true;
-  if (program == NULL || entry == NULL || program->module_count != 1u ||
-      program->external_module_count != 1u || program->entry_count != 1u ||
-      entry != &program->entries[0] || entry->module_index != 0u ||
-      entry->adapter_kind != W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS ||
-      entry->is_body || entry->target_function >= program->function_count ||
-      entry->identity_index != program->module_count + program->function_count ||
-      entry->identity_index >= program->identity_count ||
-      entry->target_identity >= program->identity_count)
+  closure0_process_root_facts root;
+  if (!process_root_facts_resolve(
+          program, entry, false,
+          W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_TYPED_ERROR,
+          &root) ||
+      root.function->block_count != 1u ||
+      root.function->error_type == W_SEED_HIR0_NONE)
     return false;
-  const w_seed_hir0_function *function =
-      &program->functions[entry->target_function];
-  if (function->module_index != entry->module_index ||
-      entry->target_identity != function->identity_index ||
-      function->identity_index != program->module_count + entry->target_function ||
-      function->is_const || !function->is_async || !function->is_throws ||
-      function->is_unsafe || function->has_borrow_clause ||
-      function->is_anonymous_entry ||
-      function->suspension != W_SEED_HIR0_SUSPENSION_MAY ||
-      function->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_ABSENT ||
-      function->parameter_count != 2u || function->block_count != 1u ||
-      function->error_type == W_SEED_HIR0_NONE)
-    return false;
-  const uint32_t arguments_type = process_nominal_type(program, 0u);
-  const uint32_t context_type = process_nominal_type(program, 1u);
-  const uint32_t exit_code_type = process_nominal_type(program, 2u);
-  if (arguments_type == W_SEED_HIR0_NONE || context_type == W_SEED_HIR0_NONE ||
-      exit_code_type == W_SEED_HIR0_NONE ||
-      !process_external_type_valid(program, arguments_type, 0u, "Arguments") ||
-      !process_external_type_valid(program, context_type, 1u, "Context") ||
-      !process_external_type_valid(program, exit_code_type, 2u, "ExitCode") ||
-      function->return_type != exit_code_type ||
-      function->first_parameter > program->parameter_count ||
-      function->parameter_count >
-          program->parameter_count - function->first_parameter)
-    return false;
-  const w_seed_hir0_parameter *arguments =
-      &program->parameters[function->first_parameter];
-  const w_seed_hir0_parameter *context =
-      &program->parameters[(size_t)function->first_parameter + 1u];
-  if (arguments->owner_function != entry->target_function ||
-      arguments->ordinal != 0u || arguments->type_index != arguments_type ||
-      context->owner_function != entry->target_function ||
-      context->ordinal != 1u || context->type_index != context_type ||
-      program->types[arguments_type].lifecycle !=
-          W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER ||
-      program->types[arguments_type].release_contract !=
-          W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE ||
-      program->types[context_type].lifecycle !=
-          W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER ||
-      program->types[context_type].release_contract !=
-          W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE ||
-      program->types[exit_code_type].lifecycle !=
-          W_SEED_HIR0_LIFECYCLE_VALUE_COPY ||
-      program->types[exit_code_type].release_contract !=
-          W_SEED_HIR0_RELEASE_CONTRACT_NONE)
-    return false;
+  const w_seed_hir0_function *function = root.function;
   uint32_t error_enum_index = W_SEED_HIR0_NONE;
   if (!local_payloadless_error_enum_valid(program, function->error_type,
                                          entry->module_index,
                                          &error_enum_index))
-    return false;
-  if (entry->cleanup_obligation !=
-          W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS_REVERSE_ON_TYPED_ERROR ||
-      entry->first_cleanup_owner_parameter != function->first_parameter ||
-      entry->cleanup_owner_parameter_count != 2u)
     return false;
   if (function->first_block > program->block_count ||
       function->block_count > program->block_count - function->first_block)
