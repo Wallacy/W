@@ -5,6 +5,7 @@
 
 #include "w_seed_native_subset0.h"
 #include "w_seed_product_closure0.h"
+#include "w_seed_constant_output0.h"
 #include "w_seed_scalar_evaluator0.h"
 #include "w_seed_sha256.h"
 
@@ -1259,6 +1260,33 @@ static bool build_static_artifact(
   return true;
 }
 
+/* Use the existing one-write native entry when a whole verified default
+ * entry has a closed, terminating constant execution. The evaluator's
+ * newline-inclusive bytes are represented as one print payload because the
+ * established static artifact appends exactly one newline per call. */
+static bool build_constant_output_artifact(
+    const w_seed_constant_output0_result *constant_output,
+    const w_seed_mlir0_target *target, uint8_t *artifact, size_t capacity,
+    size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
+  if (constant_output == NULL || constant_output->stdout_length == 0u ||
+      constant_output->stdout_length > W_SEED_CONSTANT_OUTPUT0_MAX_BYTES ||
+      constant_output->stdout_bytes[constant_output->stdout_length - 1u] !=
+          (uint8_t)'\n' ||
+      constant_output->success_exit_status != 0)
+    return false;
+  const w_seed_native_subset0_call_selection call = {
+      .payload = constant_output->stdout_bytes,
+      .payload_bytes = constant_output->stdout_length - MLIR0_NEWLINE_BYTES};
+  w_seed_native_subset0_sequence sequence;
+  (void)memset(&sequence, 0, sizeof(sequence));
+  sequence.instruction_count = 1u;
+  sequence.call_count = 1u;
+  sequence.stdout_bytes = constant_output->stdout_length;
+  sequence.calls[0] = call;
+  return build_static_artifact(&sequence, target, artifact, capacity, written,
+                               digest);
+}
+
 typedef enum {
   MLIR0_DYNAMIC_TEXT = 0,
   MLIR0_DYNAMIC_I64,
@@ -1960,11 +1988,26 @@ static bool program_has_tuple_product_values(
   return false;
 }
 
-static bool program_has_narrow_integer_types(
-    const w_seed_hir0_program *program) {
-  if (program == NULL) return false;
+static bool
+program_has_flat_value_aggregate_values(const w_seed_hir0_program *program) {
+  if (program == NULL || program->values == NULL)
+    return false;
+  for (size_t index = 0u; index < program->value_count; index += 1u)
+    if (program->values[index].kind == W_SEED_HIR0_VALUE_TUPLE_ELEMENT ||
+        program->values[index].kind == W_SEED_HIR0_VALUE_TUPLE ||
+        program->values[index].kind == W_SEED_HIR0_VALUE_VALUE_STRUCT ||
+        program->values[index].kind == W_SEED_HIR0_VALUE_VALUE_STRUCT_FIELD)
+      return true;
+  return false;
+}
+
+static bool
+program_has_narrow_integer_types(const w_seed_hir0_program *program) {
+  if (program == NULL)
+    return false;
   for (size_t index = 0u; index < program->type_count; index += 1u)
-    if (program->types[index].kind == W_SEED_HIR0_TYPE_INTEGER) return true;
+    if (program->types[index].kind == W_SEED_HIR0_TYPE_INTEGER)
+      return true;
   return false;
 }
 
@@ -10509,8 +10552,7 @@ static bool build_program_artifact(
     size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
   if (program == NULL || selection == NULL ||
       (!selection->has_local_calls && !selection->has_cfg &&
-       !selection->has_enum_switch &&
-       !selection->has_mutable_bindings &&
+       !selection->has_enum_switch && !selection->has_mutable_bindings &&
        !selection->has_reachable_panic &&
        !program_has_tuple_product_values(program) &&
        !program_has_narrow_integer_types(program) &&
@@ -10518,8 +10560,26 @@ static bool build_program_artifact(
        !program_has_float_bits_conversions(program) &&
        selection->function_count <= 1u) ||
       !target_is_supported(target) || artifact == NULL || written == NULL ||
-      digest == NULL || selection->maximum_stdout_bytes > MLIR0_MAX_STDOUT_BYTES)
+      digest == NULL ||
+      selection->maximum_stdout_bytes > MLIR0_MAX_STDOUT_BYTES)
     return false;
+  w_seed_constant_output0_result constant_output;
+  (void)memset(&constant_output, 0, sizeof(constant_output));
+  /* The evaluator is generic, but this optimization slice changes native
+   * lowering only when the proven reachable execution consumes a flat
+   * product. Other constant roots retain the established lowering. */
+  if (program_has_flat_value_aggregate_values(program) &&
+      w_seed_constant_output0_evaluate(program, hir_result, &constant_output) &&
+      constant_output.evaluated_flat_product &&
+      memcmp(constant_output.hir_semantic_digest, hir_result->semantic_digest,
+             sizeof(constant_output.hir_semantic_digest)) == 0 &&
+      memcmp(constant_output.hir_provenance_digest,
+             hir_result->provenance_digest,
+             sizeof(constant_output.hir_provenance_digest)) == 0 &&
+      build_constant_output_artifact(&constant_output, target, artifact,
+                                     capacity, written, digest))
+    return true;
+
   mlir0_program_plan plan;
   if (!build_program_plan(program, hir_result, &plan, false, true)) {
     return false;

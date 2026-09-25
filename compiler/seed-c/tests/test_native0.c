@@ -2,6 +2,8 @@
 #include "w_seed_product_closure0.h"
 #include "w_seed_parallel_selection0.h"
 #include "w_seed_scalar_evaluator0.h"
+#include "w_seed_constant_output0.h"
+#include "w_seed_sha256.h"
 #include "../src/w_seed_native_subset0.h"
 
 #include <stdbool.h>
@@ -122,6 +124,28 @@ static size_t count_bytes(const uint8_t *bytes, size_t length,
   for (size_t offset = 0u; offset + needle_length <= length; offset += 1u)
     if (memcmp(bytes + offset, needle, needle_length) == 0) count += 1u;
   return count;
+}
+
+static bool artifact_sha256_matches(const uint8_t *bytes, size_t length,
+                                    const uint8_t expected[32]) {
+  if ((length != 0u && bytes == NULL) || expected == NULL)
+    return false;
+  uint8_t digest[32];
+  w_seed_sha256_state state;
+  w_seed_sha256_init(&state);
+  w_seed_sha256_update(&state, bytes, length);
+  w_seed_sha256_final(&state, digest);
+  return memcmp(digest, expected, sizeof(digest)) == 0;
+}
+
+static bool
+constant_output_rejects_unchanged(const w_seed_hir0_program *program,
+                                  const w_seed_hir0_result *hir_result) {
+  w_seed_constant_output0_result result;
+  (void)memset(&result, 0x79, sizeof(result));
+  const w_seed_constant_output0_result snapshot = result;
+  return !w_seed_constant_output0_evaluate(program, hir_result, &result) &&
+         memcmp(&result, &snapshot, sizeof(result)) == 0;
 }
 
 static size_t find_bytes(const uint8_t *bytes, size_t length,
@@ -333,6 +357,19 @@ static bool test_products(void) {
         storage.hir_program.functions[1].block_count == 1u &&
         storage.hir_program.terminators[0].kind ==
             W_SEED_HIR0_TERMINATOR_BRANCH);
+  w_seed_constant_output0_result cfg_constant;
+  (void)memset(&cfg_constant, 0xa7, sizeof(cfg_constant));
+  CHECK(
+      w_seed_constant_output0_evaluate(&storage.hir_program,
+                                       &storage.hir_result, &cfg_constant) &&
+      !cfg_constant.evaluated_flat_product &&
+      cfg_constant.stdout_length ==
+          sizeof(
+              "Kitchen open\nAfter service\nKitchen closed\nAfter service\n") -
+              1u &&
+      memcmp(cfg_constant.stdout_bytes,
+             "Kitchen open\nAfter service\nKitchen closed\nAfter service\n",
+             cfg_constant.stdout_length) == 0);
   CHECK(contains_bytes(cfg_bytes, cfg_result.mlir.written.mlir_bytes,
                        "llvm.cond_br %p0, ^w_fn_0_b_1, ^w_fn_0_b_2") &&
         count_bytes(cfg_bytes, cfg_result.mlir.written.mlir_bytes,
@@ -487,7 +524,8 @@ static bool test_flat_aggregate_lowering_and_barriers(void) {
       "let point = makePoint(left: 7, right: 5) "
       "let tupleResult = combinePair(pair: pair, scale: 3) "
       "let structResult = combinePoint(point: point, scale: 3) "
-      "print(\"${pair.0},${point.left},${tupleResult + structResult}\") }\n";
+      "print(\"${pair.0},${point.right},${tupleResult + structResult - 26}\") "
+      "}\n";
   static uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   w_seed_native0_result result;
   const w_seed_native0_status source_status = run_source(
@@ -499,16 +537,92 @@ static bool test_flat_aggregate_lowering_and_barriers(void) {
   CHECK(w_seed_hir0_verify(program, &storage.hir_result));
   CHECK(test_product_closure_aggregate_input_aliases(
       program, &storage.hir_result));
+  w_seed_constant_output0_result constant_output;
+  (void)memset(&constant_output, 0xa4, sizeof(constant_output));
+  CHECK(w_seed_constant_output0_evaluate(program, &storage.hir_result,
+                                         &constant_output));
+  CHECK(constant_output.stdout_length == sizeof("7,5,26\n") - 1u &&
+        memcmp(constant_output.stdout_bytes, "7,5,26\n",
+               sizeof("7,5,26\n") - 1u) == 0 &&
+        constant_output.success_exit_status == 0 &&
+        constant_output.evaluated_flat_product &&
+        memcmp(constant_output.hir_semantic_digest,
+               storage.hir_result.semantic_digest,
+               sizeof(constant_output.hir_semantic_digest)) == 0 &&
+        memcmp(constant_output.hir_provenance_digest,
+               storage.hir_result.provenance_digest,
+               sizeof(constant_output.hir_provenance_digest)) == 0);
   w_seed_native_subset0_program selection;
   CHECK(w_seed_native_subset0_select_program(
             program, &storage.hir_result, &selection) ==
         W_SEED_NATIVE_SUBSET0_OK);
   CHECK(contains_bytes(artifact, result.mlir.written.mlir_bytes,
-                       "llvm.insertvalue") &&
+                       "\\37\\2c\\35\\2c\\32\\36\\0a") &&
         contains_bytes(artifact, result.mlir.written.mlir_bytes,
-                       "llvm.extractvalue") &&
-        contains_bytes(artifact, result.mlir.written.mlir_bytes,
-                       "!llvm.struct<(i64, i64)>"));
+                       "llvm.call @write(%fd, %data, %length)") &&
+        count_bytes(artifact, result.mlir.written.mlir_bytes,
+                    "llvm.call @write(") == 1u &&
+        !contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                        "llvm.insertvalue") &&
+        !contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                        "llvm.extractvalue") &&
+        !contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                        "!llvm.struct<(i64, i64)>") &&
+        !contains_bytes(artifact, result.mlir.written.mlir_bytes,
+                        "llvm.alloca") &&
+        !contains_bytes(artifact, result.mlir.written.mlir_bytes, "@w_fn_"));
+  CHECK(artifact_sha256_matches(artifact, result.mlir.written.mlir_bytes,
+                                result.mlir.mlir_sha256));
+
+  const w_seed_mlir0_input mlir_input = {.program = program,
+                                         .hir_result = &storage.hir_result,
+                                         .artifact_kind =
+                                             W_SEED_MLIR0_ARTIFACT_EXECUTABLE};
+  w_seed_mlir0_counts measured_counts;
+  w_seed_mlir0_result measured_result;
+  CHECK(w_seed_mlir0_measure(&mlir_input, &TARGET, &measured_counts,
+                             &measured_result) == W_SEED_MLIR0_OK &&
+        measured_counts.mlir_bytes == result.mlir.written.mlir_bytes &&
+        memcmp(measured_result.mlir_sha256, result.mlir.mlir_sha256,
+               sizeof(measured_result.mlir_sha256)) == 0);
+  CHECK(artifact_sha256_matches(artifact, result.mlir.written.mlir_bytes,
+                                measured_result.mlir_sha256));
+  static uint8_t too_small[64];
+  (void)memset(too_small, 0x6d, sizeof(too_small));
+  w_seed_mlir0_result failed_emit;
+  (void)memset(&failed_emit, 0x93, sizeof(failed_emit));
+  const w_seed_mlir0_result failed_emit_snapshot = failed_emit;
+  CHECK(w_seed_mlir0_emit(&mlir_input, &TARGET,
+                          &(w_seed_mlir0_output){too_small, sizeof(too_small)},
+                          &failed_emit) == W_SEED_MLIR0_CAPACITY &&
+        memcmp(&failed_emit, &failed_emit_snapshot, sizeof(failed_emit)) == 0);
+  for (size_t byte = 0u; byte < sizeof(too_small); byte += 1u)
+    CHECK(too_small[byte] == 0x6du);
+
+  static uint8_t windows_artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts windows_counts;
+  w_seed_mlir0_result windows_result;
+  CHECK(w_seed_mlir0_measure(&mlir_input, &WINDOWS_TARGET, &windows_counts,
+                             &windows_result) == W_SEED_MLIR0_OK &&
+        w_seed_mlir0_emit(
+            &mlir_input, &WINDOWS_TARGET,
+            &(w_seed_mlir0_output){windows_artifact, sizeof(windows_artifact)},
+            &windows_result) == W_SEED_MLIR0_OK &&
+        windows_counts.mlir_bytes == windows_result.written.mlir_bytes &&
+        contains_bytes(windows_artifact, windows_result.written.mlir_bytes,
+                       "\\37\\2c\\35\\2c\\32\\36\\0a") &&
+        count_bytes(windows_artifact, windows_result.written.mlir_bytes,
+                    "llvm.call @WriteFile(") == 1u &&
+        !contains_bytes(windows_artifact, windows_result.written.mlir_bytes,
+                        "llvm.insertvalue") &&
+        !contains_bytes(windows_artifact, windows_result.written.mlir_bytes,
+                        "llvm.extractvalue") &&
+        count_bytes(windows_artifact, windows_result.written.mlir_bytes,
+                    "llvm.alloca %one x i32") == 1u &&
+        !contains_bytes(windows_artifact, windows_result.written.mlir_bytes,
+                        "!llvm.struct<") &&
+        !contains_bytes(windows_artifact, windows_result.written.mlir_bytes,
+                        "@w_fn_"));
 
   uint32_t tuple_constructor = W_SEED_HIR0_NONE;
   uint32_t tuple_projection = W_SEED_HIR0_NONE;
@@ -552,8 +666,9 @@ static bool test_flat_aggregate_lowering_and_barriers(void) {
   storage.hir_values[tuple_constructor].first_tuple_element =
       (uint32_t)program->tuple_element_count;
   CHECK(native_subset_rejects_invalid_hir(program, &storage.hir_result) &&
-        mlir_rejects_invalid_hir_without_publication(
-            program, &storage.hir_result));
+        mlir_rejects_invalid_hir_without_publication(program,
+                                                     &storage.hir_result) &&
+        constant_output_rejects_unchanged(program, &storage.hir_result));
   storage.hir_values[tuple_constructor] = saved_tuple;
 
   w_seed_hir0_tuple_element *tuple_element =
@@ -561,8 +676,8 @@ static bool test_flat_aggregate_lowering_and_barriers(void) {
   const w_seed_hir0_tuple_element saved_tuple_element = *tuple_element;
   tuple_element->ordinal = 0u;
   CHECK(native_subset_rejects_invalid_hir(program, &storage.hir_result) &&
-        mlir_rejects_invalid_hir_without_publication(
-            program, &storage.hir_result));
+        mlir_rejects_invalid_hir_without_publication(program,
+                                                     &storage.hir_result));
   *tuple_element = saved_tuple_element;
 
   const uint32_t tuple_type = tuple->type_index;
@@ -572,16 +687,16 @@ static bool test_flat_aggregate_lowering_and_barriers(void) {
       storage.hir_tuple_components[first_component];
   storage.hir_tuple_components[first_component].type_index = 3u;
   CHECK(native_subset_rejects_invalid_hir(program, &storage.hir_result) &&
-        mlir_rejects_invalid_hir_without_publication(
-            program, &storage.hir_result));
+        mlir_rejects_invalid_hir_without_publication(program,
+                                                     &storage.hir_result));
   storage.hir_tuple_components[first_component] = saved_component;
 
   const w_seed_hir0_value saved_projection =
       storage.hir_values[tuple_projection];
   storage.hir_values[tuple_projection].projection_ordinal = 2u;
   CHECK(native_subset_rejects_invalid_hir(program, &storage.hir_result) &&
-        mlir_rejects_invalid_hir_without_publication(
-            program, &storage.hir_result));
+        mlir_rejects_invalid_hir_without_publication(program,
+                                                     &storage.hir_result));
   storage.hir_values[tuple_projection] = saved_projection;
 
   const uint32_t struct_index =
@@ -624,6 +739,8 @@ static bool test_strict_float_native_admission(void) {
                    sizeof("strict-float-native") - 1u, artifact,
                    sizeof(artifact), &result) == W_SEED_NATIVE0_OK);
   CHECK(w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+  CHECK(constant_output_rejects_unchanged(&storage.hir_program,
+                                          &storage.hir_result));
   w_seed_native_subset0_program selection;
   CHECK(w_seed_native_subset0_select_program(
             &storage.hir_program, &storage.hir_result, &selection) ==
@@ -1437,12 +1554,13 @@ static bool test_process_input0_public_artifact(void) {
                        "@w_seed_process_arguments_drop") &&
         contains_bytes(output, result.mlir.written.mlir_bytes,
                        "@w_seed_process_root_finalize"));
+  CHECK(constant_output_rejects_unchanged(&storage.hir_program,
+                                          &storage.hir_result));
 
   CHECK(run_source_mode(
-            source, sizeof(source) - 1u, "process-input0", 14u,
-            &WINDOWS_TARGET, W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE,
-            explicit_output, sizeof(explicit_output), &explicit_result) ==
-        W_SEED_NATIVE0_OK);
+            source, sizeof(source) - 1u, "process-input0", 14u, &WINDOWS_TARGET,
+            W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE, explicit_output,
+            sizeof(explicit_output), &explicit_result) == W_SEED_NATIVE0_OK);
   CHECK(explicit_result.mlir.written.mlir_bytes ==
             result.mlir.written.mlir_bytes &&
         memcmp(explicit_output, output,
@@ -1852,10 +1970,12 @@ static bool test_panic_native_routes(void) {
   w_seed_native0_result result;
   CHECK(run_source(ordinary, sizeof(ordinary) - 1u, "native-panic", 12u,
                    output, sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  CHECK(constant_output_rejects_unchanged(&storage.hir_program,
+                                          &storage.hir_result));
   w_seed_native_subset0_program selection;
   CHECK(w_seed_native_subset0_select_program(
             &storage.hir_program, &storage.hir_result, &selection) ==
-        W_SEED_NATIVE_SUBSET0_OK &&
+            W_SEED_NATIVE_SUBSET0_OK &&
         selection.has_reachable_panic && selection.maximum_stdout_bytes == 0u);
   CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
                        "    \"llvm.intr.trap\"() : () -> ()\n"

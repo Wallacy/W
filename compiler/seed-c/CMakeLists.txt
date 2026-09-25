@@ -54,6 +54,7 @@ add_library(w_seed_source STATIC
   include/w_seed_accelerated_request0.h
   include/w_seed_accelerated_provider0.h
   include/w_seed_scalar_evaluator0.h
+  include/w_seed_constant_output0.h
   include/w_seed_target_layout0.h
   include/w_seed_wrt0.h
   include/w_seed_source_binding_linux.h
@@ -102,6 +103,7 @@ add_library(w_seed_source STATIC
   src/w_seed_parallel_panic_boundary1.c
   src/w_seed_task_lifecycle0.c
   src/w_seed_scalar_evaluator0.c
+  src/w_seed_constant_output0.c
   src/w_seed_target_layout0.c
   src/w_seed_native0.c
   src/w_seed_cooperative0.c

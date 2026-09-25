@@ -1267,6 +1267,36 @@ and projections and produce exit 0, stdout `7,5,26\n`, and empty stderr.
 the optimized Release profile. The Windows x64 and Linux/WSL x64 public gates
 run both products and compare their exact observable output.
 
+For this product-optimization slice, `w_seed_constant_output0_evaluate`
+independently verifies the complete HIR receipt, then interprets the reachable
+default-Unit entry call graph and selected acyclic CFG path. Its closed subset
+is fixed i64 literals with checked arithmetic/comparisons, Bool literals and
+branches, String literals/interpolation, immutable bindings, direct
+synchronous calls, and flat value-copy tuple/value-struct products with i64
+fields. The only accepted effect is the exact `native-process@1`
+`Console`-required `print(String): Unit` output. A reachable unsupported value
+or call, runtime input, repeated block on the selected path, reached
+join/block argument, arithmetic fault, panic/throw, async/unsafe/borrow
+function in the evaluated call closure, or cleanup obligation declines
+evaluation transactionally. MLIR adopts the result only
+when the execution actually traverses a flat product; other roots and all
+declined products keep their prior lowering. An accepted root's product
+constructors, projections, helpers, and interpolation are replaced by one
+literal output write only after the evaluator proves the full bytes, success
+status, and HIR semantic/provenance digests. This does not establish general
+constant folding outside the listed HIR kinds.
+
+The evaluator is deliberately resource-bounded: at most 16 functions, 400
+blocks, 512 source HIR values, 128 bindings, 32 parameters/arguments per call,
+16,384 evaluation steps, 1,024 evaluated values/elements, and 4 KiB each for
+intermediate strings and final stdout. Exceeding any limit declines the fold.
+
+On the accepted Linux product artifact, the output path needs no aggregate
+storage or helper frame; Windows retains one 4-byte `WriteFile` count scratch
+slot required by that host API, but no aggregate object or compiler-generated
+product frame. The benchmark disposition remains `compiler-lifecycle`; this
+change adds no microbenchmark or new performance row.
+
 The Linux Release audit binds the source and verified MLIR, pre/post-opt IR,
 product and WRT0 objects, and final artifact. The post-opt text scan reports
 `write` and labels its declaration-parser coverage partial. The two objects'
