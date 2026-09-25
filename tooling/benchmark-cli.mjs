@@ -10,7 +10,9 @@ import {
   HELLO_PLATFORM_MINIMAL_WORKLOAD_ID,
   executableWorkloadHasRunner,
   pruneExecutableBestMetrics,
+  pruneExecutableDiagnosticMetrics,
   updateExecutableBestMetrics,
+  updateExecutableDiagnosticMetrics,
   loadExecutableDocuments,
   validateExecutableBestMetrics,
   validateExecutableCatalog,
@@ -56,7 +58,7 @@ export function parseBenchmarkCliArguments(argv) {
   if (!Array.isArray(argv)) fail("arguments must be an array");
   const command = argv[0] ?? "help";
   if (command === "help" || command === "--help" || command === "-h") return { command: "help" };
-  if (!["list", "run", "validate", "update", "prune", "check", "gpu0"].includes(command)) fail(`unknown command: ${command}`);
+  if (!["list", "run", "validate", "update", "diagnose", "prune", "check", "gpu0"].includes(command)) fail(`unknown command: ${command}`);
   if (command === "gpu0") return { command, arguments: argv.slice(1) };
   if (command === "check") {
     if (argv.length !== 1) fail("check does not accept positional arguments or options");
@@ -70,10 +72,10 @@ export function parseBenchmarkCliArguments(argv) {
     if (argv.length !== 2 || argv[1].startsWith("--")) fail("validate requires exactly one JSON path");
     return { command, input: argv[1] };
   }
-  if (command === "update") {
+  if (command === "update" || command === "diagnose") {
     const inputs = argv.slice(1);
-    if (inputs.length === 0 || inputs.some((input) => input.startsWith("--"))) fail("update requires one or more JSON paths");
-    if (new Set(inputs).size !== inputs.length) fail("update result paths must be unique");
+    if (inputs.length === 0 || inputs.some((input) => input.startsWith("--"))) fail(`${command} requires one or more JSON paths`);
+    if (new Set(inputs).size !== inputs.length) fail(`${command} result paths must be unique`);
     return { command, inputs };
   }
   if (command === "prune") {
@@ -116,12 +118,13 @@ export function parseBenchmarkCliArguments(argv) {
 
 export function benchmarkUsage() {
   return [
-    "usage: bun benchmark <list|run|gpu0|validate|update|prune|check>",
+    "usage: bun benchmark <list|run|gpu0|validate|update|diagnose|prune|check>",
     "",
     "  list",
     "  run --target <runnable-catalog-id> --language w|c|rust [--platform windows-x64|linux-wsl-x64] [--output benchmarks/results/<new>.json] [--warmup 1] [--compile-samples 9] [--run-samples 101]",
     "  validate <result.json>",
     "  update <result.json>... (atomic lower-is-better live-catalog update; consumes local results on success)",
+    "  diagnose <result.json>... (atomic exact-oracle diagnostic-only update; never ranks; allows a dirty worktree and consumes local results on success)",
     "  prune (remove stale best-metric cells after a source digest change)",
     "  check",
     "  gpu0 [run|check] [--warmups N] [--samples odd-N]",
@@ -199,6 +202,18 @@ export async function validateUpdateBoundary(result, { root = ROOT, gitState } =
 
 export const validateRecordBoundary = validateUpdateBoundary;
 
+export async function validateDiagnosticUpdateBoundary(result, { root = ROOT, gitState } = {}) {
+  const state = gitState ?? await currentGitState(root);
+  if (result.provenance.commit !== state.commit) fail("diagnostic result provenance.commit does not match current HEAD");
+  const expectedCatalogDigest = await fileDigest(path.resolve(root, "benchmarks/executable-catalog.json"), "catalog");
+  if (result.provenance.catalogDigest !== expectedCatalogDigest) fail("diagnostic result provenance.catalogDigest is stale");
+  const expectedRunnerDigest = root === ROOT
+    ? await benchmarkRunnerDigest()
+    : await fileDigest(path.resolve(root, "tooling/executable-benchmark-runner.mjs"), "runner");
+  if (result.provenance.runnerDigest !== expectedRunnerDigest) fail("diagnostic result provenance.runnerDigest is stale");
+  return state;
+}
+
 export async function publishLiveCatalog(result, { root = ROOT, gitState } = {}) {
   return publishLiveCatalogResults([result], { root, gitState });
 }
@@ -206,15 +221,16 @@ export async function publishLiveCatalog(result, { root = ROOT, gitState } = {})
 export async function publishLiveCatalogResults(results, { root = ROOT, gitState } = {}) {
   if (!Array.isArray(results) || results.length === 0) fail("catalog update requires at least one result");
   const documents = loadExecutableDocuments(root);
-  const catalogErrors = validateExecutableCatalog(documents.catalog, documents, root,
+  const diagnosticPrune = pruneExecutableDiagnosticMetrics(documents.catalog);
+  const catalogErrors = validateExecutableCatalog(diagnosticPrune.catalog, documents, root,
     { allowStaleSourceDigest: true });
   if (catalogErrors.length > 0) fail(catalogErrors.join("; "));
   const state = gitState ?? await currentGitState(root);
-  let catalog = documents.catalog;
-  let changed = false;
+  let catalog = diagnosticPrune.catalog;
+  let changed = diagnosticPrune.changed;
   const updatedMetrics = new Set();
   for (const result of results) {
-    const resultErrors = validateExecutableResult(result, documents.catalog);
+    const resultErrors = validateExecutableResult(result, diagnosticPrune.catalog);
     if (resultErrors.length > 0) fail(resultErrors.join("; "));
     await validateUpdateBoundary(result, { root, gitState: state });
     const update = updateExecutableBestMetrics(catalog, result);
@@ -232,15 +248,49 @@ export async function publishLiveCatalogResults(results, { root = ROOT, gitState
   const projectionBytes = `${renderExecutableProjection({ catalog, root })}\n`;
   await writeAtomicFile(catalogPath, catalogBytes, benchmarksRoot);
   await writeAtomicFile(projectionPath, projectionBytes, benchmarksRoot);
-  return { catalog, changed, updatedMetrics: [...updatedMetrics].sort() };
+  return { catalog, changed, updatedMetrics: [...updatedMetrics].sort(), removedDiagnostics: diagnosticPrune.removedCount };
+}
+
+export async function publishDiagnosticCatalogResults(results, { root = ROOT, gitState } = {}) {
+  if (!Array.isArray(results) || results.length === 0) fail("diagnostic publication requires at least one result");
+  const documents = loadExecutableDocuments(root);
+  const diagnosticPrune = pruneExecutableDiagnosticMetrics(documents.catalog);
+  const catalogErrors = validateExecutableCatalog(diagnosticPrune.catalog, documents, root,
+    { allowStaleSourceDigest: true });
+  if (catalogErrors.length > 0) fail(catalogErrors.join("; "));
+  const state = gitState ?? await currentGitState(root);
+  for (const result of results) {
+    const resultErrors = validateExecutableResult(result, diagnosticPrune.catalog);
+    if (resultErrors.length > 0) fail(resultErrors.join("; "));
+    await validateDiagnosticUpdateBoundary(result, { root, gitState: state });
+  }
+  const update = updateExecutableDiagnosticMetrics(diagnosticPrune.catalog, results);
+  const nextErrors = validateExecutableCatalog(update.catalog, documents, root);
+  if (nextErrors.length > 0) fail(nextErrors.join("; "));
+  const changed = diagnosticPrune.changed || update.changed;
+  if (!changed) return { catalog: update.catalog, changed: false, updatedDiagnostics: [], removedDiagnostics: 0 };
+  const benchmarksRoot = path.resolve(root, "benchmarks");
+  const catalogPath = path.resolve(benchmarksRoot, "executable-catalog.json");
+  const projectionPath = path.resolve(benchmarksRoot, "EXECUTABLES.md");
+  const catalogBytes = `${JSON.stringify(update.catalog, null, 2)}\n`;
+  const projectionBytes = `${renderExecutableProjection({ catalog: update.catalog, root })}\n`;
+  await writeAtomicFile(catalogPath, catalogBytes, benchmarksRoot);
+  await writeAtomicFile(projectionPath, projectionBytes, benchmarksRoot);
+  return { ...update, changed, removedDiagnostics: diagnosticPrune.removedCount + update.removedDiagnostics };
 }
 
 export async function pruneLiveCatalog({ root = ROOT } = {}) {
   const documents = loadExecutableDocuments(root);
-  const catalogErrors = validateExecutableCatalog(documents.catalog, documents, root,
+  const diagnosticPrune = pruneExecutableDiagnosticMetrics(documents.catalog);
+  const catalogErrors = validateExecutableCatalog(diagnosticPrune.catalog, documents, root,
     { allowStaleSourceDigest: true });
   if (catalogErrors.length > 0) fail(catalogErrors.join("; "));
-  const pruned = pruneExecutableBestMetrics(documents.catalog);
+  const bestPruned = pruneExecutableBestMetrics(diagnosticPrune.catalog);
+  const pruned = {
+    ...bestPruned,
+    changed: diagnosticPrune.changed || bestPruned.changed,
+    removedDiagnostics: diagnosticPrune.removedCount,
+  };
   if (!pruned.changed) return pruned;
   const nextErrors = validateExecutableCatalog(pruned.catalog, documents, root);
   if (nextErrors.length > 0) fail(nextErrors.join("; "));
@@ -305,7 +355,7 @@ export async function main(argv = process.argv.slice(2), dependencies = {}) {
   else if (options.command === "run") await (dependencies.runBenchmark ?? runCommand)(options, root);
   else if (options.command === "prune") {
     const pruned = await (dependencies.pruneLiveCatalog ?? pruneLiveCatalog)({ root });
-    console.log(`pruned ${pruned.removedCount} stale best-metric cells`);
+    console.log(`pruned ${pruned.removedCount} stale best-metric cells and ${pruned.removedDiagnostics} stale diagnostic rows`);
   }
   else if (options.command === "validate") {
     const { candidate, value } = await readResultInput(options.input, root);
@@ -313,6 +363,18 @@ export async function main(argv = process.argv.slice(2), dependencies = {}) {
     const errors = validateExecutableResult(value, documents.catalog);
     if (errors.length > 0) fail(errors.join("; "));
     console.log(`valid executable result: ${options.input}`);
+  } else if (options.command === "diagnose") {
+    const loaded = [];
+    for (const input of options.inputs) loaded.push({ input, ...await readResultInput(input, root) });
+    const documents = loadExecutableDocuments(root);
+    for (const item of loaded) {
+      const errors = validateExecutableResult(item.value, documents.catalog);
+      if (errors.length > 0) fail(`${item.input}: ${errors.join("; ")}`);
+    }
+    const publish = dependencies.publishDiagnosticCatalogResults ?? publishDiagnosticCatalogResults;
+    const published = await publish(loaded.map((item) => item.value), { root, gitState: dependencies.gitState });
+    for (const item of loaded) await (dependencies.consumeLocalResult ?? consumeLocalResult)(item.candidate, path.resolve(root, RESULTS_PATH));
+    console.log(published.changed ? `updated diagnostic-only metrics (${published.updatedDiagnostics.length} exact lanes); ranking unchanged` : "diagnostic results are current no-ops; consumed local results");
   } else {
     const loaded = [];
     for (const input of options.inputs) loaded.push({ input, ...await readResultInput(input, root) });

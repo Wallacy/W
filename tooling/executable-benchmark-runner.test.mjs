@@ -668,10 +668,11 @@ function fakeWRunnerExecutor(target, { symbolSidecar = false, peOptions = {} } =
   return { calls, sampleDirectories, executor, publicW, windowsToolchain };
 }
 
-function fakeRunnerDependencies(language, fake) {
+function fakeRunnerDependencies(language, fake, { worktreeDirtyAtMeasurement = false } = {}) {
   return {
     executor: fake.executor,
     commit: TEST_COMMIT,
+    worktreeDirtyAtMeasurement,
     environment: TEST_ENVIRONMENT,
     runnerDigest: TEST_DIGEST,
     catalogDigest: TEST_DIGEST,
@@ -951,6 +952,28 @@ test("assertOracle rejects altered exit, stdout and stderr", () => {
   }
 });
 
+test("assertOracle mismatch reports bounded escaped actual and expected output", () => {
+  assert.throws(
+    () => assertOracle({ exitCode: 7, stdout: Buffer.from("actual\n"), stderr: Buffer.from("detail\n") },
+      { exitCode: 0, stdout: "expected\n", stderr: "" }, "fixture", "fixture correctness"),
+    (error) => {
+      assert.match(error.message, /fixture exact-output oracle/u);
+      assert.match(error.message, /actual exit=7, stdout="actual\\n" \(7 bytes\), stderr="detail\\n" \(7 bytes\); expected exit=0, stdout="expected\\n" \(9 bytes\), stderr="" \(0 bytes\)/u);
+      return true;
+    },
+  );
+
+  assert.throws(
+    () => assertOracle({ exitCode: 0, stdout: Buffer.from("x".repeat(300)), stderr: Buffer.alloc(0) },
+      { exitCode: 0, stdout: "expected", stderr: "" }, "fixture", "fixture correctness"),
+    (error) => {
+      assert.match(error.message, /actual exit=0, stdout="x{256}" \(truncated; 300 bytes total\)/u);
+      assert.match(error.message, /expected exit=0/u);
+      return true;
+    },
+  );
+});
+
 async function ownedRunDirectories() {
   return new Set((await readdir(os.tmpdir())).filter((name) => name.startsWith("w-executable-run-")));
 }
@@ -995,6 +1018,16 @@ test("C and Rust dispatch compile directly with declared targets and skip W tool
       assert.match(record.identity.toolchain, /edition-2024/u);
       assert.match(record.identity.toolchain, /x86_64-pc-windows-msvc/u);
     }
+    assertNoFakeSampleDirectories(fake);
+  }
+});
+
+test("runner records measurement-time worktree cleanliness, independent of later publication state", async () => {
+  for (const dirtyAtMeasurement of [false, true]) {
+    const fake = fakeRunnerExecutor({ language: "c", target: "branch" });
+    const { record } = await runBenchmark({ target: "branch", language: "c", warmup: 1, samples: 9, publish: false },
+      fakeRunnerDependencies("c", fake, { worktreeDirtyAtMeasurement: dirtyAtMeasurement }));
+    assert.equal(record.provenance.worktreeDirtyAtMeasurement, dirtyAtMeasurement);
     assertNoFakeSampleDirectories(fake);
   }
 });

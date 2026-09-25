@@ -7,6 +7,7 @@ import {
   EXECUTABLE_ARTIFACT_TARGET_LINUX,
   EXECUTABLE_ARTIFACT_TARGET_MSVC,
   EXECUTABLE_BEST_SCHEMA,
+  EXECUTABLE_SCHEMA,
   EXECUTABLE_COMPARABILITY_AXES,
   EXECUTABLE_LANGUAGES,
   EXECUTABLE_RESULT_SCHEMA,
@@ -92,8 +93,11 @@ import {
   loadExecutableDocuments,
   parseExecutableSourceExpectation,
   selectExecutableSuiteLanes,
+  pruneExecutableDiagnosticMetrics,
   pruneExecutableBestMetrics,
   updateExecutableBestMetrics,
+  updateExecutableDiagnosticMetrics,
+  validateExecutableDiagnosticMetrics,
   validateExecutableBestMetric,
   validateExecutableBestMetrics,
   validateExecutableCatalog,
@@ -189,7 +193,7 @@ test("catalog stores compact live best cells and no immutable history", () => {
   assert.match(validateExecutableCatalog(invalidDisposition,
     { ...documents, catalog: invalidDisposition }).join("\n"),
   /benchmarkDisposition is invalid/u);
-  assert.equal(documents.schema.$id, "w-executable-benchmark/7");
+  assert.equal(documents.schema.$id, EXECUTABLE_SCHEMA);
   assert.deepEqual(documents.schema.oneOf.map((entry) => entry.$ref), [
     "#/$defs/catalog", "#/$defs/result", "#/$defs/bestMetric", "#/$defs/bestMetrics", "#/$defs/executableSuiteCurrent",
   ]);
@@ -219,6 +223,14 @@ test("catalog stores compact live best cells and no immutable history", () => {
     description: "Linux x64 executable evidence through WSL2; not native Linux and not rankable across hosts.",
   });
   assert.equal(documents.catalog.resultContract.recordsPath, "benchmarks/results");
+  assert.ok(documents.catalog.diagnosticMetrics.length >= 12,
+    "live exact-oracle diagnostic lanes are retained independently of ranking readiness");
+  assert.deepEqual(validateExecutableDiagnosticMetrics(documents.catalog), []);
+  assert.ok(documents.catalog.diagnosticMetrics.every((entry) => entry.rankingEligible === false));
+  assert.ok(["nested-labeled-while", "nested-loop-terminal-returns", "loop-conditional-early-return"]
+    .every((workloadId) => documents.catalog.diagnosticMetrics.some((entry) => entry.workloadId === workloadId)));
+  assert.ok(documents.schema.$defs.diagnosticMetric.required.includes("toolchain"));
+  assert.equal(documents.schema.$defs.diagnosticMetric.properties.toolchain.type, "string");
   assert.equal(documents.catalog.bestMetricsContract.schema, EXECUTABLE_BEST_SCHEMA);
   const metricsByCell = Object.fromEntries(
     Object.entries(Object.groupBy(
@@ -649,6 +661,18 @@ test("terminal returns registers independent correctness references without perf
   forbidden.workloadId = workload.id;
   assert.match(validateExecutableBestMetric(forbidden, documents.catalog).join("\n"),
     /eligible for live best metrics/u);
+});
+
+test("Windows C loop references preserve the exact LF oracle outside CRT text mode", () => {
+  for (const workloadId of ["nested-labeled-while", "nested-loop-terminal-returns", "loop-conditional-early-return"]) {
+    const workload = documents.catalog.workloads.find((item) => item.id === workloadId);
+    const source = workload.sources.find((item) => item.language === "c" && item.platformTarget === EXECUTABLE_PLATFORM_TARGET);
+    const sourceText = readFileSync(`${ROOT}/${source.path}`, "utf8");
+    assert.equal(source.digest, exactOutputDigest(sourceText), `${source.path} digest must be current`);
+    assert.deepEqual(validateExecutableSourceExpectation(sourceText, workload.oracle, source.path), []);
+    assert.match(sourceText, /#ifdef _WIN32[\s\S]*?#include <fcntl\.h>[\s\S]*?#include <io\.h>[\s\S]*?#endif/u);
+    assert.match(sourceText, /_setmode\(_fileno\(stdout\), _O_BINARY\)/u);
+  }
 });
 
 test("terminal returns rejects promotable C/Rust policy classification", () => {
@@ -2385,6 +2409,96 @@ test("not-performance-ready strict float evidence cannot become live best metric
   );
 });
 
+test("current exact-oracle diagnostics publish separately from best metrics and replace only their exact source lane", () => {
+  const workloadId = "nested-labeled-while";
+  const baseCatalog = { ...documents.catalog, diagnosticMetrics: [] };
+  const originalBestMetrics = clone(documents.catalog.bestMetrics);
+  const windows = validDiagnosticResult(workloadId, "w", EXECUTABLE_PLATFORM_TARGET);
+  assert.deepEqual(validateExecutableResult(windows, baseCatalog), []);
+  const first = updateExecutableDiagnosticMetrics(baseCatalog, [windows]);
+  assert.equal(first.changed, true);
+  assert.equal(first.catalog.workloads.find((item) => item.id === workloadId).benchmarkStatus, "not-performance-ready");
+  assert.equal(first.catalog.workloads.find((item) => item.id === workloadId).rankingEligible, false);
+  assert.deepEqual(first.catalog.bestMetrics, originalBestMetrics, "diagnostics never enter or update best metrics");
+  assert.equal(first.catalog.diagnosticMetrics.length, 1);
+  assert.equal(first.catalog.diagnosticMetrics[0].rankingEligible, false);
+  assert.equal(first.catalog.diagnosticMetrics[0].provenance.worktreeDirtyAtMeasurement, false,
+    "a clean measurement stays marked clean even if publication happens after edits");
+  assert.deepEqual(validateExecutableDiagnosticMetrics(first.catalog), []);
+  assert.deepEqual(validateExecutableBestMetrics(first.catalog.bestMetrics, first.catalog), []);
+
+  const replacement = validDiagnosticResult(workloadId, "w", EXECUTABLE_PLATFORM_TARGET);
+  replacement.id += "-new-toolchain";
+  replacement.identity.toolchain = "w-build-current";
+  replacement.provenance.toolchainDigest = "sha256:" + "2".repeat(64);
+  const replaced = updateExecutableDiagnosticMetrics(first.catalog, [replacement]);
+  assert.equal(replaced.catalog.diagnosticMetrics.length, 1, "new receipt replaces the current exact source lane");
+  assert.equal(replaced.catalog.diagnosticMetrics[0].toolchain, "w-build-current");
+  assert.equal(replaced.catalog.diagnosticMetrics[0].provenance.resultId, replacement.id);
+
+  const otherHost = validDiagnosticResult(workloadId, "w", EXECUTABLE_PLATFORM_TARGET, true);
+  otherHost.id += "-other-host";
+  otherHost.environment.cpuModel = "x86_64-other-host";
+  otherHost.identity.host = executableHostIdentity(otherHost.environment);
+  const hostPartitioned = updateExecutableDiagnosticMetrics(replaced.catalog, [otherHost]);
+  assert.equal(hostPartitioned.catalog.diagnosticMetrics.length, 2, "a different host does not replace the existing host's current lane");
+  assert.ok(hostPartitioned.catalog.diagnosticMetrics.some((item) => item.host === otherHost.identity.host && item.provenance.worktreeDirtyAtMeasurement));
+  assert.ok(hostPartitioned.catalog.diagnosticMetrics.some((item) => item.host === replacement.identity.host && !item.provenance.worktreeDirtyAtMeasurement));
+
+  const wsl = validDiagnosticResult(workloadId, "w", EXECUTABLE_PLATFORM_TARGET_LINUX_WSL);
+  assert.deepEqual(validateExecutableResult(wsl, baseCatalog), []);
+  const separate = updateExecutableDiagnosticMetrics(hostPartitioned.catalog, [wsl]);
+  assert.equal(separate.catalog.diagnosticMetrics.length, 3, "WSL remains a distinct source/runtime/comparability lane");
+  assert.deepEqual(new Set(separate.catalog.diagnosticMetrics.map((item) => item.platformTarget)),
+    new Set([EXECUTABLE_PLATFORM_TARGET, EXECUTABLE_PLATFORM_TARGET_LINUX_WSL]));
+  assert.deepEqual(validateExecutableDiagnosticMetrics(separate.catalog), []);
+  assert.deepEqual(validateExecutableBestMetrics(separate.catalog.bestMetrics, separate.catalog), []);
+  assert.throws(() => updateExecutableDiagnosticMetrics(separate.catalog, [wsl, clone(wsl)]), /duplicate source lane/u);
+
+  const invalidRank = clone(separate.catalog);
+  invalidRank.diagnosticMetrics[0].rankingEligible = true;
+  assert.match(validateExecutableDiagnosticMetrics(invalidRank).join("\n"), /rankingEligible=false/u);
+});
+
+test("stale diagnostic cells prune after source, oracle, readiness, or recipe promotion", () => {
+  const workloadId = "nested-labeled-while";
+  const baseCatalog = { ...documents.catalog, diagnosticMetrics: [] };
+  const currentResult = validDiagnosticResult(workloadId);
+  const current = updateExecutableDiagnosticMetrics(baseCatalog, [currentResult]).catalog;
+  const mutations = [
+    ["source receipt change", (catalog) => {
+      catalog.workloads.find((item) => item.id === workloadId).sources[0].digest = "sha256:" + "3".repeat(64);
+    }],
+    ["oracle change", (catalog) => {
+      catalog.workloads.find((item) => item.id === workloadId).oracle.stdout = "new exact output\n";
+    }],
+    ["readiness promotion", (catalog) => {
+      const workload = catalog.workloads.find((item) => item.id === workloadId);
+      workload.benchmarkStatus = "exploratory-ready";
+      workload.blockers = [];
+      workload.blockedLanguages = [];
+      delete workload.rankingEligible;
+    }],
+    ["recipe promotion", (catalog) => {
+      catalog.workloads.find((item) => item.id === workloadId).sources[0].recipe = "public-w-build-release-pie-off";
+    }],
+  ];
+  for (const [name, mutate] of mutations) {
+    const stale = clone(current);
+    mutate(stale);
+    const pruned = pruneExecutableDiagnosticMetrics(stale);
+    assert.equal(pruned.changed, true, `${name} must invalidate the old diagnostic receipt`);
+    assert.equal(pruned.removedCount, 1, `${name} must prune exactly the stale source lane`);
+    assert.deepEqual(pruned.catalog.diagnosticMetrics, [], `${name} must leave no historical diagnostic row`);
+    assert.deepEqual(validateExecutableDiagnosticMetrics(pruned.catalog), []);
+
+    const updated = updateExecutableDiagnosticMetrics(stale, [validDiagnosticResult("nested-loop-terminal-returns")]);
+    assert.equal(updated.removedDiagnostics, 1, `${name} must be auto-pruned before a new diagnostic update`);
+    assert.deepEqual(updated.catalog.diagnosticMetrics.map((item) => item.workloadId), ["nested-loop-terminal-returns"]);
+    assert.deepEqual(validateExecutableDiagnosticMetrics(updated.catalog), []);
+  }
+});
+
 test("process-arguments-ordering catalog pins the count-dependent argument-mode contract", () => {
   const workload = documents.catalog.workloads.find((item) => item.id === PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID);
   assert.ok(workload);
@@ -2533,8 +2647,53 @@ function validResult(language = "rust") {
     artifact: { digest, sizeBytes: "1024", cleanliness: { coffSymbols: { pointer: "0", count: "0" }, codeView: { count: "0", sizeBytes: "0" }, debugDirectory: { presence: "absent", sizeBytes: "0", entries: [] }, certificateDirectory: { pointer: "0", sizeBytes: "0" }, sectionData: "in-bounds", sidecars: { count: "0" }, overlay: { sizeBytes: "0" } } },
     protocol: { warmupMinimum: 1, rawMinimum: 9, rawParity: "odd", arithmeticMeanRounding: "floor-integer", stopRule: "fixed-count", wallClock: "monotonic-nanoseconds", processIsolation: "fresh-process-per-sample", runtimeScope: "direct-host-process", order: "deterministic-interleaved", resourceScope: "direct child process only; descendants are not aggregated", knownNoiseControls: ["warmup-discarded", "fresh-process-per-sample"], unknownNoiseControls: ["host-scheduler", "filesystem-cache"], directProcessDisclosure: "Bun direct-process counters cover the spawned process only; process-tree CPU/RSS are not aggregated.", measurementKernel: "bun-direct-test/1" },
     environment, compile: sampleSeries(), run: sampleSeries(),
-    provenance: { sourceDigest: source.digest, artifactDigest: digest, recipeDigest: digest, toolchainDigest: digest, runnerDigest: digest, catalogDigest: digest, commit: "1".repeat(40), observedAt: "2026-09-08T00:00:00.000Z" },
+    provenance: { sourceDigest: source.digest, artifactDigest: digest, recipeDigest: digest, toolchainDigest: digest, runnerDigest: digest, catalogDigest: digest, commit: "1".repeat(40), observedAt: "2026-09-08T00:00:00.000Z", worktreeDirtyAtMeasurement: false },
   };
+}
+
+function validDiagnosticResult(workloadId, language = "w", platformTarget = EXECUTABLE_PLATFORM_TARGET, worktreeDirtyAtMeasurement = false) {
+  const result = validResult(language);
+  const workload = documents.catalog.workloads.find((item) => item.id === workloadId);
+  const source = workload.sources.find((item) => item.language === language && item.platformTarget === platformTarget);
+  assert.ok(source, `${workloadId}/${language}/${platformTarget} must be a declared diagnostic source lane`);
+  const environment = platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL
+    ? { os: "linux-wsl2", kernel: "microsoft-standard-wsl2", cpuModel: "x86_64-class", logicalCores: "16", ramBytes: "34359738368" }
+    : { os: "windows-11", kernel: "windows-class", cpuModel: "x86_64-class", logicalCores: "16", ramBytes: "34359738368" };
+  result.id = `${workloadId}-${language}-${platformTarget}-diagnostic-example`;
+  result.workloadId = workloadId;
+  result.language = language;
+  result.platformTarget = platformTarget;
+  result.artifactTarget = source.artifactTarget;
+  result.environment = environment;
+  result.identity.sourceDigest = source.digest;
+  result.identity.platformTarget = platformTarget;
+  result.identity.artifactTarget = source.artifactTarget;
+  result.identity.host = executableHostIdentity(environment);
+  result.identity.recipe = source.recipe;
+  result.identity.recipeClass = source.recipeClass;
+  result.identity.runtimeClosure = clone(source.runtimeClosure);
+  result.identity.eligibility = source.eligibility;
+  result.equivalenceKey = executableEquivalenceKey(documents.catalog, workloadId, platformTarget, "release", source.recipeClass);
+  result.correctness = {
+    oracleId: `${workloadId}:exact-output`,
+    exitCode: workload.oracle.exitCode,
+    stdoutDigest: exactOutputDigest(workload.oracle.stdout),
+    stderrDigest: exactOutputDigest(workload.oracle.stderr),
+  };
+  result.provenance.sourceDigest = source.digest;
+  result.provenance.worktreeDirtyAtMeasurement = worktreeDirtyAtMeasurement;
+  if (platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) {
+    result.provenance.platformEvidence = {
+      hostMode: "wsl2",
+      comparisonPurpose: "same-physical-hardware-diagnostic-only",
+      rankability: "same-host-only",
+    };
+  } else {
+    delete result.provenance.platformEvidence;
+  }
+  result.run.raw = Array.from({ length: 101 }, (_, index) => sample(index));
+  result.run.summary = deriveSummary(result.run.raw);
+  return result;
 }
 
 function linuxCatalogAndResult(language = "rust") {

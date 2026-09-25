@@ -9,9 +9,9 @@ import {
 } from "./executable-release-recipes.mjs";
 
 export const ROOT = path.resolve(import.meta.dir, "..");
-export const EXECUTABLE_SCHEMA = "w-executable-benchmark/7";
+export const EXECUTABLE_SCHEMA = "w-executable-benchmark/8";
 export const EXECUTABLE_CATALOG_ID = "w-executable-benchmark-catalog";
-export const EXECUTABLE_RESULT_SCHEMA = "w-executable-benchmark-result/7";
+export const EXECUTABLE_RESULT_SCHEMA = "w-executable-benchmark-result/8";
 export const EXECUTABLE_BEST_SCHEMA = "w-executable-benchmark-best-metrics/2";
 export const EXECUTABLE_SUITE_RECEIPT_SCHEMA = "w-executable-benchmark-suite/1";
 export const EXECUTABLE_RUNTIME_CLOSURE_CLASSES = Object.freeze([
@@ -669,6 +669,10 @@ export const OPTIMIZABLE_METRICS = Object.freeze([
   "artifact-size",
 ]);
 export const BEST_METRIC_ORDER = Object.freeze([...OPTIMIZABLE_METRICS]);
+export const DIAGNOSTIC_METRIC_FIELDS = Object.freeze([
+  "compileLatencyNs", "runWallTimeNs", "runWallP95Ns", "cpuTimeUs",
+  "peakWorkingSetBytes", "artifactSizeBytes",
+]);
 const BEST_METRIC_BENCHMARK_STATUSES = Object.freeze([
   "contextual-measurement-ready",
   "partial-exploratory-ready",
@@ -1497,7 +1501,7 @@ function checkPlatformLanes(lanes, name, errors) {
 
 export function validateExecutableCatalog(catalog, documents = undefined, root = ROOT, options = {}) {
   const errors = [];
-  const keys = ["$schema", "schema", "kind", "id", "status", "metrics", "comparabilityAxes", "platformLanes", "workloads", "resultContract", "bestMetricsContract", "bestMetrics"];
+  const keys = ["$schema", "schema", "kind", "id", "status", "metrics", "comparabilityAxes", "platformLanes", "workloads", "resultContract", "bestMetricsContract", "diagnosticMetrics", "bestMetrics"];
   if (!exactKeys(catalog, "executable catalog", keys, errors)) return errors;
   if (catalog.$schema !== "./executable-benchmark.schema.json" ||
       catalog.schema !== EXECUTABLE_SCHEMA ||
@@ -1530,6 +1534,7 @@ export function validateExecutableCatalog(catalog, documents = undefined, root =
     const location = "executable catalog.workloads[" + index + "]";
     const workloadKeys = ["id", "family", "structureClass", "status", "sourceReadiness", "demoEvidence", "benchmarkStatus", "lane", "scope", "oracle", "sources", "blockedLanguages", "blockers"];
     if (Object.hasOwn(workload ?? {}, "benchmarkDisposition")) workloadKeys.push("benchmarkDisposition");
+    if (Object.hasOwn(workload ?? {}, "rankingEligible")) workloadKeys.push("rankingEligible");
     if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) workloadKeys.push("execution");
     if (!exactKeys(workload, location, workloadKeys, errors)) continue;
     if (workloadIds.has(workload.id)) push(errors, location + ".id must be unique.");
@@ -1555,6 +1560,10 @@ export function validateExecutableCatalog(catalog, documents = undefined, root =
     if (workload.benchmarkStatus === "contextual-measurement-ready" &&
         ![HELLO_PLATFORM_MINIMAL_WORKLOAD_ID, HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID].includes(workload.id)) {
       push(errors, location + ".contextual-measurement-ready is reserved for the platform-minimal Hello lanes.");
+    }
+    if (Object.hasOwn(workload, "rankingEligible")) {
+      if (workload.rankingEligible !== false) push(errors, location + ".rankingEligible must be false until equivalence and performance readiness are established.");
+      if (workload.benchmarkStatus !== "not-performance-ready") push(errors, location + ".rankingEligible may be declared false only for a not-performance-ready workload.");
     }
     if (workload.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID && workload.benchmarkStatus !== "contextual-measurement-ready") {
       push(errors, location + ".benchmarkStatus must preserve platform-minimal Hello as contextual, non-ranking measurement evidence.");
@@ -1651,6 +1660,7 @@ export function validateExecutableCatalog(catalog, documents = undefined, root =
   }
   checkContract(catalog.resultContract, "executable catalog.resultContract", errors);
   checkBestMetricsContract(catalog.bestMetricsContract, "executable catalog.bestMetricsContract", errors);
+  errors.push(...validateExecutableDiagnosticMetrics(catalog).map((error) => "diagnostic metrics: " + error));
   errors.push(...validateExecutableBestMetrics(catalog.bestMetrics, catalog, options).map((error) => "best metrics: " + error));
   return errors;
 }
@@ -1667,6 +1677,150 @@ function sourceFor(workload, language, platformTarget = undefined) {
   // default while allowing a workload to carry one source per platform lane.
   return matches.find((item) => item.platformTarget === EXECUTABLE_PLATFORM_TARGET_WINDOWS) ??
     (matches.length === 1 ? matches[0] : undefined);
+}
+
+function diagnosticMetricLaneKey(value) {
+  return JSON.stringify([
+    value?.workloadId,
+    value?.language,
+    value?.platformTarget,
+    value?.artifactTarget,
+    value?.profile,
+    value?.equivalenceKey,
+    value?.host,
+    value?.recipe,
+    value?.recipeClass,
+    value?.runtimeClosure,
+    value?.comparability,
+    value?.eligibility,
+  ]);
+}
+
+function diagnosticMetricId(value) {
+  return "diagnostic-" + crypto.createHash("sha256")
+    .update(diagnosticMetricLaneKey(value), "utf8")
+    .digest("hex");
+}
+
+function diagnosticMetricSort(left, right) {
+  return compareText(String(left?.workloadId ?? ""), String(right?.workloadId ?? "")) ||
+    compareText(String(left?.platformTarget ?? ""), String(right?.platformTarget ?? "")) ||
+    compareText(String(left?.language ?? ""), String(right?.language ?? "")) ||
+    compareText(String(left?.artifactTarget ?? ""), String(right?.artifactTarget ?? "")) ||
+    compareText(String(left?.profile ?? ""), String(right?.profile ?? "")) ||
+    compareText(String(left?.equivalenceKey ?? ""), String(right?.equivalenceKey ?? "")) ||
+    compareText(String(left?.host ?? ""), String(right?.host ?? "")) ||
+    compareText(String(left?.recipeClass ?? ""), String(right?.recipeClass ?? "")) ||
+    compareText(String(left?.recipe ?? ""), String(right?.recipe ?? "")) ||
+    compareText(JSON.stringify(left?.runtimeClosure ?? null), JSON.stringify(right?.runtimeClosure ?? null)) ||
+    compareText(String(left?.comparability ?? ""), String(right?.comparability ?? "")) ||
+    compareText(String(left?.eligibility ?? ""), String(right?.eligibility ?? ""));
+}
+
+export function executableDiagnosticOracleDigest(workload) {
+  return "sha256:" + crypto.createHash("sha256")
+    .update(JSON.stringify(workload?.oracle ?? null), "utf8")
+    .digest("hex");
+}
+
+function expectedDiagnosticCorrectnessCaseCount(workload) {
+  return workload?.oracle?.kind === "argument-dependent-output"
+    ? workload.oracle.cases?.length ?? 0
+    : 1;
+}
+
+export function validateExecutableDiagnosticMetrics(catalog) {
+  const errors = [];
+  const diagnostics = catalog?.diagnosticMetrics;
+  if (!Array.isArray(diagnostics)) return ["executable catalog.diagnosticMetrics must be an array"];
+  const ids = new Set();
+  const lanes = new Set();
+  const metricKeys = ["compileLatencyNs", "runWallTimeNs", "runWallP95Ns", "cpuTimeUs", "peakWorkingSetBytes", "artifactSizeBytes"];
+  const provenanceKeys = ["resultId", "commit", "observedAt", "catalogDigest", "sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "worktreeDirtyAtMeasurement"];
+  for (const [index, record] of diagnostics.entries()) {
+    const name = "executable diagnostic metrics[" + index + "]";
+    const keys = ["id", "status", "rankingEligible", "workloadId", "language", "platformTarget", "artifactTarget", "profile", "equivalenceKey", "host", "toolchain", "recipe", "recipeClass", "runtimeClosure", "comparability", "eligibility", "oracleDigest", "correctnessCaseCount", "metrics", "provenance"];
+    if (!exactKeys(record, name, keys, errors)) continue;
+    if (ids.has(record.id)) push(errors, name + ".id must be unique.");
+    ids.add(record.id);
+    const laneKey = diagnosticMetricLaneKey(record);
+    if (lanes.has(laneKey)) push(errors, name + " duplicates a current diagnostic source lane.");
+    lanes.add(laneKey);
+    const workload = workloadFor(catalog, record.workloadId);
+    const source = sourceFor(workload, record.language, record.platformTarget);
+    if (record.id !== diagnosticMetricId(record)) push(errors, name + ".id must be derived from the exact source/comparability lane.");
+    if (record.status !== "current" || record.rankingEligible !== false) push(errors, name + " must remain current diagnostic-only evidence with rankingEligible=false.");
+    if (!workload) {
+      push(errors, name + ".workloadId must identify a current catalog row.");
+      continue;
+    }
+    if (workload.status !== "source-oracle-ready" || workload.structureClass !== "public-end-to-end" ||
+        workload.benchmarkStatus !== "not-performance-ready" || workload.rankingEligible !== false ||
+        workload.demoEvidence !== "bounded-w-demo" ||
+        !["required", "compiler-lifecycle"].includes(workload.benchmarkDisposition)) {
+      push(errors, name + " may attach only to an already-green public correctness row that remains not-performance-ready and ranking-ineligible.");
+    }
+    if (!source) {
+      push(errors, name + " must identify an exact current source language/platform lane.");
+      continue;
+    }
+    if (record.artifactTarget !== source.artifactTarget || record.profile !== source.profile ||
+        record.recipe !== source.recipe || record.recipeClass !== source.recipeClass ||
+        record.comparability !== source.comparability || record.eligibility !== source.eligibility ||
+        JSON.stringify(record.runtimeClosure) !== JSON.stringify(source.runtimeClosure)) {
+      push(errors, name + " source recipe, platform, closure, and comparability identity must match the current catalog lane.");
+    }
+    if (record.equivalenceKey !== executableEquivalenceKey(catalog, record.workloadId, record.platformTarget, record.profile, record.recipeClass)) {
+      push(errors, name + ".equivalenceKey must be recomputed from current source/oracle/recipe facts.");
+    }
+    if (record.oracleDigest !== executableDiagnosticOracleDigest(workload)) push(errors, name + ".oracleDigest must match the current exact correctness oracle.");
+    if (record.correctnessCaseCount !== expectedDiagnosticCorrectnessCaseCount(workload)) push(errors, name + ".correctnessCaseCount must match the current correctness oracle.");
+    digest(record.oracleDigest, name + ".oracleDigest", errors);
+    digest(record.equivalenceKey, name + ".equivalenceKey", errors);
+    checkRuntimeClosure(record.runtimeClosure, name + ".runtimeClosure", errors);
+    checkSafeIdentityString(record.host, name + ".host", errors);
+    checkSafeIdentityString(record.toolchain, name + ".toolchain", errors);
+    requiredString(record.recipe, name + ".recipe", errors);
+    requiredString(record.recipeClass, name + ".recipeClass", errors);
+    if (!exactKeys(record.metrics, name + ".metrics", metricKeys, errors)) continue;
+    for (const field of metricKeys) decimal(record.metrics[field], name + ".metrics." + field, errors);
+    positiveDecimal(record.metrics.artifactSizeBytes, name + ".metrics.artifactSizeBytes", errors);
+    if (!exactKeys(record.provenance, name + ".provenance", provenanceKeys, errors)) continue;
+    requiredString(record.provenance.resultId, name + ".provenance.resultId", errors);
+    if (typeof record.provenance.commit !== "string" || !/^[0-9a-f]{40}$/u.test(record.provenance.commit)) {
+      push(errors, name + ".provenance.commit must be a full lowercase Git commit identity.");
+    }
+    checkObservedAt(record.provenance.observedAt, name + ".provenance.observedAt", errors);
+    for (const field of ["catalogDigest", "sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest"]) {
+      digest(record.provenance[field], name + ".provenance." + field, errors);
+    }
+    if (record.provenance.sourceDigest !== source.digest) push(errors, name + ".provenance.sourceDigest must match the current source receipt.");
+    if (record.provenance.worktreeDirtyAtMeasurement !== true && record.provenance.worktreeDirtyAtMeasurement !== false) {
+      push(errors, name + ".provenance.worktreeDirtyAtMeasurement must be boolean.");
+    }
+  }
+  if (!isCanonicalOrder(diagnostics, (items) => [...items].sort(diagnosticMetricSort))) {
+    errors.push("executable catalog.diagnosticMetrics must be sorted by exact source/comparability lane.");
+  }
+  return errors;
+}
+
+export function pruneExecutableDiagnosticMetrics(catalog) {
+  const diagnostics = Array.isArray(catalog?.diagnosticMetrics) ? catalog.diagnosticMetrics : [];
+  const retained = [];
+  const removedIds = [];
+  for (const record of diagnostics) {
+    const errors = validateExecutableDiagnosticMetrics({ ...catalog, diagnosticMetrics: [record] });
+    if (errors.length === 0) retained.push(record);
+    else removedIds.push(typeof record?.id === "string" ? record.id : "invalid-diagnostic-record");
+  }
+  const changed = !Array.isArray(catalog?.diagnosticMetrics) || retained.length !== diagnostics.length;
+  return {
+    catalog: changed ? { ...catalog, diagnosticMetrics: retained } : catalog,
+    changed,
+    removedCount: diagnostics.length - retained.length,
+    removedIds,
+  };
 }
 
 export function executableArtifactTargetFor(workload, language, platformTarget = EXECUTABLE_PLATFORM_TARGET_WINDOWS) {
@@ -2253,11 +2407,12 @@ export function validateExecutableResult(result, catalog = loadExecutableDocumen
   if (expectedHost && result.identity?.host !== expectedHost) push(errors, "executable result.identity.host must be derived from the redacted environment.");
   checkSampleSeries(result.compile, "executable result.compile", errors);
   checkSampleSeries(result.run, "executable result.run", errors);
-  const provenanceKeys = ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "catalogDigest", "commit", "observedAt"];
+  const provenanceKeys = ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "catalogDigest", "commit", "observedAt", "worktreeDirtyAtMeasurement"];
   if (result.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) provenanceKeys.push("platformEvidence");
   if (exactKeys(result.provenance, "executable result.provenance", provenanceKeys, errors)) {
     for (const field of ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "catalogDigest"]) digest(result.provenance[field], "executable result.provenance." + field, errors);
     if (typeof result.provenance.commit !== "string" || !/^[0-9a-f]{40}$/u.test(result.provenance.commit)) push(errors, "executable result.provenance.commit must be the full lowercase Git commit identity.");
+    if (result.provenance.worktreeDirtyAtMeasurement !== true && result.provenance.worktreeDirtyAtMeasurement !== false) push(errors, "executable result.provenance.worktreeDirtyAtMeasurement must be boolean.");
     checkObservedAt(result.provenance.observedAt, "executable result.provenance.observedAt", errors);
     if (result.provenance.sourceDigest !== result.identity?.sourceDigest || result.provenance.artifactDigest !== result.artifact?.digest || result.provenance.recipeDigest !== result.identity?.recipeDigest) push(errors, "executable result provenance must repeat source, artifact and recipe identity exactly.");
     if (result.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) checkPlatformEvidence(result.provenance.platformEvidence, "executable result.provenance.platformEvidence", result.platformTarget, errors);
@@ -2297,7 +2452,7 @@ function bestMetricIsEligible(record, metric) {
 }
 
 function workloadAllowsBestMetrics(workload) {
-  return BEST_METRIC_BENCHMARK_STATUSES.includes(workload?.benchmarkStatus);
+  return workload?.rankingEligible !== false && BEST_METRIC_BENCHMARK_STATUSES.includes(workload?.benchmarkStatus);
 }
 
 function categoryIdentity(value) {
@@ -2477,6 +2632,95 @@ export function deriveExecutableBestMetrics(catalog, results) {
     kind: "executable-best-metrics",
     status: entries.length === 0 ? "empty" : BEST_METRICS_STATUS,
     entries,
+  };
+}
+
+const DIAGNOSTIC_RESULT_METRIC_FIELDS = Object.freeze({
+  "compile-latency": "compileLatencyNs",
+  "run-wall-time": "runWallTimeNs",
+  "run-wall-p95": "runWallP95Ns",
+  "cpu-time": "cpuTimeUs",
+  "peak-working-set": "peakWorkingSetBytes",
+  "artifact-size": "artifactSizeBytes",
+});
+
+function diagnosticMetricFromResult(record, catalog) {
+  const workload = workloadFor(catalog, record.workloadId);
+  const source = sourceFor(workload, record.language, record.platformTarget);
+  const metrics = {};
+  for (const [metric, field] of Object.entries(DIAGNOSTIC_RESULT_METRIC_FIELDS)) {
+    const value = resultMetricValue(record, metric);
+    if (value === undefined) throw new Error(`diagnostic result ${record.id} is missing ${metric}`);
+    metrics[field] = String(value);
+  }
+  const diagnostic = {
+    id: "",
+    status: "current",
+    rankingEligible: false,
+    workloadId: record.workloadId,
+    language: record.language,
+    platformTarget: record.platformTarget,
+    artifactTarget: record.artifactTarget,
+    profile: record.profile,
+    equivalenceKey: record.equivalenceKey,
+    host: record.identity.host,
+    toolchain: record.identity.toolchain,
+    recipe: record.identity.recipe,
+    recipeClass: record.identity.recipeClass,
+    runtimeClosure: structuredClone(record.identity.runtimeClosure),
+    comparability: source.comparability,
+    eligibility: source.eligibility,
+    oracleDigest: executableDiagnosticOracleDigest(workload),
+    correctnessCaseCount: expectedDiagnosticCorrectnessCaseCount(workload),
+    metrics,
+    provenance: {
+      resultId: record.id,
+      commit: record.provenance.commit,
+      observedAt: record.provenance.observedAt,
+      catalogDigest: record.provenance.catalogDigest,
+      sourceDigest: record.provenance.sourceDigest,
+      artifactDigest: record.provenance.artifactDigest,
+      recipeDigest: record.provenance.recipeDigest,
+      toolchainDigest: record.provenance.toolchainDigest,
+      runnerDigest: record.provenance.runnerDigest,
+      worktreeDirtyAtMeasurement: record.provenance.worktreeDirtyAtMeasurement,
+    },
+  };
+  diagnostic.id = diagnosticMetricId(diagnostic);
+  return diagnostic;
+}
+
+export function updateExecutableDiagnosticMetrics(catalog, results) {
+  if (!Array.isArray(results) || results.length === 0) throw new TypeError("validated diagnostic executable results are required");
+  const pruned = pruneExecutableDiagnosticMetrics(catalog);
+  const currentCatalog = pruned.catalog;
+  const byLane = new Map((currentCatalog.diagnosticMetrics ?? []).map((item) => [diagnosticMetricLaneKey(item), item]));
+  const updated = new Set();
+  for (const record of results) {
+    const validationErrors = validateExecutableResult(record, currentCatalog);
+    if (validationErrors.length > 0) throw new Error(validationErrors.join("; "));
+    const workload = workloadFor(catalog, record.workloadId);
+    if (!workload || workload.status !== "source-oracle-ready" ||
+        workload.structureClass !== "public-end-to-end" ||
+        workload.benchmarkStatus !== "not-performance-ready" ||
+        workload.rankingEligible !== false || workload.demoEvidence !== "bounded-w-demo" ||
+        !["required", "compiler-lifecycle"].includes(workload.benchmarkDisposition)) {
+      throw new Error(`diagnostic metrics require a green, not-performance-ready, ranking-ineligible public workload: ${record.workloadId}`);
+    }
+    if (record.run.raw.length !== 101) throw new Error(`diagnostic metrics require exactly 101 fresh run samples: ${record.workloadId}/${record.language}/${record.platformTarget}`);
+    const diagnostic = diagnosticMetricFromResult(record, currentCatalog);
+    const laneKey = diagnosticMetricLaneKey(diagnostic);
+    if (updated.has(laneKey)) throw new Error(`diagnostic results contain a duplicate source lane: ${record.workloadId}/${record.language}/${record.platformTarget}`);
+    updated.add(laneKey);
+    byLane.set(laneKey, diagnostic);
+  }
+  const diagnostics = [...byLane.values()].sort(diagnosticMetricSort);
+  const changed = pruned.changed || JSON.stringify(diagnostics) !== JSON.stringify(catalog.diagnosticMetrics ?? []);
+  return {
+    catalog: changed ? { ...currentCatalog, diagnosticMetrics: diagnostics } : catalog,
+    changed,
+    updatedDiagnostics: [...updated].sort(compareText),
+    removedDiagnostics: pruned.removedCount,
   };
 }
 

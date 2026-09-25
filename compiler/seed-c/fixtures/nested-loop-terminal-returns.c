@@ -2,6 +2,10 @@
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
 
 static int64_t walk(int64_t limit) {
   int64_t outer = 0;
@@ -35,6 +39,9 @@ leave_outer:
 }
 
 int main(void) {
+#ifdef _WIN32
+  if (_setmode(_fileno(stdout), _O_BINARY) == -1) return 1;
+#endif
   const int64_t zero = walk(0);
   const int64_t one = walk(1);
   const int64_t six = walk(6);

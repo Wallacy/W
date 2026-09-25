@@ -6,8 +6,6 @@ import {
   EXECUTABLE_PLATFORM_TARGET_LINUX,
   EXECUTABLE_PLATFORM_TARGET_LINUX_WSL,
   EXECUTABLE_WORKLOAD_FAMILY_IDS,
-  HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID,
-  HELLO_PLATFORM_MINIMAL_WORKLOAD_ID,
   ROOT,
   executableCatalogFileDigest,
   executableSuiteReceiptErrors,
@@ -178,9 +176,8 @@ function bestProjectionEntry(left, right) {
 function categoryRows(entries) {
   const groups = new Map();
   for (const entry of entries) {
-    // A projection row may select per-metric bests only within one complete
-    // build identity. Recipe/toolchain digests also bind hardening flags and
-    // exact tool versions when their readable names stay unchanged.
+    // Keep each complete build identity in its own row; the compact human
+    // projection omits receipt hashes and leaves those identities in JSON.
     const hostPartition = entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL
       ? `\u0000${entry.host ?? ""}`
       : "";
@@ -204,24 +201,12 @@ function categoryRows(entries) {
       entry.provenance?.recipeDigest,
     ]);
     const key = `${partition}\u0000${buildIdentity}`;
-    const group = groups.get(key) ?? { entry, metrics: new Map(), partition };
+    const group = groups.get(key) ?? { entry, metrics: new Map() };
     group.entry = bestSort(group.entry, entry) <= 0 ? group.entry : entry;
     group.metrics.set(entry.metric, bestProjectionEntry(group.metrics.get(entry.metric), entry));
     groups.set(key, group);
   }
-  const rows = [...groups.values()];
-  const partitionCounts = new Map();
-  for (const group of rows) partitionCounts.set(group.partition, (partitionCounts.get(group.partition) ?? 0) + 1);
-  for (const group of rows) {
-    if ((partitionCounts.get(group.partition) ?? 0) > 1) {
-      const toolchainDigest = group.entry.provenance?.toolchainDigest?.replace(/^sha256:/u, "").slice(0, 8);
-      const recipeDigest = group.entry.provenance?.recipeDigest?.replace(/^sha256:/u, "").slice(0, 8);
-      const recipe = group.entry.recipe ?? group.entry.recipeClass ?? "unknown-recipe";
-      const identity = [toolchainDigest, recipeDigest].filter(Boolean).join("/");
-      group.buildIdentityLabel = identity ? `build ${recipe} ${identity}` : `build ${recipe}`;
-    }
-  }
-  return rows.sort((left, right) => bestSort(left.entry, right.entry));
+  return [...groups.values()].sort((left, right) => bestSort(left.entry, right.entry));
 }
 
 function metricCell(group, metric) {
@@ -264,18 +249,8 @@ function runtimeLabel(entry) {
   return "Unknown";
 }
 
-function measurementLaneLabel(entry, buildIdentityLabel) {
-  const pieces = [targetLabel(entry), runtimeLabel(entry)];
-  if (entry.eligibility === "deferred-to-M3b") pieces.push("contextual");
-  else if (entry.eligibility === "exploratory-private-composite") pieces.push("private");
-  if (entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL) pieces.push("diagnostic");
-  if (entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL && entry.workloadId === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID) {
-    pieces.push("non-PIE");
-  } else if (entry.platformTarget === EXECUTABLE_PLATFORM_TARGET_LINUX_WSL && entry.workloadId === HELLO_PLATFORM_MINIMAL_PIE_WORKLOAD_ID) {
-    pieces.push("PIE");
-  }
-  if (buildIdentityLabel) pieces.push(buildIdentityLabel);
-  return pieces.join(" · ");
+function measurementLaneLabel(entry) {
+  return [targetLabel(entry), runtimeLabel(entry), entry.profile, entry.recipeClass].join(" · ");
 }
 
 function measurementRow(group, workload) {
@@ -283,8 +258,23 @@ function measurementRow(group, workload) {
   const source = workload?.sources.find((item) => item.language === entry.language && item.platformTarget === entry.platformTarget);
   const label = `${entry.workloadId} (${entry.language === "w" ? "W" : entry.language === "c" ? "C" : "Rust"})`;
   const example = source ? jsonPathLink(projectionPath(source.path), label) : label;
-  const lane = measurementLaneLabel(entry, group.buildIdentityLabel);
+  const lane = measurementLaneLabel(entry);
   return `| ${example} | ${lane} | ${entry.language === "w" ? "W" : entry.language === "c" ? "C" : "Rust"} | ${artifactCell(group)} | ${metricCell(group, "compile-latency")} | ${metricCell(group, "run-wall-time")} | ${metricCell(group, "run-wall-p95")} | ${metricCell(group, "cpu-time")} | ${metricCell(group, "peak-working-set")} |`;
+}
+
+function diagnosticRow(record, workload) {
+  const source = workload?.sources.find((item) => item.language === record.language && item.platformTarget === record.platformTarget);
+  const displayLanguage = record.language === "w" ? "W" : record.language === "c" ? "C" : "Rust";
+  const label = `${record.workloadId} (${displayLanguage})`;
+  const example = source ? jsonPathLink(projectionPath(source.path), label) : label;
+  const lane = [
+    targetLabel(record),
+    runtimeLabel(record),
+    record.profile,
+    record.recipeClass,
+  ].join(" · ");
+  const metrics = record.metrics;
+  return `| ${example} | ${lane} | ${displayLanguage} | ${formatBytes(metrics.artifactSizeBytes)} | ${formatNanoseconds(metrics.compileLatencyNs)} | ${formatNanoseconds(metrics.runWallTimeNs)} | ${formatNanoseconds(metrics.runWallP95Ns)} | ${formatMicroseconds(metrics.cpuTimeUs)} | ${formatBytes(metrics.peakWorkingSetBytes)} |`;
 }
 
 function formatSuiteDuration(milliseconds) {
@@ -327,11 +317,13 @@ export function renderExecutableProjection({ catalog, root = ROOT, suiteReceipt 
   if (!catalog?.bestMetrics) throw new TypeError("catalog with bestMetrics is required");
   const entries = [...catalog.bestMetrics.entries].sort(bestSort);
   const rows = categoryRows(entries);
+  const diagnostics = [...(catalog.diagnosticMetrics ?? [])];
   const lines = [
     "<!-- generated by tooling/executable-benchmark-docs.mjs; do not edit -->",
     "# Executable benchmarks",
     "",
     "Current best recorded values. Lower is better; `—` means no published measurement.",
+    "Diagnostic-only values are never ranked or compared as best results.",
     "",
     "A ready status means only that the listed witness is runnable, not that the design is complete. The machine catalog keeps exercised scope, measurement blockers, and blocked languages in separate fields.",
     "",
@@ -357,27 +349,51 @@ export function renderExecutableProjection({ catalog, root = ROOT, suiteReceipt 
     );
     const familyIds = new Set(familyWorkloads.map((workload) => workload.id));
     const familyRows = rows.filter((group) => familyIds.has(group.entry.workloadId));
+    const hasDiagnostic = (workload) => diagnostics.some((item) => item.workloadId === workload.id);
     if (familyRows.length === 0) {
       for (const workload of familyWorkloads) {
-        lines.push(`| ${unmeasuredExampleLinks(workload)} | Not measured | — | — | — | — | — | — | — |`);
+        const lane = hasDiagnostic(workload) ? "No ranked values; diagnostic below" : "Not measured";
+        lines.push(`| ${unmeasuredExampleLinks(workload)} | ${lane} | — | — | — | — | — | — | — |`);
       }
     } else {
       for (const workload of familyWorkloads) {
         const workloadRows = familyRows.filter((group) => group.entry.workloadId === workload.id);
         if (workloadRows.length === 0) {
-          lines.push(`| ${unmeasuredExampleLinks(workload)} | Not measured | — | — | — | — | — | — | — |`);
+          const lane = hasDiagnostic(workload) ? "No ranked values; diagnostic below" : "Not measured";
+          lines.push(`| ${unmeasuredExampleLinks(workload)} | ${lane} | — | — | — | — | — | — | — |`);
           continue;
         }
         for (const group of workloadRows) lines.push(measurementRow(group, workload));
       }
     }
   }
+  if (diagnostics.length > 0) {
+    lines.push(
+      "",
+      "## Diagnostic-only measurements (not ranked)",
+      "",
+      "Each row passed its current exact source oracle and is current for its declared source/comparability lane. These values do not change benchmark readiness, eligibility, best metrics, or language rankings. Windows, WSL, runtime-closure, profile, and recipe-class lanes remain separate; full host and build receipts stay in the machine catalog.",
+      "",
+      ...measurementTableHeader(),
+    );
+    const workloadOrder = new Map(catalog.workloads.map((workload, index) => [workload.id, index]));
+    diagnostics.sort((left, right) =>
+      (workloadOrder.get(left.workloadId) ?? Number.MAX_SAFE_INTEGER) - (workloadOrder.get(right.workloadId) ?? Number.MAX_SAFE_INTEGER) ||
+      compareText(left.platformTarget, right.platformTarget) || compareText(left.language, right.language) ||
+      compareText(left.artifactTarget, right.artifactTarget) || compareText(left.profile, right.profile) ||
+      compareText(left.equivalenceKey, right.equivalenceKey) || compareText(left.host, right.host) ||
+      compareText(left.recipeClass, right.recipeClass) || compareText(left.recipe, right.recipe));
+    for (const record of diagnostics) {
+      const workload = catalog.workloads.find((item) => item.id === record.workloadId);
+      lines.push(diagnosticRow(record, workload));
+    }
+  }
   lines.push(
     "",
     "## Reading the measurements",
     "",
-    "A `no CRT (recipe-derived)` label reflects the recipe only; emitted imports and exact dependency closure are not receipted. Verified closure keeps the unqualified `no CRT` label. When multiple build identities exist in one lane, a short toolchain/recipe-digest marker keeps their metric rows distinct. No row is a language ranking: cross-language equivalence is not established. Executable size excludes imported libraries. Toolchain identity and recipe remain lane-specific; the report does not imply one suite-wide compiler version.",
-    "Run p50/p95 measure complete fresh-process invocations. Compare only like workload, language, platform, and runtime lane. WSL rows are same-host diagnostics, not native-Linux support or cross-host rankings; Windows and WSL values are never pooled.",
+    "A `no CRT (recipe-derived)` label reflects the recipe class only; emitted imports and exact dependency closure are not receipted. Verified closure keeps the unqualified `no CRT` label. Full host, equivalence, recipe, toolchain, and artifact receipts remain in the machine catalog; this projection shows no hashes and implies no language ranking. Executable size excludes imported libraries.",
+    "Run p50/p95 measure complete fresh-process invocations. Compare only like workload, language, platform, runtime-closure, profile, and recipe-class lanes. WSL rows are same-host diagnostics, not native-Linux support or cross-host rankings; Windows and WSL values are never pooled.",
     `Machine catalog: ${jsonPathLink(projectionPath("benchmarks/executable-catalog.json"), "executable-catalog.json")}. Commands, sampling policy, and recipe details: [benchmark README](./README.md#manual-reproduction).`,
   );
   return lines.join("\n");

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "w-executable-benchmark/7",
+  "$id": "w-executable-benchmark/8",
   "title": "W executable benchmark live catalog and local result contracts",
   "oneOf": [
     { "$ref": "#/$defs/catalog" },
@@ -181,6 +181,7 @@
         "sourceReadiness": { "enum": ["source-and-oracle-ready", "not-materialized"] },
         "demoEvidence": { "enum": ["bounded-w-demo", "not-run"] },
         "benchmarkStatus": { "enum": ["not-performance-ready", "contextual-measurement-ready", "deferred-to-M3b", "partial-exploratory-ready", "exploratory-ready", "planned"] },
+        "rankingEligible": { "const": false },
         "benchmarkDisposition": { "enum": ["required", "compiler-lifecycle", "deferred", "not-applicable"] },
         "lane": { "const": "equivalent" },
         "scope": { "type": "string" },
@@ -267,14 +268,14 @@
       "additionalProperties": false,
       "required": ["schema", "status", "recordsPath", "requiredIdentity", "provenance", "sampling", "protocolFields", "environmentFields", "artifact", "metrics", "storage", "runtimeMeasurement"],
       "properties": {
-        "schema": { "const": "w-executable-benchmark-result/7" },
+        "schema": { "const": "w-executable-benchmark-result/8" },
         "status": { "const": "contract-only" },
         "recordsPath": { "const": "benchmarks/results" },
         "requiredIdentity": {
           "const": ["workloadId", "language", "platformTarget", "artifactTarget", "profile", "toolchain", "host", "recipe", "recipeClass", "runtimeClosure", "recipeDigest", "equivalenceKey"]
         },
         "provenance": {
-          "const": ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "catalogDigest", "commit", "observedAt", "platformEvidence"]
+          "const": ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "catalogDigest", "commit", "observedAt", "worktreeDirtyAtMeasurement", "platformEvidence"]
         },
         "sampling": {
           "type": "object",
@@ -318,13 +319,68 @@
         "rule": { "type": "string" }
       }
     },
+    "diagnosticMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "rankingEligible", "workloadId", "language", "platformTarget", "artifactTarget", "profile", "equivalenceKey", "host", "toolchain", "recipe", "recipeClass", "runtimeClosure", "comparability", "eligibility", "oracleDigest", "correctnessCaseCount", "metrics", "provenance"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^diagnostic-[0-9a-f]{64}$" },
+        "status": { "const": "current" },
+        "rankingEligible": { "const": false },
+        "workloadId": { "type": "string" },
+        "language": { "enum": ["w", "c", "rust"] },
+        "platformTarget": { "enum": ["windows-x64", "linux-x64", "linux-wsl-x64"] },
+        "artifactTarget": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32", "x86_64-unknown-linux-gnu"] },
+        "profile": { "const": "release" },
+        "equivalenceKey": { "$ref": "#/$defs/digest" },
+        "host": { "type": "string" },
+        "toolchain": { "type": "string" },
+        "recipe": { "type": "string" },
+        "recipeClass": { "type": "string" },
+        "runtimeClosure": { "$ref": "#/$defs/runtimeClosure" },
+        "comparability": { "enum": ["deferred-until-M3b", "promotable-after-equivalence", "contextual-non-ranking-private-composite", "same-physical-hardware-diagnostic-only"] },
+        "eligibility": { "enum": ["promotable-after-equivalence", "deferred-to-M3b", "exploratory-private-composite", "same-physical-hardware-diagnostic-only"] },
+        "oracleDigest": { "$ref": "#/$defs/digest" },
+        "correctnessCaseCount": { "type": "integer", "minimum": 1 },
+        "metrics": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["compileLatencyNs", "runWallTimeNs", "runWallP95Ns", "cpuTimeUs", "peakWorkingSetBytes", "artifactSizeBytes"],
+          "properties": {
+            "compileLatencyNs": { "$ref": "#/$defs/decimal" },
+            "runWallTimeNs": { "$ref": "#/$defs/decimal" },
+            "runWallP95Ns": { "$ref": "#/$defs/decimal" },
+            "cpuTimeUs": { "$ref": "#/$defs/decimal" },
+            "peakWorkingSetBytes": { "$ref": "#/$defs/decimal" },
+            "artifactSizeBytes": { "$ref": "#/$defs/positiveDecimal" }
+          }
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["resultId", "commit", "observedAt", "catalogDigest", "sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "worktreeDirtyAtMeasurement"],
+          "properties": {
+            "resultId": { "type": "string" },
+            "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+            "observedAt": { "type": "string", "format": "date-time" },
+            "catalogDigest": { "$ref": "#/$defs/digest" },
+            "sourceDigest": { "$ref": "#/$defs/digest" },
+            "artifactDigest": { "$ref": "#/$defs/digest" },
+            "recipeDigest": { "$ref": "#/$defs/digest" },
+            "toolchainDigest": { "$ref": "#/$defs/digest" },
+            "runnerDigest": { "$ref": "#/$defs/digest" },
+            "worktreeDirtyAtMeasurement": { "type": "boolean" }
+          }
+        }
+      }
+    },
     "catalog": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["$schema", "schema", "kind", "id", "status", "metrics", "comparabilityAxes", "platformLanes", "workloads", "resultContract", "bestMetricsContract", "bestMetrics"],
+      "required": ["$schema", "schema", "kind", "id", "status", "metrics", "comparabilityAxes", "platformLanes", "workloads", "resultContract", "bestMetricsContract", "diagnosticMetrics", "bestMetrics"],
       "properties": {
         "$schema": { "const": "./executable-benchmark.schema.json" },
-        "schema": { "const": "w-executable-benchmark/7" },
+        "schema": { "const": "w-executable-benchmark/8" },
         "kind": { "const": "executable-benchmark-catalog" },
         "id": { "const": "w-executable-benchmark-catalog" },
         "status": { "const": "catalog-ready" },
@@ -334,6 +390,7 @@
         "workloads": { "type": "array", "items": { "$ref": "#/$defs/workload" } },
         "resultContract": { "$ref": "#/$defs/resultContract" },
         "bestMetricsContract": { "$ref": "#/$defs/bestMetricsContract" },
+        "diagnosticMetrics": { "type": "array", "items": { "$ref": "#/$defs/diagnosticMetric" } },
         "bestMetrics": { "$ref": "#/$defs/bestMetrics" }
       }
     },
@@ -602,7 +659,7 @@
     "provenance": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "catalogDigest", "commit", "observedAt"],
+      "required": ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "catalogDigest", "commit", "observedAt", "worktreeDirtyAtMeasurement"],
       "properties": {
         "sourceDigest": { "$ref": "#/$defs/digest" },
         "artifactDigest": { "$ref": "#/$defs/digest" },
@@ -612,6 +669,7 @@
         "catalogDigest": { "$ref": "#/$defs/digest" },
         "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
         "observedAt": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$" },
+        "worktreeDirtyAtMeasurement": { "type": "boolean" },
         "platformEvidence": { "$ref": "#/$defs/platformEvidence" }
       }
     },
@@ -664,7 +722,7 @@
       "required": ["$schema", "schema", "kind", "id", "status", "workloadId", "language", "platformTarget", "artifactTarget", "profile", "quality", "claim", "verdict", "equivalenceKey", "identity", "correctness", "artifact", "protocol", "environment", "compile", "run", "provenance"],
       "properties": {
         "$schema": { "const": "./executable-benchmark.schema.json" },
-        "schema": { "const": "w-executable-benchmark-result/7" },
+        "schema": { "const": "w-executable-benchmark-result/8" },
         "kind": { "const": "executable-result" },
         "id": { "type": "string" },
         "status": { "const": "recorded" },

@@ -38,22 +38,20 @@ test("generated projection is current, compact, and sourced only from the live c
       `${workloadId}/${language} projection rows must track current live measurements`);
   }
   assert.match(rendered, /\| Example \| System \/ lane \| Language \| Binary \| Compile p50 \| Execution p50 \| Execution p95 \| CPU mean \| Peak memory \|/u);
-  assert.match(rendered, /\| \[hello \(C\)\].*Windows · CRT \| C \|/u);
-  assert.match(rendered, /\| \[hello \(W\)\].*Windows · no CRT \(recipe-derived\) \| W \|/u);
+  assert.match(rendered, /\| \[hello \(C\)\].*Windows · CRT · release · hello-release \| C \|/u);
+  assert.match(rendered, /\| \[hello \(W\)\].*Windows · no CRT \(recipe-derived\) · release · hello-release \| W \|/u);
   for (const language of ["w", "c", "rust"]) {
     const displayLanguage = language === "w" ? "W" : language === "rust" ? "Rust" : "C";
-    const row = new RegExp(`^\\| \\[hello-platform-minimal-pie \\(${displayLanguage}\\)\\].*WSL · no CRT \\(recipe-derived\\) · diagnostic · PIE \\| ${displayLanguage} \\| [0-9]`, "mu");
+    const row = new RegExp(`^\\| \\[hello-platform-minimal-pie \\(${displayLanguage}\\)\\].*WSL · no CRT \\(recipe-derived\\) · release · hello-platform-minimal-pie \\| ${displayLanguage} \\| [0-9]`, "mu");
     assert.match(rendered, row, `the current PIE ${language} measurements must be projected`);
   }
-  assert.match(rendered, /^\| \[hello-platform-minimal \(W\)\].*WSL · no CRT \(recipe-derived\) · diagnostic · non-PIE \| W \|/mu,
+  assert.match(rendered, /^\| \[hello-platform-minimal \(W\)\].*WSL · no CRT \(recipe-derived\) · release · hello-platform-minimal \| W \|/mu,
     "the new W measurement is clearly labeled as non-PIE");
-  assert.match(rendered, /^\| \[hello-platform-minimal \(C\)\].*WSL · no CRT \(recipe-derived\) · diagnostic · non-PIE \| C \|/mu,
+  assert.match(rendered, /^\| \[hello-platform-minimal \(C\)\].*WSL · no CRT \(recipe-derived\) · release · hello-platform-minimal \| C \|/mu,
     "existing freestanding C measurements are clearly labeled as non-PIE");
   assert.equal(documents.catalog.bestMetrics.entries.filter((entry) => entry.workloadId === "hello-platform-minimal-pie").length, 18,
     "all three measured PIE lanes publish complete current benchmark cells");
-  assert.match(rendered, /Toolchain identity and recipe remain lane-specific/u);
-  assert.match(rendered, /does not imply one suite-wide compiler version/u);
-  assert.match(rendered, /short toolchain\/recipe-digest marker keeps their metric rows distinct/u);
+  assert.match(rendered, /Full host, equivalence, recipe, toolchain, and artifact receipts remain in the machine catalog/u);
   assert.match(rendered, /emitted imports and exact dependency closure are not receipted/u);
   const partialWOnly = documents.catalog.workloads.filter((workload) =>
     workload.benchmarkStatus === "partial-exploratory-ready" &&
@@ -86,7 +84,61 @@ test("projection formatting and links remain deterministic", () => {
   const helloCArtifact = withSections.bestMetrics.entries.find((entry) =>
     entry.workloadId === "hello" && entry.language === "c" && entry.metric === "artifact-size");
   delete helloCArtifact.peLayout;
-  assert.match(renderExecutableProjection({ catalog: withSections }), /\| \[hello \(C\)\].*Windows · CRT \| C \| [^|]+ \|/u);
+  assert.match(renderExecutableProjection({ catalog: withSections }), /\| \[hello \(C\)\].*Windows · CRT · release · hello-release \| C \| [^|]+ \|/u);
+});
+
+test("diagnostic-only measurements appear in a separate non-ranking section with exact lane receipts", () => {
+  const catalog = structuredClone(documents.catalog);
+  const workload = catalog.workloads.find((item) => item.id === "nested-labeled-while");
+  const source = workload.sources.find((item) => item.language === "w" && item.platformTarget === "windows-x64");
+  catalog.diagnosticMetrics = [{
+    id: `diagnostic-${"a".repeat(64)}`,
+    status: "current",
+    rankingEligible: false,
+    workloadId: workload.id,
+    language: "w",
+    platformTarget: source.platformTarget,
+    artifactTarget: source.artifactTarget,
+    profile: source.profile,
+    equivalenceKey: `sha256:${"b".repeat(64)}`,
+    host: "windows-test-host",
+    toolchain: "w-current",
+    recipe: source.recipe,
+    recipeClass: source.recipeClass,
+    runtimeClosure: source.runtimeClosure,
+    comparability: source.comparability,
+    eligibility: source.eligibility,
+    oracleDigest: `sha256:${"c".repeat(64)}`,
+    correctnessCaseCount: 1,
+    metrics: {
+      compileLatencyNs: "1234",
+      runWallTimeNs: "5678",
+      runWallP95Ns: "6789",
+      cpuTimeUs: "4",
+      peakWorkingSetBytes: "8192",
+      artifactSizeBytes: "4096",
+    },
+    provenance: {
+      resultId: "nested-labeled-while-windows-diagnostic",
+      commit: "1".repeat(40),
+      observedAt: "2026-09-24T00:00:00.000Z",
+      catalogDigest: `sha256:${"d".repeat(64)}`,
+      sourceDigest: source.digest,
+      artifactDigest: `sha256:${"e".repeat(64)}`,
+      recipeDigest: `sha256:${"f".repeat(64)}`,
+      toolchainDigest: `sha256:${"1".repeat(64)}`,
+      runnerDigest: `sha256:${"2".repeat(64)}`,
+      worktreeDirtyAtMeasurement: true,
+    },
+  }];
+  const rendered = renderExecutableProjection({ catalog });
+  assert.match(rendered, /## Diagnostic-only measurements \(not ranked\)/u);
+  assert.match(rendered, /No ranked values; diagnostic below/u);
+  assert.match(rendered, /Windows · no CRT \(recipe-derived\) · release · nested-labeled-while-release/u);
+  assert.match(rendered, /\| \[nested-labeled-while \(W\)\].*\| 4096 B \(4\.0 KiB\) \| 1\.234 µs \| 5\.678 µs \| 6\.789 µs \| 4 µs \| 8192 B \(8\.0 KiB\) \|/u);
+  assert.doesNotMatch(rendered, /host windows-test-host|bbbbbbbb|11111111|ffffffff|sha256:/u);
+  assert.ok(rendered.indexOf("## Diagnostic-only measurements") < rendered.indexOf("## Reading the measurements"));
+  assert.match(rendered, /These values do not change benchmark readiness, eligibility, best metrics, or language rankings/u);
 });
 
 test("projection publishes only a current matching suite receipt and summarizes it without provenance noise", async () => {
@@ -178,7 +230,7 @@ test("projection collapses same-build categories per platform without pooling pl
   otherWsl.value = "4";
   compact.bestMetrics.entries.push(wsl, otherWsl);
   const wslRendered = renderExecutableProjection({ catalog: compact });
-  const wslRows = wslRendered.split(/\r?\n/u).filter((line) => line.includes("hello (Rust)") && line.includes("WSL · CRT · diagnostic"));
+  const wslRows = wslRendered.split(/\r?\n/u).filter((line) => line.includes("hello (Rust)") && line.includes("WSL · CRT · release"));
   assert.equal(wslRows.length, 2, "WSL categories remain partitioned by host");
   assert.match(wslRows[0], /\| 3 ns \|/u, "WSL host rows must retain their own value");
   assert.match(wslRows[1], /\| 4 ns \|/u, "a second WSL host must not be pooled into the first");
@@ -221,7 +273,7 @@ test("projection keeps toolchain and recipe lanes intact instead of mixing their
   catalog.bestMetrics.entries.push(...alternate);
 
   const rows = renderExecutableProjection({ catalog }).split(/\r?\n/u)
-    .filter((line) => line.includes("hello (W)") && line.includes("WSL · no CRT (recipe-derived) · diagnostic"));
+    .filter((line) => line.includes("hello (W)") && line.includes("WSL · no CRT (recipe-derived) · release"));
   assert.equal(rows.length, 2, "distinct build identities must produce separate WSL rows");
   const largerArtifact = rows.find((line) => line.includes("2096 B"));
   const smallerArtifact = rows.find((line) => line.includes("1712 B"));
@@ -229,8 +281,9 @@ test("projection keeps toolchain and recipe lanes intact instead of mixing their
   assert.ok(smallerArtifact);
   assert.match(largerArtifact, /\| 182\.931 µs \|/u, "the faster runtime stays with its own 2,096-byte artifact");
   assert.match(smallerArtifact, /\| 240 µs \|/u, "the slower runtime stays with its own 1,712-byte artifact");
-  assert.match(largerArtifact, /build public-w-build-release/u);
-  assert.match(smallerArtifact, /build public-w-build-release-hardened/u);
+  assert.ok(largerArtifact.includes(`release · ${baseArtifact.recipeClass} |`));
+  assert.ok(smallerArtifact.includes(`release · ${alternate[0].recipeClass} |`));
+  assert.doesNotMatch(largerArtifact + smallerArtifact, /sha256:|[0-9a-f]{8}/u);
   assert.doesNotMatch(smallerArtifact, /182\.931 µs/u, "the human row must not form a hybrid best-of-builds result");
 });
 
@@ -263,6 +316,7 @@ test("projection never collapses runtime or comparability lanes within a platfor
   assert.equal(rows.length, 4, "distinct runtime and comparability lanes remain separate rows");
   assert.ok(rows.some((line) => line.includes("Windows · CRT")));
   assert.ok(rows.some((line) => line.includes("Windows · no CRT (recipe-derived)")));
-  assert.ok(rows.some((line) => line.includes("Windows · no CRT |")), "verified freestanding closure retains its unqualified label");
-  assert.ok(rows.some((line) => line.includes("Windows · CRT · private")));
+  assert.ok(rows.some((line) => line.includes("Windows · no CRT · release")), "verified freestanding closure retains its unqualified label");
+  assert.equal(rows.filter((line) => line.includes(`Windows · CRT · ${base.profile} · ${base.recipeClass}`)).length, 2,
+    "a contextual lane stays separate even though the compact label omits comparability metadata");
 });

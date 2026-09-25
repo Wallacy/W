@@ -1842,12 +1842,22 @@ async function processCorrectness(context, compiled) {
   }
 }
 
+const ORACLE_MISMATCH_PREVIEW_BYTES = 256;
+
+function exactOutputPreview(bytes) {
+  const truncated = bytes.length > ORACLE_MISMATCH_PREVIEW_BYTES;
+  const excerpt = bytes.subarray(0, ORACLE_MISMATCH_PREVIEW_BYTES).toString("utf8");
+  return `${JSON.stringify(excerpt)} (${truncated ? `truncated; ${bytes.length} bytes total` : `${bytes.length} bytes`})`;
+}
+
 export function assertOracle(execution, oracle, target, label) {
   if (!isObject(oracle) || !Number.isSafeInteger(oracle.exitCode) || typeof oracle.stdout !== "string" || typeof oracle.stderr !== "string") {
     fail(`${label} requires a source-backed executable oracle`);
   }
-  if (execution.exitCode !== oracle.exitCode || !execution.stdout.equals(Buffer.from(oracle.stdout, "utf8")) || !execution.stderr.equals(Buffer.from(oracle.stderr, "utf8"))) {
-    fail(`${label} output does not match the ${target} exact-output oracle`);
+  const expectedStdout = Buffer.from(oracle.stdout, "utf8");
+  const expectedStderr = Buffer.from(oracle.stderr, "utf8");
+  if (execution.exitCode !== oracle.exitCode || !execution.stdout.equals(expectedStdout) || !execution.stderr.equals(expectedStderr)) {
+    fail(`${label} output does not match the ${target} exact-output oracle (actual exit=${execution.exitCode}, stdout=${exactOutputPreview(execution.stdout)}, stderr=${exactOutputPreview(execution.stderr)}; expected exit=${oracle.exitCode}, stdout=${exactOutputPreview(expectedStdout)}, stderr=${exactOutputPreview(expectedStderr)})`);
   }
 }
 
@@ -2732,6 +2742,7 @@ function makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, 
       catalogDigest: context.catalogDigest,
       commit: context.commit,
       observedAt,
+      worktreeDirtyAtMeasurement: context.worktreeDirtyAtMeasurement,
       ...(isWslPlatform(platformTarget)
         ? {
           platformEvidence: {
@@ -2756,6 +2767,14 @@ async function currentCommit(executor) {
   const value = outputText(result.stdout).trim();
   if (!/^[0-9a-f]{40}$/u.test(value)) fail("Git HEAD provenance must be a full lowercase commit identity");
   return value;
+}
+
+async function currentWorktreeDirty(executor) {
+  const git = Bun.which("git");
+  if (!git) fail("git is required for measurement worktree provenance");
+  const result = await timedStep(executor, git, ["status", "--porcelain", "--untracked-files=all"], ROOT, "Git worktree cleanliness provenance");
+  requireSuccess(result, "Git worktree cleanliness provenance");
+  return outputText(result.stdout).length !== 0;
 }
 
 function processSelectedToolchain(language, languageToolchain, processLinker, processGate) {
@@ -2905,7 +2924,10 @@ async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
   const runnerDigest = dependencies.runnerDigest ?? await benchmarkRunnerDigest();
   const catalogDigest = dependencies.catalogDigest ?? await sha256File(CATALOG_PATH);
   const commit = dependencies.commit ?? await currentCommit(executor);
+  const worktreeDirtyAtMeasurement = dependencies.worktreeDirtyAtMeasurement ??
+    (dependencies.commit === undefined ? await currentWorktreeDirty(executor) : false);
   if (!/^[0-9a-f]{40}$/u.test(commit)) fail("commit provenance must be a full lowercase identity");
+  if (worktreeDirtyAtMeasurement !== true && worktreeDirtyAtMeasurement !== false) fail("measurement worktree cleanliness provenance must be boolean");
   const wslRuntime = isWslPlatform(platformTarget)
     ? await resolveWslRuntime(executor, dependencies, hostPlatform, publish)
     : undefined;
@@ -2988,6 +3010,7 @@ async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
       processGate,
       environment,
       commit,
+      worktreeDirtyAtMeasurement,
       runnerDigest,
       catalogDigest,
       tempRoot,
