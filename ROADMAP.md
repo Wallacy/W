@@ -449,6 +449,13 @@ Next propagate the same distinct outcome through local calls and general CFG,
 cover unsigned and shift/power policies, and make ProductClosure publish the
 fault relation before replacing remaining trap-only routes.
 
+The first target-layout evidence slice now binds the exact Windows MSVC x64 and
+Linux GNU x64 LLVM data layouts to explicit toolchain identity. It validates
+Bool plus integer and floating scalar storage/alignment facts through 128 bits,
+and little, big, or selected-target-native serialization lengths. This is
+`compiler-lifecycle` evidence only: it does not close target-general layout,
+W/C calling ABI, aggregate layout, stable ABI/FFI, or a public executable path.
+
 For each promoted numeric family, run the same operation once through const
 evaluation and once through opaque runtime input, then compare results and
 failure roles across debug and optimized builds. Floating conversion oracles

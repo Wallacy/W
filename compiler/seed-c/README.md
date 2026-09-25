@@ -40,6 +40,27 @@ validation, differential e recovery. C não é backend de codegen nativo W. MLIR
 é a rota nativa primária somente para o subset fechado, e W/MLIR geral continua
 futuro.
 
+## Target-layout scalar evidence (LAYOUT0)
+
+`w_seed_target_layout0` binds only the exact `x86_64-pc-windows-msvc` and
+`x86_64-unknown-linux-gnu` triples to their target-derived LLVM data-layout
+strings. It records 64-bit pointers, little-endian target storage, Bool storage,
+and integer/floating scalar logical, store, allocation, and LLVM ABI-alignment
+facts through 128 bits. `.native` serialization is resolved from the bound
+target record; little- and big-endian encodings are explicit and lengths must
+match the scalar width exactly.
+
+Run `bun tooling/command-runner.mjs --command check:seed-target-layout` for the
+focused gate. The repository pin is LLVM/Clang 23.1.1; local validation accepts
+the policy's 23.1.x patch-compatible development line and records the exact
+observed Clang identity. The gate asks Clang for each exact target's LLVM data
+layout, re-parses a typed LLVM scalar-allocation probe under that same layout,
+and checks the emitted LLVM ABI alignments before the C23 unit binds the target
+and toolchain identity. The result is scalar LLVM layout evidence only: it does
+not establish a public W/C calling ABI, aggregate layout, stable ABI, or target
+support. It adds no public executable benchmark row;
+`benchmarkDisposition` is `compiler-lifecycle`.
+
 ## Native benchmark measurement kernel
 
 `include/w_seed_native_benchmark.h` and

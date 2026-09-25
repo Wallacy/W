@@ -923,6 +923,18 @@
         }
       ]
     },
+    "check:seed-target-layout": {
+      "description": "Validate exact LLVM scalar-layout records and serialization facts for the closed x86-64 targets.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-seed-target-layout.mjs"
+          ]
+        }
+      ]
+    },
     "check:seed-test-exits": {
       "description": "Internal check:seed-test-exits command.",
       "steps": [

@@ -85,6 +85,7 @@
       "description": "Seed C compiler, ACQ0 acquisition, OWN0 owner observation, verified HIR0/HLO0/HLO1, and w CLI gates.",
       "steps": [
         { "package": "root", "script": "check:seed-source-reader" },
+        { "package": "root", "script": "check:seed-target-layout" },
         { "package": "root", "script": "check:seed-test-exits" },
         { "package": "root", "script": "check:seed-lexer" },
         { "package": "root", "script": "check:seed-parser" },

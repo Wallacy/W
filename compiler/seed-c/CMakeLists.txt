@@ -54,6 +54,7 @@ add_library(w_seed_source STATIC
   include/w_seed_accelerated_request0.h
   include/w_seed_accelerated_provider0.h
   include/w_seed_scalar_evaluator0.h
+  include/w_seed_target_layout0.h
   include/w_seed_wrt0.h
   include/w_seed_source_binding_linux.h
   src/w_seed_manifest.c
@@ -101,6 +102,7 @@ add_library(w_seed_source STATIC
   src/w_seed_parallel_panic_boundary1.c
   src/w_seed_task_lifecycle0.c
   src/w_seed_scalar_evaluator0.c
+  src/w_seed_target_layout0.c
   src/w_seed_native0.c
   src/w_seed_cooperative0.c
   src/w_seed_hlo0.c
@@ -684,6 +686,24 @@ add_executable(w_seed_mlir0_tests
   tests/test_mlir0.c
 )
 target_link_libraries(w_seed_mlir0_tests PRIVATE w_seed_source)
+
+add_executable(w_seed_target_layout0_tests
+  tests/test_target_layout0.c
+)
+target_link_libraries(w_seed_target_layout0_tests PRIVATE w_seed_source)
+if(MSVC)
+  target_compile_options(w_seed_target_layout0_tests PRIVATE /W4 /WX)
+else()
+  target_compile_options(w_seed_target_layout0_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
+endif()
 
 add_executable(w_seed_mlir0_gate
   tests/hlo1_gate.c
@@ -1620,6 +1640,7 @@ add_test(NAME w_seed_accelerated_provider0_unit
 add_test(NAME w_seed_hlo0_unit COMMAND w_seed_hlo0_tests)
 add_test(NAME w_seed_hlo1_unit COMMAND w_seed_hlo1_tests)
 add_test(NAME w_seed_mlir0_unit COMMAND w_seed_mlir0_tests)
+add_test(NAME w_seed_target_layout0_unit COMMAND w_seed_target_layout0_tests)
 add_test(NAME w_seed_gpu0_unit COMMAND w_seed_gpu0_tests)
 add_test(NAME w_seed_native0_unit COMMAND w_seed_native0_tests)
 add_test(NAME w_seed_cooperative0_unit COMMAND w_seed_cooperative0_tests)
