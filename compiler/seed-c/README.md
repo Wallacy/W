@@ -3427,6 +3427,16 @@ x64 and Linux/WSL x64 execute no arguments as `Rounded 2\n` and one argument
 as `Rounded 4\n`, both with status 0 and empty stderr. The float operands are
 still constants; arbitrary runtime float input is not claimed.
 
+One additional source-derived boundary constructs the canonical quiet-NaN bit
+pattern through `f64.fromBits(0x7ff8000000000000_u64)` and applies
+`.towardZero` conversion to `i8`. Verified HIR retains the exact unsigned raw
+bits, NativeSubset0 independently restricts this process shape to a same-width
+literal bridge, and MLIR emits the direct bitcast before the existing
+non-finite classification. Public CRT-free Windows x64 and Linux/WSL x64
+`w run` and Release `w build` products exit with typed status 1 and leave
+stdout/stderr empty. This proves the public non-finite outcome for one exact
+source-derived NaN; it is not arbitrary runtime float ingress.
+
 The bootstrap runs LLVM `opt` between translation and `llc`; optimization remains
 enabled, with helper-specific no-builtin attributes guarding the relevant
 runtime idioms instead of a global libcall-simplification disable. Built Linux
@@ -3434,8 +3444,10 @@ artifacts are static PIEs without an interpreter or `DT_NEEDED`; Windows PE
 artifacts import only `Kernel32.dll`. These final-image checks do not capture
 post-opt IR externals or object undefined symbols, so those remain separate
 per-product evidence gaps and general dependency closure is not claimed.
-Runtime float ingress, public non-finite execution, independent raw-bit
-boundary oracles, stable ABI, timing, and performance remain gaps.
+Independent C23 and Rust references now cover the runtime-derived
+`f64.fromBits(bits).toBits()` boundary for zero and one user argument. General
+runtime float ingress, independent non-finite conversion references, stable
+ABI, timing, and performance remain gaps.
 `benchmarkDisposition: compiler-lifecycle`.
 
 ### Native-process unhandled typed-error root HIR (W-1652)

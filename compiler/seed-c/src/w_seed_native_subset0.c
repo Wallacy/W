@@ -7854,14 +7854,28 @@ static bool process_float_to_integer_rounding_root_supported(
   uint16_t source_width = 0u;
   native_integer_facts destination_facts;
   const w_seed_hir0_value *source = &program->values[conversion->value_index];
-  if ((has_diamond
-           ? source->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
-                 source->owner_kind !=
-                     W_SEED_HIR0_VALUE_OWNER_TERMINATOR ||
-                 source->owner_index != split_index ||
-                 source->owner_ordinal != 0u ||
-                 source->block_argument_index != diamond.join_argument_index
-           : source->kind != W_SEED_HIR0_VALUE_CONST_FLOAT) ||
+  bool source_supported = false;
+  if (has_diamond) {
+    source_supported =
+        source->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        source->owner_kind == W_SEED_HIR0_VALUE_OWNER_TERMINATOR &&
+        source->owner_index == split_index && source->owner_ordinal == 0u &&
+        source->block_argument_index == diamond.join_argument_index;
+  } else if (source->kind == W_SEED_HIR0_VALUE_CONST_FLOAT) {
+    source_supported = true;
+  } else if (source->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS &&
+             source->left_value < program->value_count) {
+    native_float_bits_facts bits_facts;
+    const w_seed_hir0_value *bits = &program->values[source->left_value];
+    /* Keep this process route source-derived but closed: the selected float
+     * is an exact-width raw-bit bridge over one source u64 literal. Dynamic
+     * fromBits inputs remain outside this bounded process root. */
+    source_supported =
+        bits->kind == W_SEED_HIR0_VALUE_CONST_U64 &&
+        native_float_bits_shape_valid(program, conversion->value_index,
+                                      &bits_facts);
+  }
+  if (!source_supported ||
       !native_float_type_width(program, source->type_index, &source_width) ||
       (has_diamond && source_width != 64u) ||
       !native_integer_type_facts(program, conversion->result_type,

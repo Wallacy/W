@@ -319,6 +319,7 @@ const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
     "checked-scalar-if-join",
   "compiler/seed-c/fixtures/process-float-rounding-success.w": "float-integer-rounding",
   "compiler/seed-c/fixtures/process-float-rounding-error.w": "float-integer-rounding",
+  "compiler/seed-c/fixtures/process-float-rounding-nonfinite.w": "float-integer-rounding",
   "compiler/seed-c/fixtures/terminal-returns.w": "terminal-returns",
   "compiler/seed-c/fixtures/repeat.w": "repeat",
   "compiler/seed-c/fixtures/local-graph/app.w": "local-module-graph",

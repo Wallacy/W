@@ -77,6 +77,8 @@ const processFloatBitRuntimeFixture = resolve(seedDirectory, "fixtures",
   "process-float-bit-runtime.w")
 const processFloatRoundingErrorFixture = resolve(seedDirectory, "fixtures",
   "process-float-rounding-error.w")
+const processFloatRoundingNonfiniteFixture = resolve(seedDirectory, "fixtures",
+  "process-float-rounding-nonfinite.w")
 const processIntegerExactRuntimeFixture = resolve(seedDirectory, "fixtures",
   "process-fixed-integer-arithmetic.w")
 const checkedIntegerHelperFaultFixture = resolve(seedDirectory, "fixtures",
@@ -1739,6 +1741,8 @@ try {
     "Linux public runtime float bit round trip with one argument")
   expectExact(binary, ["run", toWsl(processFloatRoundingErrorFixture)], 1,
     Buffer.alloc(0), "Linux public constant float rounding typed error")
+  expectExact(binary, ["run", toWsl(processFloatRoundingNonfiniteFixture)], 1,
+    Buffer.alloc(0), "Linux public raw-bit non-finite float rounding typed error")
   expectExact(binary, ["run", toWsl(processIntegerExactRuntimeFixture)], 0,
     Buffer.from("Arithmetic 0/4/1\n", "utf8"),
     "Linux public runtime fixed-integer arithmetic success")
@@ -1852,6 +1856,8 @@ try {
     "process-float-bit-runtime-build")
   const buildProcessFloatRoundingError = buildOutput(
     "process-float-rounding-error-build")
+  const buildProcessFloatRoundingNonfinite = buildOutput(
+    "process-float-rounding-nonfinite-build")
   const buildProcessIntegerExactRuntime = buildOutput(
     "process-fixed-integer-arithmetic-build")
   const buildCheckedIntegerHelperFault = buildOutput(
@@ -2123,6 +2129,12 @@ try {
   assertCrtFreeElf(await readBuildArtifact(buildProcessFloatRoundingError))
   expectExact(buildProcessFloatRoundingError, [], 1, Buffer.alloc(0),
     "execute built Linux constant float rounding typed-error artifact")
+  expectSuccess(binary, ["build", toWsl(processFloatRoundingNonfiniteFixture),
+    "--target", targetTriple, "--output", buildProcessFloatRoundingNonfinite],
+  Buffer.alloc(0), "build Linux raw-bit non-finite float rounding fixture")
+  assertCrtFreeElf(await readBuildArtifact(buildProcessFloatRoundingNonfinite))
+  expectExact(buildProcessFloatRoundingNonfinite, [], 1, Buffer.alloc(0),
+    "execute built Linux raw-bit non-finite float rounding typed-error artifact")
   expectSuccess(binary, ["build", toWsl(processIntegerExactRuntimeFixture),
     "--target", targetTriple, "--output", buildProcessIntegerExactRuntime],
   Buffer.alloc(0), "build Linux runtime fixed-integer arithmetic fixture")

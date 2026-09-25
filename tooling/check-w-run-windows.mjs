@@ -209,6 +209,8 @@ const processFloatBitRuntimeFixture = resolve(seedDirectory, "fixtures",
   "process-float-bit-runtime.w")
 const processFloatRoundingErrorFixture = resolve(seedDirectory, "fixtures",
   "process-float-rounding-error.w")
+const processFloatRoundingNonfiniteFixture = resolve(seedDirectory, "fixtures",
+  "process-float-rounding-nonfinite.w")
 const processIntegerExactRuntimeFixture = resolve(seedDirectory, "fixtures",
   "process-fixed-integer-arithmetic.w")
 const checkedIntegerHelperFaultFixture = resolve(seedDirectory, "fixtures",
@@ -1527,6 +1529,8 @@ try {
     "public runtime float bit round trip with one argument")
   expectExact(binary, ["run", processFloatRoundingErrorFixture], 1,
     Buffer.alloc(0), "public constant float rounding typed error")
+  expectExact(binary, ["run", processFloatRoundingNonfiniteFixture], 1,
+    Buffer.alloc(0), "public raw-bit non-finite float rounding typed error")
   expectExact(binary, ["run", processIntegerExactRuntimeFixture], 0,
     Buffer.from("Arithmetic 0/4/1\n", "utf8"),
     "public runtime fixed-integer arithmetic success")
@@ -1632,6 +1636,8 @@ try {
     "process-float-bit-runtime-build.exe")
   const buildProcessFloatRoundingError = join(fixtureDirectory,
     "process-float-rounding-error-build.exe")
+  const buildProcessFloatRoundingNonfinite = join(fixtureDirectory,
+    "process-float-rounding-nonfinite-build.exe")
   const buildProcessIntegerExactRuntime = join(fixtureDirectory,
     "process-fixed-integer-arithmetic-build.exe")
   const buildCheckedIntegerHelperFault = join(fixtureDirectory,
@@ -1874,6 +1880,18 @@ try {
     { usesProcessArgumentAdapter: true, writesStdout: false })
   expectExact(buildProcessFloatRoundingError, [], 1, Buffer.alloc(0),
     "execute built constant float rounding typed-error artifact")
+  expectExact(binary, ["build", processFloatRoundingNonfiniteFixture,
+    "--target", targetTriple, "--output", buildProcessFloatRoundingNonfinite],
+  0, Buffer.alloc(0), "build raw-bit non-finite float rounding fixture")
+  const processFloatRoundingNonfiniteBytes =
+    await readFile(buildProcessFloatRoundingNonfinite)
+  assertPeX64(processFloatRoundingNonfiniteBytes,
+    "built raw-bit non-finite float rounding artifact")
+  assertKernel32OnlyImports(processFloatRoundingNonfiniteBytes,
+    "built raw-bit non-finite float rounding artifact",
+    { usesProcessArgumentAdapter: true, writesStdout: false })
+  expectExact(buildProcessFloatRoundingNonfinite, [], 1, Buffer.alloc(0),
+    "execute built raw-bit non-finite float rounding typed-error artifact")
   expectExact(binary, ["build", processIntegerExactRuntimeFixture, "--target",
     targetTriple, "--output", buildProcessIntegerExactRuntime], 0,
   Buffer.alloc(0), "build runtime fixed-integer arithmetic fixture")

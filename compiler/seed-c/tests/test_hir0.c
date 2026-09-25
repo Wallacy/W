@@ -13524,6 +13524,34 @@ static bool test_process_float_rounding_hir_constant(void) {
   return true;
 }
 
+static bool test_process_float_rounding_hir_from_bits(void) {
+  static const char SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let rounded = try i8(rounding: "
+      "f64.fromBits(0x7ff8000000000000_u64), mode: .towardZero)\n"
+      "return .success }\nentry(run)\n";
+  CHECK(lower_process_input0_generic(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  const w_seed_hir0_function *run = &program->functions[0];
+  const w_seed_hir0_terminator *split =
+      &program->terminators[run->first_block];
+  CHECK(run->block_count == 4u &&
+        split->kind == W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING &&
+        split->value_index < program->value_count);
+  const w_seed_hir0_value *source = &program->values[split->value_index];
+  CHECK(source->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS &&
+        source->left_value < program->value_count);
+  const w_seed_hir0_value *bits = &program->values[source->left_value];
+  CHECK(bits->kind == W_SEED_HIR0_VALUE_CONST_U64 &&
+        bits->unsigned_integer_value == UINT64_C(0x7ff8000000000000) &&
+        program->types[source->type_index].kind == W_SEED_HIR0_TYPE_F64 &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_typed_invoke_cleanup_hir(void) {
   static const char SOURCE[] =
       "enum Failure: Error { denied }\n"
@@ -23111,6 +23139,7 @@ int main(int argc, char **argv) {
   if (!test_process_checked_scalar_if_join_hir()) return 1;
   if (!test_process_float_rounding_hir()) return 1;
   if (!test_process_float_rounding_hir_constant()) return 1;
+  if (!test_process_float_rounding_hir_from_bits()) return 1;
   if (!test_local_enum_payload_declarations_hir()) return 1;
   if (!test_local_enum_payload_constructor_hir()) return 1;
   if (!test_enum_switch_hir()) return 1;

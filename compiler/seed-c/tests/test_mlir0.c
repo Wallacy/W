@@ -189,6 +189,7 @@ static const w_seed_mlir0_target WINDOWS_TARGET = {
 static bool process_frontend_mode;
 static bool process_input_frontend_mode;
 static bool process_input_float_rounding_mode;
+static bool process_input_float_rounding_bits_mode;
 static bool process_input_checked_integer_helper_mode;
 static void configure_process_external(void);
 static void configure_process_input_external(void);
@@ -621,7 +622,7 @@ static bool lower_process_hir(const uint8_t *source_bytes,
   const size_t expected_types =
       (process_input_frontend_mode
            ? (process_input_float_rounding_mode
-                  ? 11u
+                  ? (process_input_float_rounding_bits_mode ? 12u : 11u)
                   : (process_input_checked_integer_helper_mode ? 10u : 8u))
            : 7u) +
       (has_panic ? 1u : 0u);
@@ -640,6 +641,7 @@ static bool lower_process_hir(const uint8_t *source_bytes,
 static bool lower_process_input_hir(const uint8_t *source_bytes,
                                     size_t source_length) {
   const bool float_rounding = process_input_float_rounding_mode;
+  const bool float_rounding_bits = process_input_float_rounding_bits_mode;
   process_input_frontend_mode = true;
   const bool lowered = lower_process_hir(source_bytes, source_length);
   process_input_frontend_mode = false;
@@ -656,7 +658,7 @@ static bool lower_process_input_hir(const uint8_t *source_bytes,
          fixture.hir_program.external_symbol_count == 7u &&
          fixture.hir_program.type_count ==
              (float_rounding
-                  ? 11u
+                  ? (float_rounding_bits ? 12u : 11u)
                   : (process_input_checked_integer_helper_mode
                          ? 10u
                          : (has_never ? 9u : 8u)));
@@ -1518,6 +1520,81 @@ static bool test_process_float_rounding_native_subset(void) {
         W_SEED_NATIVE_SUBSET0_INVALID);
   *mutable_entry = saved_entry;
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_process_nonfinite_float_rounding_from_bits_mlir(void) {
+  static const uint8_t source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let rounded = try i8(rounding: "
+      "f64.fromBits(0x7ff8000000000000_u64), mode: .towardZero) "
+      "return .success }\nentry(run)\n";
+  process_input_float_rounding_mode = true;
+  process_input_float_rounding_bits_mode = true;
+  const bool lowered = lower_process_input_hir(source, sizeof(source) - 1u);
+  process_input_float_rounding_bits_mode = false;
+  process_input_float_rounding_mode = false;
+  CHECK(lowered &&
+        w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  w_seed_native_subset0_process selection;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_float_to_integer_rounding &&
+        selection.maximum_stdout_bytes == 0u &&
+        selection.rounding_source_value != NULL &&
+        selection.rounding_source_value->kind ==
+            W_SEED_HIR0_VALUE_FLOAT_FROM_BITS &&
+        selection.rounding_source_value->left_value <
+            fixture.hir_program.value_count &&
+        fixture.hir_program.values[
+            selection.rounding_source_value->left_value].kind ==
+            W_SEED_HIR0_VALUE_CONST_U64 &&
+        fixture.hir_program.values[
+            selection.rounding_source_value->left_value].unsigned_integer_value ==
+            UINT64_C(0x7ff8000000000000));
+
+  /* A raw-bit source is admitted only through the verified literal-u64
+   * bridge.  Forging that operand kind without updating its HIR receipt must
+   * fail closed at the NativeSubset boundary. */
+  w_seed_hir0_value *mutable_bits =
+      &fixture.hir_values[selection.rounding_source_value->left_value];
+  const w_seed_hir0_value saved_bits = *mutable_bits;
+  mutable_bits->kind = W_SEED_HIR0_VALUE_CONST_I64;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result) &&
+        w_seed_native_subset0_select_process_executable(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+            W_SEED_NATIVE_SUBSET0_INVALID);
+  *mutable_bits = saved_bits;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  const w_seed_mlir0_input input = {
+      &fixture.hir_program, &fixture.hir_result,
+      W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE};
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result result;
+  CHECK(w_seed_mlir0_measure(&input, &TARGET, &counts, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(result.written.mlir_bytes == counts.mlir_bytes &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.mlir.constant(9221120237041090560 : i64)") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.bitcast %v") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "\"llvm.intr.is.fpclass\"(%v") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "%process_round_non_finite =") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "process_map_outcome"));
   return true;
 }
 
@@ -9833,6 +9910,7 @@ int main(int argc, char **argv) {
   if (!test_process_checked_integer_helper_fault_mlir()) return 1;
   if (!test_process_checked_scalar_if_join_mlir()) return 1;
   if (!test_process_float_rounding_native_subset()) return 1;
+  if (!test_process_nonfinite_float_rounding_from_bits_mlir()) return 1;
   if (!test_process_float_rounding_join_mlir()) return 1;
   if (!test_process_hir_is_closed_to_mlir()) return 1;
   if (!test_process_arguments_count_comparison_mlir()) return 1;

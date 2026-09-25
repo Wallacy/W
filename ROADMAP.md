@@ -823,9 +823,12 @@ physical scheduler experiments:
    targets (`Rounded 2\n` or `Rounded 4\n`, exit 0); the operands remain
    constants. A third bounded process witness now converts runtime
    `Arguments.count` exactly to `u64`, round-trips it through `f64.fromBits`
-   and `.toBits()`, and observes the result on both public targets. General
-   runtime float ingress, the public non-finite path, and independent raw-bit
-   boundary oracles still lack this route. W-1652 now defines the
+   and `.toBits()`, and observes the result on both public targets; independent
+   C23 and Rust references cover the same zero/one-argument bit round trip. A
+   fourth source-derived witness converts the canonical quiet-NaN raw bits to
+   `i8`, reaches the non-finite typed outcome, exits 1, and keeps stdout/stderr
+   empty on both public targets. General runtime float ingress and independent
+   non-finite conversion references still lack this route. W-1652 now defines the
    canonical `native-process@1`
    mapping for an unhandled typed error. HIR94 retains the restricted local
    payloadless-error direct throw and composes one exact-conversion binding into
@@ -1245,10 +1248,12 @@ stdout/stderr; both outcomes complete reverse cleanup before process
 adaptation. The output path is bound to the verified result binding, not a
 hardcoded adapter string. The bounded raw-bit ingress now takes
 `Arguments.count` through exact `u64`, `f64.fromBits`, `.toBits()`, direct
-bitcasts, and exact Windows/Linux process output. Next add the public non-finite
-path, general runtime float ingress, and independent C23/Rust boundary oracles.
-Until those exist, this remains compiler-lifecycle evidence only and carries
-no benchmark timing or performance claim.
+bitcasts, and exact Windows/Linux process output, with independent C23/Rust
+runtime references. A separate canonical quiet-NaN literal-bit witness now
+reaches the public typed non-finite outcome on both targets. Next add general
+runtime float ingress and independent non-finite conversion references. Until
+those exist, this remains compiler-lifecycle evidence only and carries no
+benchmark timing or performance claim.
 
 W-1645 generalizes the prior strict-f64 seed path into one strict floating
 family for `f32` and `f64`. Frontend67 materializes exact binary32/binary64

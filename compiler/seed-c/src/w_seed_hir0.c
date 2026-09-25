@@ -6843,13 +6843,23 @@ static bool frontend_float_rounding_source_flat(
       value->kind == W_SEED_FRONTEND_EXPR_AWAIT ||
       value->kind == W_SEED_FRONTEND_EXPR_INTERPOLATED_STRING ||
       (value->kind == W_SEED_FRONTEND_EXPR_BINARY &&
-       hir_logical_operator(value->operator_text) !=
+           hir_logical_operator(value->operator_text) !=
            W_SEED_HIR0_LOGICAL_NONE))
     return false;
+  if (value->kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS) {
+    if (value->left == W_SEED_FRONTEND_NONE ||
+        (size_t)value->left >= input->frontend_result->written.expressions)
+      return false;
+    const w_seed_frontend_expression *bits =
+        &input->frontend_output->expressions[value->left];
+    /* A literal same-width bit pattern is a source-derived scalar value, not
+     * runtime ingress. HIR's value-tree verifier rechecks its unsigned width. */
+    return bits->kind == W_SEED_FRONTEND_EXPR_INTEGER &&
+           bits->has_integer_value;
+  }
   if (value->kind == W_SEED_FRONTEND_EXPR_PARENTHESIS ||
       value->kind == W_SEED_FRONTEND_EXPR_UNARY ||
       value->kind == W_SEED_FRONTEND_EXPR_NUMERIC_WIDEN ||
-      value->kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS ||
       value->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS)
     return frontend_float_rounding_source_flat(input, value->left,
                                                depth + 1u);
