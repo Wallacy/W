@@ -731,8 +731,17 @@ fn prepareLease(_ lease: AtlasLease): String {
 }
 
 async fn restricted(_ target: String): String throws AtlasError {
-  let captured = <[copy target]>(name) => name
-  let value = if target == "north" { "day" } else { "night" }
+  let captured = <[copy target]>(name) => {
+    let joined = target + name
+    joined // atlas:value-tail
+  }
+  let value = if target == "north" {
+    let selected = "day"
+    selected // atlas:value-tail
+  } else {
+    let selected = "night"
+    selected // atlas:value-tail
+  }
   let range = 1..<4
   let (lease, ready) = try await pipeline {
     let lease = ovens.acquire(target)
@@ -839,6 +848,11 @@ fn operatorSurface(_ payload: ref any Reflectable) {
   // Bounded and one-sided forms include `...` and `..<`.
   // `>..` and `>..<` are current contract spellings with a Tree-sitter witness gap.
   let shifts = value << other >> bits
+  let signedMinimum: i128 = i128.min
+  let signedMaximum: i128 = i128.max
+  let unsignedMaximum: u128 = u128.max
+  // Selected design syntax; current native lowering does not include i128 shifts.
+  let wideHighBit: i128 = 1_i128 << 126
   let arithmetic = value + other - bits
   let products = value * other / fallback % other @ other
   let power = -2 ** 2
@@ -918,6 +932,10 @@ fn operatorSurface(_ payload: ref any Reflectable) {
   let _ = contained
   let _ = ranges
   let _ = shifts
+  let _ = signedMinimum
+  let _ = signedMaximum
+  let _ = unsignedMaximum
+  let _ = wideHighBit
   let _ = arithmetic
   let _ = products
   let _ = power

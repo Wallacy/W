@@ -93,12 +93,10 @@ recovery. `tree-sitter-parse-only-provider-missing` e
 que ainda não possuem a rota de implementação correspondente. Este campo não
 é uma alegação de implementação.
 
-Mesmo antes do type checker completo, o Atlas não aceita placeholders de valor
-como statements. Um value comum precisa de binding, uso observável ou descarte
-explícito com `let _`; somente um tail real de value block usa o marker local
-`// atlas:value-tail`. O gate rejeita novamente uma variável solta. Calls ainda
-dependem do contrato de retorno declarado, portanto a evidência continua
-honestamente parse-only, não type-checked.
+`// atlas:value-tail` marks only a direct final expression inside a value block.
+The tail rule is the same for single-expression and multi-statement blocks and
+braced closure bodies; it never turns an ordinary function-body tail into an
+implicit return. Atlas evidence remains parse-only, not type-check or execution proof.
 
 Research, reserved, and rejected spellings stay in the companions
 [`reserved.w-reserved.txt`](reserved.w-reserved.txt) and

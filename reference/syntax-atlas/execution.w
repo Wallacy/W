@@ -160,8 +160,17 @@ fn prepareLease(_ lease: AtlasLease): String {
 }
 
 async fn restricted(_ target: String): String throws AtlasError {
-  let captured = <[copy target]>(name) => name
-  let value = if target == "north" { "day" } else { "night" }
+  let captured = <[copy target]>(name) => {
+    let joined = target + name
+    joined // atlas:value-tail
+  }
+  let value = if target == "north" {
+    let selected = "day"
+    selected // atlas:value-tail
+  } else {
+    let selected = "night"
+    selected // atlas:value-tail
+  }
   let range = 1..<4
   let (lease, ready) = try await pipeline {
     let lease = ovens.acquire(target)

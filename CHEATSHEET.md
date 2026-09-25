@@ -533,10 +533,11 @@ the logical width fails; left shift also fails if the mathematical result does
 not fit. Signed right shift is arithmetic and unsigned right shift is logical:
 
 The exact family witness is
-[`shifts.w`](compiler/seed-c/fixtures/shifts.w). Named
+[`shifts.w`](compiler/seed-c/fixtures/shifts.w). W-392 remains open for named
 numeric/shift policies, power, rotations, remaining bit primitives, SIMD,
-`usize`/`isize`, 128-bit integers, non-x86-64 alias widths, stable ABI/FFI,
-other targets, and equivalent-runtime performance remain open under W-392.
+`usize`/`isize`, non-x86-64 alias widths, stable ABI/FFI, other targets, and
+equivalent-runtime performance. Full `i128`/`u128` arithmetic and shift lowering
+are a separate W-1651 implementation gap.
 
 ## Numeric policies and bit primitives
 
@@ -631,6 +632,24 @@ fn numericPolicies(): (u8, u8, Bool, UInt) {
 
 test "numeric policies name overflow and representation" for numericPolicies {
   expect numericPolicies() == (4, 255, true, 7)
+}
+```
+
+W-1651 selects `i128` and `u128` as fixed-width core identities. Use the
+existing named extrema `i128.min`, `i128.max`, and `u128.max` for boundary
+examples instead of giant decimal spellings. Once 128-bit shifts are lowered,
+`1_i128 << 126` is a readable, well-typed derived value. The snippet is a
+design example only; it does not claim current native lowering for wide shifts
+or arithmetic.
+
+<!-- w-example role=logical-contract -->
+```w
+fn wideBoundaries(): (i128, i128, u128, i128) {
+  let minimum: i128 = i128.min
+  let maximum: i128 = i128.max
+  let unsignedMaximum: u128 = u128.max
+  let highestPositivePower = 1_i128 << 126
+  return (minimum, maximum, unsignedMaximum, highestPositivePower)
 }
 ```
 
@@ -1412,6 +1431,31 @@ test "capture lists preserve ownership modes" for captures {
 ```
 
 ## Control flow and patterns
+
+The `if` expression joins the values from its branches. In a value block, the
+last direct expression yields the result whether it stands alone or follows
+other statements; a trailing semicolon instead discards it and yields `()`. A
+braced closure body follows the same tail rule, while an unbraced closure body
+yields its expression. Function bodies are not value blocks: a non-Unit
+function result still requires explicit `return` (except for the declared
+`: self` contract).
+
+<!-- w-example role=logical-contract -->
+```w
+fn chooseSeats(isOpen: Bool): i64 {
+  let choose: some fn(Bool): i64 = (flag) => {
+    let selected = if flag {
+      let open = 5 + 1
+      open
+    } else {
+      let closed = 5 - 1
+      closed
+    }
+    selected
+  }
+  return choose(isOpen)
+}
+```
 
 <!-- w-example role=executable use=Signal,classify,accumulate,nextAvailableSeats,adjustedSeats,branchAdjustedSeats,multiBranchAdjustedState,availability,sign,firstAt observable=value -->
 ```w

@@ -3191,8 +3191,8 @@
           "digest": "sha256:b5d5da66b2d0a1552792cb8020542dc526707a6a7b8ed2b1a0392da08e4e23ae"
         }
       ],
-      "snippetDigest": "sha256:f233efc6293eff6b1c56fc1156b709bd87930afd1223b9185e91769812cb5ac9",
-      "snippetBytes": 1498
+      "snippetDigest": "sha256:0297446f3279adc19b62433c839ad45695fa667982136983b6cfa1ab7af721f2",
+      "snippetBytes": 1669
     },
     {
       "id": "operators",
@@ -3219,14 +3219,14 @@
         "18"
       ],
       "sourceRefs": [],
-      "snippetDigest": "sha256:89bd8daa9148feca9d602100b0f7c8dd0139bb3818258e2fecadd9de1bf1c1e6",
-      "snippetBytes": 6202
+      "snippetDigest": "sha256:254a128f1039b95b1361f31ceba39a10bdc27c092622d27ae94b8a1d48b078f7",
+      "snippetBytes": 6534
     },
     {
       "id": "stream-and-channel",
       "file": "execution.w",
       "order": 13,
-      "line": 215,
+      "line": 224,
       "title": "Streams, channels, and directional contracts",
       "family": "streams",
       "designStatus": "current",
@@ -3280,7 +3280,7 @@
       "id": "module-run-entry",
       "file": "execution.w",
       "order": 15,
-      "line": 244,
+      "line": 253,
       "title": "Explicit module-run entry",
       "family": "entry",
       "designStatus": "current",
@@ -3374,6 +3374,6 @@
   ],
   "generated": {
     "coverage": "SYNTAX-COVERAGE.md",
-    "coverageDigest": "sha256:503e13b283b3371739513cdf2030d0921223eda8942891831e05b1bf2ace1b6e"
+    "coverageDigest": "sha256:3a6fce3fb5ee60ad88d888ad73c2c0ca53fd903605d6ea5294a0d55f9298bf07"
   }
 }

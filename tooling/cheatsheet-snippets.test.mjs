@@ -32,11 +32,23 @@ describe("cheatsheet snippet checker", () => {
   test("accepts the current extraction and inventory", () => {
     const result = validateCheatsheetText(cheatsheet, { repositoryRoot })
     expect(result.errors).toEqual([])
-    expect(result.counts.w).toBe(45)
+    expect(result.counts.w).toBe(47)
     expect(result.counts.source).toBe(0)
     expect(result.counts.composed).toBe(0)
     expect(result.counts.contrafactual).toBe(0)
     expect(result.counts["manifest-fragment"]).toBe(4)
+  })
+
+  test("wide integer guidance uses canonical extrema and discloses the shift gap", () => {
+    expect(cheatsheet).toContain("`i128.min`, `i128.max`, and `u128.max`")
+    expect(cheatsheet).toContain("`1_i128 << 126`")
+    expect(cheatsheet).toContain("design example only")
+  })
+
+  test("if and closure tails are distinct from implicit function returns", () => {
+    expect(cheatsheet).toContain("last direct expression yields the result")
+    expect(cheatsheet).toContain("braced closure body follows the same tail rule")
+    expect(cheatsheet).toContain("still requires explicit `return`")
   })
 
   test("rejects an unclosed fence", () => {

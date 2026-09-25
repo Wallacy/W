@@ -85,6 +85,25 @@ describe("syntax atlas coverage checker", () => {
     expect(() => validateAtlasValueStatements("fixture.w", "fn f() {\n  value // atlas:value-tail\n}\n", tree)).not.toThrow();
   });
 
+  test("value-block witnesses cover multi-statement if and closure tails plus rejected ambiguities", async () => {
+    const execution = await Bun.file("reference/syntax-atlas/execution.w").text();
+    const operators = await Bun.file("reference/syntax-atlas/operators.w").text();
+    const rejected = await Bun.file("reference/syntax-atlas/rejected.w-rejected.txt").text();
+    expect(execution).toContain('let value = if target == "north" {');
+    expect(execution).toContain("joined // atlas:value-tail");
+    expect(execution).toContain("selected // atlas:value-tail");
+    expect(operators).toContain("i128.min");
+    expect(operators).toContain("i128.max");
+    expect(operators).toContain("u128.max");
+    expect(operators).toContain("1_i128 << 126");
+    for (const witness of [
+      "W-PARSE-0021: non-Unit `if` expressions require `else`",
+      "W-TYPE-0120: branches have no unique safe join",
+      "function bodies do not return their tail implicitly",
+      "the semicolon makes the closure block yield `()`",
+    ]) expect(rejected).toContain(witness);
+  });
+
   test("rejects a missing required accepted variant", () => {
     const errors = errorsFor((candidate) => { candidate.variants = candidate.variants.filter((variant) => variant.id !== REQUIRED_VARIANT_IDS[0]); });
     expect(errors.some((error) => error.includes("accepted variant inventory is stale"))).toBe(true);
