@@ -209,16 +209,21 @@ Cada aplicação tem owner type, head, envelope, argumentos ordenados e status d
 binding; cada argumento preserva ordinal, span, label, parâmetro, kind, o índice
 de type ou `ConstValue` e o índice sentinel/relacionado de `TypedConstExpr`. O
 root liga à aplicação por `generic_application_index`.
-`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-77`. Version 77 admits
-equal-type scalar-if joins for the designed `i128` and `u128` identities and
-preserves exact integer-literal magnitudes in the existing 16-byte
-little-endian expression field. The frontend covers signed maximum/minimum,
-unsigned maximum, decimal and hexadecimal spellings, immutable explicitly
-typed bindings, and scalar-if arms whose values exceed `u64`. Out-of-range
-values, negative `u128`, wide arithmetic, mutation and conversions still fail
-closed; native lowering, ABI/layout and serialization remain unsupported. Its
-`benchmarkDisposition` is `compiler-lifecycle`; no public/native benchmark
-row is added.
+`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-78`. Version 78 admits
+same-identity `i128`/`u128` equality and ordering comparisons, `&`, `|`, `^`,
+and unary `~`, alongside the version-77 equal-type scalar-if joins and exact
+16-byte little-endian literal magnitudes. The verified-HIR layer preserves
+both signed and unsigned comparison identity and the exact wide operation
+family. Mixed signedness/width, checked `+`, `-`, `*`, `/`, `%`, shifts,
+mutation, and conversions remain closed. This does not yet reach a Native0
+artifact: the process selector rejects the helper-based witness after HIR
+verification; its entry facts are `direct_entry=ABSENT` and
+`suspension=MAY`. ProductClosure's current downstream type/value shape also
+rejects the wide operation records; this slice provides no positive
+ProductClosure proof. No public executable fixture or runtime oracle is
+claimed; native lowering, ABI/layout, and serialization remain unsupported.
+The package has `compiler-lifecycle` benchmark disposition and no
+public/native benchmark row.
 
 Version 75 adds a discriminated local-struct initializer identity without
 growing the public type, expression, or argument records. The bounded frontend slice accepts an
@@ -1224,7 +1229,7 @@ than borrowing `float_bits`.
 
 ### Exact i128/u128 identity and scalar-if value flow in verified HIR0
 
-HIR0 schema `w-seed-hir0-100` carries canonical signed `i128` and unsigned
+HIR0 schema `w-seed-hir0-101` carries canonical signed `i128` and unsigned
 `u128` type identities and exact literal magnitude bytes from the seed
 frontend. Each literal owns exactly 16 little-endian bytes; those bytes are
 included in the semantic digest and independently range-checked by the HIR
@@ -1232,13 +1237,16 @@ verifier. Equal-type scalar-if joins for both widths preserve those values
 through caller-owned branch edges and join block arguments, including values
 above `u64`. The signed minimum uses unary negation directly over its exact
 `2^127` magnitude. Negative `i128` literals use this same direct-literal unary
-form; general unary/arithmetic operations are not admitted. Function
-parameters/returns and immutable bindings preserve the signedness and
-128-bit width. This is compiler-lifecycle HIR correctness evidence only: wide
-arithmetic, conversions, native/MLIR lowering, layout/ABI, and serialization
-remain outside this slice. Run
-`bun tooling/check-hir0.mjs` for the focused verifier and adversarial mutation
-gate.
+form. The verified core additionally admits all six comparisons and `&`, `|`,
+`^`, and unary `~` for exactly matching `i128` or `u128` identities; each
+operation retains a canonical direct-width HIR value. Function parameters,
+returns, immutable bindings, and helper-result joins preserve signedness and
+128-bit width. Checked arithmetic, shifts, conversions, layout/ABI, and
+serialization remain outside this slice. Process selection currently rejects
+the helper-based family witness before MLIR emission, so no native artifact or
+runtime result is claimed. This is compiler-lifecycle HIR correctness
+evidence only. Run `bun tooling/check-hir0.mjs` for the focused verifier and
+adversarial mutation gate.
 
 [`flat-value-struct-pair.w`](fixtures/flat-value-struct-pair.w) uses one local,
 immutable nominal value struct with two `i64` fields. Its identity is the

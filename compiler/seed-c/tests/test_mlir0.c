@@ -191,6 +191,7 @@ static bool process_input_frontend_mode;
 static bool process_input_float_rounding_mode;
 static bool process_input_float_rounding_bits_mode;
 static bool process_input_checked_integer_helper_mode;
+static bool process_input_wide_integer_core_mode;
 static void configure_process_external(void);
 static void configure_process_input_external(void);
 static bool resolve_process_import(void);
@@ -623,7 +624,8 @@ static bool lower_process_hir(const uint8_t *source_bytes,
       (process_input_frontend_mode
            ? (process_input_float_rounding_mode
                   ? (process_input_float_rounding_bits_mode ? 12u : 11u)
-                  : (process_input_checked_integer_helper_mode ? 10u : 8u))
+                  : (process_input_checked_integer_helper_mode ? 10u : 8u)) +
+                 (process_input_wide_integer_core_mode ? 2u : 0u)
            : 7u) +
       (has_panic ? 1u : 0u);
   CHECK(counts.external_modules == 1u &&
@@ -657,11 +659,12 @@ static bool lower_process_input_hir(const uint8_t *source_bytes,
   return fixture.hir_program.external_module_count == 1u &&
          fixture.hir_program.external_symbol_count == 7u &&
          fixture.hir_program.type_count ==
-             (float_rounding
-                  ? (float_rounding_bits ? 12u : 11u)
-                  : (process_input_checked_integer_helper_mode
-                         ? 10u
-                         : (has_never ? 9u : 8u)));
+             ((float_rounding
+                   ? (float_rounding_bits ? 12u : 11u)
+                   : (process_input_checked_integer_helper_mode
+                          ? 10u
+                          : (has_never ? 9u : 8u))) +
+              (process_input_wide_integer_core_mode ? 2u : 0u));
 }
 
 static w_seed_mlir0_input mlir_input(void) {
@@ -1978,6 +1981,56 @@ static bool test_process_arguments_count_comparison_mlir(void) {
                sizeof(valid_result_snapshot)) == 0);
   *mutable_call_argument = saved_call_argument;
   CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_i128_u128_native_core_selection_boundary(void) {
+  static const uint8_t source[] =
+      "import std.process\n"
+      "fn chooseWide(zeroArgs: Bool): i128 { return if zeroArgs { "
+      "-170141183460469231731687303715884105728_i128 } else { -1_i128 } }\n"
+      "fn wideCore(zeroArgs: Bool): i128 {\n"
+      "  let signedValue = chooseWide(zeroArgs: zeroArgs)\n"
+      "  let signedLess = signedValue < 0_i128\n"
+      "  let signedMask: i128 = 1_i128\n"
+      "  let signedBits = ((signedValue & signedMask) | 1_i128) ^ 1_i128\n"
+      "  let signedNotTwice = ~(~signedValue)\n"
+      "  let unsignedValue: u128 = "
+      "340282366920938463463374607431768211455_u128\n"
+      "  let unsignedGreater = unsignedValue > 2_u128\n"
+      "  let unsignedMask: u128 = 1_u128\n"
+      "  let unsignedBits = ((unsignedValue & unsignedMask) | 1_u128) ^ "
+      "1_u128\n"
+      "  let unsignedNotTwice = ~(~unsignedValue)\n"
+      "  let checks = signedLess && unsignedGreater && "
+      "signedBits == 0_i128 && signedNotTwice == signedValue && "
+      "unsignedBits == 0_u128 && unsignedNotTwice == unsignedValue\n"
+      "  return if checks { signedValue } else { 0_i128 }\n"
+      "}\n"
+      "async fn run(args: Arguments, ctx: Context): ExitCode {\n"
+      "  let zeroArgs = args.count == 0\n"
+      "  let signedValue = wideCore(zeroArgs: zeroArgs)\n"
+      "  if signedValue < 0_i128 { print(\"wide core\") return .success } else { "
+      "print(\"wide core failure\") return .failure(1) }\n"
+      "}\nentry(run)\n";
+  process_input_wide_integer_core_mode = true;
+  const bool lowered = lower_process_input_hir(source, sizeof(source) - 1u);
+  process_input_wide_integer_core_mode = false;
+  CHECK(lowered);
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  CHECK(fixture.hir_program.entry_count == 1u);
+  const uint32_t entry_function =
+      fixture.hir_program.entries[0].target_function;
+  CHECK(entry_function < fixture.hir_program.function_count);
+  const w_seed_hir0_function *entry =
+      &fixture.hir_program.functions[entry_function];
+  CHECK(entry->direct_entry == W_SEED_HIR0_DIRECT_ENTRY_ABSENT &&
+        entry->suspension == W_SEED_HIR0_SUSPENSION_MAY);
+
+  w_seed_native_subset0_process selection;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_UNSUPPORTED);
   return true;
 }
 
@@ -9931,6 +9984,7 @@ int main(int argc, char **argv) {
   if (!test_process_float_rounding_join_mlir()) return 1;
   if (!test_process_hir_is_closed_to_mlir()) return 1;
   if (!test_process_arguments_count_comparison_mlir()) return 1;
+  if (!test_i128_u128_native_core_selection_boundary()) return 1;
   if (!test_process_arguments_value_lane_mlir()) return 1;
   if (!test_process_arguments_count_ordered_mlir()) return 1;
   if (!test_enum_switch_mlir()) return 1;

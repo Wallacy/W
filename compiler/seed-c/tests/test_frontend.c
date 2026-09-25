@@ -6645,6 +6645,15 @@ static bool test_i128_literal_frontend(void) {
       "fn unsignedOctal(): u128 { return 0o17_777_u128 }\n"
       "fn echoSigned(value: i128): i128 { return value }\n"
       "fn echoUnsigned(value: u128): u128 { return value }\n"
+      "fn wideBits(value: u128, mask: u128): u128 { "
+      "let low = value & mask let joined = low | mask "
+      "let toggled = joined ^ mask return ~toggled }\n"
+      "fn compareSigned(left: i128, right: i128): Bool { "
+      "return left == right && left != right && left < right && "
+      "left <= right && left > right && left >= right }\n"
+      "fn compareUnsigned(left: u128, right: u128): Bool { "
+      "return left == right && left != right && left < right && "
+      "left <= right && left > right && left >= right }\n"
       "fn boundUnsigned(): u128 { let wide: u128 = "
       "0x80000000000000000000000000000000_u128 return wide }\n"
       "fn maxU8(): u8 { return 255_u8 }\n"
@@ -6845,12 +6854,23 @@ static bool test_i128_literal_frontend(void) {
       "fn bad(): i128 { return 1_i129 } entry { }\n",
       "fn add(left: i128, right: i128): i128 { return left + right } "
       "entry { }\n",
-      "fn bits(left: u128, right: u128): u128 { return left ^ right } "
+      "fn sub(left: i128, right: i128): i128 { return left - right } "
+      "entry { }\n",
+      "fn multiply(left: u128, right: u128): u128 { return left * right } "
+      "entry { }\n",
+      "fn divide(left: u128, right: u128): u128 { return left / right } "
+      "entry { }\n",
+      "fn remainder(left: u128, right: u128): u128 { return left % right } "
       "entry { }\n",
       "fn shift(value: i128, count: u64): i128 { return value << count } "
       "entry { }\n",
+      "fn rightShift(value: u128, count: u64): u128 { return value >> count } "
+      "entry { }\n",
+      "fn power(value: i128, count: u64): i128 { return value ** count } "
+      "entry { }\n",
+      "fn mixed(left: i128, right: u128): Bool { return left == right } "
+      "entry { }\n",
       "fn negate(value: i128): i128 { return -value } entry { }\n",
-      "fn invert(value: u128): u128 { return ~value } entry { }\n",
       "fn assign(value: i128): i128 { var current: i128 = value "
       "current = value return current } entry { }\n",
       "fn widen(value: i64): i128 { return value } entry { }\n",
@@ -8187,7 +8207,7 @@ static bool test_f32_scalar_projection(void) {
 }
 
 static bool test_numeric_widening_frontend(void) {
-  CHECK(strcmp(W_SEED_FRONTEND_SCHEMA_VERSION, "w-seed-frontend-77") == 0);
+  CHECK(strcmp(W_SEED_FRONTEND_SCHEMA_VERSION, "w-seed-frontend-78") == 0);
   typedef struct {
     const char *source_name;
     bool source_is_float;

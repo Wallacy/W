@@ -1460,6 +1460,9 @@ static bool product_value_kind_supported(w_seed_hir0_value_kind kind) {
       return false;
     case W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON:
       return true;
+    case W_SEED_HIR0_VALUE_BINARY_INTEGER_128:
+    case W_SEED_HIR0_VALUE_UNARY_BITWISE_INTEGER_128:
+      return false;
   }
   return false;
 }

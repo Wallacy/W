@@ -431,11 +431,19 @@ The remaining numeric order is: complete runtime W-389/W-392 policies and
 typed failure; close target-width ABI/endian/serialization evidence; carry the
 now source-backed `i128`/`u128` identities and 16-byte literals through
 operations, native lowering and serialization; then strict f16/bf16/f128. The
-current bounded compiler-lifecycle increment establishes caller-owned verified
+current bounded compiler-lifecycle increments establish caller-owned verified
 HIR identity/value flow and equal-type scalar-if joins for both `i128` and
-`u128`, including arm values above `u64`; it does not enable wide arithmetic,
-conversions, ABI/layout, native lowering or serialization. Configured f4/f6/f8 and tensor packing
-remain storage/compute work, while BigInt/BigFloat wait for ownership,
+`u128`, including arm values above `u64`, then admit same-identity comparisons
+and bitwise operations in verified HIR. The second increment does not enable
+checked arithmetic, shifts, conversions, ABI/layout, serialization, or a
+Native0/MLIR artifact: the helper-based process witness is rejected by the
+existing process selector after HIR verification, with its entry facts
+`direct_entry=ABSENT` and `suspension=MAY`; ProductClosure's current
+downstream type/value shape also rejects these wide operation records. The
+next prerequisite is a verified, non-suspending helper-call boundary for the
+current process route; do not widen the bounded process CFG to bypass it.
+Configured f4/f6/f8 and tensor
+packing remain storage/compute work, while BigInt/BigFloat wait for ownership,
 allocator, OOM, and generic-value foundations. The bounded
 `Arguments.count -> i8` witness now feeds one checked runtime expression
 containing `+`, `-`, `*`, `/`, and `%` on public Windows and Linux/WSL product
@@ -855,9 +863,16 @@ physical scheduler experiments:
    do not block rank-2 functions or rank-3 general CFG that they now need.
    W-1651 closes the design identity of i128/u128, the fixed
    arithmetic float family through f128, configured f4/f6/f8 AI elements, and
-   fixed/dynamic BigFloat. Frontend76 now adds bounded implementation evidence
-   for exact i128/u128 type identities, 16-byte literal magnitudes, boundary
-   rejection and immutable binding only. After the
+   fixed/dynamic BigFloat. Frontend76 added exact i128/u128 type identities,
+   16-byte literal magnitudes, boundary rejection, and immutable binding.
+   Frontend78/HIR101 add same-identity comparisons and bitwise operations to a
+   verified-HIR-only family slice, including all six comparisons, `&`, `|`,
+   `^`, unary `~`, exact signed-minimum construction, and wide helper-result
+   joins. Checked arithmetic, shifts, conversions, ABI/layout, serialization,
+   and native execution remain open. The process selector rejects the current
+   helper-based source shape because the entry's direct-entry/suspension facts
+   do not meet its existing boundary; this is not permission to widen the
+   bounded process CFG. After the
    current 64-bit/f32/f64 packages, rank 1 takes only fixed scalar work:
    i128/u128 and strict f16/bf16/f128 semantics, including target rejection or
    an explicitly permitted W-owned fallback. Configured f4/f6/f8 remain

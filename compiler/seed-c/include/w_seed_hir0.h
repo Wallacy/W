@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-100"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-101"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -256,6 +256,11 @@ typedef enum {
   /* The wide unary form admitted for negative i128 literal spellings:
    * unary negation directly over a 16-byte integer literal, not arithmetic. */
   W_SEED_HIR0_VALUE_UNARY_INTEGER_128,
+  /* Direct i128/u128 bitwise binary operation. Its physical value is i128,
+   * never either of the legacy i64/u64 scalar carriers. */
+  W_SEED_HIR0_VALUE_BINARY_INTEGER_128,
+  /* Direct i128/u128 bitwise complement over an arbitrary wide operand. */
+  W_SEED_HIR0_VALUE_UNARY_BITWISE_INTEGER_128,
 } w_seed_hir0_value_kind;
 
 typedef enum {

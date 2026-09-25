@@ -5127,9 +5127,9 @@ static bool integer_width_supported(uint16_t width) {
   return width == 8u || width == 16u || width == 32u || width == 64u;
 }
 
-/* i128/u128 are admitted as scalar identities and literal domains here, but
- * the seed's executable integer policies still use the narrower physical
- * carrier. Keep those operation gates separate from type normalization. */
+/* i128/u128 have a small native operation family, but never pass through the
+ * narrower integer policy's i64 carrier. Keep those operation gates separate
+ * from type normalization. */
 static bool integer_type_identity_width_supported(uint16_t width) {
   return integer_width_supported(width) || width == 128u;
 }
@@ -17662,7 +17662,8 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
     const bool bitwise_integer_supported =
         nested.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
         (nested.type.bit_width == 0u ||
-         integer_width_supported(nested.type.bit_width));
+         integer_width_supported(nested.type.bit_width) ||
+         nested.type.bit_width == 128u);
     const bool signed_numeric =
         nested.type.kind == W_SEED_FRONTEND_TYPE_FLOAT ||
         signed_integer_supported;
@@ -17989,14 +17990,29 @@ static bool expression_append_binary(frontend_expression_parser *parser,
       text_equal(operator_text, "==") || text_equal(operator_text, "!=") ||
       text_equal(operator_text, "<") || text_equal(operator_text, "<=") ||
       text_equal(operator_text, ">") || text_equal(operator_text, ">=");
-  const bool unimplemented_wide_integer_operand =
+  const bool wide_integer_operand =
       (left->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
        left->type.bit_width == 128u) ||
       (right->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
        right->type.bit_width == 128u);
-  if (unimplemented_wide_integer_operand) {
-    /* Type and literal identity is known, but no i128/u128 operation or
-     * conversion is admitted by this frontend-only package. */
+  const bool wide_comparison =
+      text_equal(operator_text, "==") || text_equal(operator_text, "!=") ||
+      text_equal(operator_text, "<") || text_equal(operator_text, "<=") ||
+      text_equal(operator_text, ">") || text_equal(operator_text, ">=");
+  const bool wide_bitwise = text_equal(operator_text, "&") ||
+                            text_equal(operator_text, "|") ||
+                            text_equal(operator_text, "^");
+  const bool same_wide_integer_type =
+      left->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+      right->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+      left->type.bit_width == 128u && right->type.bit_width == 128u &&
+      left->type.is_signed == right->type.is_signed &&
+      frontend_type_equal(parser->context, left->type, right->type);
+  if (wide_integer_operand &&
+      (!same_wide_integer_type || (!wide_comparison && !wide_bitwise))) {
+    /* Native wide core is deliberately exact-type only: comparisons and
+     * bitwise operations use direct i128 values. Checked arithmetic,
+     * conversions, shifts, power, and mixed-width coercions stay closed. */
     supported = false;
   } else if ((left_float || right_float) &&
       (!arithmetic_or_comparison || !float_operator ||
