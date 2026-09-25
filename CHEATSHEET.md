@@ -1520,6 +1520,7 @@ test "control flow returns an observable value" for accumulate {
   expect sign(value: -5) == -1
   expect sign(value: 0) == 0
   expect sign(value: 7) == 1
+  expect firstAt(limit: 5) == 13
 }
 ```
 
