@@ -516,9 +516,16 @@ It is a `public-end-to-end` workload, not a linkage or transient-internal lane.
 Correctness executes zero user arguments, one empty user argument, and two
 ordinary user arguments before timing. The zero- and one-argument cases print
 `Argument count 0\n` and `Argument count 1\n`; the two-argument case prints
-`Exactly two arguments\n`. All cases exit `0` and write no stderr. The timed
+the literal `Exactly two arguments\n` (not `Argument count 2\n`). All cases
+exit `0` and write no stderr. The timed
 vector is `[alpha, beta]`. W, C23, and Rust 2024 use the same Windows x64 MSVC
 target and the shared release profiles.
+
+The current Windows W lanes for `process-arguments-count` and
+`process-arguments-ordering` retain current artifact-size and compile-latency
+cells only. Their cold-launch samples were diagnostic and are not published as
+live runtime metrics; the catalog declares no Linux/WSL source lanes for these
+workloads.
 
 #### Private process-handler lifecycle executable measurements
 
