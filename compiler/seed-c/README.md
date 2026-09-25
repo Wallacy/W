@@ -209,15 +209,16 @@ Cada aplicação tem owner type, head, envelope, argumentos ordenados e status d
 binding; cada argumento preserva ordinal, span, label, parâmetro, kind, o índice
 de type ou `ConstValue` e o índice sentinel/relacionado de `TypedConstExpr`. O
 root liga à aplicação por `generic_application_index`.
-`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-76`. Version 76 admits
-the designed `i128` and `u128` identities and preserves exact integer-literal
-magnitudes in the existing 16-byte little-endian expression field. It covers
-signed maximum/minimum, unsigned maximum, decimal and hexadecimal spellings,
-and immutable explicitly typed bindings. Out-of-range values, negative
-`u128`, wide arithmetic, mutation and conversions fail closed; verified HIR,
-native lowering, ABI/layout and serialization remain unsupported. Its
-`benchmarkDisposition` is `compiler-lifecycle`; this frontend-only slice adds
-no public/native benchmark row.
+`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-77`. Version 77 admits
+equal-type scalar-if joins for the designed `i128` and `u128` identities and
+preserves exact integer-literal magnitudes in the existing 16-byte
+little-endian expression field. The frontend covers signed maximum/minimum,
+unsigned maximum, decimal and hexadecimal spellings, immutable explicitly
+typed bindings, and scalar-if arms whose values exceed `u64`. Out-of-range
+values, negative `u128`, wide arithmetic, mutation and conversions still fail
+closed; native lowering, ABI/layout and serialization remain unsupported. Its
+`benchmarkDisposition` is `compiler-lifecycle`; no public/native benchmark
+row is added.
 
 Version 75 adds a discriminated local-struct initializer identity without
 growing the public type, expression, or argument records. The bounded frontend slice accepts an
@@ -1221,19 +1222,21 @@ component records retain the two `i64` types, and tuple construction owns two
 child values in source order. Tuple projection has an explicit ordinal rather
 than borrowing `float_bits`.
 
-### Exact i128/u128 literal identity in verified HIR0
+### Exact i128/u128 identity and scalar-if value flow in verified HIR0
 
-HIR0 schema `w-seed-hir0-99` carries canonical signed `i128` and unsigned
-`u128` type identities and exact literal magnitude bytes from the existing seed
+HIR0 schema `w-seed-hir0-100` carries canonical signed `i128` and unsigned
+`u128` type identities and exact literal magnitude bytes from the seed
 frontend. Each literal owns exactly 16 little-endian bytes; those bytes are
 included in the semantic digest and independently range-checked by the HIR
-verifier. The signed minimum uses unary negation directly over its exact
-`2^127` magnitude. Negative `i128` literals use this same
-direct-literal unary form; general unary/arithmetic operations are not admitted.
-Function parameters/returns and immutable bindings preserve the signedness and
+verifier. Equal-type scalar-if joins for both widths preserve those values
+through caller-owned branch edges and join block arguments, including values
+above `u64`. The signed minimum uses unary negation directly over its exact
+`2^127` magnitude. Negative `i128` literals use this same direct-literal unary
+form; general unary/arithmetic operations are not admitted. Function
+parameters/returns and immutable bindings preserve the signedness and
 128-bit width. This is compiler-lifecycle HIR correctness evidence only: wide
-arithmetic, conversions, native/MLIR lowering, layout/ABI, and i128/u128
-scalar-if source support remain outside this slice. Run
+arithmetic, conversions, native/MLIR lowering, layout/ABI, and serialization
+remain outside this slice. Run
 `bun tooling/check-hir0.mjs` for the focused verifier and adversarial mutation
 gate.
 

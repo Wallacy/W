@@ -19513,7 +19513,8 @@ static bool scalar_if_type(frontend_simple_type type) {
          (type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
           !text_equal(type.spelling, "usize") &&
           (type.bit_width == 8u || type.bit_width == 16u ||
-           type.bit_width == 32u || type.bit_width == 64u)) ||
+           type.bit_width == 32u || type.bit_width == 64u ||
+           type.bit_width == 128u)) ||
          type_is_float(type);
 }
 

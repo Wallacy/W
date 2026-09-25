@@ -4388,6 +4388,15 @@ static bool frontend_type_is_scalar(const w_seed_frontend_type *type) {
           frontend_type_is_usize(type));
 }
 
+/* Wide integers participate in exact scalar-if identity and value flow only.
+ * Keep them out of the general scalar gates used by calls, switches, and the
+ * existing executable integer operations. */
+static bool frontend_type_is_scalar_if_value(
+    const w_seed_frontend_type *type) {
+  return frontend_type_is_scalar(type) ||
+         frontend_type_is_wide_integer_identity(type);
+}
+
 static bool frontend_local_enum_case_value_ok(
     const w_seed_hir0_input *input, const w_seed_frontend_expression *value) {
   /* collect() validates all enum declarations and case partitions once before
@@ -4576,7 +4585,7 @@ static bool frontend_enum_if_arm_value_ok(
 static bool frontend_scalar_if_tree_ok(
     const w_seed_hir0_input *input, size_t module_index,
     size_t function_index, size_t document_index, uint32_t root_index,
-    bool allow_logical, bool allow_fixed_integer_operand, size_t depth) {
+    bool allow_logical, bool allow_integer_leaf, size_t depth) {
   if (input == NULL || input->frontend_output == NULL ||
       input->frontend_result == NULL || depth > W_SEED_HIR0_MAX_NESTING ||
       root_index == W_SEED_FRONTEND_NONE ||
@@ -4649,13 +4658,18 @@ static bool frontend_scalar_if_tree_ok(
     const w_seed_frontend_type *result_type =
         &output->types[value->inferred_type];
     const bool integer_result = frontend_expression_is_integer(output, value);
+    const bool wide_integer_result =
+        frontend_expression_is_wide_integer_identity(output, value);
+    const bool scalar_integer_result = integer_result || wide_integer_result;
     const bool scalar_result =
-        (integer_result ||
+        (scalar_integer_result ||
          frontend_expression_is_bool(output, value) ||
          frontend_expression_is_float(output, value)) &&
-        frontend_type_is_scalar(result_type) &&
-        frontend_type_is_scalar(&output->types[then_value->inferred_type]) &&
-        frontend_type_is_scalar(&output->types[else_value->inferred_type]) &&
+        frontend_type_is_scalar_if_value(result_type) &&
+        frontend_type_is_scalar_if_value(
+            &output->types[then_value->inferred_type]) &&
+        frontend_type_is_scalar_if_value(
+            &output->types[else_value->inferred_type]) &&
         frontend_supported_types_equal_for_input(
             input, result_type, &output->types[then_value->inferred_type]) &&
         frontend_supported_types_equal_for_input(
@@ -4663,10 +4677,10 @@ static bool frontend_scalar_if_tree_ok(
             &output->types[else_value->inferred_type]) &&
         frontend_scalar_if_tree_ok(input, module_index, function_index,
                                    document_index, value->right, false,
-                                   integer_result, depth + 1u) &&
+                                   scalar_integer_result, depth + 1u) &&
         frontend_scalar_if_tree_ok(input, module_index, function_index,
                                    document_index, value->else_expression,
-                                   false, integer_result, depth + 1u);
+                                   false, scalar_integer_result, depth + 1u);
     if (scalar_result) return true;
 
     if (!frontend_local_enum_type_supported(input, result_type) ||
@@ -4683,7 +4697,7 @@ static bool frontend_scalar_if_tree_ok(
                value->else_expression, value->inferred_type, depth + 1u);
   }
   if (value->kind == W_SEED_FRONTEND_EXPR_IMPLICIT_INTEGER_WIDEN) {
-    if (!allow_fixed_integer_operand ||
+    if (!allow_integer_leaf ||
         value->left == W_SEED_FRONTEND_NONE ||
         (size_t)value->left >= input->frontend_result->written.expressions ||
         value->right != W_SEED_FRONTEND_NONE ||
@@ -4805,17 +4819,19 @@ static bool frontend_scalar_if_tree_ok(
            W_SEED_FRONTEND_NONE &&
            frontend_scalar_if_tree_ok(input, module_index, function_index,
                                       document_index, value->left,
-                                      allow_logical,
-                                      allow_fixed_integer_operand,
+                                      allow_logical, allow_integer_leaf,
                                       depth + 1u);
   if (value->kind == W_SEED_FRONTEND_EXPR_UNARY) {
     const bool logical_not = text_is(value->operator_text, "!");
     const bool numeric_negate = text_is(value->operator_text, "-");
     const bool bit_not = text_is(value->operator_text, "~");
+    const bool wide_integer_negate =
+        frontend_wide_integer_literal_negate_ok(input, value);
     return ((logical_not && frontend_expression_is_bool(output, value)) ||
             (numeric_negate &&
              (frontend_expression_is_signed_integer(output, value) ||
-              frontend_expression_is_float(output, value))) ||
+              frontend_expression_is_float(output, value) ||
+              wide_integer_negate)) ||
             (bit_not && frontend_expression_is_integer(output, value))) &&
            !value->has_bool_value && !value->has_integer_value &&
            !value->has_float_value &&
@@ -4832,7 +4848,10 @@ static bool frontend_scalar_if_tree_ok(
              (frontend_expression_is_signed_integer(
                   output, &output->expressions[value->left]) ||
               frontend_expression_is_float(
-                  output, &output->expressions[value->left])) &&
+                  output, &output->expressions[value->left]) ||
+              (wide_integer_negate &&
+               frontend_expression_is_wide_integer_identity(
+                   output, &output->expressions[value->left]))) &&
              frontend_supported_types_equal_for_input(
                  input, &output->types[value->inferred_type],
                  &output->types[output->expressions[value->left]
@@ -4846,9 +4865,19 @@ static bool frontend_scalar_if_tree_ok(
                                     .inferred_type]))) &&
            frontend_scalar_if_tree_ok(input, module_index, function_index,
                                       document_index, value->left,
-                                      allow_logical, false, depth + 1u);
+                                      allow_logical, wide_integer_negate,
+                                      depth + 1u);
   }
   if (value->kind == W_SEED_FRONTEND_EXPR_BINARY) {
+    if (value->left == W_SEED_FRONTEND_NONE ||
+        value->right == W_SEED_FRONTEND_NONE ||
+        (size_t)value->left >= input->frontend_result->written.expressions ||
+        (size_t)value->right >= input->frontend_result->written.expressions ||
+        frontend_expression_is_wide_integer_identity(
+            output, &output->expressions[value->left]) ||
+        frontend_expression_is_wide_integer_identity(
+            output, &output->expressions[value->right]))
+      return false;
     if (frontend_usize_count_comparison_ok(
             input, module_index, function_index, document_index, value))
       return true;
@@ -4881,7 +4910,7 @@ static bool frontend_scalar_if_tree_ok(
     /* A comparison can inspect narrow integer leaves; arithmetic nested
      * inside those operands retains the pre-existing wide-scalar grammar. */
     const bool child_integer_operand =
-        allow_fixed_integer_operand &&
+        allow_integer_leaf &&
         (logical != W_SEED_HIR0_LOGICAL_NONE || comparison ||
          frontend_expression_is_integer(output, value));
     return value->left != W_SEED_FRONTEND_NONE &&
@@ -4899,8 +4928,9 @@ static bool frontend_scalar_if_tree_ok(
   }
   if (value->kind == W_SEED_FRONTEND_EXPR_INTEGER)
     return (frontend_expression_is_i64(output, value) ||
-            (allow_fixed_integer_operand &&
-             frontend_expression_is_integer(output, value))) &&
+            (allow_integer_leaf &&
+             (frontend_expression_is_integer(output, value) ||
+              frontend_expression_is_wide_integer_identity(output, value)))) &&
            value->has_integer_value && !value->has_bool_value;
   if (value->kind == W_SEED_FRONTEND_EXPR_BOOL)
     return frontend_expression_is_bool(output, value) &&
@@ -4917,8 +4947,9 @@ static bool frontend_scalar_if_tree_ok(
            !value->has_bool_value && !value->has_integer_value &&
            !value->has_float_value &&
            (frontend_expression_is_i64(output, value) ||
-            (allow_fixed_integer_operand &&
-             frontend_expression_is_integer(output, value)) ||
+            (allow_integer_leaf &&
+             (frontend_expression_is_integer(output, value) ||
+              frontend_expression_is_wide_integer_identity(output, value))) ||
             frontend_expression_is_bool(output, value) ||
             frontend_expression_is_float(output, value));
   return false;
@@ -22584,11 +22615,18 @@ static bool verify_edge_argument_records(const w_seed_hir0_program *program) {
          ordinal += 1u) {
       const w_seed_hir0_edge_argument *edge =
           &program->edge_arguments[cursor + ordinal];
+      bool wide_integer = false;
+      if (edge->type_index < program->type_count) {
+        bool is_signed = false;
+        wide_integer = hir_wide_integer_type_identity(
+            program, edge->type_index, &is_signed);
+      }
       if (edge->owner_terminator != terminator_index ||
           edge->owner_block != terminator->owner_block ||
           edge->ordinal != ordinal || edge->value_index >= program->value_count ||
           (edge->type_index != 2u && edge->type_index != 3u &&
            !hir_fixed_integer_type_index_valid(program, edge->type_index) &&
+           !wide_integer &&
            !hir_float_type_index_valid(program, edge->type_index) &&
            !hir_local_payload_enum_join_type_supported(program,
                                                        edge->type_index)) ||
@@ -25001,18 +25039,27 @@ static bool hir_local_payload_enum_join_type_supported(
   return true;
 }
 
+/* Scalar-if result types are caller-owned identities; i128/u128 are admitted
+ * here without enabling their arithmetic or conversion families. */
+static bool hir_scalar_join_type_supported(
+    const w_seed_hir0_program *program, uint32_t type_index) {
+  bool is_signed = false;
+  return type_index == W_SEED_HIR0_TYPE_I64 ||
+         type_index == W_SEED_HIR0_TYPE_BOOL ||
+         hir_fixed_integer_type_index_valid(program, type_index) ||
+         hir_wide_integer_type_identity(program, type_index, &is_signed) ||
+         hir_float_type_index_valid(program, type_index) ||
+         hir_local_payload_enum_join_type_supported(program, type_index);
+}
+
 static bool verify_scalar_jump_shape(
     const w_seed_hir0_program *program, const w_seed_hir0_terminator *branch,
     size_t jump_block, size_t join_block, size_t source_length) {
   if (program == NULL || branch == NULL || jump_block >= program->block_count ||
       join_block >= program->block_count || branch->logical_operator !=
                                                  W_SEED_HIR0_LOGICAL_NONE ||
-      (branch->result_type != 0u && branch->result_type != 2u &&
-       branch->result_type != 3u &&
-       !hir_fixed_integer_type_index_valid(program, branch->result_type) &&
-       !hir_float_type_index_valid(program, branch->result_type) &&
-       !hir_local_payload_enum_join_type_supported(program,
-                                                   branch->result_type)) ||
+      (branch->result_type != 0u &&
+       !hir_scalar_join_type_supported(program, branch->result_type)) ||
       program->blocks[join_block].block_argument_count != 1u)
     return false;
   const w_seed_hir0_terminator *jump = &program->terminators[jump_block];
@@ -25168,10 +25215,7 @@ static bool verify_join_shape(const w_seed_hir0_program *program,
                               size_t join_block, uint32_t expected_type,
                               size_t source_length) {
   if (program == NULL || branch == NULL || join_block >= program->block_count ||
-      (expected_type != 2u && expected_type != 3u &&
-       !hir_fixed_integer_type_index_valid(program, expected_type) &&
-       !hir_float_type_index_valid(program, expected_type) &&
-       !hir_local_payload_enum_join_type_supported(program, expected_type)))
+      !hir_scalar_join_type_supported(program, expected_type))
     return false;
   const w_seed_hir0_block *join = &program->blocks[join_block];
   if (join->block_argument_count != 1u ||
@@ -25250,12 +25294,8 @@ static bool verify_cfg_branch(const w_seed_hir0_program *program,
                                          source_length)) {
         return false;
       }
-    } else if (branch->result_type == 2u || branch->result_type == 3u ||
-               hir_fixed_integer_type_index_valid(program,
-                                                  branch->result_type) ||
-               hir_float_type_index_valid(program, branch->result_type) ||
-               hir_local_payload_enum_join_type_supported(
-                   program, branch->result_type)) {
+    } else if (hir_scalar_join_type_supported(program,
+                                              branch->result_type)) {
       if (mutable_merge) return false;
       if (!verify_scalar_jump_shape(program, branch, then_last, then_join,
                                     source_length) ||
@@ -31728,11 +31768,18 @@ static bool verify_records(const w_seed_hir0_program *program) {
       continue;
     }
     if (value->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
-       if ((value->logical_operator == W_SEED_HIR0_LOGICAL_NONE
+      bool wide_integer_result = false;
+      if (value->result_type < program->type_count) {
+        bool is_signed = false;
+        wide_integer_result = hir_wide_integer_type_identity(
+            program, value->result_type, &is_signed);
+      }
+      if ((value->logical_operator == W_SEED_HIR0_LOGICAL_NONE
                ? (value->result_type != 0u && value->result_type != 2u &&
                   value->result_type != 3u &&
                   !hir_fixed_integer_type_index_valid(program,
                                                       value->result_type) &&
+                  !wide_integer_result &&
                   !hir_float_type_index_valid(program, value->result_type) &&
                   !hir_local_payload_enum_join_type_supported(
                       program, value->result_type))

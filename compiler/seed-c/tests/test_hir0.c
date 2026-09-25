@@ -2149,7 +2149,7 @@ static bool test_implicit_integer_widen_hir(void) {
 }
 
 static bool test_float_bits_hir(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-99") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-100") == 0);
   static const char SOURCE[] =
       "fn from32(bits: u32): f32 { let stored: f32 = f32.fromBits(bits) "
       "return stored }\n"
@@ -2384,7 +2384,7 @@ static bool test_float_bits_hir(void) {
 }
 
 static bool test_numeric_widen_hir(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-99") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-100") == 0);
   typedef struct {
     const char *source_name;
     bool source_is_float;
@@ -12499,7 +12499,7 @@ static bool test_integer_exactly_hir(void) {
       true, false, true, false, true, false, true, false, true, false};
   static const uint16_t INTEGER_WIDTHS[] = {
       8u, 8u, 16u, 16u, 32u, 32u, 64u, 64u, 64u, 64u};
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-99") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-100") == 0);
   for (size_t source = 0u;
        source < sizeof(INTEGER_TYPES) / sizeof(INTEGER_TYPES[0]);
        source += 1u) {
@@ -12669,7 +12669,7 @@ static bool test_float_to_integer_rounding_hir(void) {
   static const char *const MODE_SPELLINGS[] = {
       "nearestEven", "nearestAwayFromZero", "towardZero",
       "towardPositive", "towardNegative"};
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-99") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-100") == 0);
   for (size_t source_index = 0u;
        source_index < sizeof(SOURCE_TYPES) / sizeof(SOURCE_TYPES[0]);
        source_index += 1u) {
@@ -16263,17 +16263,12 @@ static bool test_scalar_if_fixed_integer_type_identity(void) {
       "fn mismatchWidth(condition: Bool, left: i16, right: i8): i8 { "
       "return if condition { left } else { right } }\n"
       "entry(mismatchWidth)\n";
-  static const char I128_SCALAR_IF[] =
-      "fn selectWide(condition: Bool, left: i128, right: i128): i128 { "
-      "return if condition { left } else { right } }\n"
-      "entry(selectWide)\n";
   static const char USIZE_SCALAR_IF[] =
       "fn selectSize(condition: Bool, left: usize, right: usize): usize { "
       "return if condition { left } else { right } }\n"
       "entry(selectSize)\n";
   CHECK(frontend_rejects_quietly(SIGNEDNESS_MISMATCH));
   CHECK(frontend_rejects_quietly(WIDTH_MISMATCH));
-  CHECK(frontend_rejects_quietly(I128_SCALAR_IF));
   CHECK(frontend_rejects_quietly(USIZE_SCALAR_IF));
   return true;
 }
@@ -16524,9 +16519,197 @@ static bool test_i128_u128_literal_flow_hir(void) {
       saved_identity_byte;
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
 
+  return true;
+}
+
+static bool test_i128_u128_scalar_if_hir(void) {
+  static const char SOURCE[] =
+      "fn selectSigned(condition: Bool): i128 { "
+      "let selected: i128 = if condition { 18446744073709551616_i128 } "
+      "else { -18446744073709551617_i128 } return selected }\n"
+      "fn selectUnsigned(condition: Bool): u128 { "
+      "let selected: u128 = if condition { 18446744073709551616_u128 } "
+      "else { 340282366920938463463374607431768211455_u128 } "
+      "return selected }\nentry { }\n";
+  CHECK(lower(SOURCE));
+  w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 3u);
+  CHECK(program->block_count == 9u);
+  CHECK(program->binding_count == 2u);
+  CHECK(program->value_byte_count == 64u);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  uint32_t i128_type = W_SEED_HIR0_NONE;
+  uint32_t u128_type = W_SEED_HIR0_NONE;
+  uint32_t signed_function = W_SEED_HIR0_NONE;
+  uint32_t unsigned_function = W_SEED_HIR0_NONE;
+  for (size_t type_index = 0u; type_index < program->type_count;
+       type_index += 1u) {
+    const w_seed_hir0_type *type = &program->types[type_index];
+    if (type->kind != W_SEED_HIR0_TYPE_INTEGER ||
+        type->integer_bit_width != 128u)
+      continue;
+    if (type->integer_is_signed) {
+      CHECK(i128_type == W_SEED_HIR0_NONE &&
+            hir_text_is(program, type->name, "i128"));
+      i128_type = (uint32_t)type_index;
+    } else {
+      CHECK(u128_type == W_SEED_HIR0_NONE &&
+            hir_text_is(program, type->name, "u128"));
+      u128_type = (uint32_t)type_index;
+    }
+  }
+  for (size_t function_index = 0u;
+       function_index < program->function_count; function_index += 1u) {
+    if (hir_text_is(program, program->functions[function_index].name,
+                    "selectSigned"))
+      signed_function = (uint32_t)function_index;
+    else if (hir_text_is(program, program->functions[function_index].name,
+                         "selectUnsigned"))
+      unsigned_function = (uint32_t)function_index;
+  }
+  CHECK(i128_type != W_SEED_HIR0_NONE && u128_type != W_SEED_HIR0_NONE &&
+        signed_function < program->function_count &&
+        unsigned_function < program->function_count);
+
+  const uint32_t signed_block =
+      program->functions[signed_function].first_block;
+  const uint32_t unsigned_block =
+      program->functions[unsigned_function].first_block;
+  const uint32_t signed_branch_index =
+      program->blocks[signed_block].terminator_index;
+  const uint32_t unsigned_branch_index =
+      program->blocks[unsigned_block].terminator_index;
+  CHECK(program->functions[signed_function].return_type == i128_type &&
+        program->functions[unsigned_function].return_type == u128_type &&
+        program->terminators[signed_branch_index].kind ==
+            W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[signed_branch_index].result_type == i128_type &&
+        program->terminators[unsigned_branch_index].kind ==
+            W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[unsigned_branch_index].result_type == u128_type);
+
+  const uint32_t signed_then = edge_value_at(program, signed_branch_index + 1u);
+  const uint32_t signed_else = edge_value_at(program, signed_branch_index + 2u);
+  const uint32_t unsigned_then =
+      edge_value_at(program, unsigned_branch_index + 1u);
+  const uint32_t unsigned_else =
+      edge_value_at(program, unsigned_branch_index + 2u);
+  CHECK(signed_then < program->value_count && signed_else < program->value_count &&
+        unsigned_then < program->value_count &&
+        unsigned_else < program->value_count &&
+        program->blocks[signed_block + 3u].block_argument_count == 1u &&
+        program->blocks[unsigned_block + 3u].block_argument_count == 1u &&
+        program->block_arguments[
+            program->blocks[signed_block + 3u].first_block_argument]
+                .type_index == i128_type &&
+        program->block_arguments[
+            program->blocks[unsigned_block + 3u].first_block_argument]
+                .type_index == u128_type);
+  CHECK(program->values[signed_then].kind ==
+            W_SEED_HIR0_VALUE_CONST_INTEGER_128 &&
+        program->values[signed_then].type_index == i128_type &&
+        program->values[signed_else].kind ==
+            W_SEED_HIR0_VALUE_UNARY_INTEGER_128 &&
+        program->values[signed_else].type_index == i128_type &&
+        program->values[unsigned_then].kind ==
+            W_SEED_HIR0_VALUE_CONST_INTEGER_128 &&
+        program->values[unsigned_then].type_index == u128_type &&
+        program->values[unsigned_else].kind ==
+            W_SEED_HIR0_VALUE_CONST_INTEGER_128 &&
+        program->values[unsigned_else].type_index == u128_type);
+  const uint32_t signed_positive_literal = signed_then;
+  const uint32_t signed_negative_literal =
+      program->values[signed_else].left_value;
+  const uint32_t unsigned_high_literal = unsigned_then;
+  const uint32_t unsigned_max_literal = unsigned_else;
+  CHECK(program->values[signed_positive_literal].byte_count == 16u &&
+        program->values[signed_negative_literal].byte_count == 16u &&
+        program->values[unsigned_high_literal].byte_count == 16u &&
+        program->values[unsigned_max_literal].byte_count == 16u &&
+        program->value_bytes[
+            program->values[signed_positive_literal].byte_offset + 8u] == 1u &&
+        program->value_bytes[
+            program->values[signed_negative_literal].byte_offset + 8u] == 1u &&
+        program->value_bytes[
+            program->values[unsigned_high_literal].byte_offset + 8u] == 1u &&
+        program->value_bytes[
+            program->values[unsigned_max_literal].byte_offset + 15u] == 0xffu);
+
+  const w_seed_hir0_terminator saved_signed_branch =
+      fixture.hir_terminators[signed_branch_index];
+  fixture.hir_terminators[signed_branch_index].result_type = u128_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[signed_branch_index] = saved_signed_branch;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const uint32_t signed_join_argument =
+      program->blocks[signed_block + 3u].first_block_argument;
+  const w_seed_hir0_block_argument saved_signed_join =
+      fixture.hir_block_arguments[signed_join_argument];
+  fixture.hir_block_arguments[signed_join_argument].type_index = u128_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_block_arguments[signed_join_argument] = saved_signed_join;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_value saved_signed_value =
+      fixture.hir_values[signed_positive_literal];
+  fixture.hir_values[signed_positive_literal].type_index = u128_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[signed_positive_literal] = saved_signed_value;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_type saved_i128_type = fixture.hir_types[i128_type];
+  fixture.hir_types[i128_type].integer_is_signed = false;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_types[i128_type] = saved_i128_type;
+  fixture.hir_types[i128_type].integer_bit_width = 64u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_types[i128_type] = saved_i128_type;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_value saved_literal =
+      fixture.hir_values[signed_positive_literal];
+  fixture.hir_values[signed_positive_literal].byte_count = 15u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[signed_positive_literal] = saved_literal;
+  fixture.hir_values[signed_positive_literal].owner_index += 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[signed_positive_literal] = saved_literal;
+  fixture.hir_values[signed_positive_literal].byte_offset =
+      (uint32_t)program->value_byte_count - 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[signed_positive_literal] = saved_literal;
+
+  const uint8_t saved_range_byte =
+      fixture.hir_value_bytes[saved_literal.byte_offset + 15u];
+  fixture.hir_value_bytes[saved_literal.byte_offset + 15u] = 0x80u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_value_bytes[saved_literal.byte_offset + 15u] = saved_range_byte;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_value_bytes[saved_literal.byte_offset] ^= 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_value_bytes[saved_literal.byte_offset] ^= 1u;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
   CHECK(frontend_rejects_quietly(
-      "fn choose(flag: Bool): i128 { return if flag { 1_i128 } else { "
-      "2_i128 } }\nentry { }\n"));
+      "fn mismatch(condition: Bool, left: i128, right: u128): i128 { "
+      "return if condition { left } else { right } }\nentry { }\n"));
   return true;
 }
 
@@ -20246,7 +20429,7 @@ static bool test_explicit_integer_saturating_hir(void) {
 }
 
 static bool test_checked_integer_arithmetic_hir_matrix(void) {
-  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-99") == 0);
+  CHECK(strcmp(W_SEED_HIR0_SCHEMA_VERSION, "w-seed-hir0-100") == 0);
   typedef struct {
     const char *name;
     const char *suffix;
@@ -23245,6 +23428,7 @@ int main(int argc, char **argv) {
   if (!test_scalar_if_value_diamond()) return 1;
   if (!test_scalar_if_fixed_integer_type_identity()) return 1;
   if (!test_i128_u128_literal_flow_hir()) return 1;
+  if (!test_i128_u128_scalar_if_hir()) return 1;
   if (!test_scalar_if_f32_value_diamond()) return 1;
   if (!test_nested_scalar_if_value_diamond()) return 1;
   if (!test_if_diamond_cfg()) return 1;

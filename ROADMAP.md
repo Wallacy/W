@@ -429,9 +429,12 @@ the exact semantic oracle.
 
 The remaining numeric order is: complete runtime W-389/W-392 policies and
 typed failure; close target-width ABI/endian/serialization evidence; carry the
-now source-backed `i128`/`u128` frontend identities and 16-byte literals through
-verified HIR, operations, native lowering and serialization; then strict
-f16/bf16/f128. Configured f4/f6/f8 and tensor packing
+now source-backed `i128`/`u128` identities and 16-byte literals through
+operations, native lowering and serialization; then strict f16/bf16/f128. The
+current bounded compiler-lifecycle increment establishes caller-owned verified
+HIR identity/value flow and equal-type scalar-if joins for both `i128` and
+`u128`, including arm values above `u64`; it does not enable wide arithmetic,
+conversions, ABI/layout, native lowering or serialization. Configured f4/f6/f8 and tensor packing
 remain storage/compute work, while BigInt/BigFloat wait for ownership,
 allocator, OOM, and generic-value foundations. The bounded
 `Arguments.count -> i8` witness now feeds one checked runtime expression

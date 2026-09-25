@@ -1597,8 +1597,10 @@ static bool scalar_if_frontend_shape(const fixture *value,
       CHECK(then_type->is_signed == else_type->is_signed &&
             then_type->bit_width == else_type->bit_width &&
             then_type->is_signed == result_type->is_signed &&
-            then_type->bit_width == result_type->bit_width &&
-            then_type->is_signed && then_type->bit_width == 64u);
+            then_type->bit_width == result_type->bit_width);
+      if (then_type->bit_width != 128u) {
+        CHECK(then_type->is_signed && then_type->bit_width == 64u);
+      }
     } else if (then_type->kind == W_SEED_FRONTEND_TYPE_FLOAT) {
       CHECK(then_type->bit_width == else_type->bit_width &&
             then_type->bit_width == result_type->bit_width &&
@@ -1667,6 +1669,38 @@ static bool test_scalar_if_frontend_subset(void) {
     CHECK(expression->has_integer_value);
   }
   CHECK(saw_integer_literal);
+
+  static const char wide_integer_source[] =
+      "fn selectSigned(condition: Bool): i128 { return if condition { "
+      "18446744073709551616_i128 } else { -18446744073709551617_i128 } }\n"
+      "fn selectUnsigned(condition: Bool): u128 { return if condition { "
+      "18446744073709551616_u128 } else { "
+      "340282366920938463463374607431768211455_u128 } }\n"
+      "entry { }\n";
+  CHECK(fixture_run(value, wide_integer_source));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+        value->result.status == W_SEED_FRONTEND_OK &&
+        value->result.written.diagnostics == 0u &&
+        value->result.written.facts == 0u);
+  CHECK(scalar_if_frontend_shape(value, 2u));
+  size_t wide_literals = 0u;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_INTEGER ||
+        expression->inferred_type >= value->result.written.types ||
+        value->types[expression->inferred_type].bit_width != 128u)
+      continue;
+    CHECK(expression->supported && expression->has_integer_value &&
+          expression->integer_value[8] != 0u);
+    wide_literals += 1u;
+  }
+  CHECK(wide_literals == 4u);
+  CHECK(fixture_run(
+      value,
+      "fn mismatch(condition: Bool, left: i128, right: u128): i128 { "
+      "return if condition { left } else { right } }\nentry { }\n"));
+  CHECK(value->result.status != W_SEED_FRONTEND_OK);
 
   CHECK(fixture_parse(value,
                       "fn missing(isOpen: Bool): i64 { "
@@ -8153,7 +8187,7 @@ static bool test_f32_scalar_projection(void) {
 }
 
 static bool test_numeric_widening_frontend(void) {
-  CHECK(strcmp(W_SEED_FRONTEND_SCHEMA_VERSION, "w-seed-frontend-76") == 0);
+  CHECK(strcmp(W_SEED_FRONTEND_SCHEMA_VERSION, "w-seed-frontend-77") == 0);
   typedef struct {
     const char *source_name;
     bool source_is_float;
