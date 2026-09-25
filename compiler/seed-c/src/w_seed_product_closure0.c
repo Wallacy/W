@@ -169,29 +169,34 @@ static bool host_print_identity_valid(const w_seed_hir0_program *program,
  * print interpolates the value bound from the verified conversion result.
  * This binds the observation to the normal block argument instead of
  * authorizing an adapter to synthesize the expected digits. */
-static bool typed_process_rounding_prints_binding(
+static bool typed_process_prints_binding(
     const w_seed_hir0_program *program, uint32_t block_index,
-    uint32_t binding_index, uint32_t type_index) {
+    uint32_t binding_index, uint32_t type_index,
+    uint32_t observation_ordinal) {
   if (program == NULL || block_index >= program->block_count ||
       binding_index >= program->binding_count ||
       type_index >= program->type_count)
     return false;
   const w_seed_hir0_block *block = &program->blocks[block_index];
-  if (block->instruction_count != 2u ||
+  if (block->instruction_count <= observation_ordinal ||
       block->first_instruction >= program->instruction_count ||
       block->instruction_count >
           program->instruction_count - block->first_instruction)
     return false;
   const w_seed_hir0_instruction *observation =
-      &program->instructions[(size_t)block->first_instruction + 1u];
-  if (observation->owner_block != block_index || observation->ordinal != 1u ||
+      &program->instructions[(size_t)block->first_instruction +
+                             observation_ordinal];
+  if (observation->owner_block != block_index ||
+      observation->ordinal != observation_ordinal ||
       observation->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
       observation->call_index >= program->call_count)
     return false;
   const w_seed_hir0_call *call = &program->calls[observation->call_index];
-  if (call->owner_instruction != block->first_instruction + 1u ||
+  if (call->owner_instruction !=
+          block->first_instruction + observation_ordinal ||
       call->owner_terminator != W_SEED_HIR0_NONE ||
-      call->owner_block != block_index || call->ordinal != 1u ||
+      call->owner_block != block_index ||
+      call->ordinal != observation_ordinal ||
       call->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
       call->placement != W_SEED_HIR0_CALL_PLACEMENT_NONE ||
       call->first_argument >= program->argument_count ||
@@ -239,6 +244,95 @@ static bool typed_process_rounding_prints_binding(
     dynamic_values += 1u;
   }
   return dynamic_values == 1u;
+}
+
+static bool product_unsigned_integer_width(
+    const w_seed_hir0_program *program, uint32_t type_index,
+    uint16_t *bit_width) {
+  if (program == NULL || bit_width == NULL ||
+      type_index >= program->type_count)
+    return false;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  if (type->kind == W_SEED_HIR0_TYPE_U64) {
+    *bit_width = 64u;
+    return true;
+  }
+  if (type->kind != W_SEED_HIR0_TYPE_INTEGER ||
+      type->integer_is_signed || type->integer_bit_width == 0u)
+    return false;
+  *bit_width = type->integer_bit_width;
+  return true;
+}
+
+static bool product_float_width(const w_seed_hir0_program *program,
+                                uint32_t type_index,
+                                uint16_t *bit_width) {
+  if (program == NULL || bit_width == NULL ||
+      type_index >= program->type_count)
+    return false;
+  if (program->types[type_index].kind == W_SEED_HIR0_TYPE_F32) {
+    *bit_width = 32u;
+    return true;
+  }
+  if (program->types[type_index].kind == W_SEED_HIR0_TYPE_F64) {
+    *bit_width = 64u;
+    return true;
+  }
+  return false;
+}
+
+static bool typed_process_float_bits_binding_step(
+    const w_seed_hir0_program *program, uint32_t block_index,
+    const w_seed_hir0_instruction *instruction,
+    uint32_t previous_binding_index) {
+  if (program == NULL || instruction == NULL ||
+      block_index >= program->block_count ||
+      previous_binding_index >= program->binding_count ||
+      instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+      instruction->owner_block != block_index ||
+      instruction->binding_index >= program->binding_count)
+    return false;
+  const uint32_t binding_index = instruction->binding_index;
+  const w_seed_hir0_binding *binding = &program->bindings[binding_index];
+  if (binding->owner_instruction !=
+          (uint32_t)(instruction - program->instructions) ||
+      binding->owner_block != block_index || binding->is_mutable ||
+      binding->initializer_value >= program->value_count)
+    return false;
+  const w_seed_hir0_value *conversion =
+      &program->values[binding->initializer_value];
+  if ((conversion->kind != W_SEED_HIR0_VALUE_FLOAT_FROM_BITS &&
+       conversion->kind != W_SEED_HIR0_VALUE_FLOAT_TO_BITS) ||
+      conversion->owner_kind != W_SEED_HIR0_VALUE_OWNER_BINDING ||
+      conversion->owner_index != binding_index ||
+      conversion->owner_ordinal != 0u ||
+      conversion->type_index != binding->type_index ||
+      conversion->left_value >= program->value_count)
+    return false;
+  const w_seed_hir0_value *source =
+      &program->values[conversion->left_value];
+  if (source->kind != W_SEED_HIR0_VALUE_BINDING_READ ||
+      source->owner_kind != W_SEED_HIR0_VALUE_OWNER_FLOAT_BITS_CONVERSION ||
+      source->owner_index != binding->initializer_value ||
+      source->owner_ordinal != 0u ||
+      source->binding_index != previous_binding_index ||
+      source->type_index !=
+          program->bindings[previous_binding_index].type_index ||
+      conversion->source_type != source->type_index)
+    return false;
+  uint16_t source_width = 0u;
+  uint16_t destination_width = 0u;
+  if (conversion->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS)
+    return product_unsigned_integer_width(program, conversion->source_type,
+                                          &source_width) &&
+           product_float_width(program, conversion->type_index,
+                               &destination_width) &&
+           source_width == destination_width;
+  return product_float_width(program, conversion->source_type,
+                             &source_width) &&
+         product_unsigned_integer_width(program, conversion->type_index,
+                                        &destination_width) &&
+         source_width == destination_width;
 }
 
 static uint32_t process_nominal_type(const w_seed_hir0_program *program,
@@ -482,15 +576,32 @@ static bool typed_process_numeric_exact_root_supported(
            W_SEED_HIR0_TYPE_I64 &&
        program->types[program->values[split_term->value_index].type_index].kind !=
            W_SEED_HIR0_TYPE_USIZE) ||
-      split_term->result_type >= program->type_count ||
-      program->types[split_term->result_type].kind !=
-          W_SEED_HIR0_TYPE_INTEGER)
+      !product_numeric_integer_type(program, split_term->result_type))
     return false;
   if (normal->instruction_count == 0u ||
       error->instruction_count != 0u ||
       normal->first_instruction >= program->instruction_count ||
       normal->instruction_count >
           program->instruction_count - normal->first_instruction)
+    return false;
+  size_t root_call_count = 0u;
+  for (size_t call_index = 0u; call_index < program->call_count;
+       call_index += 1u) {
+    const w_seed_hir0_call *call = &program->calls[call_index];
+    if (call->owner_block >= program->block_count) return false;
+    if (program->blocks[call->owner_block].owner_function !=
+        entry->target_function)
+      continue;
+    if (call->owner_block != normal_block || root_call_count == 2u)
+      return false;
+    root_call_count += 1u;
+  }
+  if (normal->instruction_count < root_call_count + 1u) return false;
+  const size_t normal_binding_count =
+      normal->instruction_count - root_call_count;
+  if (normal_binding_count > 3u ||
+      (normal_binding_count > 1u &&
+       (normal_binding_count != 3u || root_call_count != 1u)))
     return false;
   const w_seed_hir0_instruction *instruction =
       &program->instructions[normal->first_instruction];
@@ -512,6 +623,22 @@ static bool typed_process_numeric_exact_root_supported(
       initializer->owner_ordinal != 0u ||
       initializer->type_index != split_term->result_type ||
       initializer->block_argument_index != normal->first_block_argument)
+    return false;
+  uint32_t observed_binding_index = instruction->binding_index;
+  for (size_t ordinal = 1u; ordinal < normal_binding_count; ordinal += 1u) {
+    const w_seed_hir0_instruction *step =
+        &program->instructions[(size_t)normal->first_instruction + ordinal];
+    if (step->ordinal != ordinal ||
+        !typed_process_float_bits_binding_step(
+            program, normal_block, step, observed_binding_index))
+      return false;
+    observed_binding_index = step->binding_index;
+  }
+  if (normal_binding_count > 1u &&
+      !typed_process_prints_binding(
+          program, normal_block, observed_binding_index,
+          program->bindings[observed_binding_index].type_index,
+          (uint32_t)normal_binding_count))
     return false;
   if (normal->terminator_index >= program->terminator_count ||
       error->terminator_index >= program->terminator_count)
@@ -544,6 +671,35 @@ static bool typed_process_numeric_exact_root_supported(
       error_value->block_argument_index != error->first_block_argument)
     return false;
   return true;
+}
+
+static bool typed_process_exact_float_bits_value(
+    const w_seed_hir0_program *program, uint32_t split_terminator_index,
+    uint32_t value_index) {
+  if (program == NULL || split_terminator_index >= program->terminator_count ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_terminator *split =
+      &program->terminators[split_terminator_index];
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (split->kind != W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY ||
+      split->target_block >= program->block_count ||
+      (value->kind != W_SEED_HIR0_VALUE_FLOAT_FROM_BITS &&
+       value->kind != W_SEED_HIR0_VALUE_FLOAT_TO_BITS) ||
+      value->owner_kind != W_SEED_HIR0_VALUE_OWNER_BINDING ||
+      value->owner_index >= program->binding_count)
+    return false;
+  const w_seed_hir0_binding *binding = &program->bindings[value->owner_index];
+  if (binding->owner_block != split->target_block ||
+      binding->initializer_value != value_index ||
+      binding->owner_instruction >= program->instruction_count)
+    return false;
+  const w_seed_hir0_instruction *instruction =
+      &program->instructions[binding->owner_instruction];
+  return instruction->kind == W_SEED_HIR0_INSTRUCTION_BINDING &&
+         instruction->owner_block == split->target_block &&
+         instruction->binding_index == value->owner_index &&
+         instruction->ordinal > 0u && instruction->ordinal < 3u;
 }
 
 typedef struct {
@@ -873,9 +1029,9 @@ static bool typed_process_float_rounding_root_supported(
       initializer->block_argument_index != normal->first_block_argument)
     return false;
   if (normal->instruction_count == 2u &&
-      !typed_process_rounding_prints_binding(
+      !typed_process_prints_binding(
           program, normal_block, instruction->binding_index,
-          split_term->result_type))
+          split_term->result_type, 1u))
     return false;
   if (normal->terminator_index >= program->terminator_count ||
       non_finite->terminator_index >= program->terminator_count ||
@@ -1731,6 +1887,11 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
       numeric_conversion_terminator < program->terminator_count &&
       program->terminators[numeric_conversion_terminator].kind ==
           W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING;
+  const bool numeric_exact_root =
+      typed_numeric_root &&
+      numeric_conversion_terminator < program->terminator_count &&
+      program->terminators[numeric_conversion_terminator].kind ==
+          W_SEED_HIR0_TERMINATOR_INTEGER_EXACTLY;
   const bool numeric_rounding_diamond_root =
       numeric_rounding_root &&
       program->terminators[numeric_conversion_terminator].owner_block !=
@@ -1837,6 +1998,10 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
         numeric_process_root && item->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER;
     const bool checked_integer_operation =
         numeric_process_root && product_checked_fault_value(item);
+    const bool authenticated_float_bits =
+        numeric_exact_root && typed_process_exact_float_bits_value(
+                                  program, numeric_conversion_terminator,
+                                  (uint32_t)value);
     const bool authenticated_diamond_usize =
         numeric_rounding_diamond_root &&
         (value == diamond.count_value_index ||
@@ -1861,7 +2026,8 @@ static bool product_shape_supported(const w_seed_hir0_program *program,
                 value == diamond.arm_values[1])) {
       /* The independently checked count guard and two f64 arm literals are
        * the complete additional value vocabulary of this exact diamond. */
-    } else if (!verified_numeric_helper_constant &&
+    } else if (!authenticated_float_bits &&
+               !verified_numeric_helper_constant &&
                !verified_numeric_external_member &&
                !checked_integer_operation &&
                !product_value_kind_supported(item->kind)) {

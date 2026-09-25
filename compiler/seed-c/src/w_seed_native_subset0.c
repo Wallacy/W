@@ -7308,6 +7308,43 @@ static bool process_local_call_supported(
           program_enum_type_supported(program, call->result_type, NULL, NULL));
 }
 
+static bool process_float_bits_binding_step_supported(
+    const w_seed_hir0_program *program,
+    const w_seed_native_subset0_process *process, uint32_t block_index,
+    const w_seed_hir0_instruction *instruction,
+    uint32_t previous_binding_index) {
+  if (program == NULL || process == NULL || instruction == NULL ||
+      block_index >= program->block_count ||
+      previous_binding_index >= program->binding_count ||
+      instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+      instruction->owner_block != block_index ||
+      instruction->binding_index >= program->binding_count)
+    return false;
+  const uint32_t binding_index = instruction->binding_index;
+  const w_seed_hir0_binding *binding = &program->bindings[binding_index];
+  if (binding->owner_instruction !=
+          (uint32_t)(instruction - program->instructions) ||
+      binding->owner_block != block_index || binding->is_mutable ||
+      binding->initializer_value >= program->value_count)
+    return false;
+  native_float_bits_facts facts;
+  if (!native_float_bits_shape_valid(program, binding->initializer_value,
+                                     &facts) ||
+      !process_value_lowerable(program, binding->initializer_value,
+                               process->function_index, process, false, 0u))
+    return false;
+  const w_seed_hir0_value *conversion =
+      &program->values[binding->initializer_value];
+  const w_seed_hir0_value *source =
+      &program->values[conversion->left_value];
+  return conversion->type_index == binding->type_index &&
+         source->kind == W_SEED_HIR0_VALUE_BINDING_READ &&
+         source->binding_index == previous_binding_index &&
+         source->type_index ==
+             program->bindings[previous_binding_index].type_index &&
+         conversion->source_type == source->type_index;
+}
+
 /* The native-process adapter owns one deliberately narrow typed-error route:
  * a three-block integer-exactly split whose normal arm returns ExitCode.success
  * and whose error arm throws the verified NumericConversionError value.  The
@@ -7384,7 +7421,7 @@ static bool process_integer_exact_root_supported(
       normal->first_block_argument >= program->block_argument_count ||
       error->first_block_argument >= program->block_argument_count ||
       normal->instruction_count < 1u ||
-      normal->instruction_count > 3u ||
+      normal->instruction_count > 4u ||
       normal->first_instruction >= program->instruction_count ||
       normal->instruction_count >
           program->instruction_count - normal->first_instruction ||
@@ -7409,7 +7446,12 @@ static bool process_integer_exact_root_supported(
       return false;
     root_call_count += 1u;
   }
-  if (normal->instruction_count != 1u + root_call_count)
+  if (normal->instruction_count < root_call_count + 1u) return false;
+  const size_t normal_binding_count =
+      normal->instruction_count - root_call_count;
+  if (normal_binding_count > 3u ||
+      (normal_binding_count > 1u &&
+       (normal_binding_count != 3u || root_call_count != 1u)))
     return false;
   const w_seed_hir0_block_argument *normal_argument =
       &program->block_arguments[normal->first_block_argument];
@@ -7443,19 +7485,36 @@ static bool process_integer_exact_root_supported(
       initializer->type_index != conversion->result_type ||
       initializer->block_argument_index != normal->first_block_argument)
     return false;
+  uint32_t observed_binding_index = instruction->binding_index;
+  for (size_t ordinal = 1u; ordinal < normal_binding_count; ordinal += 1u) {
+    const w_seed_hir0_instruction *step =
+        &program->instructions[(size_t)normal->first_instruction + ordinal];
+    if (step->ordinal != ordinal ||
+        !process_float_bits_binding_step_supported(
+            program, process, normal_index, step, observed_binding_index))
+      return false;
+    observed_binding_index = step->binding_index;
+  }
   size_t root_binding_count = 0u;
   for (size_t index = 0u; index < program->binding_count; index += 1u) {
     const w_seed_hir0_binding *candidate = &program->bindings[index];
     if (candidate->owner_block >= program->block_count) return false;
     if (program->blocks[candidate->owner_block].owner_function ==
         process->function_index) {
-      if (candidate->owner_block != normal_index ||
-          index != instruction->binding_index)
-        return false;
+      if (candidate->owner_block != normal_index) return false;
+      bool owned_by_normal_instruction = false;
+      for (size_t ordinal = 0u; ordinal < normal_binding_count; ordinal += 1u) {
+        const w_seed_hir0_instruction *candidate_instruction =
+            &program->instructions[(size_t)normal->first_instruction + ordinal];
+        owned_by_normal_instruction = owned_by_normal_instruction ||
+                                      candidate_instruction->binding_index ==
+                                          index;
+      }
+      if (!owned_by_normal_instruction) return false;
       root_binding_count += 1u;
     }
   }
-  if (root_binding_count != 1u) return false;
+  if (root_binding_count != normal_binding_count) return false;
 
   size_t maximum_stdout_bytes = 0u;
   if (root_call_count != 0u) {
@@ -7480,7 +7539,14 @@ static bool process_integer_exact_root_supported(
         !process_host_call_supported(program, print, process->function_index,
                                      process))
       return false;
-    if (root_call_count == 1u) {
+    if (normal_binding_count > 1u) {
+      if (root_call_count != 1u || print_ordinal != normal_binding_count ||
+          !process_print_observes_binding(
+              program, print, process->function_index, process,
+              observed_binding_index,
+              program->bindings[observed_binding_index].type_index))
+        return false;
+    } else if (root_call_count == 1u) {
       if (print_ordinal != 1u) return false;
     } else {
       const w_seed_hir0_instruction *helper_instruction = instruction + 1;

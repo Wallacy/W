@@ -73,6 +73,8 @@ const processFloatRoundingSuccessFixture = resolve(seedDirectory, "fixtures",
   "process-float-rounding-success.w")
 const processFloatRoundingRuntimeIfFixture = resolve(seedDirectory, "fixtures",
   "process-float-rounding-runtime-if.w")
+const processFloatBitRuntimeFixture = resolve(seedDirectory, "fixtures",
+  "process-float-bit-runtime.w")
 const processFloatRoundingErrorFixture = resolve(seedDirectory, "fixtures",
   "process-float-rounding-error.w")
 const processIntegerExactRuntimeFixture = resolve(seedDirectory, "fixtures",
@@ -1729,6 +1731,12 @@ try {
   expectExact(binary, ["run", toWsl(processFloatRoundingRuntimeIfFixture), "--",
     "x"], 0, Buffer.from("Rounded 4\n", "utf8"),
     "Linux public runtime conditional float rounding with one argument")
+  expectExact(binary, ["run", toWsl(processFloatBitRuntimeFixture)], 0,
+    Buffer.from("Bits 0\n", "utf8"),
+    "Linux public runtime float bit round trip without arguments")
+  expectExact(binary, ["run", toWsl(processFloatBitRuntimeFixture), "--", "x"],
+    0, Buffer.from("Bits 1\n", "utf8"),
+    "Linux public runtime float bit round trip with one argument")
   expectExact(binary, ["run", toWsl(processFloatRoundingErrorFixture)], 1,
     Buffer.alloc(0), "Linux public constant float rounding typed error")
   expectExact(binary, ["run", toWsl(processIntegerExactRuntimeFixture)], 0,
@@ -1840,6 +1848,8 @@ try {
     "process-float-rounding-success-build")
   const buildProcessFloatRoundingRuntimeIf = buildOutput(
     "process-float-rounding-runtime-if-build")
+  const buildProcessFloatBitRuntime = buildOutput(
+    "process-float-bit-runtime-build")
   const buildProcessFloatRoundingError = buildOutput(
     "process-float-rounding-error-build")
   const buildProcessIntegerExactRuntime = buildOutput(
@@ -2097,6 +2107,16 @@ try {
   expectExact(buildProcessFloatRoundingRuntimeIf, ["x"], 0,
     Buffer.from("Rounded 4\n", "utf8"),
     "execute built Linux runtime conditional float rounding with one argument")
+  expectSuccess(binary, ["build", toWsl(processFloatBitRuntimeFixture),
+    "--target", targetTriple, "--output", buildProcessFloatBitRuntime],
+  Buffer.alloc(0), "build Linux runtime float bit round-trip fixture")
+  assertCrtFreeElf(await readBuildArtifact(buildProcessFloatBitRuntime))
+  expectExact(buildProcessFloatBitRuntime, [], 0,
+    Buffer.from("Bits 0\n", "utf8"),
+    "execute built Linux runtime float bit round trip without arguments")
+  expectExact(buildProcessFloatBitRuntime, ["x"], 0,
+    Buffer.from("Bits 1\n", "utf8"),
+    "execute built Linux runtime float bit round trip with one argument")
   expectSuccess(binary, ["build", toWsl(processFloatRoundingErrorFixture),
     "--target", targetTriple, "--output", buildProcessFloatRoundingError],
   Buffer.alloc(0), "build Linux constant float rounding typed-error fixture")

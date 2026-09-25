@@ -1234,6 +1234,7 @@ static bool test_native_process_float_raw_bits_from_runtime_count(void) {
       "return .success }\n"
       "entry(run)\n";
   static multidoc_fixture fixture;
+  static product_storage storage;
   CHECK(prepare_process_fixture(&fixture, SOURCE));
   const w_seed_hir0_program *program = &fixture.hir_program;
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
@@ -1252,6 +1253,15 @@ static bool test_native_process_float_raw_bits_from_runtime_count(void) {
   CHECK(saw_from_bits && saw_to_bits &&
         from_bits_value < program->value_count &&
         program->values[from_bits_value].left_value < program->value_count);
+  const w_seed_product_closure0_input input =
+      {program, &fixture.hir_result};
+  (void)memset(&storage, 0, sizeof(storage));
+  const w_seed_product_closure0_output output = product_output(&storage);
+  w_seed_product_closure0_result result = {0};
+  CHECK(w_seed_product_closure0_run(&input, &output, &result) ==
+        W_SEED_PRODUCT_CLOSURE0_OK);
+  CHECK(storage.reachable_values[from_bits_value]);
+  CHECK(w_seed_product_closure0_verify(&input, &output, &result));
 
   w_seed_hir0_value *source =
       &fixture.hir_values[program->values[from_bits_value].left_value];
@@ -1259,6 +1269,10 @@ static bool test_native_process_float_raw_bits_from_runtime_count(void) {
   source->binding_index = (uint32_t)program->binding_count;
   reseal_process_hir(&fixture);
   CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  CHECK(w_seed_product_closure0_measure(
+            &input, &(w_seed_product_closure0_counts){0},
+            &(w_seed_product_closure0_result){0}) ==
+        W_SEED_PRODUCT_CLOSURE0_INVALID);
   *source = saved_source;
   reseal_process_hir(&fixture);
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));

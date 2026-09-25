@@ -821,9 +821,11 @@ physical scheduler experiments:
    process witness selects `2.5_f64` or `3.5_f64` from runtime
    `Arguments.count`, then executes the joined rounding result on both public
    targets (`Rounded 2\n` or `Rounded 4\n`, exit 0); the operands remain
-   constants. Arbitrary runtime float ingress,
-   the public non-finite path, and independent raw-bit boundary oracles still
-   lack this route. W-1652 now defines the
+   constants. A third bounded process witness now converts runtime
+   `Arguments.count` exactly to `u64`, round-trips it through `f64.fromBits`
+   and `.toBits()`, and observes the result on both public targets. General
+   runtime float ingress, the public non-finite path, and independent raw-bit
+   boundary oracles still lack this route. W-1652 now defines the
    canonical `native-process@1`
    mapping for an unhandled typed error. HIR94 retains the restricted local
    payloadless-error direct throw and composes one exact-conversion binding into
@@ -1241,10 +1243,12 @@ public Windows and Linux/WSL witnesses print the rounded nearest-even result as
 `Rounded 2\n` with status 0, and keep out-of-range at status 1 with empty
 stdout/stderr; both outcomes complete reverse cleanup before process
 adaptation. The output path is bound to the verified result binding, not a
-hardcoded adapter string. Next add versioned raw-bit runtime float ingress, the
-public non-finite path, and independent C23/Rust boundary oracles. Until those
-exist, this remains compiler-lifecycle evidence only and carries no benchmark
-timing or performance claim.
+hardcoded adapter string. The bounded raw-bit ingress now takes
+`Arguments.count` through exact `u64`, `f64.fromBits`, `.toBits()`, direct
+bitcasts, and exact Windows/Linux process output. Next add the public non-finite
+path, general runtime float ingress, and independent C23/Rust boundary oracles.
+Until those exist, this remains compiler-lifecycle evidence only and carries
+no benchmark timing or performance claim.
 
 W-1645 generalizes the prior strict-f64 seed path into one strict floating
 family for `f32` and `f64`. Frontend67 materializes exact binary32/binary64

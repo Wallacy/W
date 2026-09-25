@@ -1963,6 +1963,35 @@ static bool test_process_runtime_float_rounding_subset(void) {
   return true;
 }
 
+static bool test_process_runtime_float_bits_subset(void) {
+  static const uint8_t source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let bits: u64 = try u64(exactly: args.count) "
+      "let value: f64 = f64.fromBits(bits) "
+      "let roundTrip: u64 = value.toBits() "
+      "print(\"Bits ${roundTrip}\") return .success }\n"
+      "entry(run)\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source_mode(
+            source, sizeof(source) - 1u, "process-runtime-float-bits",
+            sizeof("process-runtime-float-bits") - 1u, &WINDOWS_TARGET,
+            W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE, output, sizeof(output),
+            &result) == W_SEED_NATIVE0_OK);
+  w_seed_native_subset0_process selection;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+            W_SEED_NATIVE_SUBSET0_OK &&
+        selection.has_integer_exactly && selection.maximum_stdout_bytes != 0u);
+  const size_t written = result.mlir.written.mlir_bytes;
+  CHECK(contains_bytes(output, written, "llvm.bitcast") &&
+        contains_bytes(output, written, "llvm.return"));
+  return true;
+}
+
 static bool test_panic_native_routes(void) {
   static const uint8_t ordinary[] =
       "entry { panic(\"native ordinary panic\") }\n";
@@ -7792,8 +7821,9 @@ int main(void) {
       test_enum_subset_switch_native_lowering() &&
       test_process_handler_catalog_and_artifact() &&
       test_process_input0_public_artifact() && test_panic_native_routes() &&
-      test_process_integer_exactly_adapter() &&
-      test_process_runtime_float_rounding_subset() &&
+       test_process_integer_exactly_adapter() &&
+       test_process_runtime_float_bits_subset() &&
+       test_process_runtime_float_rounding_subset() &&
       test_process_arguments_count_public_artifact() &&
       test_process_arguments_count_ordered_native() &&
       test_process_stdout_bounds() &&

@@ -3545,10 +3545,15 @@ The native-process HIR root also admits a bounded normal-path chain after
 `try u64(exactly: args.count)`: immutable `fromBits`/`toBits` bindings may
 consume only the immediately preceding binding, and the final value must be
 observed by the one direct `print` before the existing success return. The HIR
-verifier independently rejects reordered or forged binding reads. This is
-compiler-lifecycle evidence only; native selection and runtime execution of
-that process-shaped chain remain unsupported. Its benchmark disposition is
-`compiler-lifecycle`.
+verifier independently rejects reordered or forged binding reads.
+ProductClosure0 and NativeSubset0 independently rederive the same-width chain,
+its dense binding order, and the final observation before MLIR emits direct
+LLVM bitcasts. [`fixtures/process-float-bit-runtime.w`](fixtures/process-float-bit-runtime.w)
+executes the resulting CRT-free process product with zero and one user
+argument, printing `Bits 0\n` and `Bits 1\n` respectively on Windows x64 and
+Linux/WSL x64. This remains a bounded `Arguments.count` ingress rather than
+general runtime floating input. Its benchmark disposition is
+`compiler-lifecycle`; no timing or ranking is published.
 
 [`fixtures/float-bit-representation.w`](fixtures/float-bit-representation.w)
 declares exit 0 and exact stdout

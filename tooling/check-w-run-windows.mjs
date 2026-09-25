@@ -205,6 +205,8 @@ const processFloatRoundingSuccessFixture = resolve(seedDirectory, "fixtures",
   "process-float-rounding-success.w")
 const processFloatRoundingRuntimeIfFixture = resolve(seedDirectory, "fixtures",
   "process-float-rounding-runtime-if.w")
+const processFloatBitRuntimeFixture = resolve(seedDirectory, "fixtures",
+  "process-float-bit-runtime.w")
 const processFloatRoundingErrorFixture = resolve(seedDirectory, "fixtures",
   "process-float-rounding-error.w")
 const processIntegerExactRuntimeFixture = resolve(seedDirectory, "fixtures",
@@ -1517,6 +1519,12 @@ try {
   expectExact(binary, ["run", processFloatRoundingRuntimeIfFixture, "--", "x"],
     0, Buffer.from("Rounded 4\n", "utf8"),
     "public runtime conditional float rounding with one argument")
+  expectExact(binary, ["run", processFloatBitRuntimeFixture], 0,
+    Buffer.from("Bits 0\n", "utf8"),
+    "public runtime float bit round trip without arguments")
+  expectExact(binary, ["run", processFloatBitRuntimeFixture, "--", "x"], 0,
+    Buffer.from("Bits 1\n", "utf8"),
+    "public runtime float bit round trip with one argument")
   expectExact(binary, ["run", processFloatRoundingErrorFixture], 1,
     Buffer.alloc(0), "public constant float rounding typed error")
   expectExact(binary, ["run", processIntegerExactRuntimeFixture], 0,
@@ -1620,6 +1628,8 @@ try {
     "process-float-rounding-success-build.exe")
   const buildProcessFloatRoundingRuntimeIf = join(fixtureDirectory,
     "process-float-rounding-runtime-if-build.exe")
+  const buildProcessFloatBitRuntime = join(fixtureDirectory,
+    "process-float-bit-runtime-build.exe")
   const buildProcessFloatRoundingError = join(fixtureDirectory,
     "process-float-rounding-error-build.exe")
   const buildProcessIntegerExactRuntime = join(fixtureDirectory,
@@ -1839,6 +1849,21 @@ try {
   expectExact(buildProcessFloatRoundingRuntimeIf, ["x"], 0,
     Buffer.from("Rounded 4\n", "utf8"),
     "execute built runtime conditional float rounding with one argument")
+  expectExact(binary, ["build", processFloatBitRuntimeFixture, "--target",
+    targetTriple, "--output", buildProcessFloatBitRuntime], 0,
+  Buffer.alloc(0), "build runtime float bit round-trip fixture")
+  const processFloatBitRuntimeBytes = await readFile(buildProcessFloatBitRuntime)
+  assertPeX64(processFloatBitRuntimeBytes,
+    "built runtime float bit round-trip artifact")
+  assertKernel32OnlyImports(processFloatBitRuntimeBytes,
+    "built runtime float bit round-trip artifact",
+    { usesProcessArgumentAdapter: true, writesStdout: true })
+  expectExact(buildProcessFloatBitRuntime, [], 0,
+    Buffer.from("Bits 0\n", "utf8"),
+    "execute built runtime float bit round trip without arguments")
+  expectExact(buildProcessFloatBitRuntime, ["x"], 0,
+    Buffer.from("Bits 1\n", "utf8"),
+    "execute built runtime float bit round trip with one argument")
   expectExact(binary, ["build", processFloatRoundingErrorFixture, "--target",
     targetTriple, "--output", buildProcessFloatRoundingError], 0,
   Buffer.alloc(0), "build constant float rounding typed-error fixture")
