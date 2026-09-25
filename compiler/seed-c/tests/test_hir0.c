@@ -16127,6 +16127,10 @@ static bool test_i128_u128_literal_flow_hir(void) {
   fixture.hir_value_bytes[signed_max_literal->byte_offset] =
       saved_identity_byte;
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  CHECK(frontend_rejects_quietly(
+      "fn choose(flag: Bool): i128 { return if flag { 1_i128 } else { "
+      "2_i128 } }\nentry { }\n"));
   return true;
 }
 
