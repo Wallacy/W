@@ -29616,6 +29616,10 @@ static bool hir0_value_kind_is_closed(w_seed_hir0_value_kind kind) {
     case W_SEED_HIR0_VALUE_VALUE_STRUCT:
     case W_SEED_HIR0_VALUE_VALUE_STRUCT_FIELD:
     case W_SEED_HIR0_VALUE_CONST_INTEGER_128:
+    /* This kind is emitted only for direct negation of an exact signed
+     * i128 literal (not general runtime negation); verify_value_tree checks
+     * that bounded shape before the published fact is accepted. */
+    case W_SEED_HIR0_VALUE_UNARY_INTEGER_128:
     case W_SEED_HIR0_VALUE_BINARY_INTEGER_128:
     case W_SEED_HIR0_VALUE_UNARY_BITWISE_INTEGER_128:
     case W_SEED_HIR0_VALUE_BINARY_INTEGER_COMPARISON:

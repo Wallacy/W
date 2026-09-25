@@ -4353,6 +4353,62 @@ static bool test_direct_entry_facts(void) {
         fixture.hir_program.functions[2].direct_entry ==
             W_SEED_HIR0_DIRECT_ENTRY_ABSENT);
 
+  static const char WIDE_HELPER_SOURCE[] =
+      "fn wideBase(signedValue: i128, unsignedValue: u128): i128 { "
+      "let inverted = ~unsignedValue "
+      "let positive = inverted > 0_u128 "
+      "return if signedValue < 0_i128 && positive { "
+      "-170141183460469231731687303715884105728_i128 } else { signedValue } "
+      "}\n"
+      "fn wideRelay(signedValue: i128, unsignedValue: u128): i128 { "
+      "return wideBase(signedValue: signedValue, "
+      "unsignedValue: unsignedValue) }\n"
+      "async fn wideQuote(signedValue: i128, unsignedValue: u128): i128 { "
+      "let answer = wideRelay(signedValue: signedValue, "
+      "unsignedValue: unsignedValue) return answer }\n"
+      "entry { }\n";
+  CHECK(lower(WIDE_HELPER_SOURCE));
+  CHECK(fixture.hir_program.function_count == 4u &&
+        fixture.hir_program.functions[0].suspension ==
+            W_SEED_HIR0_SUSPENSION_NEVER &&
+        fixture.hir_program.functions[1].suspension ==
+            W_SEED_HIR0_SUSPENSION_NEVER &&
+        fixture.hir_program.functions[2].suspension ==
+            W_SEED_HIR0_SUSPENSION_MAY &&
+        fixture.hir_program.functions[2].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE);
+  const w_seed_hir0_function saved_wide_quote = fixture.hir_functions[2];
+  fixture.hir_functions[2].direct_entry =
+      W_SEED_HIR0_DIRECT_ENTRY_ABSENT;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_functions[2] = saved_wide_quote;
+  fixture.hir_functions[2].suspension = W_SEED_HIR0_SUSPENSION_NEVER;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_functions[2] = saved_wide_quote;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  static const char EFFECTFUL_WIDE_HELPER_SOURCE[] =
+      "fn effectfulWide(value: i128): i128 { "
+      "print(message: \"wide helper\", suffix: \"\") "
+      "return -1_i128 }\n"
+      "async fn effectfulQuote(value: i128): i128 { "
+      "let answer = effectfulWide(value: value) return answer }\n"
+      "entry { }\n";
+  CHECK(lower(EFFECTFUL_WIDE_HELPER_SOURCE));
+  CHECK(fixture.hir_program.function_count == 3u &&
+        fixture.hir_program.functions[0].suspension ==
+            W_SEED_HIR0_SUSPENSION_MAY &&
+        fixture.hir_program.functions[1].suspension ==
+            W_SEED_HIR0_SUSPENSION_MAY &&
+        fixture.hir_program.functions[1].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_ABSENT);
+  const w_seed_hir0_function saved_effectful_quote = fixture.hir_functions[1];
+  fixture.hir_functions[1].direct_entry =
+      W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_functions[1] = saved_effectful_quote;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
   static const char POISONED_REVERSED_SOURCE[] =
       "fn unrelated(value: Bool): Bool { return value }\n"
       "async fn reverseQuote(count: i64): i64 { "

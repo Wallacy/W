@@ -869,10 +869,12 @@ physical scheduler experiments:
    verified-HIR-only family slice, including all six comparisons, `&`, `|`,
    `^`, unary `~`, exact signed-minimum construction, and wide helper-result
    joins. Checked arithmetic, shifts, conversions, ABI/layout, serialization,
-   and native execution remain open. The process selector rejects the current
-   helper-based source shape because the entry's direct-entry/suspension facts
-   do not meet its existing boundary; this is not permission to widen the
-   bounded process CFG. After the
+   and native execution remain open. HIR now proves the two ordinary wide
+   helpers non-suspending and the async process entry direct-entry-capable
+   without relaxing effectful or malformed value trees. The next boundary is
+   the exact i128/u128 local-helper and value closure in ProductClosure0 and
+   NativeSubset0, followed by direct MLIR `i128` SSA lowering; this is not
+   permission to widen the bounded process CFG. After the
    current 64-bit/f32/f64 packages, rank 1 takes only fixed scalar work:
    i128/u128 and strict f16/bf16/f128 semantics, including target rejection or
    an explicitly permitted W-owned fallback. Configured f4/f6/f8 remain

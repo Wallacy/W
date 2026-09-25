@@ -215,13 +215,18 @@ and unary `~`, alongside the version-77 equal-type scalar-if joins and exact
 16-byte little-endian literal magnitudes. The verified-HIR layer preserves
 both signed and unsigned comparison identity and the exact wide operation
 family. Mixed signedness/width, checked `+`, `-`, `*`, `/`, `%`, shifts,
-mutation, and conversions remain closed. This does not yet reach a Native0
-artifact: the process selector rejects the helper-based witness after HIR
-verification; its entry facts are `direct_entry=ABSENT` and
-`suspension=MAY`. ProductClosure's current downstream type/value shape also
-rejects the wide operation records; this slice provides no positive
-ProductClosure proof. No public executable fixture or runtime oracle is
-claimed; native lowering, ABI/layout, and serialization remain unsupported.
+mutation, and conversions remain closed. HIR0 now recognizes the verified
+direct negation of an exact signed `i128` literal as a closed scalar value for
+the body-never-suspends proof; its existing recursive value-tree verifier
+still enforces that exact shape. This lets the helper-based process witness
+prove both wide helpers `suspension=NEVER` and its async entry
+`direct_entry=AVAILABLE` (async entries remain `suspension=MAY`). NativeSubset0
+still returns `UNSUPPORTED`: its process value/call and helper-signature
+admission does not yet lower `i128`/`u128` values. ProductClosure's current
+downstream type/value shape also rejects the wide operation records; this
+slice provides no positive ProductClosure proof. No public executable fixture
+or runtime oracle is claimed; native lowering, ABI/layout, and serialization
+remain unsupported.
 The package has `compiler-lifecycle` benchmark disposition and no
 public/native benchmark row.
 
@@ -1242,8 +1247,14 @@ form. The verified core additionally admits all six comparisons and `&`, `|`,
 operation retains a canonical direct-width HIR value. Function parameters,
 returns, immutable bindings, and helper-result joins preserve signedness and
 128-bit width. Checked arithmetic, shifts, conversions, layout/ABI, and
-serialization remain outside this slice. Process selection currently rejects
-the helper-based family witness before MLIR emission, so no native artifact or
+serialization remain outside this slice. The direct-entry proof admits these
+fixed-width scalar value kinds only after their ordinary HIR value-tree checks;
+opaque values, effects, unknown providers, lifecycle owners, and invalid or
+forged facts remain barriers. The helper-based process witness now verifies
+both ordinary helpers as `suspension=NEVER` and the explicit async process
+entry as `direct_entry=AVAILABLE`; the async function itself remains
+`suspension=MAY`. NativeSubset0 still rejects the witness because i128/u128
+value and helper-signature lowering is unsupported, so no native artifact or
 runtime result is claimed. This is compiler-lifecycle HIR correctness
 evidence only. Run `bun tooling/check-hir0.mjs` for the focused verifier and
 adversarial mutation gate.
@@ -4069,9 +4080,13 @@ The bounded gate is source → HIR0 measure/emit → independent read-only
 verification. Ordinary pure functions are `NEVER`/`ABSENT`; explicit async
 functions remain `MAY` and receive `AVAILABLE` only after a complete-body
 `neverSuspend` proof. Local ordinary calls and recursive groups use a bounded
-fixed point; unknown hosts, local async calls without call form or summary,
-`String` parameters/returns/values, and opaque owners without lifecycle facts
-remain conservative. The process handler remains `MAY`/`ABSENT`.
+fixed point; exact verified fixed-width scalar values (including the bounded
+direct-literal i128 negation) are closed inputs to that proof. Unknown hosts,
+local async calls without call form or summary, `String`
+parameters/returns/values, and opaque owners without lifecycle facts remain
+conservative. A process handler remains `MAY`; it receives `AVAILABLE` only
+when the complete body and verified owner lifecycle satisfy the direct-entry
+proof, and remains `ABSENT` otherwise.
 
 Scratch is 4 KiB under the inherited CST32768 bound, with preflight and
 verifier guards, no heap, and no 256-function capacity. The emitter derives

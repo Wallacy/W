@@ -2024,7 +2024,12 @@ static bool test_i128_u128_native_core_selection_boundary(void) {
   CHECK(entry_function < fixture.hir_program.function_count);
   const w_seed_hir0_function *entry =
       &fixture.hir_program.functions[entry_function];
-  CHECK(entry->direct_entry == W_SEED_HIR0_DIRECT_ENTRY_ABSENT &&
+  CHECK(fixture.hir_program.function_count == 3u &&
+        fixture.hir_program.functions[0].suspension ==
+            W_SEED_HIR0_SUSPENSION_NEVER &&
+        fixture.hir_program.functions[1].suspension ==
+            W_SEED_HIR0_SUSPENSION_NEVER &&
+        entry->direct_entry == W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE &&
         entry->suspension == W_SEED_HIR0_SUSPENSION_MAY);
 
   w_seed_native_subset0_process selection;
