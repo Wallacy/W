@@ -15765,25 +15765,25 @@ static bool test_typed_interpolation_value_tree(void) {
 
 static bool test_constant_output_nested_interpolation(void) {
   static const char SOURCE[] =
-      "entry { print(\"outer ${'${6_i64 * 7_i64}'}\") }\n";
+      "entry { print(\"outer ${'${6_i64 * 7_i64}'} done\") }\n";
   CHECK(lower_single_print_host(SOURCE));
   CHECK(fixture.hir_program.value_count == 5u &&
-        fixture.hir_program.interpolation_segment_count == 3u &&
+        fixture.hir_program.interpolation_segment_count == 4u &&
         fixture.hir_program.values[3].kind ==
             W_SEED_HIR0_VALUE_INTERPOLATED_STRING &&
-        fixture.hir_program.values[3].first_interpolation_segment == 2u &&
+        fixture.hir_program.values[3].first_interpolation_segment == 3u &&
         fixture.hir_program.values[3].interpolation_segment_count == 1u &&
         fixture.hir_program.values[4].kind ==
             W_SEED_HIR0_VALUE_INTERPOLATED_STRING &&
         fixture.hir_program.values[4].first_interpolation_segment == 0u &&
-        fixture.hir_program.values[4].interpolation_segment_count == 2u &&
+        fixture.hir_program.values[4].interpolation_segment_count == 3u &&
         fixture.hir_program.interpolation_segments[1].value_index == 3u &&
-        fixture.hir_program.interpolation_segments[2].value_index == 2u);
+        fixture.hir_program.interpolation_segments[3].value_index == 2u);
   w_seed_constant_output0_result result;
   (void)memset(&result, 0xa5, sizeof(result));
   CHECK(w_seed_constant_output0_evaluate(&fixture.hir_program,
                                          &fixture.hir_result, &result));
-  static const char EXPECTED[] = "outer 42\n";
+  static const char EXPECTED[] = "outer 42 done\n";
   CHECK(result.stdout_length == sizeof(EXPECTED) - 1u &&
         memcmp(result.stdout_bytes, EXPECTED, sizeof(EXPECTED) - 1u) == 0 &&
         !result.evaluated_flat_product);

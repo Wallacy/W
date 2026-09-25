@@ -1292,8 +1292,9 @@ blocks, 512 source HIR values, 128 bindings, 32 parameters/arguments per call,
 intermediate strings and final stdout. Exceeding any limit declines the fold.
 Frontend and HIR tests also preserve dense owner ranges for nested String
 interpolation and prove that an inner interpolated String contributes its
-bytes exactly once (`outer ${'${6_i64 * 7_i64}'}` becomes `outer 42\n`). This
-is evaluator correctness evidence only: the non-product native interpolation
+bytes exactly once while its parent retains both surrounding text segments
+(`outer ${'${6_i64 * 7_i64}'} done` becomes `outer 42 done\n`). This is
+evaluator correctness evidence only: the non-product native interpolation
 adapter continues to reject nested interpolation as documented by W-1525.
 
 On the accepted Linux product artifact, the output path needs no aggregate
