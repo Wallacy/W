@@ -45,6 +45,8 @@ const nestedLabeledWhileFixture = resolve(seedDirectory,
   "fixtures", "nested-labeled-while.w")
 const nestedLoopTerminalReturnsFixture = resolve(seedDirectory,
   "fixtures", "nested-loop-terminal-returns.w")
+const loopConditionalEarlyReturnFixture = resolve(seedDirectory,
+  "fixtures", "loop-conditional-early-return.w")
 const repeatFixture = resolve(seedDirectory,
   "fixtures", "repeat.w")
 const wmoFixture = resolve(seedDirectory, "fixtures", "wmo.w")
@@ -1181,6 +1183,9 @@ try {
   expectExact(binary, ["run", nestedLoopTerminalReturnsFixture], 0,
     Buffer.from("-1,1,3\n", "utf8"),
     "verified nested loop CFG with terminal return branches")
+  expectExact(binary, ["run", loopConditionalEarlyReturnFixture], 0,
+    Buffer.from("13,2,0\n", "utf8"),
+    "while loop with a conditional early return")
   expectExact(binary, ["run", repeatFixture], 0,
     Buffer.from("Receipt digits 1/5\n", "utf8"),
     "Restaurant post-test repeat fixture")
@@ -1600,6 +1605,8 @@ try {
     "nested-labeled-while-build.exe")
   const buildNestedLoopTerminalReturns = join(fixtureDirectory,
     "nested-loop-terminal-returns-build.exe")
+  const buildLoopConditionalEarlyReturn = join(fixtureDirectory,
+    "loop-conditional-early-return-build.exe")
   const buildRestaurantMainDispatch = join(fixtureDirectory,
     "main-dispatch-build.exe")
   const buildRestaurantMainCardinality = join(fixtureDirectory,
@@ -1750,6 +1757,15 @@ try {
   expectExact(buildNestedLoopTerminalReturns, [], 0,
     Buffer.from("-1,1,3\n", "utf8"),
     "execute built verified nested loop terminal-return CFG artifact")
+  expectExact(binary, ["build", loopConditionalEarlyReturnFixture, "--target",
+    targetTriple, "--output", buildLoopConditionalEarlyReturn], 0,
+    Buffer.alloc(0), "build verified loop conditional early-return fixture")
+  assertKernel32OnlyImports(await readFile(buildLoopConditionalEarlyReturn),
+    "built verified loop conditional early-return artifact",
+    { usesProcessArgumentAdapter: false, writesStdout: true })
+  expectExact(buildLoopConditionalEarlyReturn, [], 0,
+    Buffer.from("13,2,0\n", "utf8"),
+    "execute built verified loop conditional early-return artifact")
   expectExact(binary, ["build", mainDispatchFixture, "--target",
     targetTriple, "--output", buildRestaurantMainDispatch], 0,
   Buffer.alloc(0), "build restaurant main-domain dispatch fixture")

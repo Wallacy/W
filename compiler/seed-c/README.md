@@ -1952,6 +1952,26 @@ allowlist; Linux/WSL requires a static CRT-free ELF without an interpreter or
 `benchmarkStatus: not-performance-ready`; no performance result is recorded
 because equivalent runtime work has not been measured.
 
+### Conditional early return inside one natural while loop
+
+[`fixtures/loop-conditional-early-return.w`](fixtures/loop-conditional-early-return.w)
+adds one `if` arm whose terminal `return` is inside a natural pre-test
+`while`. The exact witness produces exit 0, stdout `13,2,0\n`, and empty
+stderr for an early match, loop exhaustion, and zero iterations. HIR0 keeps the
+lexical source plan as its source-equivalence proof and independently verifies
+the reducible graph, signed-`i64` carrier/version lineage, terminal no-successor
+return arm, normal backedge, and false-edge exit carrier. NativeSubset0 and
+MLIR0 consume only that verified HIR; they do not recognize the source shape a
+second time. ProductClosure0 checks reachable functions, and the MLIR/LLVM
+gate plus Windows and Linux/WSL public `w run`/`w build` gates check the exact
+oracle and target runtime closure. Resealed HIR mutations cover swapped arms,
+stale versions, wrong carrier/type, extra successors, unreachable blocks, and
+capacity/alias failure atomicity. C23 and Rust 2024 are correctness references
+only. The catalog requires this correctness witness but keeps
+`benchmarkStatus: not-performance-ready`; no timing or ranking result exists.
+Nested or multiple conditional returns inside loops, arbitrary CFG, and other
+carrier types remain gaps.
+
 ### Multi-carrier structured natural loop (W-1569)
 
 HIR0 and NativeSubset0 now admit a nonempty tuple of mutable signed-`i64`

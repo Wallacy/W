@@ -1231,6 +1231,107 @@
       ]
     },
     {
+      "id": "loop-conditional-early-return",
+      "family": "control-flow",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "benchmarkDisposition": "required",
+      "lane": "equivalent",
+      "scope": "Exercise one natural pre-test while loop with a conditional terminal return arm. Preserve exact output 13,2,0\\n. C23 and Rust 2024 are correctness oracles only; record no timing or ranking without equivalent runtime work.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "13,2,0\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/loop-conditional-early-return.w",
+          "digest": "sha256:0f8b3fc14060715303f9de4d6d3afe8ad1d1c07560f3e10c1e017f6770d2d6dd",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "loop-conditional-early-return-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b",
+          "runtimeClosure": {
+            "class": "freestanding",
+            "status": "unverified"
+          }
+        },
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/loop-conditional-early-return.w",
+          "digest": "sha256:0f8b3fc14060715303f9de4d6d3afe8ad1d1c07560f3e10c1e017f6770d2d6dd",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "loop-conditional-early-return-release",
+          "platformTarget": "linux-wsl-x64",
+          "artifactTarget": "x86_64-unknown-linux-gnu",
+          "comparability": "same-physical-hardware-diagnostic-only",
+          "eligibility": "same-physical-hardware-diagnostic-only",
+          "runtimeClosure": {
+            "class": "freestanding",
+            "status": "unverified"
+          }
+        },
+        {
+          "language": "c",
+          "path": "compiler/seed-c/fixtures/loop-conditional-early-return.c",
+          "digest": "sha256:3f63e7b1a5ae8df61f0ddb0dbcdb3a405a5ebf77dc7afd1dc4629abaa1b47d74",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "loop-conditional-early-return-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b",
+          "runtimeClosure": {
+            "class": "hosted-crt",
+            "status": "unverified"
+          }
+        },
+        {
+          "language": "rust",
+          "path": "compiler/seed-c/fixtures/loop-conditional-early-return.rs",
+          "digest": "sha256:a74ad6409485c771b90060d847f7ec10848079f17b2cefe1a81ac5e1f5bb5323",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "loop-conditional-early-return-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b",
+          "runtimeClosure": {
+            "class": "hosted-crt",
+            "status": "unverified"
+          }
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": [
+        "equivalent-runtime-work-not-measured"
+      ]
+    },
+    {
       "id": "repeat",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",

@@ -58,6 +58,15 @@ fn sign(value: i64): i64 {
   return 1
 }
 
+fn firstAt(limit: i64): i64 {
+  var index: i64 = 0
+  while index < limit {
+    index = index + 1
+    if index == 3 { return index + 10 }
+  }
+  return index
+}
+
 fn walk(_ values: Array<i32>): i32 throws WalkError {
   var total = 0
   rows: for ref value in values {

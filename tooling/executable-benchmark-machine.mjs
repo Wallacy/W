@@ -42,6 +42,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "while-break-continue",
   "nested-labeled-while",
   "nested-loop-terminal-returns",
+  "loop-conditional-early-return",
   "repeat",
   "wmo",
   "async-join",
@@ -100,7 +101,8 @@ const WORKLOAD_FAMILY_ROWS = Object.freeze({
     "branch", "nested-branch", "bool-short-circuit",
     "interpolation", "scalar-if", "nested-scalar-if", "terminal-returns",
     "while-post", "while-break-continue", "nested-labeled-while",
-    "nested-loop-terminal-returns", "repeat", "wmo",
+    "nested-loop-terminal-returns", "loop-conditional-early-return",
+    "repeat", "wmo",
   ]),
   async: Object.freeze(["async-join", "async-yield"]),
   composition: Object.freeze([
@@ -1711,7 +1713,8 @@ function sourcePolicy(workload, language, recipe, platformTarget = EXECUTABLE_PL
   if (workload?.id === "terminal-returns" ||
       workload?.id === "while-break-continue" ||
       workload?.id === "nested-labeled-while" ||
-      workload?.id === "nested-loop-terminal-returns") return SOURCE_ELIGIBILITY.correctnessOnly;
+      workload?.id === "nested-loop-terminal-returns" ||
+      workload?.id === "loop-conditional-early-return") return SOURCE_ELIGIBILITY.correctnessOnly;
   if (workload?.id === HELLO_PLATFORM_MINIMAL_WORKLOAD_ID) return SOURCE_ELIGIBILITY.platformMinimal;
   if (workload?.id === FLOAT_STRICT_WORKLOAD_ID ||
       workload?.id === FLOAT_BIT_REPRESENTATION_WORKLOAD_ID ||

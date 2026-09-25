@@ -711,6 +711,18 @@ label was written; source equivalence remains owned by the pre-emission lexical
 plan, while the independent HIR verifier owns graph and carrier validity. The
 next promotion must preserve both proofs.
 
+The next bounded rank-3 slice, `loop-conditional-early-return`, now admits one
+direct conditional terminal-return arm inside one natural pre-test `while`.
+The exact public witness preserves `13,2,0\n` across early-match, exhausted,
+and zero-iteration paths. Its lexical HIR plan remains the source-equivalence
+proof; an independent HIR CFG verifier checks the reducible loop, typed i64
+carrier/version lineage, successor-free return arm, backedge, and false-edge
+exit carrier. NativeSubset0 and MLIR0 use verified HIR only. Windows and
+Linux/WSL `w run`/`w build` gates retain CRT-free closure checks, and C23/Rust
+are correctness references only. The catalog disposition is `required`, with
+`not-performance-ready` and no timing/ranking result. General or nested early
+returns, arbitrary CFG, and other carrier types remain open.
+
 W-1654 promotes the bounded product-value slice from verified HIR0 through
 public native execution. `flat-aggregate-pair.w` covers an unlabeled structural
 `(i64, i64)`: HIR records both component types, a virtual tuple constructor

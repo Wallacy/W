@@ -1413,7 +1413,7 @@ test "capture lists preserve ownership modes" for captures {
 
 ## Control flow and patterns
 
-<!-- w-example role=executable use=Signal,classify,accumulate,nextAvailableSeats,adjustedSeats,branchAdjustedSeats,multiBranchAdjustedState,availability,sign observable=value -->
+<!-- w-example role=executable use=Signal,classify,accumulate,nextAvailableSeats,adjustedSeats,branchAdjustedSeats,multiBranchAdjustedState,availability,sign,firstAt observable=value -->
 ```w
 enum Signal {
   quiet
@@ -1473,6 +1473,15 @@ fn sign(value: i64): i64 {
   if value < 0 { return -1 }
   if value == 0 { return 0 }
   return 1
+}
+
+fn firstAt(limit: i64): i64 {
+  var index: i64 = 0
+  while index < limit {
+    index = index + 1
+    if index == 3 { return index + 10 }
+  }
+  return index
 }
 
 fn branchAdjustedSeats(isOpen: Bool): i64 {

@@ -43,6 +43,8 @@ const nestedLabeledWhileFixture = resolve(seedDirectory,
   "fixtures", "nested-labeled-while.w")
 const nestedLoopTerminalReturnsFixture = resolve(seedDirectory,
   "fixtures", "nested-loop-terminal-returns.w")
+const loopConditionalEarlyReturnFixture = resolve(seedDirectory,
+  "fixtures", "loop-conditional-early-return.w")
 const repeatFixture = resolve(seedDirectory,
   "fixtures", "repeat.w")
 const wmoFixture = resolve(seedDirectory, "fixtures", "wmo.w")
@@ -1406,6 +1408,9 @@ try {
   expectSuccess(binary, ["run", toWsl(nestedLoopTerminalReturnsFixture)],
     Buffer.from("-1,1,3\n", "utf8"),
     "verified nested loop CFG with terminal return branches")
+  expectSuccess(binary, ["run", toWsl(loopConditionalEarlyReturnFixture)],
+    Buffer.from("13,2,0\n", "utf8"),
+    "while loop with a conditional early return")
   expectSuccess(binary, ["run", toWsl(repeatFixture)],
     Buffer.from("Receipt digits 1/5\n", "utf8"),
     "Restaurant post-test repeat lowered through structured MLIR")
@@ -1820,6 +1825,8 @@ try {
   const buildNestedLabeledWhile = buildOutput("nested-labeled-while-build")
   const buildNestedLoopTerminalReturns = buildOutput(
     "nested-loop-terminal-returns-build")
+  const buildLoopConditionalEarlyReturn = buildOutput(
+    "loop-conditional-early-return-build")
   const buildRestaurantMainDispatch = buildOutput(
     "main-dispatch-build")
   const buildRestaurantMainCardinality = buildOutput(
@@ -2028,6 +2035,13 @@ try {
     Buffer.from("-1,1,3\n", "utf8"),
     "execute built verified nested loop terminal-return CFG artifact")
   assertCrtFreeElf(await readBuildArtifact(buildNestedLoopTerminalReturns))
+  expectSuccess(binary, ["build", toWsl(loopConditionalEarlyReturnFixture),
+    "--target", targetTriple, "--output", buildLoopConditionalEarlyReturn],
+  Buffer.alloc(0), "build verified loop conditional early-return fixture")
+  expectSuccess(buildLoopConditionalEarlyReturn, [],
+    Buffer.from("13,2,0\n", "utf8"),
+    "execute built verified loop conditional early-return artifact")
+  assertCrtFreeElf(await readBuildArtifact(buildLoopConditionalEarlyReturn))
   expectSuccess(binary, ["build", toWsl(mainDispatchFixture),
     "--target", targetTriple, "--output", buildRestaurantMainDispatch],
   Buffer.alloc(0), "build restaurant main-domain dispatch fixture")

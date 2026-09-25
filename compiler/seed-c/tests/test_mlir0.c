@@ -1239,8 +1239,9 @@ static bool test_process_checked_scalar_if_join_mlir(void) {
       "llvm.call @w_seed_process_root_finalize(", 0u);
   const size_t stdout_write = find_bytes(
       artifact, result.written.mlir_bytes, "llvm.call @write(", 0u);
-  CHECK(context_release < arguments_release &&
-        arguments_release < root_finalize && root_finalize < stdout_write &&
+  CHECK(result.process_arguments_count_only &&
+        context_release == SIZE_MAX && arguments_release == SIZE_MAX &&
+        root_finalize == SIZE_MAX && stdout_write != SIZE_MAX &&
         contains_bytes(artifact, result.written.mlir_bytes,
                        "%process_checked_fault_status = llvm.mlir.constant(2 : i32)"));
 
@@ -9554,6 +9555,121 @@ static bool test_nested_labeled_while_uses_verified_cfg_mlir(void) {
   return true;
 }
 
+static bool test_loop_conditional_early_return_uses_verified_cfg_mlir(void) {
+  static const uint8_t source[] =
+      "// Expected: exit 0; stdout: \"13,2,0\\n\"; stderr: \"\"\n"
+      "fn firstAt(limit: i64): i64 {\n"
+      "  var index: i64 = 0\n"
+      "  while index < limit {\n"
+      "    index = index + 1\n"
+      "    if index == 3 { return index + 10 }\n"
+      "  }\n"
+      "  return index\n"
+      "}\n"
+      "\n"
+      "entry {\n"
+      "  let early = firstAt(limit: 5)\n"
+      "  let exhausted = firstAt(limit: 2)\n"
+      "  let empty = firstAt(limit: 0)\n"
+      "  print(\"${early},${exhausted},${empty}\")\n"
+      "}\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  CHECK(fixture.hir_program.function_count == 2u &&
+        fixture.hir_program.functions[0].return_type ==
+            W_SEED_HIR0_TYPE_I64);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_cfg &&
+        selection.verified_i64_loop_cfg_functions[0] &&
+        !selection.natural_loop_functions[0] &&
+        w_seed_product_closure0_cross_check_functions(
+            &fixture.hir_program, &fixture.hir_result,
+            (const bool[]){true, true},
+            fixture.hir_program.function_count));
+
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        memcmp(measured.mlir_sha256, emitted.mlir_sha256,
+               sizeof(measured.mlir_sha256)) == 0);
+  const size_t function_start =
+      find_bytes(artifact, emitted.written.mlir_bytes,
+                 "llvm.func internal @w_fn_0(", 0u);
+  const size_t entry_start =
+      find_bytes(artifact, emitted.written.mlir_bytes,
+                 "llvm.func internal @w_fn_1(", function_start);
+  CHECK(function_start != SIZE_MAX && entry_start > function_start);
+  const size_t function_bytes = entry_start - function_start;
+  const w_seed_hir0_function *function = &fixture.hir_program.functions[0];
+  size_t branches = 0u;
+  size_t jumps = 0u;
+  size_t returns = 0u;
+  size_t conditional_return_arms = 0u;
+  const size_t block_end =
+      (size_t)function->first_block + function->block_count;
+  for (size_t block_index = function->first_block; block_index < block_end;
+       block_index += 1u) {
+    const w_seed_hir0_block *block =
+        &fixture.hir_program.blocks[block_index];
+    const w_seed_hir0_terminator *term =
+        &fixture.hir_program.terminators[block->terminator_index];
+    if (term->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
+      char expected[192];
+      const int length = snprintf(
+          expected, sizeof(expected),
+          "llvm.cond_br %%v%u, ^w_fn_0_b_%u, ^w_fn_0_b_%u",
+          term->value_index, term->target_block, term->else_block);
+      CHECK(length > 0 && (size_t)length < sizeof(expected) &&
+            contains_bytes(artifact + function_start, function_bytes,
+                           expected));
+      const w_seed_hir0_terminator *then_term =
+          &fixture.hir_program.terminators[
+              fixture.hir_program.blocks[term->target_block].terminator_index];
+      const w_seed_hir0_terminator *else_term =
+          &fixture.hir_program.terminators[
+              fixture.hir_program.blocks[term->else_block].terminator_index];
+      if ((then_term->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE) !=
+          (else_term->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE)) {
+        CHECK(then_term->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+              then_term->target_block == W_SEED_HIR0_NONE &&
+              then_term->else_block == W_SEED_HIR0_NONE &&
+              then_term->edge_argument_count == 0u);
+        conditional_return_arms += 1u;
+      }
+      branches += 1u;
+    } else if (term->kind == W_SEED_HIR0_TERMINATOR_JUMP) {
+      char expected[96];
+      const int length = snprintf(expected, sizeof(expected),
+                                  "llvm.br ^w_fn_0_b_%u", term->target_block);
+      CHECK(length > 0 && (size_t)length < sizeof(expected) &&
+            contains_bytes(artifact + function_start, function_bytes,
+                           expected));
+      jumps += 1u;
+    } else if (term->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE) {
+      returns += 1u;
+    }
+  }
+  CHECK(branches == 2u && jumps == 4u && returns == 2u &&
+        conditional_return_arms == 1u &&
+        count_bytes(artifact + function_start, function_bytes,
+                    "llvm.cond_br ") == branches &&
+        count_bytes(artifact + function_start, function_bytes,
+                    "llvm.br ^w_fn_0_b_") == jumps &&
+        count_bytes(artifact + function_start, function_bytes,
+                    "llvm.return ") == returns &&
+        !contains_bytes(artifact + function_start, function_bytes,
+                        "scf.while") &&
+        !contains_bytes(artifact + function_start, function_bytes,
+                        "llvm.alloca"));
+  return true;
+}
+
 static bool test_natural_loop_post_loop_continuation_mlir(void) {
   static const uint8_t source[] =
       "fn settle(limit: i64): i64 {\n"
@@ -9664,6 +9780,9 @@ static bool test_post_test_repeat_structured_mlir(void) {
 
 int main(int argc, char **argv) {
   if (argc == 2 && argv[1] != NULL &&
+      strcmp(argv[1], "--test-loop-conditional-early-return") == 0)
+    return test_loop_conditional_early_return_uses_verified_cfg_mlir() ? 0 : 1;
+  if (argc == 2 && argv[1] != NULL &&
       strcmp(argv[1], "--emit-typed-propagation") == 0) {
 #if defined(_WIN32)
     if (_setmode(_fileno(stdout), _O_BINARY) == -1) return 3;
@@ -9732,6 +9851,7 @@ int main(int argc, char **argv) {
   if (!test_natural_loop_multi_carrier_projection_mlir()) return 1;
   if (!test_conditional_exit_loop_uses_typed_cfg_mlir()) return 1;
   if (!test_nested_labeled_while_uses_verified_cfg_mlir()) return 1;
+  if (!test_loop_conditional_early_return_uses_verified_cfg_mlir()) return 1;
   if (!test_natural_loop_post_loop_continuation_mlir()) return 1;
   if (!test_post_test_repeat_structured_mlir()) return 1;
   if (!test_direct_products()) return 1;

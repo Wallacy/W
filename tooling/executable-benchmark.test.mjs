@@ -157,6 +157,19 @@ test("catalog stores compact live best cells and no immutable history", () => {
   assert.equal(terminalReturnLoop?.oracle.exitCode, 0);
   assert.equal(terminalReturnLoop?.oracle.stdout, "-1,1,3\n");
   assert.equal(terminalReturnLoop?.oracle.stderr, "");
+  const earlyReturnLoop = documents.catalog.workloads.find((item) =>
+    item.id === "loop-conditional-early-return");
+  assert.equal(earlyReturnLoop?.benchmarkDisposition, "required");
+  assert.equal(earlyReturnLoop?.benchmarkStatus, "not-performance-ready");
+  assert.equal(earlyReturnLoop?.oracle.exitCode, 0);
+  assert.equal(earlyReturnLoop?.oracle.stdout, "13,2,0\n");
+  assert.equal(earlyReturnLoop?.oracle.stderr, "");
+  assert.deepEqual(earlyReturnLoop?.sources.map((source) => source.language),
+    ["w", "w", "c", "rust"]);
+  assert.ok(earlyReturnLoop?.sources.slice(2).every((source) =>
+    source.quality === "correctness-gate" &&
+    source.comparability === "deferred-until-M3b" &&
+    source.runtimeClosure.class === "hosted-crt"));
   assert.equal(documents.schema.$defs.workload.properties.benchmarkDisposition.enum.join(","),
     "required,compiler-lifecycle,deferred,not-applicable");
   const invalidDisposition = clone(documents.catalog);

@@ -135,6 +135,8 @@ const nestedLabeledWhileFixture = resolve(seedDirectory, "fixtures",
   "nested-labeled-while.w")
 const nestedLoopTerminalReturnsFixture = resolve(seedDirectory, "fixtures",
   "nested-loop-terminal-returns.w")
+const loopConditionalEarlyReturnFixture = resolve(seedDirectory, "fixtures",
+  "loop-conditional-early-return.w")
 const wmoFixture = resolve(seedDirectory, "fixtures", "wmo.w")
 const asyncJoinFixture = resolve(seedDirectory,
   "fixtures", "async-join.w")
@@ -873,6 +875,9 @@ try {
     { name: "nested-loop-terminal-returns",
       source: nestedLoopTerminalReturnsFixture,
       expected: Buffer.from("-1,1,3\n", "utf8") },
+    { name: "loop-conditional-early-return",
+      source: loopConditionalEarlyReturnFixture,
+      expected: Buffer.from("13,2,0\n", "utf8") },
     { name: "wmo", source: wmoFixture,
       expected: Buffer.from("Bill 42\n", "utf8") },
     { name: "async-join", source: asyncJoinFixture,
@@ -1070,7 +1075,8 @@ try {
     `${product.name} mlir-opt`)
     if (product.name === "while" ||
         product.name === "nested-labeled-while" ||
-        product.name === "nested-loop-terminal-returns") {
+        product.name === "nested-loop-terminal-returns" ||
+        product.name === "loop-conditional-early-return") {
       const lowered = await readFile(verified)
       assert(!lowered.includes("scf.") && lowered.includes("llvm.cond_br") &&
         lowered.includes("llvm.br"),

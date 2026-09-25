@@ -2869,6 +2869,46 @@ static bool test_nested_labeled_while_native_subset(void) {
   return true;
 }
 
+static bool test_loop_conditional_early_return_native_subset(void) {
+  static const uint8_t source[] =
+      "// Expected: exit 0; stdout: \"13,2,0\\n\"; stderr: \"\"\n"
+      "fn firstAt(limit: i64): i64 {\n"
+      "  var index: i64 = 0\n"
+      "  while index < limit {\n"
+      "    index = index + 1\n"
+      "    if index == 3 { return index + 10 }\n"
+      "  }\n"
+      "  return index\n"
+      "}\n"
+      "\n"
+      "entry {\n"
+      "  let early = firstAt(limit: 5)\n"
+      "  let exhausted = firstAt(limit: 2)\n"
+      "  let empty = firstAt(limit: 0)\n"
+      "  print(\"${early},${exhausted},${empty}\")\n"
+      "}\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(source, sizeof(source) - 1u,
+                   "loop-conditional-early-return",
+                   sizeof("loop-conditional-early-return") - 1u, output,
+                   sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  CHECK(result.status == W_SEED_NATIVE0_OK &&
+        w_seed_hir0_verify(&storage.hir_program, &storage.hir_result) &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.cond_br") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes, "llvm.br") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes, "scf.while"));
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(storage.hir_program.function_count == 2u &&
+        selection.verified_i64_loop_cfg_functions[0] &&
+        !selection.natural_loop_functions[0]);
+  return true;
+}
+
 static bool test_post_loop_continuation_native_subset(void) {
   static const uint8_t source[] =
       "fn settle(limit: i64): i64 {\n"
@@ -7647,6 +7687,7 @@ int main(void) {
                        test_break_continue_multi_carrier_native_subset_selector() &&
                        test_labeled_break_continue_native_subset() &&
                        test_nested_labeled_while_native_subset() &&
+                       test_loop_conditional_early_return_native_subset() &&
                        test_post_loop_continuation_native_subset() &&
                        test_unary_i64_native_selector() &&
                        test_integer_prefix_native_matrix() &&

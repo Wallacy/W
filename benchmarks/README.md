@@ -235,6 +235,16 @@ required` and leaves `benchmarkStatus` at `not-performance-ready`; there is no
 timing or ranking result without equivalent runtime work. This is a bounded
 mixed-CFG witness, not arbitrary CFG.
 
+`loop-conditional-early-return` closes one direct terminal return arm inside a
+natural pre-test loop. The exact oracle is exit 0, stdout `13,2,0\n`, and empty
+stderr; the inputs cover an early match, an exhausted loop, and a zero-iteration
+loop. The Windows and Linux/WSL public gates exercise `w run` and `w build`,
+including the Windows import allowlist and Linux/WSL CRT-free ELF check. C23
+and Rust 2024 remain correctness references only. The catalog records
+`benchmarkDisposition: required` and `benchmarkStatus: not-performance-ready`;
+there are no timings or ranking claims. This is one verified HIR CFG family
+slice, not general returns from loops.
+
 `hello-platform-minimal` is registered and runner-supported for contextual,
 non-ranking measurement; the catalog status does not make it an idiomatic
 comparison or a language ranking. Source/oracle registration alone is not
