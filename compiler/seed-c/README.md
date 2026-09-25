@@ -215,7 +215,9 @@ magnitudes in the existing 16-byte little-endian expression field. It covers
 signed maximum/minimum, unsigned maximum, decimal and hexadecimal spellings,
 and immutable explicitly typed bindings. Out-of-range values, negative
 `u128`, wide arithmetic, mutation and conversions fail closed; verified HIR,
-native lowering, ABI/layout and serialization remain unsupported.
+native lowering, ABI/layout and serialization remain unsupported. Its
+`benchmarkDisposition` is `compiler-lifecycle`; this frontend-only slice adds
+no public/native benchmark row.
 
 Version 75 adds a discriminated local-struct initializer identity without
 growing the public type, expression, or argument records. The bounded frontend slice accepts an

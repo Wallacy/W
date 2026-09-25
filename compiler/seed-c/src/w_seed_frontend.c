@@ -19675,8 +19675,10 @@ static bool normalize_if_expression(
         (w_seed_frontend_text){"Bool", 4u});
     supported = false;
   }
-  if (scalar_if_type(then_type) && scalar_if_type(else_type) &&
-      !same_result_type) {
+  const bool scalar_result_mismatch =
+      scalar_if_type(then_type) && scalar_if_type(else_type) &&
+      !same_result_type;
+  if (scalar_result_mismatch) {
     (void)append_type0120_diagnostic(
         context, if_cst->raw_span, then_type,
         doc->nodes[then_node].raw_span, context->module_index, else_type,
@@ -19684,7 +19686,7 @@ static bool normalize_if_expression(
         "branch-result", "branch-result");
     supported = false;
   }
-  if (!scalar_result && !enum_result) {
+  if (!scalar_result && !enum_result && !scalar_result_mismatch) {
     (void)context_append_fact(
         context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION, if_cst->raw_span,
         text_from_span(doc, if_cst->raw_span));

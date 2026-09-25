@@ -6607,6 +6607,8 @@ static bool test_i128_literal_frontend(void) {
       "340282366920938463463374607431768211455_u128 }\n"
       "fn unsignedHexMax(): u128 { return "
       "0xffffffffffffffffffffffffffffffff_u128 }\n"
+      "fn unsignedBinary(): u128 { return 0b1010_0101_u128 }\n"
+      "fn unsignedOctal(): u128 { return 0o17_777_u128 }\n"
       "fn echoSigned(value: i128): i128 { return value }\n"
       "fn echoUnsigned(value: u128): u128 { return value }\n"
       "fn boundUnsigned(): u128 { let wide: u128 = "
@@ -6642,6 +6644,8 @@ static bool test_i128_literal_frontend(void) {
                     {"signedMin", true, 128u},
                     {"unsignedMax", false, 128u},
                     {"unsignedHexMax", false, 128u},
+                    {"unsignedBinary", false, 128u},
+                    {"unsignedOctal", false, 128u},
                     {"echoSigned", true, 128u},
                     {"echoUnsigned", false, 128u},
                     {"boundUnsigned", false, 128u},
@@ -6663,7 +6667,7 @@ static bool test_i128_literal_frontend(void) {
       CHECK(type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
             type->is_signed == FUNCTIONS[expected].is_signed &&
             type->bit_width == FUNCTIONS[expected].bit_width);
-      if (expected == 4u || expected == 5u) {
+      if (expected == 6u || expected == 7u) {
         CHECK(function->parameter_count == 1u &&
               function->first_parameter < value->result.written.parameters);
         const w_seed_frontend_parameter *parameter =
@@ -6685,6 +6689,8 @@ static bool test_i128_literal_frontend(void) {
   uint8_t signed_min[16] = {0u};
   uint8_t unsigned_max[16];
   uint8_t unsigned_high_bit[16] = {0u};
+  uint8_t binary_value[16] = {0xa5u};
+  uint8_t octal_value[16] = {0xffu, 0x1fu};
   uint8_t u8_max[16] = {0xffu};
   uint8_t u16_max[16] = {0xffu, 0xffu};
   uint8_t u32_max[16] = {0xffu, 0xffu, 0xffu, 0xffu};
@@ -6709,6 +6715,8 @@ static bool test_i128_literal_frontend(void) {
        unsigned_max},
       {"0xffffffffffffffffffffffffffffffff_u128", false, 128u,
        unsigned_max},
+      {"0b1010_0101_u128", false, 128u, binary_value},
+      {"0o17_777_u128", false, 128u, octal_value},
       {"0x80000000000000000000000000000000_u128", false, 128u,
        unsigned_high_bit},
       {"255_u8", false, 8u, u8_max},
