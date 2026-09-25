@@ -5616,24 +5616,49 @@ static bool append_program_block_argument_name(
   bool rounding_source_join_argument_ok = false;
   if (process != NULL && process->has_float_to_integer_rounding &&
       process->rounding_source_value != NULL &&
-      process->rounding_source_value->kind ==
-          W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
-      process->rounding_source_value->block_argument_index ==
-          block_argument_index &&
-      process->rounding_source_value->type_index == argument->type_index &&
       argument->owner_block == process->rounding_split_block_index) {
-    const bool is_f32 = argument_kind == W_SEED_HIR0_TYPE_F32 &&
-                        process->rounding_source_bit_width == 32u;
-    const bool is_f64 = argument_kind == W_SEED_HIR0_TYPE_F64 &&
-                        process->rounding_source_bit_width == 64u;
-    if (is_f32 || is_f64) {
-      for (size_t value_index = 0u; value_index < program->value_count;
-           value_index += 1u)
-        if (&program->values[value_index] ==
-            process->rounding_source_value) {
-          rounding_source_join_argument_ok = true;
-          break;
-        }
+    const w_seed_hir0_value *source_read =
+        process->rounding_source_value;
+    bool raw_bit_join = false;
+    uint32_t source_value_index = W_SEED_HIR0_NONE;
+    for (size_t value_index = 0u; value_index < program->value_count;
+         value_index += 1u)
+      if (&program->values[value_index] == process->rounding_source_value) {
+        source_value_index = (uint32_t)value_index;
+        break;
+      }
+    if (source_value_index != W_SEED_HIR0_NONE &&
+        source_read->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS &&
+        source_read->left_value < program->value_count) {
+      mlir0_float_bits_facts bits_facts;
+      if (mlir0_float_bits_shape_valid(program, source_value_index,
+                                       &bits_facts) &&
+          bits_facts.bit_width == process->rounding_source_bit_width) {
+        source_read = &program->values[source_read->left_value];
+        raw_bit_join = true;
+      }
+    }
+    if (source_read->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        source_read->block_argument_index == block_argument_index &&
+        source_read->type_index == argument->type_index) {
+      if (raw_bit_join) {
+        bool is_signed = false;
+        uint16_t bit_width = 0u;
+        rounding_source_join_argument_ok =
+            source_read->owner_kind ==
+                W_SEED_HIR0_VALUE_OWNER_FLOAT_BITS_CONVERSION &&
+            source_read->owner_index == source_value_index &&
+            source_read->owner_ordinal == 0u &&
+            mlir0_integer_type_facts(program, argument->type_index,
+                                     &is_signed, &bit_width) &&
+            !is_signed && bit_width == process->rounding_source_bit_width;
+      } else {
+        const bool is_f32 = argument_kind == W_SEED_HIR0_TYPE_F32 &&
+                            process->rounding_source_bit_width == 32u;
+        const bool is_f64 = argument_kind == W_SEED_HIR0_TYPE_F64 &&
+                            process->rounding_source_bit_width == 64u;
+        rounding_source_join_argument_ok = is_f32 || is_f64;
+      }
     }
   }
   const bool typed_error_ok =
@@ -9173,12 +9198,30 @@ static bool append_process_float_to_integer_rounding_terminator(
       process->rounding_destination_is_signed
           ? (uint16_t)(destination_width - 1u)
           : destination_width;
+  /* LLVM lowers llvm.trunc to the CRT `trunc` function on this Windows
+   * process route.  fptosi/fptoui already round toward zero, so for that
+   * policy compare the original source against the exact widened interval
+   * whose truncation fits.  This keeps dynamic input CRT-free. */
+  const bool toward_zero_direct =
+      process->rounding_mode == W_SEED_HIR0_ROUNDING_MODE_TOWARD_ZERO;
+  const uint16_t source_mantissa_bits = source_width == 32u ? 23u : 52u;
+  bool strict_lower_bound = false;
   uint64_t lower_bits = 0u;
   uint64_t upper_bits = 0u;
   if ((process->rounding_destination_is_signed &&
        !float_power_bits(source_width, lower_exponent, true, &lower_bits)) ||
       !float_power_bits(source_width, upper_exponent, false, &upper_bits))
     return false;
+  if (toward_zero_direct) {
+    if (process->rounding_destination_is_signed &&
+        lower_exponent <= source_mantissa_bits) {
+      lower_bits += UINT64_C(1) << (source_mantissa_bits - lower_exponent);
+      strict_lower_bound = true;
+    } else if (!process->rounding_destination_is_signed) {
+      if (!float_power_bits(source_width, 0u, true, &lower_bits)) return false;
+      strict_lower_bound = true;
+    }
+  }
 
   if (!append_literal(
           artifact, capacity, offset,
@@ -9197,17 +9240,19 @@ static bool append_process_float_to_integer_rounding_terminator(
           process->rounding_non_finite_block_index, false) ||
       !append_literal(artifact, capacity, offset,
                       "(%process_round_error_payload : i64), ^process_round_finite\n"
-                      "  ^process_round_finite:\n"
-                      "    %process_rounded = \"") ||
-      !append_literal(artifact, capacity, offset, intrinsic) ||
-      !append_literal(artifact, capacity, offset, "\"(") ||
-      !append_program_value_operand(program, terminator->value_index,
-                                    function_index, process, artifact,
-                                    capacity, offset) ||
-      !append_literal(artifact, capacity, offset, ") : (f") ||
-      !append_u64(artifact, capacity, offset, source_width) ||
-      !append_literal(artifact, capacity, offset, ") -> f") ||
-      !append_u64(artifact, capacity, offset, source_width) ||
+                      "  ^process_round_finite:\n") ||
+      (!toward_zero_direct &&
+       (!append_literal(artifact, capacity, offset,
+                        "    %process_rounded = \"") ||
+        !append_literal(artifact, capacity, offset, intrinsic) ||
+        !append_literal(artifact, capacity, offset, "\"(") ||
+        !append_program_value_operand(program, terminator->value_index,
+                                      function_index, process, artifact,
+                                      capacity, offset) ||
+        !append_literal(artifact, capacity, offset, ") : (f") ||
+        !append_u64(artifact, capacity, offset, source_width) ||
+        !append_literal(artifact, capacity, offset, ") -> f") ||
+        !append_u64(artifact, capacity, offset, source_width))) ||
       !append_literal(artifact, capacity, offset,
                       "\n    %process_round_lower = llvm.mlir.constant(") ||
       !append_float_constant_bits(artifact, capacity, offset, source_width,
@@ -9225,10 +9270,27 @@ static bool append_process_float_to_integer_rounding_terminator(
       !append_literal(artifact, capacity, offset, ") : f") ||
       !append_u64(artifact, capacity, offset, source_width) ||
       !append_literal(artifact, capacity, offset,
-                      "\n    %process_round_lower_ok = llvm.fcmp \"oge\" %process_rounded, %process_round_lower : f") ||
+                      "\n    %process_round_lower_ok = llvm.fcmp \"") ||
+      !append_literal(artifact, capacity, offset,
+                      strict_lower_bound ? "ogt" : "oge") ||
+      !append_literal(artifact, capacity, offset, "\" ") ||
+      (toward_zero_direct
+           ? !append_program_value_operand(program, terminator->value_index,
+                                           function_index, process, artifact,
+                                           capacity, offset)
+           : !append_literal(artifact, capacity, offset, "%process_rounded")) ||
+      !append_literal(artifact, capacity, offset,
+                      ", %process_round_lower : f") ||
       !append_u64(artifact, capacity, offset, source_width) ||
       !append_literal(artifact, capacity, offset,
-                      "\n    %process_round_upper_ok = llvm.fcmp \"olt\" %process_rounded, %process_round_upper : f") ||
+                      "\n    %process_round_upper_ok = llvm.fcmp \"olt\" ") ||
+      (toward_zero_direct
+           ? !append_program_value_operand(program, terminator->value_index,
+                                           function_index, process, artifact,
+                                           capacity, offset)
+           : !append_literal(artifact, capacity, offset, "%process_rounded")) ||
+      !append_literal(artifact, capacity, offset,
+                      ", %process_round_upper : f") ||
       !append_u64(artifact, capacity, offset, source_width) ||
       !append_literal(
           artifact, capacity, offset,
@@ -9244,7 +9306,13 @@ static bool append_process_float_to_integer_rounding_terminator(
       !append_literal(artifact, capacity, offset,
                       process->rounding_destination_is_signed ? "fptosi"
                                                               : "fptoui") ||
-      !append_literal(artifact, capacity, offset, " %process_rounded : f") ||
+      !append_literal(artifact, capacity, offset, " ") ||
+      (toward_zero_direct
+           ? !append_program_value_operand(program, terminator->value_index,
+                                           function_index, process, artifact,
+                                           capacity, offset)
+           : !append_literal(artifact, capacity, offset, "%process_rounded")) ||
+      !append_literal(artifact, capacity, offset, " : f") ||
       !append_u64(artifact, capacity, offset, source_width) ||
       !append_literal(artifact, capacity, offset, " to i") ||
       !append_u64(artifact, capacity, offset, destination_width) ||

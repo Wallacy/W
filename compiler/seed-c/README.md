@@ -3437,6 +3437,28 @@ non-finite classification. Public CRT-free Windows x64 and Linux/WSL x64
 stdout/stderr empty. This proves the public non-finite outcome for one exact
 source-derived NaN; it is not arbitrary runtime float ingress.
 
+The runtime-selected raw-bit fixture now carries that ingress through the
+public conversion path: `Arguments.count == 0` selects `0x4045600000000000`
+(`42.75_f64`), while every nonzero count selects the canonical quiet-NaN
+bits, then one `f64.fromBits` feeds `try i8(rounding:, mode: .towardZero)`.
+Zero arguments print exactly `Rounded 42\n`; one or two user arguments produce
+typed status 1 with empty stdout/stderr. HIR and NativeSubset0 keep the selector
+to an exact same-width `u64` diamond, one bitcast, and one float evaluation;
+the owned process cleanup completes before outcome adaptation. MLIR uses a
+direct `i64`-to-`f64` bitcast and `llvm.intr.is.fpclass`. For the dynamic
+toward-zero route, it checks the open lower/exclusive upper interval whose
+truncation fits and lets `fptosi` perform truncation directly, avoiding the
+Windows CRT `trunc` helper. A broader bits input derived from `args.count` is
+rejected by the focused adversarial test. Public `w run` and Release `w build`
+checks on Windows x64 and Linux/WSL x64 cover all three argument cases and
+require CRT-free outputs (Kernel32-only PE imports; static PIE ELF without an
+interpreter or `DT_NEEDED`). This bundle has
+`benchmarkDisposition: compiler-lifecycle` and maps to the existing
+`float-integer-rounding` owner; it adds no performance row. Parsing argument
+contents, unrestricted runtime float inputs, other targets, post-opt/object
+symbol receipts, independent non-finite conversion references, and performance
+remain gaps.
+
 The bootstrap runs LLVM `opt` between translation and `llc`; optimization remains
 enabled, with helper-specific no-builtin attributes guarding the relevant
 runtime idioms instead of a global libcall-simplification disable. Built Linux

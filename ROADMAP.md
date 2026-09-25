@@ -1250,10 +1250,22 @@ hardcoded adapter string. The bounded raw-bit ingress now takes
 `Arguments.count` through exact `u64`, `f64.fromBits`, `.toBits()`, direct
 bitcasts, and exact Windows/Linux process output, with independent C23/Rust
 runtime references. A separate canonical quiet-NaN literal-bit witness now
-reaches the public typed non-finite outcome on both targets. Next add general
-runtime float ingress and independent non-finite conversion references. Until
-those exist, this remains compiler-lifecycle evidence only and carries no
-benchmark timing or performance claim.
+reaches the public typed non-finite outcome on both targets. The runtime-
+selected ingress now composes the exact `Arguments.count == 0` finite-bits /
+nonzero-count quiet-NaN-bits diamond with `f64.fromBits` and public toward-zero
+`i8` rounding. It prints `Rounded 42\n` at zero arguments and returns typed
+status 1 with empty stdout/stderr for one or two arguments. HIR/NativeSubset0
+keep this to an exact-width `u64` selector, one bitcast, one float evaluation,
+and cleanup-before-adaptation; an arbitrary `args.count`-derived bit pattern
+remains rejected by an adversarial test. MLIR uses direct bitcast/fpclass and
+avoids `llvm.intr.trunc` on this toward-zero route so Windows stays CRT-free.
+Public Windows and Linux/WSL x64 `w run` and Release `w build` checks require
+Kernel32-only PE imports and static-PIE ELF with no interpreter or `DT_NEEDED`.
+The fixture maps to the existing `float-integer-rounding` owner and this
+compiler-lifecycle increment adds no performance row. Unrestricted runtime
+float ingress, argument-content parsing, other targets, post-opt/object-symbol
+receipts, independent non-finite conversion references, and performance remain
+gaps.
 
 W-1645 generalizes the prior strict-f64 seed path into one strict floating
 family for `f32` and `f64`. Frontend67 materializes exact binary32/binary64

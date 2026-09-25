@@ -7644,12 +7644,13 @@ typedef struct {
   uint32_t zero_value_index;
   uint32_t arm_values[2];
   uint32_t join_argument_index;
+  bool raw_bit_join;
 } process_float_diamond_facts;
 
-/* NativeSubset0 independently authenticates the only runtime float ingress
- * currently admitted for the process rounding route.  It deliberately does
- * not reuse the broader CFG/value walker: exactly one Args.count == 0 branch
- * selects two f64 literals which feed one f64 join argument. */
+/* NativeSubset0 independently authenticates the only runtime raw-bit ingress
+ * currently admitted for the process rounding route: exactly one
+ * Args.count == 0 branch selects two u64 literals which feed one u64 join
+ * argument and then one f64.fromBits at the rounding split. */
 static bool process_float_source_diamond_supported(
     const w_seed_hir0_program *program,
     const w_seed_native_subset0_process *process,
@@ -7748,10 +7749,19 @@ static bool process_float_source_diamond_supported(
   const w_seed_hir0_block_argument *join_argument =
       &program->block_arguments[join_block->first_block_argument];
   uint16_t join_width = 0u;
+  native_integer_facts join_integer_facts;
+  const bool raw_bit_join =
+      native_integer_type_facts(program, join_argument->type_index,
+                                &join_integer_facts) &&
+      !join_integer_facts.is_signed && join_integer_facts.bit_width == 64u;
+  if (raw_bit_join) join_width = join_integer_facts.bit_width;
+  if (!raw_bit_join &&
+      (!native_float_type_width(program, join_argument->type_index,
+                                &join_width) ||
+       join_width != 64u))
+    return false;
   if (join_argument->owner_block != join_index ||
       join_argument->ordinal != 0u ||
-      !native_float_type_width(program, join_argument->type_index,
-                               &join_width) ||
       join_width != 64u)
     return false;
   const w_seed_hir0_edge_argument *edges[2] = {
@@ -7767,12 +7777,13 @@ static bool process_float_source_diamond_supported(
         edge->type_index != join_argument->type_index ||
         edge->value_index >= program->value_count)
       return false;
-    const w_seed_hir0_value *literal = &program->values[edge->value_index];
-    if (literal->kind != W_SEED_HIR0_VALUE_CONST_FLOAT ||
-        literal->owner_kind != W_SEED_HIR0_VALUE_OWNER_TERMINATOR ||
-        literal->owner_index != arm_terminators[ordinal] ||
-        literal->owner_ordinal != 0u ||
-        literal->type_index != join_argument->type_index)
+    const w_seed_hir0_value *arm = &program->values[edge->value_index];
+    if (arm->owner_kind != W_SEED_HIR0_VALUE_OWNER_TERMINATOR ||
+        arm->owner_index != arm_terminators[ordinal] ||
+        arm->owner_ordinal != 0u ||
+        arm->type_index != join_argument->type_index ||
+        arm->kind != (raw_bit_join ? W_SEED_HIR0_VALUE_CONST_U64
+                                   : W_SEED_HIR0_VALUE_CONST_FLOAT))
       return false;
     facts->arm_values[ordinal] = edge->value_index;
   }
@@ -7781,6 +7792,7 @@ static bool process_float_source_diamond_supported(
   facts->count_value_index = condition->left_value;
   facts->zero_value_index = condition->right_value;
   facts->join_argument_index = join_block->first_block_argument;
+  facts->raw_bit_join = raw_bit_join;
   return true;
 }
 
@@ -7856,11 +7868,31 @@ static bool process_float_to_integer_rounding_root_supported(
   const w_seed_hir0_value *source = &program->values[conversion->value_index];
   bool source_supported = false;
   if (has_diamond) {
-    source_supported =
-        source->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
-        source->owner_kind == W_SEED_HIR0_VALUE_OWNER_TERMINATOR &&
-        source->owner_index == split_index && source->owner_ordinal == 0u &&
-        source->block_argument_index == diamond.join_argument_index;
+    if (diamond.raw_bit_join) {
+      if (source->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS &&
+          source->owner_kind == W_SEED_HIR0_VALUE_OWNER_TERMINATOR &&
+          source->owner_index == split_index && source->owner_ordinal == 0u &&
+          source->left_value < program->value_count &&
+          source->right_value == W_SEED_HIR0_NONE) {
+        const w_seed_hir0_value *bits = &program->values[source->left_value];
+        source_supported =
+            bits->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+            bits->owner_kind ==
+                W_SEED_HIR0_VALUE_OWNER_FLOAT_BITS_CONVERSION &&
+            bits->owner_index == conversion->value_index &&
+            bits->owner_ordinal == 0u &&
+            bits->block_argument_index == diamond.join_argument_index &&
+            bits->type_index == program->block_arguments[
+                                    diamond.join_argument_index].type_index &&
+            source->source_type == bits->type_index;
+      }
+    } else {
+      source_supported =
+          source->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+          source->owner_kind == W_SEED_HIR0_VALUE_OWNER_TERMINATOR &&
+          source->owner_index == split_index && source->owner_ordinal == 0u &&
+          source->block_argument_index == diamond.join_argument_index;
+    }
   } else if (source->kind == W_SEED_HIR0_VALUE_CONST_FLOAT) {
     source_supported = true;
   } else if (source->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS &&
@@ -7891,8 +7923,9 @@ static bool process_float_to_integer_rounding_root_supported(
           has_diamond &&
           (value_index == diamond.arm_values[0] ||
            value_index == diamond.arm_values[1]) &&
-          value->kind == W_SEED_HIR0_VALUE_CONST_FLOAT && kind ==
-              W_SEED_HIR0_TYPE_F64;
+          (value->kind == W_SEED_HIR0_VALUE_CONST_FLOAT ||
+           value->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS) &&
+          kind == W_SEED_HIR0_TYPE_F64;
       if (!selected_arm && value_index != conversion->value_index) return false;
     }
     if (value->kind == W_SEED_HIR0_VALUE_BINARY_FLOAT ||

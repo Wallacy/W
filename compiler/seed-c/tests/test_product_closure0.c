@@ -1433,8 +1433,9 @@ static bool test_native_process_float_rounding_diamond(void) {
       "ExitCode as ProcessExitCode } from std.process\n"
       "async fn run(args: ProcessArguments, ctx: ProcessContext): "
       "ProcessExitCode throws NumericConversionError { "
-      "let rounded = try i8(rounding: if args.count == 0 { 2.5_f64 } "
-      "else { 3.5_f64 }, mode: .nearestEven) "
+      "let rounded = try i8(rounding: f64.fromBits(if args.count == 0 { "
+      "0x4045600000000000_u64 } else { "
+      "0x7ff8000000000000_u64 }), mode: .towardZero) "
       "print(\"Rounded ${rounded}\") return .success }\n"
       "entry(run)\n";
   static multidoc_fixture fixture;

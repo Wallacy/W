@@ -16113,6 +16113,7 @@ static bool expression_parse_float_bits_call(
   const w_seed_frontend_expr_kind conversion_kind =
       from_bits ? W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS
                 : W_SEED_FRONTEND_EXPR_FLOAT_TO_BITS;
+  const frontend_simple_type destination = member->type;
   frontend_expr_value source = {0};
   source.index = W_SEED_FRONTEND_NONE;
   source.type = simple_type_unknown();
@@ -16136,11 +16137,19 @@ static bool expression_parse_float_bits_call(
     const frontend_simple_type saved_expected = parser->expected_type;
     const bool saved_has_expected = parser->has_expected_type;
     const bool saved_suppress_short = parser->suppress_short_diagnostic;
-    /* The bit source must already have the exact unsigned width.  In
-     * particular, do not contextually widen a smaller integer or
-     * materialize an untyped literal as a float. */
-    parser->expected_type = simple_type_unknown();
-    parser->has_expected_type = false;
+    /* The bit source must already have the exact unsigned width. For a
+     * scalar-if source, carry that exact width into both arms; unrelated
+     * expressions remain uncontextualized so this does not widen inputs. */
+    frontend_token argument_start;
+    const bool scalar_if_bits = from_bits &&
+        cursor_peek(&parser->cursor, &argument_start) &&
+        token_text(parser->document, &argument_start, "if");
+    parser->expected_type = scalar_if_bits
+        ? simple_type_from_view(destination.bit_width == 32u
+                                    ? (w_seed_frontend_text){"u32", 3u}
+                                    : (w_seed_frontend_text){"u64", 3u})
+        : simple_type_unknown();
+    parser->has_expected_type = scalar_if_bits;
     parser->suppress_short_diagnostic = true;
     frontend_expr_value argument;
     const bool parsed = expression_parse_bp(parser, 0, &argument);
@@ -16159,7 +16168,6 @@ static bool expression_parse_float_bits_call(
   if (!cursor_take_text(&parser->cursor, ")", &close)) return false;
   const w_seed_span call_span = {member->span.start_byte,
                                  close.span.end_byte};
-  const frontend_simple_type destination = member->type;
   if (!from_bits) {
     source.index = member->index;
     source.type = member->builtin_float_source_type;
@@ -17203,7 +17211,9 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
       const w_seed_span if_span =
           trim_span(parser->document,
                     parser->document->nodes[expression_owner].raw_span);
-      const frontend_simple_type expected = simple_type_unknown();
+      const frontend_simple_type expected = parser->has_expected_type
+                                                ? parser->expected_type
+                                                : simple_type_unknown();
       frontend_simple_type actual = simple_type_unknown();
       uint32_t expression_index = W_SEED_FRONTEND_NONE;
       frontend_expr_value scalar_if;

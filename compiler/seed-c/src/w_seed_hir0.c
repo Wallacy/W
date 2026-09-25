@@ -6886,10 +6886,10 @@ static bool frontend_float_rounding_source_flat(
          value->kind == W_SEED_FRONTEND_EXPR_MEMBER;
 }
 
-/* A runtime-selected scalar-if may feed one rounding conversion, but keep the
- * old flat-source grammar unchanged for all other roots.  The independent
- * scalar-if walk proves a side-effect-free, exactly typed diamond, and this
- * route requires its join type to be binary64. */
+/* A runtime-selected scalar-if may feed one rounding conversion directly, or
+ * feed the exact-width u64 operand of f64.fromBits. Keep this exception local
+ * to the process rounding route; other roots retain the old flat-source
+ * grammar. */
 static bool frontend_float_rounding_source_ok(
     const w_seed_hir0_input *input, size_t module_index,
     size_t function_index, size_t document_index, uint32_t expression,
@@ -6901,6 +6901,28 @@ static bool frontend_float_rounding_source_ok(
     return false;
   const w_seed_frontend_expression *value =
       &input->frontend_output->expressions[expression];
+  if (value->kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS &&
+      value->left != W_SEED_FRONTEND_NONE &&
+      (size_t)value->left < input->frontend_result->written.expressions &&
+      input->frontend_output->expressions[value->left].kind ==
+          W_SEED_FRONTEND_EXPR_IF &&
+      value->conversion_source_type != W_SEED_FRONTEND_NONE &&
+      value->conversion_destination_type != W_SEED_FRONTEND_NONE &&
+      (size_t)value->conversion_source_type <
+          input->frontend_result->written.types &&
+      (size_t)value->conversion_destination_type <
+          input->frontend_result->written.types &&
+      frontend_float_bits_conversion_route(
+          &input->frontend_output->types[value->conversion_source_type],
+          &input->frontend_output->types[value->conversion_destination_type],
+          value->kind) &&
+      input->frontend_output->types[value->conversion_source_type].bit_width ==
+          64u &&
+      input->frontend_output->types[value->conversion_destination_type]
+              .bit_width == 64u)
+    return frontend_scalar_if_tree_ok(
+        input, module_index, function_index, document_index, value->left,
+        false, false, depth + 1u);
   if (value->kind != W_SEED_FRONTEND_EXPR_IF)
     return frontend_float_rounding_source_flat(input, expression, depth);
   if (value->inferred_type == W_SEED_FRONTEND_NONE ||
@@ -9259,11 +9281,41 @@ static bool frontend_process_float_rounding_if_source_ok(
       conversion->left == W_SEED_FRONTEND_NONE ||
       (size_t)conversion->left >= result->written.expressions)
     return false;
-  const w_seed_frontend_expression *source =
+  const w_seed_frontend_expression *rounding_source =
       &output->expressions[conversion->left];
+  bool raw_bits_join = false;
+  const w_seed_frontend_expression *source = rounding_source;
+  if (rounding_source->kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS) {
+    if (rounding_source->left == W_SEED_FRONTEND_NONE ||
+        (size_t)rounding_source->left >= result->written.expressions ||
+        rounding_source->conversion_source_type == W_SEED_FRONTEND_NONE ||
+        rounding_source->conversion_destination_type == W_SEED_FRONTEND_NONE ||
+        (size_t)rounding_source->conversion_source_type >=
+            result->written.types ||
+        (size_t)rounding_source->conversion_destination_type >=
+            result->written.types ||
+        !frontend_float_bits_conversion_route(
+            &output->types[rounding_source->conversion_source_type],
+            &output->types[rounding_source->conversion_destination_type],
+            rounding_source->kind) ||
+        output->types[rounding_source->conversion_source_type].bit_width !=
+            64u ||
+        output->types[rounding_source->conversion_destination_type].kind !=
+            W_SEED_FRONTEND_TYPE_FLOAT ||
+        output->types[rounding_source->conversion_destination_type].bit_width !=
+            64u)
+      return false;
+    source = &output->expressions[rounding_source->left];
+    raw_bits_join = true;
+  }
   if (source->kind != W_SEED_FRONTEND_EXPR_IF ||
       source->left == W_SEED_FRONTEND_NONE ||
+      source->right == W_SEED_FRONTEND_NONE ||
+      source->else_expression == W_SEED_FRONTEND_NONE ||
       (size_t)source->left >= result->written.expressions)
+    return false;
+  if ((size_t)source->right >= result->written.expressions ||
+      (size_t)source->else_expression >= result->written.expressions)
     return false;
   const w_seed_frontend_expression *condition =
       &output->expressions[source->left];
@@ -9286,6 +9338,35 @@ static bool frontend_process_float_rounding_if_source_ok(
           output->modules[function->module_index].document_index,
           &output->expressions[condition->right]))
     return false;
+  const w_seed_frontend_expression *then_value =
+      &output->expressions[source->right];
+  const w_seed_frontend_expression *else_value =
+      &output->expressions[source->else_expression];
+  if ((!raw_bits_join &&
+       (then_value->kind != W_SEED_FRONTEND_EXPR_FLOAT ||
+        else_value->kind != W_SEED_FRONTEND_EXPR_FLOAT)) ||
+      (raw_bits_join &&
+       (then_value->kind != W_SEED_FRONTEND_EXPR_INTEGER ||
+        else_value->kind != W_SEED_FRONTEND_EXPR_INTEGER)) ||
+      then_value->inferred_type == W_SEED_FRONTEND_NONE ||
+      else_value->inferred_type != then_value->inferred_type ||
+      (size_t)then_value->inferred_type >= result->written.types ||
+      output->types[then_value->inferred_type].kind !=
+          (raw_bits_join ? W_SEED_FRONTEND_TYPE_INTEGER
+                         : W_SEED_FRONTEND_TYPE_FLOAT) ||
+      output->types[then_value->inferred_type].bit_width != 64u ||
+      (raw_bits_join &&
+       (output->types[then_value->inferred_type].is_signed ||
+        output->types[then_value->inferred_type].kind !=
+            W_SEED_FRONTEND_TYPE_INTEGER)))
+    return false;
+  if (raw_bits_join) {
+    uint64_t then_bits = 0u;
+    uint64_t else_bits = 0u;
+    if (!frontend_integer_u64(then_value, &then_bits) ||
+        !frontend_integer_u64(else_value, &else_bits))
+      return false;
+  }
   uint64_t zero = 0u;
   return frontend_integer_u64(&output->expressions[condition->right], &zero) &&
          zero == 0u;
@@ -13052,6 +13133,8 @@ static size_t hir0_expression_logical_count(const hir0_emit_context *context,
       &context->frontend->expressions[expression];
   if (value->kind == W_SEED_FRONTEND_EXPR_TRY ||
       value->kind == W_SEED_FRONTEND_EXPR_FLOAT_TO_INTEGER_ROUNDING)
+    return hir0_expression_logical_count(context, value->left, depth + 1u);
+  if (value->kind == W_SEED_FRONTEND_EXPR_FLOAT_FROM_BITS)
     return hir0_expression_logical_count(context, value->left, depth + 1u);
   if (frontend_task_launch_kind(value->kind))
     return hir0_expression_logical_count(
@@ -28648,17 +28731,79 @@ static bool verify_cfg_float_to_integer_rounding_at(
   } else {
     if (split->block_argument_count != 1u ||
         split->first_block_argument == W_SEED_HIR0_NONE ||
-        split->first_block_argument >= program->block_argument_count ||
-        source->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
-        program->types[source->type_index].kind != W_SEED_HIR0_TYPE_F64 ||
-        source->block_argument_index != split->first_block_argument)
+        split->first_block_argument >= program->block_argument_count)
       return false;
     const w_seed_hir0_block_argument *source_argument =
         &program->block_arguments[split->first_block_argument];
     if (source_argument->owner_block != split_block ||
-        source_argument->ordinal != 0u ||
-        source_argument->type_index != source->type_index)
+        source_argument->ordinal != 0u)
       return false;
+    if (source->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
+      if (program->types[source->type_index].kind != W_SEED_HIR0_TYPE_F64 ||
+          source->block_argument_index != split->first_block_argument ||
+          source_argument->type_index != source->type_index)
+        return false;
+    } else if (source->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS) {
+      if (function->block_count != 7u ||
+          split_block != function->first_block + 3u ||
+          source->left_value >= program->value_count ||
+          source->right_value != W_SEED_HIR0_NONE ||
+          source->type_index >= program->type_count ||
+          program->types[source->type_index].kind != W_SEED_HIR0_TYPE_F64 ||
+          !hir_float_bits_conversion_route(
+              program, source->source_type, source->type_index,
+              source->kind))
+        return false;
+      bool source_signed = true;
+      uint16_t source_width = 0u;
+      if (!hir_integer_type_facts(program, source->source_type,
+                                  &source_signed, &source_width) ||
+          source_signed || source_width != 64u ||
+          source_argument->type_index != source->source_type)
+        return false;
+      const w_seed_hir0_value *bits =
+          &program->values[source->left_value];
+      if (bits->kind != W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ ||
+          bits->owner_kind !=
+              W_SEED_HIR0_VALUE_OWNER_FLOAT_BITS_CONVERSION ||
+          bits->owner_index != split_term->value_index ||
+          bits->owner_ordinal != 0u ||
+          bits->type_index != source->source_type ||
+          bits->block_argument_index != split->first_block_argument)
+        return false;
+      const uint32_t arm_blocks[2] = {
+          (uint32_t)(split_block - 2u), (uint32_t)(split_block - 1u)};
+      const uint32_t arm_types[2] = {source_argument->type_index,
+                                     source_argument->type_index};
+      for (size_t arm_index = 0u; arm_index < 2u; arm_index += 1u) {
+        const w_seed_hir0_block *arm_block =
+            &program->blocks[arm_blocks[arm_index]];
+        if (arm_block->terminator_index >= program->terminator_count)
+          return false;
+        const w_seed_hir0_terminator *arm_jump =
+            &program->terminators[arm_block->terminator_index];
+        if (arm_jump->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
+            arm_jump->target_block != split_block ||
+            arm_jump->edge_argument_count != 1u ||
+            arm_jump->first_edge_argument >= program->edge_argument_count)
+          return false;
+        const w_seed_hir0_edge_argument *edge =
+            &program->edge_arguments[arm_jump->first_edge_argument];
+        if (edge->owner_terminator != arm_block->terminator_index ||
+            edge->owner_block != arm_blocks[arm_index] ||
+            edge->ordinal != 0u || edge->type_index != arm_types[arm_index] ||
+            edge->value_index >= program->value_count)
+          return false;
+        const w_seed_hir0_value *arm = &program->values[edge->value_index];
+        if (arm->kind != W_SEED_HIR0_VALUE_CONST_U64 ||
+            arm->owner_kind != W_SEED_HIR0_VALUE_OWNER_TERMINATOR ||
+            arm->owner_index != arm_block->terminator_index ||
+            arm->owner_ordinal != 0u || arm->type_index != edge->type_index)
+          return false;
+      }
+    } else {
+      return false;
+    }
   }
   if (normal->block_argument_count != 1u ||
       non_finite->block_argument_count != 1u ||

@@ -13552,6 +13552,88 @@ static bool test_process_float_rounding_hir_from_bits(void) {
   return true;
 }
 
+static bool test_process_float_rounding_hir_runtime_from_bits(void) {
+  static const char SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let rounded = try i8(rounding: f64.fromBits(if args.count == 0 { "
+      "0x4045600000000000_u64 } else { "
+      "0x7ff8000000000000_u64 }), mode: .towardZero) "
+      "print(\"Rounded ${rounded}\") return .success }\n"
+      "entry(run)\n";
+  CHECK(lower_process_input0_generic(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  const w_seed_hir0_function *run = &program->functions[0];
+  const uint32_t branch_block = run->first_block;
+  const uint32_t split_block = branch_block + 3u;
+  CHECK(run->block_count == 7u && program->block_count == 7u &&
+        program->blocks[split_block].block_argument_count == 1u &&
+        program->blocks[split_block].terminator_index <
+            program->terminator_count &&
+        program->terminators[program->blocks[split_block].terminator_index]
+                .kind ==
+            W_SEED_HIR0_TERMINATOR_FLOAT_TO_INTEGER_ROUNDING &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+  const uint64_t expected_bits[2] = {
+      UINT64_C(0x4045600000000000), UINT64_C(0x7ff8000000000000)};
+  for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+    const uint32_t arm_block = branch_block + 1u + (uint32_t)ordinal;
+    const uint32_t arm_value_index = edge_value_at(program, arm_block);
+    CHECK(arm_value_index < program->value_count);
+    const w_seed_hir0_value *arm_value = &program->values[arm_value_index];
+    CHECK(arm_value->kind == W_SEED_HIR0_VALUE_CONST_U64 &&
+          arm_value->type_index ==
+              program->block_arguments[
+                  program->blocks[split_block].first_block_argument]
+                  .type_index &&
+          arm_value->unsigned_integer_value == expected_bits[ordinal] &&
+          arm_value->owner_kind == W_SEED_HIR0_VALUE_OWNER_TERMINATOR &&
+          arm_value->owner_index == program->blocks[arm_block].terminator_index &&
+          arm_value->owner_ordinal == 0u);
+  }
+  const w_seed_hir0_terminator *rounding =
+      &program->terminators[program->blocks[split_block].terminator_index];
+  const w_seed_hir0_value *float_source =
+      &program->values[rounding->value_index];
+  CHECK(float_source->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS &&
+        float_source->left_value < program->value_count &&
+        program->values[float_source->left_value].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        program->values[float_source->left_value].block_argument_index ==
+            program->blocks[split_block].first_block_argument);
+
+  static const char *const REJECTED[] = {
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let rounded = try i8(rounding: f64.fromBits(if args.count != 0 { "
+      "0x4045600000000000_u64 + 0_u64 } else { "
+      "0x7ff8000000000000_u64 }), mode: .towardZero) "
+      "return .success } entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let bits: u64 = try u64(exactly: args.count) "
+      "let rounded = try i8(rounding: f64.fromBits(bits), "
+      "mode: .towardZero) return .success } entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let rounded = try i8(rounding: f64.fromBits(if args.count == 1 { "
+      "0x4045600000000000_u64 } else { 0x7ff8000000000000_u64 }), "
+      "mode: .towardZero) return .success } entry(run)\n",
+  };
+  for (size_t index = 0u; index < sizeof(REJECTED) / sizeof(REJECTED[0]);
+       index += 1u)
+    CHECK(!lower_process_input0_generic(REJECTED[index]));
+  return true;
+}
+
 static bool test_typed_invoke_cleanup_hir(void) {
   static const char SOURCE[] =
       "enum Failure: Error { denied }\n"
@@ -23140,6 +23222,7 @@ int main(int argc, char **argv) {
   if (!test_process_float_rounding_hir()) return 1;
   if (!test_process_float_rounding_hir_constant()) return 1;
   if (!test_process_float_rounding_hir_from_bits()) return 1;
+  if (!test_process_float_rounding_hir_runtime_from_bits()) return 1;
   if (!test_local_enum_payload_declarations_hir()) return 1;
   if (!test_local_enum_payload_constructor_hir()) return 1;
   if (!test_enum_switch_hir()) return 1;

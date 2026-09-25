@@ -1604,13 +1604,16 @@ static bool test_process_float_rounding_join_mlir(void) {
       "ExitCode as ProcessExitCode } from std.process\n"
       "async fn run(args: ProcessArguments, ctx: ProcessContext): "
       "ProcessExitCode throws NumericConversionError { "
-      "let rounded = try i8(rounding: if args.count == 0 { 2.5_f64 } "
-      "else { 3.5_f64 }, mode: .nearestEven) "
+      "let rounded = try i8(rounding: f64.fromBits(if args.count == 0 { "
+      "0x4045600000000000_u64 } else { "
+      "0x7ff8000000000000_u64 }), mode: .towardZero) "
       "print(\"Rounded ${rounded}\") "
       "return .success }\n"
       "entry(run)\n";
   process_input_float_rounding_mode = true;
+  process_input_float_rounding_bits_mode = true;
   const bool lowered = lower_process_input_hir(source, sizeof(source) - 1u);
+  process_input_float_rounding_bits_mode = false;
   process_input_float_rounding_mode = false;
   CHECK(lowered && w_seed_hir0_verify(&fixture.hir_program,
                                       &fixture.hir_result));
@@ -1645,18 +1648,28 @@ static bool test_process_float_rounding_join_mlir(void) {
         then_jump->edge_argument_count == 1u &&
         else_jump->edge_argument_count == 1u &&
         source_value != NULL &&
-        source_value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
-        source_value->block_argument_index == join->first_block_argument &&
+        source_value->kind == W_SEED_HIR0_VALUE_FLOAT_FROM_BITS &&
+        source_value->left_value < program->value_count &&
+        program->values[source_value->left_value].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        program->values[source_value->left_value].block_argument_index ==
+            join->first_block_argument &&
         source_value->type_index < program->type_count &&
         program->types[source_value->type_index].kind ==
             W_SEED_HIR0_TYPE_F64);
   const uint32_t then_value = edge_value_for(program, then_jump);
   const uint32_t else_value = edge_value_for(program, else_jump);
   CHECK(then_value < program->value_count && else_value < program->value_count &&
-        program->values[then_value].kind == W_SEED_HIR0_VALUE_CONST_FLOAT &&
-        program->values[else_value].kind == W_SEED_HIR0_VALUE_CONST_FLOAT &&
-        program->values[then_value].type_index == source_value->type_index &&
-        program->values[else_value].type_index == source_value->type_index);
+        program->values[then_value].kind == W_SEED_HIR0_VALUE_CONST_U64 &&
+        program->values[else_value].kind == W_SEED_HIR0_VALUE_CONST_U64 &&
+        program->values[then_value].type_index ==
+            program->block_arguments[join->first_block_argument].type_index &&
+        program->values[else_value].type_index ==
+            program->block_arguments[join->first_block_argument].type_index &&
+        program->values[then_value].unsigned_integer_value ==
+            UINT64_C(0x4045600000000000) &&
+        program->values[else_value].unsigned_integer_value ==
+            UINT64_C(0x7ff8000000000000));
 
   const w_seed_mlir0_input input = {
       &fixture.hir_program, &fixture.hir_result,
@@ -1671,27 +1684,26 @@ static bool test_process_float_rounding_join_mlir(void) {
   char then_edge_text[160];
   char else_edge_text[160];
   char classification[192];
-  char roundeven[160];
+  char conversion[160];
   const int join_signature_length = snprintf(
       join_signature, sizeof(join_signature),
-      "  ^w_fn_%u_b_%u(%%arg%u: f64):", selection.function_index, join_index,
+      "  ^w_fn_%u_b_%u(%%arg%u: i64):", selection.function_index, join_index,
       join->first_block_argument);
   const int then_edge_length = snprintf(
       then_edge_text, sizeof(then_edge_text),
-      "llvm.br ^w_fn_%u_b_%u(%%v%u : f64)", selection.function_index,
+      "llvm.br ^w_fn_%u_b_%u(%%v%u : i64)", selection.function_index,
       join_index, then_value);
   const int else_edge_length = snprintf(
       else_edge_text, sizeof(else_edge_text),
-      "llvm.br ^w_fn_%u_b_%u(%%v%u : f64)", selection.function_index,
+      "llvm.br ^w_fn_%u_b_%u(%%v%u : i64)", selection.function_index,
       join_index, else_value);
   const int classification_length = snprintf(
       classification, sizeof(classification),
-      "\"llvm.intr.is.fpclass\"(%%arg%u) <{bit = 519 : i32}> : (f64) -> i1",
-      join->first_block_argument);
-  const int roundeven_length = snprintf(
-      roundeven, sizeof(roundeven),
-      "\"llvm.intr.roundeven\"(%%arg%u) : (f64) -> f64",
-      join->first_block_argument);
+      "\"llvm.intr.is.fpclass\"(%%v%u) <{bit = 519 : i32}> : (f64) -> i1",
+      (uint32_t)(source_value - program->values));
+  const int conversion_length = snprintf(
+      conversion, sizeof(conversion), "llvm.fptosi %%v%u : f64 to i8",
+      (uint32_t)(source_value - program->values));
   CHECK(join_signature_length > 0 &&
         (size_t)join_signature_length < sizeof(join_signature) &&
         then_edge_length > 0 &&
@@ -1699,12 +1711,17 @@ static bool test_process_float_rounding_join_mlir(void) {
         else_edge_length > 0 && (size_t)else_edge_length < sizeof(else_edge_text) &&
         classification_length > 0 &&
         (size_t)classification_length < sizeof(classification) &&
-        roundeven_length > 0 && (size_t)roundeven_length < sizeof(roundeven) &&
+        conversion_length > 0 &&
+        (size_t)conversion_length < sizeof(conversion) &&
+        count_bytes(artifact, result.written.mlir_bytes,
+                    " : i64 to f64\n") == 1u &&
         contains_bytes(artifact, result.written.mlir_bytes, join_signature) &&
         contains_bytes(artifact, result.written.mlir_bytes, then_edge_text) &&
         contains_bytes(artifact, result.written.mlir_bytes, else_edge_text) &&
         contains_bytes(artifact, result.written.mlir_bytes, classification) &&
-        contains_bytes(artifact, result.written.mlir_bytes, roundeven) &&
+        contains_bytes(artifact, result.written.mlir_bytes, conversion) &&
+        !contains_bytes(artifact, result.written.mlir_bytes,
+                        "\"llvm.intr.trunc\"") &&
         !contains_bytes(artifact, result.written.mlir_bytes, "fastmath") &&
         !contains_bytes(artifact, result.written.mlir_bytes, "snprintf") &&
         !contains_bytes(artifact, result.written.mlir_bytes, "llvm.call @printf"));

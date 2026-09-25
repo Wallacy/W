@@ -1912,8 +1912,9 @@ static bool test_process_runtime_float_rounding_subset(void) {
       "ExitCode as ProcessExitCode } from std.process\n"
       "async fn run(args: ProcessArguments, ctx: ProcessContext): "
       "ProcessExitCode throws NumericConversionError { "
-      "let rounded = try i8(rounding: if args.count == 0 { 2.5_f64 } "
-      "else { 3.5_f64 }, mode: .nearestEven) "
+      "let rounded = try i8(rounding: f64.fromBits(if args.count == 0 { "
+      "0x4045600000000000_u64 } else { "
+      "0x7ff8000000000000_u64 }), mode: .towardZero) "
       "print(\"Rounded ${rounded}\") return .success }\n"
       "entry(run)\n";
   static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
@@ -1924,6 +1925,10 @@ static bool test_process_runtime_float_rounding_subset(void) {
       W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE, output, sizeof(output),
       &result);
   CHECK(native_status == W_SEED_NATIVE0_OK);
+  CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.bitcast %arg") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "\"llvm.intr.is.fpclass\""));
   CHECK(w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
   w_seed_native_subset0_process selection;
   CHECK(w_seed_native_subset0_select_process_executable(
@@ -1937,7 +1942,16 @@ static bool test_process_runtime_float_rounding_subset(void) {
         selection.rounding_split_block_index == split_block &&
         selection.rounding_source_value != NULL &&
         selection.rounding_source_value->kind ==
+            W_SEED_HIR0_VALUE_FLOAT_FROM_BITS &&
+        selection.rounding_source_value->left_value <
+            storage.hir_program.value_count &&
+        storage.hir_program.values[
+            selection.rounding_source_value->left_value].kind ==
             W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        storage.hir_program.values[
+            selection.rounding_source_value->left_value]
+                .block_argument_index ==
+            storage.hir_program.blocks[split_block].first_block_argument &&
         selection.rounding_source_type_index < storage.hir_program.type_count &&
         storage.hir_program.types[selection.rounding_source_type_index].kind ==
             W_SEED_HIR0_TYPE_F64 &&
@@ -1947,7 +1961,7 @@ static bool test_process_runtime_float_rounding_subset(void) {
         selection.rounding_out_of_range_block_index ==
             function->first_block + 6u &&
         selection.rounding_mode ==
-            W_SEED_HIR0_ROUNDING_MODE_NEAREST_EVEN);
+            W_SEED_HIR0_ROUNDING_MODE_TOWARD_ZERO);
 
   const uint32_t branch_terminator =
       storage.hir_program.blocks[function->first_block].terminator_index;
@@ -1960,6 +1974,23 @@ static bool test_process_runtime_float_rounding_subset(void) {
         W_SEED_NATIVE_SUBSET0_INVALID);
   storage.hir_terminators[branch_terminator] = saved_branch;
   CHECK(w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+
+  static const uint8_t dynamic_bits_source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode throws NumericConversionError { "
+      "let bits: u64 = try u64(exactly: args.count) "
+      "let value: f64 = f64.fromBits(bits) "
+      "let rounded = try i8(rounding: value, mode: .towardZero) "
+      "print(\"Rounded ${rounded}\") return .success }\n"
+      "entry(run)\n";
+  CHECK(run_source_mode(
+            dynamic_bits_source, sizeof(dynamic_bits_source) - 1u,
+            "process-dynamic-float-rounding-bits",
+            sizeof("process-dynamic-float-rounding-bits") - 1u,
+            &WINDOWS_TARGET, W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE, output,
+            sizeof(output), &result) != W_SEED_NATIVE0_OK);
   return true;
 }
 

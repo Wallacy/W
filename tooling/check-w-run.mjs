@@ -79,6 +79,8 @@ const processFloatRoundingErrorFixture = resolve(seedDirectory, "fixtures",
   "process-float-rounding-error.w")
 const processFloatRoundingNonfiniteFixture = resolve(seedDirectory, "fixtures",
   "process-float-rounding-nonfinite.w")
+const processFloatRoundingRuntimeBitsFixture = resolve(seedDirectory,
+  "fixtures", "process-float-rounding-runtime-bits.w")
 const processIntegerExactRuntimeFixture = resolve(seedDirectory, "fixtures",
   "process-fixed-integer-arithmetic.w")
 const checkedIntegerHelperFaultFixture = resolve(seedDirectory, "fixtures",
@@ -1743,6 +1745,15 @@ try {
     Buffer.alloc(0), "Linux public constant float rounding typed error")
   expectExact(binary, ["run", toWsl(processFloatRoundingNonfiniteFixture)], 1,
     Buffer.alloc(0), "Linux public raw-bit non-finite float rounding typed error")
+  expectExact(binary, ["run", toWsl(processFloatRoundingRuntimeBitsFixture)], 0,
+    Buffer.from("Rounded 42\n", "utf8"),
+    "Linux public runtime-selected finite raw-bit rounding success")
+  expectExact(binary, ["run", toWsl(processFloatRoundingRuntimeBitsFixture),
+    "--", "x"], 1, Buffer.alloc(0),
+    "Linux public runtime-selected NaN raw-bit rounding typed error")
+  expectExact(binary, ["run", toWsl(processFloatRoundingRuntimeBitsFixture),
+    "--", "x", "y"], 1, Buffer.alloc(0),
+    "Linux public runtime-selected NaN raw-bit rounding typed error at two arguments")
   expectExact(binary, ["run", toWsl(processIntegerExactRuntimeFixture)], 0,
     Buffer.from("Arithmetic 0/4/1\n", "utf8"),
     "Linux public runtime fixed-integer arithmetic success")
@@ -1858,6 +1869,8 @@ try {
     "process-float-rounding-error-build")
   const buildProcessFloatRoundingNonfinite = buildOutput(
     "process-float-rounding-nonfinite-build")
+  const buildProcessFloatRoundingRuntimeBits = buildOutput(
+    "process-float-rounding-runtime-bits-build")
   const buildProcessIntegerExactRuntime = buildOutput(
     "process-fixed-integer-arithmetic-build")
   const buildCheckedIntegerHelperFault = buildOutput(
@@ -2135,6 +2148,18 @@ try {
   assertCrtFreeElf(await readBuildArtifact(buildProcessFloatRoundingNonfinite))
   expectExact(buildProcessFloatRoundingNonfinite, [], 1, Buffer.alloc(0),
     "execute built Linux raw-bit non-finite float rounding typed-error artifact")
+  expectSuccess(binary, ["build", toWsl(processFloatRoundingRuntimeBitsFixture),
+    "--target", targetTriple, "--output", buildProcessFloatRoundingRuntimeBits],
+  Buffer.alloc(0), "build Linux runtime-selected raw-bit float rounding fixture")
+  assertCrtFreeElf(await readBuildArtifact(buildProcessFloatRoundingRuntimeBits))
+  expectExact(buildProcessFloatRoundingRuntimeBits, [], 0,
+    Buffer.from("Rounded 42\n", "utf8"),
+    "execute built Linux runtime-selected finite raw-bit rounding success")
+  expectExact(buildProcessFloatRoundingRuntimeBits, ["x"], 1, Buffer.alloc(0),
+    "execute built Linux runtime-selected NaN raw-bit rounding typed error")
+  expectExact(buildProcessFloatRoundingRuntimeBits, ["x", "y"], 1,
+    Buffer.alloc(0),
+    "execute built Linux runtime-selected NaN raw-bit rounding typed error at two arguments")
   expectSuccess(binary, ["build", toWsl(processIntegerExactRuntimeFixture),
     "--target", targetTriple, "--output", buildProcessIntegerExactRuntime],
   Buffer.alloc(0), "build Linux runtime fixed-integer arithmetic fixture")
