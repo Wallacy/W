@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-export const HUM0_SCHEMA = "w-hum0-human-review-protocol-1";
+export const HUM0_SCHEMA = "w-hum0-human-review-protocol-2";
 export const HUM0_SLICES = [
   "diagnostics-w-explain",
   "ownership-borrow-shared-weak",
@@ -28,7 +28,7 @@ const FORBIDDEN_PARTICIPANT_WORDS = /\b(expected|status|route|role|path|digest|o
 const SHA256_PATTERN = /^sha256:[0-9a-f]{64}$/;
 const TOP_LEVEL_KEYS = ["$schema", "id", "status", "title", "question", "scope", "claimsHumanResults", "claimsModelResults", "promotionPolicy", "taskKinds", "inputKinds", "slices", "resultContracts", "records", "stopCondition", "metricsPolicy"];
 const SLICE_KEYS = ["id", "title", "problemKey", "outcomeKey", "sourceRefs", "oracleRefs", "inputs", "tasks", "hiddenInternalFacts", "explainableFacts", "counterbalance", "blinding"];
-const SOURCE_REF_KEYS = ["id", "path", "symbol", "digest", "claim"];
+const SOURCE_REF_KEYS = ["id", "path", "symbol", "claim"];
 const ORACLE_REF_KEYS = ["id", "path", "digest", "claim"];
 const INPUT_KEYS = ["id", "kind", "problemKey", "outcomeKey", "stimulus", "observerOnly", "participantInput"];
 const STIMULUS_KEYS = ["sourceRefId", "symbol", "beforeLines", "afterLines", "maxBytes", "derivedStimulusDigest"];
@@ -135,28 +135,40 @@ function relativeFile(root, relativePath, location, errors) {
   return resolved;
 }
 
-function validateDigestRef(ref, { root, location, requireSymbol = false }) {
+function validateSourceRef(ref, { root, location }) {
   const errors = [];
   if (!ref || typeof ref !== "object" || Array.isArray(ref)) {
     return [`${location} must be an object.`];
   }
-  assertKeys(ref, requireSymbol ? SOURCE_REF_KEYS : ORACLE_REF_KEYS, location, errors);
+  assertKeys(ref, SOURCE_REF_KEYS, location, errors);
+  if (typeof ref.id !== "string" || ref.id.trim() === "") errors.push(`${location}.id must be a non-empty string.`);
+  const file = relativeFile(root, ref.path, `${location}.path`, errors);
+  if (typeof ref.symbol !== "string" || ref.symbol.trim() === "") {
+    errors.push(`${location}.symbol must be a non-empty string.`);
+  } else if (file) {
+    const bytes = fs.readFileSync(file);
+    const count = occurrencesInBytes(bytes, ref.symbol);
+    if (count === 0) errors.push(`${location}.symbol is absent from the source.`);
+    if (count !== 1) errors.push(`${location}.symbol must occur exactly once; found ${count}.`);
+  }
+  if (typeof ref.claim !== "string" || ref.claim.trim() === "") {
+    errors.push(`${location}.claim must be a non-empty string.`);
+  }
+  return errors;
+}
+
+function validateDigestRef(ref, { root, location }) {
+  const errors = [];
+  if (!ref || typeof ref !== "object" || Array.isArray(ref)) {
+    return [`${location} must be an object.`];
+  }
+  assertKeys(ref, ORACLE_REF_KEYS, location, errors);
   if (typeof ref.id !== "string" || ref.id.trim() === "") errors.push(`${location}.id must be a non-empty string.`);
   const file = relativeFile(root, ref.path, `${location}.path`, errors);
   if (!SHA256_PATTERN.test(ref.digest ?? "")) {
     errors.push(`${location}.digest must use a lowercase sha256 digest.`);
   } else if (file && digestFile(file) !== ref.digest) {
     errors.push(`${location}.digest is stale; expected ${digestFile(file)}.`);
-  }
-  if (requireSymbol) {
-    if (typeof ref.symbol !== "string" || ref.symbol.trim() === "") {
-      errors.push(`${location}.symbol must be a non-empty string.`);
-    } else if (file) {
-      const bytes = fs.readFileSync(file);
-      const count = occurrencesInBytes(bytes, ref.symbol);
-      if (count === 0) errors.push(`${location}.symbol is absent from the source.`);
-      if (count !== 1) errors.push(`${location}.symbol must occur exactly once; found ${count}.`);
-    }
   }
   if (typeof ref.claim !== "string" || ref.claim.trim() === "") {
     errors.push(`${location}.claim must be a non-empty string.`);
@@ -370,7 +382,7 @@ export function validateProtocol(protocol, { root }) {
     } else {
       for (const [refIndex, ref] of slice.sourceRefs.entries()) {
         const refLocation = `${location}.sourceRefs[${refIndex}]`;
-        errors.push(...validateDigestRef(ref, { root, location: refLocation, requireSymbol: true }));
+        errors.push(...validateSourceRef(ref, { root, location: refLocation }));
         if (ref && sourceIds.has(ref.id)) errors.push(`${refLocation}.id is duplicated.`);
         if (ref) sourceIds.add(ref.id);
         const key = ref && `${ref.path}\0${ref.symbol}`;

@@ -1,48 +1,51 @@
-# HUM0 — revisão humana e de modelos
+# HUM0 — human and model review
 
-HUM0 é um protocolo cross-cutting de ergonomia para os problemas do Restaurante
-no Fim do Universo. Ele não é um bundle R1: não possui `bundle.json`, não cria
-variantes de syntax e não escolhe uma forma normativa.
+HUM0 is a cross-cutting ergonomics protocol for problems exercised by Last
+Light. It is not an R1 bundle: it has no `bundle.json`, creates no syntax
+variants, and selects no normative form.
 
-O protocolo mantém exatamente oito slices problem-first e quatro tarefas por
-slice: `explain`, `recall`, `repair` e `change`. Cada slice usa referências reais
-do `reference/last-light`, oracles host independentes com digests, um input
-primary e um input adversarial com o mesmo problema e outcome, ordens
-counterbalanced e blinding. Cada stimulus é uma janela UTF-8 bounded, alinhada a
-limites de linha e derivada por símbolo/digest; a mutation única e o repair
-esperado ficam observer-only. IDs, caminhos, digests, oracle, expected e fatos
-de implementação ficam fora do input visível. O renderer devolve somente
-`scenario`, `task`, `instruction`, `source` e `blindedLabel`. Fatos
-determinísticos podem aparecer somente em `w explain`, dentro da lista
-`explainableFacts`.
+The protocol keeps exactly eight problem-first slices and four tasks per slice:
+`explain`, `recall`, `repair`, and `change`. Each slice uses real
+`reference/last-light` sources, independent host oracles with digests, one
+primary input, one adversarial input with the same problem and outcome,
+counterbalanced ordering, and blinding. A Last Light source is bound by a
+repository-contained path and a symbolic selector that occurs exactly once.
+Each stimulus is a bounded UTF-8 line-aligned window whose displayed bytes are
+digest-checked independently; unrelated edits elsewhere in the source file do
+not stale it. The mutation and expected repair remain observer-only. Internal
+IDs, paths, digests, oracles, expected values, and implementation facts do not
+enter participant-visible input. The renderer returns only `scenario`, `task`,
+`instruction`, `source`, and `blindedLabel`. Deterministic facts may appear only
+in `w explain`, through `explainableFacts`.
 
-O snapshot mede apenas a prontidão do protocolo: oito slices, 32 tarefas e zero
-registros humanos/modelos. Ele não mede score, preferência, vitória ergonômica,
-compreensão ou implementação W. Nenhum participante ou modelo foi executado.
+The snapshot measures protocol readiness only: eight slices, 32 tasks, and no
+human or model records. It does not claim a score, preference, ergonomic win,
+comprehension result, or W implementation. No participant or model was run.
 
-Os contratos de registro futuros separam:
+Future record contracts distinguish:
 
-- humano: `participantIdHash` sha256, background não-vazio C/Rust/Python/W,
-  tempo/queries não negativos, confiança 1–5 e outcomes semanticamente
-  verificados por oracle; sem PII;
-- modelo: provider, modelo, versão, tokenizer, params JSON fechado, digests
-  sha256, tokens input/output/total com soma e outcomes verificados por oracle.
+- human records: SHA-256 `participantIdHash`, non-empty C/Rust/Python/W
+  background, non-negative time/query counts, confidence from 1–5, and
+  oracle-verified semantic outcomes, with no PII;
+- model records: provider, model, version, tokenizer, closed JSON parameters,
+  SHA-256 digests, consistent input/output/total token counts, and
+  oracle-verified outcomes.
 
-No slice FFI, `BellLease` demonstra registration optional e unsubscribe
-guardado; drain de callbacks em voo é obrigação externa do oracle, não uma
-garantia inferida do source.
+In the FFI slice, `BellLease` demonstrates optional registration and guarded
+unsubscribe. Draining in-flight callbacks is an external oracle obligation, not
+a guarantee inferred from the source.
 
-A coleta para no primeiro expected echo, outcome forjado, digest/símbolo ausente
-ou stale, vazamento de identidade interna, divergência de problema/outcome,
-registro duplicado ou desacordo do oracle. O caso permanece Research e exige um
-caso independente antes de qualquer revisão normativa.
+Collection stops at the first expected-value echo, forged outcome, missing or
+stale digest/selector, leaked internal identity, problem/outcome divergence,
+duplicate record, or oracle disagreement. The case remains Research and
+requires independent evidence before any normative revision.
 
-Checks scoped:
+Scoped checks:
 
 ```sh
 bun test tooling/hum0-human-review-reference.test.mjs tooling/studies/hum0-human-review/oracle.test.mjs
 bun tooling/check-hum0-human-review.mjs
 ```
 
-O gate não compila nem executa W, não coleta pessoas/modelos e não promove
-design automaticamente.
+The gate neither compiles nor executes W, collects no human/model data, and
+never promotes design automatically.

@@ -29,7 +29,7 @@ function repositoryFile(relativePath) {
 function protectedShape(protocol) {
   const copy = structuredClone(protocol);
   for (const slice of copy.slices ?? []) {
-    for (const reference of [...(slice.sourceRefs ?? []), ...(slice.oracleRefs ?? [])]) {
+    for (const reference of slice.oracleRefs ?? []) {
       reference.digest = "<mechanical-file-digest>";
     }
     for (const input of slice.inputs ?? []) {
@@ -41,15 +41,15 @@ function protectedShape(protocol) {
 
 const protocol = JSON.parse(fs.readFileSync(protocolPath, "utf8"));
 const beforeShape = protectedShape(protocol);
-let fileDigests = 0;
+let oracleDigests = 0;
 let stimuli = 0;
 
 for (const slice of protocol.slices ?? []) {
-  for (const reference of [...(slice.sourceRefs ?? []), ...(slice.oracleRefs ?? [])]) {
+  for (const reference of slice.oracleRefs ?? []) {
     const next = digestFile(repositoryFile(reference.path));
     if (reference.digest !== next) {
       reference.digest = next;
-      fileDigests++;
+      oracleDigests++;
     }
   }
   for (const input of slice.inputs ?? []) {
@@ -72,6 +72,6 @@ const errors = validateProtocol(protocol, { root: repositoryRoot });
 if (errors.length > 0) throw new Error(errors.join("\n"));
 fs.writeFileSync(protocolPath, `${JSON.stringify(protocol, null, 2)}\n`);
 process.stdout.write(
-  `HUM0 evidence refreshed: ${fileDigests} file digests, ${stimuli} derived stimuli; ` +
+  `HUM0 evidence refreshed: ${oracleDigests} oracle digests, ${stimuli} derived stimuli; ` +
   "reviewed tasks and protocol structure unchanged.\n",
 );

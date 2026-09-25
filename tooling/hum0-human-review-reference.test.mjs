@@ -31,6 +31,8 @@ describe("HUM0 human review protocol", () => {
       modelResultsClaimed: false,
     });
     expect(protocol.slices.map((slice) => slice.id)).toEqual(HUM0_SLICES);
+    expect(protocol.slices.flatMap((slice) => slice.sourceRefs).every((ref) => !Object.hasOwn(ref, "digest"))).toBe(true);
+    expect(protocol.slices.flatMap((slice) => slice.oracleRefs).every((ref) => /^sha256:[0-9a-f]{64}$/u.test(ref.digest))).toBe(true);
     expect(protocol.slices.every((slice) => slice.tasks.map((task) => task.kind).sort().join(",") === TASK_KINDS.slice().sort().join(","))).toBe(true);
     expect(makeSnapshot(protocol, errors).evidence).toMatchObject({
       participantRecords: "none",
@@ -46,6 +48,12 @@ describe("HUM0 human review protocol", () => {
     expect(stimuli.errors).toEqual([]);
     expect(stimuli.slices.flatMap((slice) => slice.inputs).every((input) => input.participantStimulus.length > 0)).toBe(true);
     expect(stimuli.slices.flatMap((slice) => slice.inputs).every((input) => input.lineCount > 0)).toBe(true);
+    for (const slice of protocol.slices) {
+      const derivedInputs = stimuli.slices.find((entry) => entry.sliceId === slice.id).inputs;
+      for (const input of slice.inputs) {
+        expect(derivedInputs.find((derived) => derived.inputId === input.id).digest).toBe(input.stimulus.derivedStimulusDigest);
+      }
+    }
     expect(protocol.slices.flatMap((slice) => slice.inputs).every((input) => "beforeLines" in input.stimulus && "afterLines" in input.stimulus)).toBe(true);
     for (const slice of protocol.slices) {
       for (const input of stimuli.slices.find((entry) => entry.sliceId === slice.id).inputs) {
@@ -104,6 +112,16 @@ describe("HUM0 human review protocol", () => {
     const leaked = structuredClone(protocol);
     leaked.slices[0].tasks[2].participantInput.mutation = "hidden mutation";
     expect(validateProtocol(leaked, { root: repositoryRoot }).some((error) => error.includes("unknown field"))).toBe(true);
+
+    const escapingSource = structuredClone(protocol);
+    escapingSource.slices[0].sourceRefs[0].path = "../DESIGN.md";
+    expect(validateProtocol(escapingSource, { root: repositoryRoot }).some((error) => error.includes("must stay inside the repository"))).toBe(true);
+
+    const duplicateSelector = structuredClone(protocol);
+    duplicateSelector.slices[0].sourceRefs[0].symbol = "fn";
+    duplicateSelector.slices[0].inputs[0].stimulus.symbol = "fn";
+    duplicateSelector.slices[0].inputs[1].stimulus.symbol = "fn";
+    expect(validateProtocol(duplicateSelector, { root: repositoryRoot }).some((error) => error.includes("symbol must occur exactly once"))).toBe(true);
   });
 
   test("rejects unknown schema and result-like fields at every protocol boundary", () => {
@@ -111,6 +129,7 @@ describe("HUM0 human review protocol", () => {
       (value) => { value.score = 1; },
       (value) => { value.slices[0].extra = true; },
       (value) => { value.slices[0].sourceRefs[0].extra = true; },
+      (value) => { value.slices[0].sourceRefs[0].digest = "sha256:" + "0".repeat(64); },
       (value) => { value.slices[0].oracleRefs[0].extra = true; },
       (value) => { value.slices[0].inputs[0].extra = true; },
       (value) => { value.slices[0].tasks[0].extra = true; },

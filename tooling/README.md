@@ -221,8 +221,10 @@ mode. It fails if decision order or reviewed classification fields would
 change.
 
 `bun run hum0:refresh-evidence` applies the same rule to the HUM0 review
-protocol. It updates only file hashes and derived stimuli. Symbols, windows,
-tasks, prompts, and other human decisions remain unchanged.
+protocol. It refreshes only oracle file hashes and per-input derived stimulus
+digests. Last Light sources are bound by repository-contained paths and unique
+symbols; the exact displayed line window is independently digest-checked.
+Symbols, windows, tasks, prompts, and other human decisions remain unchanged.
 
 `bun run capability:refresh-evidence` refreshes only local file hashes in the
 CAP0 capability matrix and regenerates its result snapshot. Capability levels,

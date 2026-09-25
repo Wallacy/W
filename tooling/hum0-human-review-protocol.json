@@ -1,5 +1,5 @@
 {
-  "$schema": "w-hum0-human-review-protocol-1",
+  "$schema": "w-hum0-human-review-protocol-2",
   "id": "HUM0",
   "status": "protocol-ready",
   "title": "Human and model review protocol for W ergonomics",
@@ -29,14 +29,12 @@
           "id": "restaurant-place",
           "path": "reference/last-light/restaurant.w",
           "symbol": "mut async fn place",
-          "digest": "sha256:278d72e473037021128214be2e5646012cd1f55cfc7deee849067c00685f73f1",
           "claim": "Restaurant order placement and consuming ownership"
         },
         {
           "id": "restaurant-status",
           "path": "reference/last-light/restaurant.w",
           "symbol": "async fn status(orderId: OrderId): ServiceStage throws RestaurantError {",
-          "digest": "sha256:278d72e473037021128214be2e5646012cd1f55cfc7deee849067c00685f73f1",
           "claim": "Restaurant observation after a failed or completed turn"
         }
       ],
@@ -193,14 +191,12 @@
           "id": "menu-root",
           "path": "reference/last-light/memory.w",
           "symbol": "export fn makeMenuRoot",
-          "digest": "sha256:7ccc60ee263b947d7f08d62a7b89342f334b12a53df84b1f9c50aa310da16cb6",
           "claim": "Shared menu root construction"
         },
         {
           "id": "borrow-primary",
           "path": "reference/last-light/borrow_expressivity.w",
           "symbol": "export fn selectPrimary",
-          "digest": "sha256:7990af949683713b527e927a813901c9afd9f6b5723ad84e648b1d78891499ec",
           "claim": "Receiver and body-derived borrow relation"
         }
       ],
@@ -357,7 +353,6 @@
           "id": "stage-menu",
           "path": "reference/last-light/allocation.w",
           "symbol": "export fn stageMenu",
-          "digest": "sha256:826bdbb9cf5b4551c3ee9484a7556f4d6cbed22482864110c28c06d5aaef3b6a",
           "claim": "Lexical and contextual staging allocator"
         }
       ],
@@ -514,7 +509,6 @@
           "id": "mix-pair",
           "path": "reference/last-light/execution.w",
           "symbol": "export async fn mixPair",
-          "digest": "sha256:c59db27e6acb51975c56109741934bb11d9b4ebce08edc6baaeefd6c8eac794c",
           "claim": "Async execution form and domain preference"
         }
       ],
@@ -671,7 +665,6 @@
           "id": "order-window",
           "path": "reference/last-light/streams.w",
           "symbol": "export async fn runBoundedOrderWindow",
-          "digest": "sha256:ff777cb4611159e4f67d71e588d64dd03ce45ae457358cc963a8af9948daa968",
           "claim": "Bounded order window and completion ordering"
         }
       ],
@@ -828,14 +821,12 @@
           "id": "service-turn",
           "path": "reference/last-light/lifecycle_oracle.w",
           "symbol": "const fn nextServiceTurnState",
-          "digest": "sha256:ad5c617bba05590e66b211095899d9fe394677166608fb4e4c1fa9f4bf6f7884",
           "claim": "Closed service turn and commit observation"
         },
         {
           "id": "generation-receipt",
           "path": "reference/last-light/repl_session_oracle.w",
           "symbol": "export struct GenerationReceipt",
-          "digest": "sha256:91ff22e5416418ebba6d6dd42617c5453660674750ae6e8341a7993ff1946d1b",
           "claim": "Generation publication and invalidation receipt"
         }
       ],
@@ -991,22 +982,19 @@
         {
           "id": "package-manifest",
           "path": "reference/last-light/build.w",
-          "symbol": "package {",
-          "digest": "sha256:3f2c504a2d139ac24a44dd58892436f7d1ff608b5f3edf11913c445006548c75",
+          "symbol": "package {\n  schema: \"w.package/1\"\n  root: \".\"",
           "claim": "Typed package manifest, roots, and declared actions"
         },
         {
           "id": "package-action",
           "path": "reference/last-light/build.w",
           "symbol": "name: \"compile-final-menu\"",
-          "digest": "sha256:3f2c504a2d139ac24a44dd58892436f7d1ff608b5f3edf11913c445006548c75",
           "claim": "Menu build action and artifact closure"
         },
         {
           "id": "session-snapshot",
           "path": "reference/last-light/repl_session_oracle.w",
           "symbol": "export struct SessionSnapshot",
-          "digest": "sha256:91ff22e5416418ebba6d6dd42617c5453660674750ae6e8341a7993ff1946d1b",
           "claim": "Committed REPL snapshot and bounded receipts"
         }
       ],
@@ -1032,11 +1020,11 @@
           "outcomeKey": "preserve-resolution-closure-and-generation-invalidation",
           "stimulus": {
             "sourceRefId": "package-manifest",
-            "symbol": "package {",
+            "symbol": "package {\n  schema: \"w.package/1\"\n  root: \".\"",
             "beforeLines": 2,
             "afterLines": 12,
             "maxBytes": 700,
-            "derivedStimulusDigest": "sha256:47c998cfc3226abdc498e097fa79bed92e7630022859ff54000d6efd06829675"
+            "derivedStimulusDigest": "sha256:c6342a7f559865f30ff5663d6f38c44ae907a98ba229e7bfc7e90840c4750694"
           },
           "participantInput": {
             "scenario": "A single-file menu workflow uses an explicit root, package/workspace resolution, content cache, and committed session snapshot.",
@@ -1050,11 +1038,11 @@
           "outcomeKey": "preserve-resolution-closure-and-generation-invalidation",
           "stimulus": {
             "sourceRefId": "package-manifest",
-            "symbol": "package {",
+            "symbol": "package {\n  schema: \"w.package/1\"\n  root: \".\"",
             "beforeLines": 2,
             "afterLines": 12,
             "maxBytes": 700,
-            "derivedStimulusDigest": "sha256:5034fc2997a9d90c9e78849becf8507ab052285bd6439043cc7c6589627aeee5"
+            "derivedStimulusDigest": "sha256:4483b4161e4e96dd6d85911d28ebdd070c7ddcbdc12b118f5caf4922cc9eefc9"
           },
           "observerOnly": {
             "baseInputId": "package-primary",
@@ -1163,21 +1151,18 @@
           "id": "bell-lease",
           "path": "reference/last-light/memory.w",
           "symbol": "export object BellLease",
-          "digest": "sha256:7ccc60ee263b947d7f08d62a7b89342f334b12a53df84b1f9c50aa310da16cb6",
           "claim": "Callback lease ownership and cleanup"
         },
         {
           "id": "watch-closing-bell",
           "path": "reference/last-light/memory.w",
           "symbol": "export fn watchClosingBell",
-          "digest": "sha256:7ccc60ee263b947d7f08d62a7b89342f334b12a53df84b1f9c50aa310da16cb6",
           "claim": "Callback admission and lease creation"
         },
         {
           "id": "foreign-c-boundary",
           "path": "reference/last-light/abi.w",
           "symbol": "export foreign c {",
-          "digest": "sha256:65fc5e2179bac59343f8d3617d7d28a623648a3f773b46d185b462aa75c0daa2",
           "claim": "Foreign body and ABI boundary"
         }
       ],

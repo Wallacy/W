@@ -24,7 +24,7 @@
         "reference/syntax-atlas/rejected.w-rejected.txt",
         "reference/syntax-atlas/reserved.w-reserved.txt"
       ],
-      "artifactsDigest": "sha256:9164c5b992e0f99685c938f3a16b9f0a8fb5809bf733d6f81665238788979c14"
+      "artifactsDigest": "sha256:a33fd12ca4d80266acde0e55d46210cc3152b84a219da20970b1ee5939ec51a1"
     },
     {
       "id": "drc0",
@@ -78,7 +78,7 @@
         "tooling/studies/avf0-availability-feature/study.json",
         "tooling/studies/avf0-availability-feature/typed-runtime-feature.w"
       ],
-      "artifactsDigest": "sha256:528758e725706341662838732bcb1174c47c312a2061be1701192e1c06326803"
+      "artifactsDigest": "sha256:14475c920f3b0521b661a8d77e7ff384c69e137cb4e98ffc38529da6ab337073"
     },
     {
       "id": "sec0",
@@ -222,7 +222,7 @@
         "tooling/syn1-typed-generation-reference.test.mjs",
         "tooling/syn1-typed-generation-results.snapshot.jsonl"
       ],
-      "artifactsDigest": "sha256:2c23dfd2569ccb5a51595cb30b02756eb0be23530e5240470762cf8ccc74ffe8"
+      "artifactsDigest": "sha256:1c4e45f7a2b015909935ebcbabb3b932d789307b235ff68ae057f294f35fd646"
     },
     {
       "id": "hrd0",
@@ -250,7 +250,7 @@
         "tooling/studies/hrd0-hot-reload-dev/split-runner.w",
         "tooling/studies/hrd0-hot-reload-dev/study.json"
       ],
-      "artifactsDigest": "sha256:1a46d0015b06d8b66e5a316a299bfc3d796cac813e6f9bbca00c8203a1ceb6d0"
+      "artifactsDigest": "sha256:8358133c52a6f4f177ff6cc4c9fe74a8d9e43cb3ecb3079cabb7651859bfe605"
     },
     {
       "id": "dyn1",
@@ -278,7 +278,7 @@
         "tooling/studies/dyn1-versioned-behavior/persistent-generation-reference.txt",
         "tooling/studies/dyn1-versioned-behavior/study.json"
       ],
-      "artifactsDigest": "sha256:ff923f53645f28a1a917f3488c8b0f1474c0d290361fdb64a2be91626309e36a"
+      "artifactsDigest": "sha256:a788b0ed03ae5ba3a268c6aed4102f706c37b22fda7c80b6f7d64be284ce613b"
     },
     {
       "id": "atom1",

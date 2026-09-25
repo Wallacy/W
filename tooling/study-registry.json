@@ -24,9 +24,9 @@
     "studyDirectories": 76,
     "metadataFiles": 99,
     "fixtureFiles": 345,
-    "references": 917,
-    "digestReferences": 774,
-    "pathOnlyReferences": 143,
+    "references": 916,
+    "digestReferences": 765,
+    "pathOnlyReferences": 151,
     "dependencyEdges": 54,
     "entrypoints": 56,
     "scripts": 107,
@@ -196,14 +196,14 @@
     {
       "path": "tooling/studies/final-research-closure/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:2c59dd378700a6dd88eb57aa681111960db144132082b6598d71a442185e0075",
+      "digest": "sha256:f7d12900964ba9ca070cea843ad3dfce966126711d5bdcf62c1d697681aa795d",
       "status": "design-oracle-input",
       "id": "R1-final-research-closure"
     },
     {
       "path": "tooling/studies/final-research-closure/manifest.json",
       "kind": "manifest",
-      "digest": "sha256:c54253eb8083cda7436c92570aba19a4141f2ba23ac169257211e8b31704f26b",
+      "digest": "sha256:af02806b7f1bb1da270e9f395bd1669d3a16e094a860b559ec3aa404b2605c89",
       "status": "design-oracle-input",
       "id": "FRC0"
     },
@@ -259,7 +259,7 @@
     {
       "path": "tooling/studies/hum0-human-review/study.json",
       "kind": "study",
-      "digest": "sha256:3e348549e4d226639e948de605d4fcc7c9241e054ad1980b72322939440fbac3",
+      "digest": "sha256:25a6ce92ce33eeee929a5d3448886c04ea5d3fcf21b5b6ff9e6c47bf5253d89d",
       "status": "protocol-ready",
       "id": "HUM0"
     },
@@ -1294,7 +1294,7 @@
     {
       "path": "tooling/hum0-human-review-reference.test.mjs",
       "kind": "script-target",
-      "digest": "sha256:ea3a6b3570f05f7df36b94a2fabbfe39c0d4ff58efc0bab345365e9795dceb09"
+      "digest": "sha256:c54d6bcba59da95eb4d4cee9a57b444ab42a09ab291947f0d8a5203cb5e2f091"
     },
     {
       "path": "tooling/ipc1-mapped-ipc-reference.test.mjs",
@@ -1309,7 +1309,7 @@
     {
       "path": "tooling/refresh-hum0-evidence.mjs",
       "kind": "script-target",
-      "digest": "sha256:36717051891db4ffa4be16e6bc7feb66f5205ad49ff503f4b6a37e14f8efdf8c"
+      "digest": "sha256:7e3a9255b889a696a1e1ce797559d1f3c7038a234dd95e02a2e803fa3a76a1b6"
     },
     {
       "path": "tooling/sec0-security-model-reference.test.mjs",
@@ -2522,8 +2522,7 @@
         292,
         293,
         294,
-        295,
-        296
+        295
       ],
       "entrypoints": [
         12,
@@ -2567,9 +2566,9 @@
         76
       ],
       "references": [
+        296,
         297,
-        298,
-        299
+        298
       ],
       "entrypoints": [
         13,
@@ -2615,6 +2614,7 @@
         84
       ],
       "references": [
+        299,
         300,
         301,
         302,
@@ -2628,8 +2628,7 @@
         310,
         311,
         312,
-        313,
-        314
+        313
       ],
       "entrypoints": [
         14,
@@ -2675,6 +2674,7 @@
         89
       ],
       "references": [
+        314,
         315,
         316,
         317,
@@ -2708,8 +2708,7 @@
         345,
         346,
         347,
-        348,
-        349
+        348
       ],
       "entrypoints": [
         15,
@@ -2757,6 +2756,7 @@
         93
       ],
       "references": [
+        349,
         350,
         351,
         352,
@@ -2782,8 +2782,7 @@
         372,
         373,
         374,
-        375,
-        376
+        375
       ],
       "entrypoints": [
         16,
@@ -2828,12 +2827,12 @@
         95
       ],
       "references": [
+        376,
         377,
         378,
         379,
         380,
-        381,
-        382
+        381
       ],
       "entrypoints": [
         17,
@@ -2886,6 +2885,7 @@
         107
       ],
       "references": [
+        382,
         383,
         384,
         385,
@@ -2902,8 +2902,7 @@
         396,
         397,
         398,
-        399,
-        400
+        399
       ],
       "entrypoints": [
         18,
@@ -2947,9 +2946,9 @@
         112
       ],
       "references": [
+        400,
         401,
-        402,
-        403
+        402
       ],
       "entrypoints": [
         19,
@@ -2993,9 +2992,9 @@
         117
       ],
       "references": [
+        403,
         404,
-        405,
-        406
+        405
       ],
       "entrypoints": [
         20,
@@ -3039,8 +3038,8 @@
         120
       ],
       "references": [
-        407,
-        408
+        406,
+        407
       ],
       "entrypoints": [
         29,
@@ -3090,6 +3089,7 @@
         126
       ],
       "references": [
+        408,
         409,
         410,
         411,
@@ -3105,8 +3105,7 @@
         421,
         422,
         423,
-        424,
-        425
+        424
       ],
       "entrypoints": [
         21,
@@ -3151,6 +3150,7 @@
         130
       ],
       "references": [
+        425,
         426,
         427,
         428,
@@ -3171,8 +3171,7 @@
         443,
         444,
         445,
-        446,
-        447
+        446
       ],
       "entrypoints": [
         22,
@@ -3218,6 +3217,7 @@
         133
       ],
       "references": [
+        447,
         448,
         449,
         450,
@@ -3267,8 +3267,7 @@
         494,
         495,
         496,
-        497,
-        498
+        497
       ],
       "entrypoints": [
         23,
@@ -3313,9 +3312,9 @@
         138
       ],
       "references": [
+        498,
         499,
-        500,
-        501
+        500
       ],
       "entrypoints": [
         24,
@@ -3356,10 +3355,10 @@
         141
       ],
       "references": [
+        501,
         502,
         503,
-        504,
-        505
+        504
       ],
       "entrypoints": [
         29,
@@ -3402,11 +3401,11 @@
         145
       ],
       "references": [
+        505,
         506,
         507,
         508,
-        509,
-        510
+        509
       ],
       "entrypoints": [
         29,
@@ -3449,11 +3448,11 @@
         149
       ],
       "references": [
+        510,
         511,
         512,
         513,
-        514,
-        515
+        514
       ],
       "entrypoints": [
         29,
@@ -3495,10 +3494,10 @@
         152
       ],
       "references": [
+        515,
         516,
         517,
-        518,
-        519
+        518
       ],
       "entrypoints": [
         29,
@@ -3541,11 +3540,11 @@
         156
       ],
       "references": [
+        519,
         520,
         521,
         522,
-        523,
-        524
+        523
       ],
       "entrypoints": [
         5,
@@ -3588,10 +3587,10 @@
         159
       ],
       "references": [
+        524,
         525,
         526,
-        527,
-        528
+        527
       ],
       "entrypoints": [
         29,
@@ -3634,11 +3633,11 @@
         163
       ],
       "references": [
+        528,
         529,
         530,
         531,
-        532,
-        533
+        532
       ],
       "entrypoints": [
         29,
@@ -3683,6 +3682,7 @@
         169
       ],
       "references": [
+        533,
         534,
         535,
         536,
@@ -3690,8 +3690,7 @@
         538,
         539,
         540,
-        541,
-        542
+        541
       ],
       "entrypoints": [
         29,
@@ -3735,12 +3734,12 @@
         174
       ],
       "references": [
+        542,
         543,
         544,
         545,
         546,
-        547,
-        548
+        547
       ],
       "entrypoints": [
         29,
@@ -3782,10 +3781,10 @@
         177
       ],
       "references": [
+        548,
         549,
         550,
-        551,
-        552
+        551
       ],
       "entrypoints": [
         29,
@@ -3827,10 +3826,10 @@
         180
       ],
       "references": [
+        552,
         553,
         554,
-        555,
-        556
+        555
       ],
       "entrypoints": [
         29,
@@ -3872,10 +3871,10 @@
         183
       ],
       "references": [
+        556,
         557,
         558,
-        559,
-        560
+        559
       ],
       "entrypoints": [
         29,
@@ -3918,12 +3917,12 @@
         187
       ],
       "references": [
+        560,
         561,
         562,
         563,
         564,
-        565,
-        566
+        565
       ],
       "entrypoints": [
         29,
@@ -3966,11 +3965,11 @@
         191
       ],
       "references": [
+        566,
         567,
         568,
         569,
-        570,
-        571
+        570
       ],
       "entrypoints": [
         29,
@@ -4013,11 +4012,11 @@
         195
       ],
       "references": [
+        571,
         572,
         573,
         574,
-        575,
-        576
+        575
       ],
       "entrypoints": [
         29,
@@ -4059,10 +4058,10 @@
         198
       ],
       "references": [
+        576,
         577,
         578,
-        579,
-        580
+        579
       ],
       "entrypoints": [
         29,
@@ -4105,11 +4104,11 @@
         202
       ],
       "references": [
+        580,
         581,
         582,
         583,
-        584,
-        585
+        584
       ],
       "entrypoints": [
         29,
@@ -4151,10 +4150,10 @@
         205
       ],
       "references": [
+        585,
         586,
         587,
-        588,
-        589
+        588
       ],
       "entrypoints": [
         29,
@@ -4196,10 +4195,10 @@
         208
       ],
       "references": [
+        589,
         590,
         591,
-        592,
-        593
+        592
       ],
       "entrypoints": [
         29,
@@ -4242,11 +4241,11 @@
         212
       ],
       "references": [
+        593,
         594,
         595,
         596,
-        597,
-        598
+        597
       ],
       "entrypoints": [
         29,
@@ -4288,10 +4287,10 @@
         215
       ],
       "references": [
+        598,
         599,
         600,
-        601,
-        602
+        601
       ],
       "entrypoints": [
         29,
@@ -4333,10 +4332,10 @@
         218
       ],
       "references": [
+        602,
         603,
         604,
-        605,
-        606
+        605
       ],
       "entrypoints": [
         29,
@@ -4378,10 +4377,10 @@
         221
       ],
       "references": [
+        606,
         607,
         608,
-        609,
-        610
+        609
       ],
       "entrypoints": [
         29,
@@ -4423,10 +4422,10 @@
         224
       ],
       "references": [
+        610,
         611,
         612,
-        613,
-        614
+        613
       ],
       "entrypoints": [
         29,
@@ -4469,11 +4468,11 @@
         228
       ],
       "references": [
+        614,
         615,
         616,
         617,
-        618,
-        619
+        618
       ],
       "entrypoints": [
         29,
@@ -4516,11 +4515,11 @@
         232
       ],
       "references": [
+        619,
         620,
         621,
         622,
-        623,
-        624
+        623
       ],
       "entrypoints": [
         29,
@@ -4562,10 +4561,10 @@
         235
       ],
       "references": [
+        624,
         625,
         626,
-        627,
-        628
+        627
       ],
       "entrypoints": [
         29,
@@ -4607,10 +4606,10 @@
         238
       ],
       "references": [
+        628,
         629,
         630,
-        631,
-        632
+        631
       ],
       "entrypoints": [
         29,
@@ -4652,10 +4651,10 @@
         241
       ],
       "references": [
+        632,
         633,
         634,
-        635,
-        636
+        635
       ],
       "entrypoints": [
         29,
@@ -4698,11 +4697,11 @@
         245
       ],
       "references": [
+        636,
         637,
         638,
         639,
-        640,
-        641
+        640
       ],
       "entrypoints": [
         29,
@@ -4745,12 +4744,12 @@
         249
       ],
       "references": [
+        641,
         642,
         643,
         644,
         645,
-        646,
-        647
+        646
       ],
       "entrypoints": [
         29,
@@ -4792,10 +4791,10 @@
         252
       ],
       "references": [
+        647,
         648,
         649,
-        650,
-        651
+        650
       ],
       "entrypoints": [
         29,
@@ -4838,11 +4837,11 @@
         256
       ],
       "references": [
+        651,
         652,
         653,
         654,
-        655,
-        656
+        655
       ],
       "entrypoints": [
         29,
@@ -4885,11 +4884,11 @@
         260
       ],
       "references": [
+        656,
         657,
         658,
         659,
-        660,
-        661
+        660
       ],
       "entrypoints": [
         29,
@@ -4931,10 +4930,10 @@
         263
       ],
       "references": [
+        661,
         662,
         663,
-        664,
-        665
+        664
       ],
       "entrypoints": [
         29,
@@ -4976,10 +4975,10 @@
         266
       ],
       "references": [
+        665,
         666,
         667,
-        668,
-        669
+        668
       ],
       "entrypoints": [
         29,
@@ -5021,10 +5020,10 @@
         269
       ],
       "references": [
+        669,
         670,
         671,
-        672,
-        673
+        672
       ],
       "entrypoints": [
         29,
@@ -5068,12 +5067,12 @@
         274
       ],
       "references": [
+        673,
         674,
         675,
         676,
         677,
-        678,
-        679
+        678
       ],
       "entrypoints": [
         29,
@@ -5120,6 +5119,7 @@
         277
       ],
       "references": [
+        679,
         680,
         681,
         682,
@@ -5215,8 +5215,7 @@
         772,
         773,
         774,
-        775,
-        776
+        775
       ],
       "entrypoints": [
         25,
@@ -5314,6 +5313,7 @@
         283
       ],
       "references": [
+        776,
         777,
         778,
         779,
@@ -5337,8 +5337,7 @@
         797,
         798,
         799,
-        800,
-        801
+        800
       ],
       "entrypoints": [
         26,
@@ -5382,9 +5381,9 @@
         288
       ],
       "references": [
+        801,
         802,
-        803,
-        804
+        803
       ],
       "entrypoints": [
         27,
@@ -5433,6 +5432,7 @@
         295
       ],
       "references": [
+        804,
         805,
         806,
         807,
@@ -5463,8 +5463,7 @@
         832,
         833,
         834,
-        835,
-        836
+        835
       ],
       "entrypoints": [
         28,
@@ -5510,9 +5509,9 @@
         300
       ],
       "references": [
+        836,
         837,
-        838,
-        839
+        838
       ],
       "entrypoints": [
         29,
@@ -5580,6 +5579,7 @@
         328
       ],
       "references": [
+        839,
         840,
         841,
         842,
@@ -5608,8 +5608,7 @@
         865,
         866,
         867,
-        868,
-        869
+        868
       ],
       "entrypoints": [
         29,
@@ -5663,6 +5662,7 @@
         336
       ],
       "references": [
+        869,
         870,
         871,
         872,
@@ -5696,8 +5696,7 @@
         900,
         901,
         902,
-        903,
-        904
+        903
       ],
       "entrypoints": [
         29,
@@ -5748,9 +5747,9 @@
         341
       ],
       "references": [
+        904,
         905,
-        906,
-        907
+        906
       ],
       "entrypoints": [
         29,
@@ -5787,6 +5786,7 @@
       ],
       "fixtures": [],
       "references": [
+        907,
         908,
         909,
         910,
@@ -5794,8 +5794,7 @@
         912,
         913,
         914,
-        915,
-        916
+        915
       ],
       "entrypoints": [
         29,
@@ -8406,7 +8405,7 @@
       "pointer": "sourceBase.path",
       "path": "current.w",
       "resolved": "tooling/studies/final-research-closure/current.w",
-      "declaredDigest": "sha256:d0bfb9a06190275b83aa2febb8a0f18b7a3e6129922a681283623c611c2b5ba9",
+      "declaredDigest": null,
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8416,7 +8415,7 @@
       "pointer": "sourceRefs.0.path",
       "path": "../../../tooling/final-research-closure-cases.json",
       "resolved": "tooling/final-research-closure-cases.json",
-      "declaredDigest": "sha256:07629120e2af063e6714cd7f4dcfc10f00057a3c11f960d7b7e1b52e7df88e7f",
+      "declaredDigest": null,
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8426,7 +8425,7 @@
       "pointer": "sourceRefs.1.path",
       "path": "../../../tooling/research-state-inventory.json",
       "resolved": "tooling/research-state-inventory.json",
-      "declaredDigest": "sha256:1f96b954b2d76b21c4b719d5c56e078c901254fb2392e12ab1867894256b8bb4",
+      "declaredDigest": null,
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8436,7 +8435,7 @@
       "pointer": "sourceRefs.2.path",
       "path": "../../../tooling/frontend-freeze-cases.json",
       "resolved": "tooling/frontend-freeze-cases.json",
-      "declaredDigest": "sha256:09f876a2360495adc615260ce1458461148334d5f6bede63a9b05be6ec70f484",
+      "declaredDigest": null,
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8446,7 +8445,7 @@
       "pointer": "sourceRefs.3.path",
       "path": "../../../tooling/hum0-human-review-protocol.json",
       "resolved": "tooling/hum0-human-review-protocol.json",
-      "declaredDigest": "sha256:9f86a61841caa5fe66d52589219fce857ee5391ec8a5153802748efcd57fa3d1",
+      "declaredDigest": null,
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8456,7 +8455,7 @@
       "pointer": "sourceRefs.4.path",
       "path": "../../../tooling/design-freeze-classification.json",
       "resolved": "tooling/design-freeze-classification.json",
-      "declaredDigest": "sha256:c85937e3fdb026e1dd0d8572b0426ff70e8d254b4333e0fe25be2b3e55b73b5b",
+      "declaredDigest": null,
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8466,7 +8465,7 @@
       "pointer": "sourceRefs.5.path",
       "path": "../../../RATIONALE.md",
       "resolved": "RATIONALE.md",
-      "declaredDigest": "sha256:da1a2aa7d4a3d05a1622483303ee30875f51a14b2c591dcab93c48a4bc6ae715",
+      "declaredDigest": null,
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8476,7 +8475,7 @@
       "pointer": "sourceRefs.6.path",
       "path": "../../../DESIGN.md",
       "resolved": "DESIGN.md",
-      "declaredDigest": "sha256:334d6b9f7c33dde805961f857aa00feb220052beabaae2444a0d96489646acac",
+      "declaredDigest": null,
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8516,7 +8515,7 @@
       "pointer": "artifacts.1.path",
       "path": "tooling/research-state-inventory.json",
       "resolved": "tooling/research-state-inventory.json",
-      "declaredDigest": "sha256:1f96b954b2d76b21c4b719d5c56e078c901254fb2392e12ab1867894256b8bb4",
+      "declaredDigest": "sha256:4f6c602e5f2c4a51474dbb994c44525aad78ea1c4d77ead0f01db626ca2abf75",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8626,7 +8625,7 @@
       "pointer": "artifacts.2.path",
       "path": "tooling/final-research-closure-machine.mjs",
       "resolved": "tooling/final-research-closure-machine.mjs",
-      "declaredDigest": "sha256:61162bbe350f19739d918030bb0b39a014281473f00872fdbd37c888a389d4e9",
+      "declaredDigest": "sha256:47bf9afd892bbda17d44c4b38af95b5c1b206d4fa7aa8917688aaa5f1b4fba13",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8636,7 +8635,7 @@
       "pointer": "artifacts.20.path",
       "path": "tooling/hum0-human-review-protocol.json",
       "resolved": "tooling/hum0-human-review-protocol.json",
-      "declaredDigest": "sha256:9f86a61841caa5fe66d52589219fce857ee5391ec8a5153802748efcd57fa3d1",
+      "declaredDigest": "sha256:04097dfa23bde77b59fbc2718ab58af5e27725e55017791f7ade3d6f253d5f5d",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8646,7 +8645,7 @@
       "pointer": "artifacts.21.path",
       "path": "tooling/hum0-human-review-machine.mjs",
       "resolved": "tooling/hum0-human-review-machine.mjs",
-      "declaredDigest": "sha256:a7726e27e9599a7d4e3a846b03f50c8780d7f0afbf63b2357924af3fd4c14c25",
+      "declaredDigest": "sha256:23ceb4bd650362f510728489235eaee3f3e02889d4017d1b7d9296ffbc2f0c3d",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8666,7 +8665,7 @@
       "pointer": "artifacts.23.path",
       "path": "tooling/hum0-human-review-results.snapshot.jsonl",
       "resolved": "tooling/hum0-human-review-results.snapshot.jsonl",
-      "declaredDigest": "sha256:f3b72b61b2ffde2dc0eed1c5c1d68aff50774d42c9863858029159bc505bf0d1",
+      "declaredDigest": "sha256:f012e1cda9d171e1cbd9b356e59d5fa3740286d358e0741b054d30d83ed89118",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8676,7 +8675,7 @@
       "pointer": "artifacts.24.path",
       "path": "tooling/studies/hum0-human-review/study.json",
       "resolved": "tooling/studies/hum0-human-review/study.json",
-      "declaredDigest": "sha256:3e348549e4d226639e948de605d4fcc7c9241e054ad1980b72322939440fbac3",
+      "declaredDigest": "sha256:25a6ce92ce33eeee929a5d3448886c04ea5d3fcf21b5b6ff9e6c47bf5253d89d",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8696,7 +8695,7 @@
       "pointer": "artifacts.26.path",
       "path": "tooling/check-design-freeze-audit.mjs",
       "resolved": "tooling/check-design-freeze-audit.mjs",
-      "declaredDigest": "sha256:01b7f19d20e2470b7ea552f4482996c88f18b6cc684576deae4a32cbe241f872",
+      "declaredDigest": "sha256:8d6431cf1a72a3387c08e494898d63597603037470c0bf30413844a7e346ac5e",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8716,7 +8715,7 @@
       "pointer": "artifacts.28.path",
       "path": "tooling/design-freeze-classification.json",
       "resolved": "tooling/design-freeze-classification.json",
-      "declaredDigest": "sha256:c85937e3fdb026e1dd0d8572b0426ff70e8d254b4333e0fe25be2b3e55b73b5b",
+      "declaredDigest": "sha256:39f3c5a8c05fe35a193372f238df95c21467759513c16898687e43213cfcc6f7",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8724,9 +8723,9 @@
       "study": 12,
       "metadata": 23,
       "pointer": "artifacts.29.path",
-      "path": "RATIONALE.md",
-      "resolved": "RATIONALE.md",
-      "declaredDigest": "sha256:da1a2aa7d4a3d05a1622483303ee30875f51a14b2c591dcab93c48a4bc6ae715",
+      "path": "DESIGN.md",
+      "resolved": "DESIGN.md",
+      "declaredDigest": "sha256:185207ed866db45fc74b89b7dd020cdc1311d03077e50fdca7facf7f6b2dd904",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8744,19 +8743,9 @@
       "study": 12,
       "metadata": 23,
       "pointer": "artifacts.30.path",
-      "path": "DESIGN.md",
-      "resolved": "DESIGN.md",
-      "declaredDigest": "sha256:334d6b9f7c33dde805961f857aa00feb220052beabaae2444a0d96489646acac",
-      "status": "resolved",
-      "source": "tooling/studies/final-research-closure/manifest.json"
-    },
-    {
-      "study": 12,
-      "metadata": 23,
-      "pointer": "artifacts.31.path",
       "path": "DESIGN-INDEX.md",
       "resolved": "DESIGN-INDEX.md",
-      "declaredDigest": "sha256:ff526b4ca6e2eae874a1c91c24ac0b5d4578f6c146ee8f58bc6c9f26e4bb54dc",
+      "declaredDigest": "sha256:d76c2691036d7ab058ebbfc44a3b6c42130d7fe7913387471d37162730b59c87",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8776,7 +8765,7 @@
       "pointer": "artifacts.5.path",
       "path": "tooling/final-research-closure-results.snapshot.jsonl",
       "resolved": "tooling/final-research-closure-results.snapshot.jsonl",
-      "declaredDigest": "sha256:d7ea4cf6cdf2a4a063b7d188a4d5d5c3b02294dcf163538ba16c29ef62e6050b",
+      "declaredDigest": "sha256:258cc7c6623d8c9aa23cd2ba7da7dc9958cf366d0a9507b802634bffe813bda3",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8796,7 +8785,7 @@
       "pointer": "artifacts.7.path",
       "path": "tooling/studies/final-research-closure/bundle.json",
       "resolved": "tooling/studies/final-research-closure/bundle.json",
-      "declaredDigest": "sha256:2c59dd378700a6dd88eb57aa681111960db144132082b6598d71a442185e0075",
+      "declaredDigest": "sha256:f7d12900964ba9ca070cea843ad3dfce966126711d5bdcf62c1d697681aa795d",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -9716,7 +9705,7 @@
       "pointer": "artifacts.machine.path",
       "path": "../../hum0-human-review-machine.mjs",
       "resolved": "tooling/hum0-human-review-machine.mjs",
-      "declaredDigest": "sha256:a7726e27e9599a7d4e3a846b03f50c8780d7f0afbf63b2357924af3fd4c14c25",
+      "declaredDigest": "sha256:23ceb4bd650362f510728489235eaee3f3e02889d4017d1b7d9296ffbc2f0c3d",
       "status": "resolved",
       "source": "tooling/studies/hum0-human-review/study.json"
     },
@@ -9726,7 +9715,7 @@
       "pointer": "artifacts.referenceTest.path",
       "path": "../../hum0-human-review-reference.test.mjs",
       "resolved": "tooling/hum0-human-review-reference.test.mjs",
-      "declaredDigest": "sha256:ea3a6b3570f05f7df36b94a2fabbfe39c0d4ff58efc0bab345365e9795dceb09",
+      "declaredDigest": "sha256:c54d6bcba59da95eb4d4cee9a57b444ab42a09ab291947f0d8a5203cb5e2f091",
       "status": "resolved",
       "source": "tooling/studies/hum0-human-review/study.json"
     },
@@ -9736,7 +9725,7 @@
       "pointer": "artifacts.snapshot.path",
       "path": "../../hum0-human-review-results.snapshot.jsonl",
       "resolved": "tooling/hum0-human-review-results.snapshot.jsonl",
-      "declaredDigest": "sha256:f3b72b61b2ffde2dc0eed1c5c1d68aff50774d42c9863858029159bc505bf0d1",
+      "declaredDigest": "sha256:f012e1cda9d171e1cbd9b356e59d5fa3740286d358e0741b054d30d83ed89118",
       "status": "resolved",
       "source": "tooling/studies/hum0-human-review/study.json"
     },
@@ -9756,7 +9745,7 @@
       "pointer": "protocol.path",
       "path": "../../hum0-human-review-protocol.json",
       "resolved": "tooling/hum0-human-review-protocol.json",
-      "declaredDigest": "sha256:9f86a61841caa5fe66d52589219fce857ee5391ec8a5153802748efcd57fa3d1",
+      "declaredDigest": "sha256:04097dfa23bde77b59fbc2718ab58af5e27725e55017791f7ade3d6f253d5f5d",
       "status": "resolved",
       "source": "tooling/studies/hum0-human-review/study.json"
     },
@@ -21113,378 +21102,378 @@
       {
         "from": 64,
         "to": 3,
-        "reference": 720,
+        "reference": 719,
         "pointer": "bundles.4.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 4,
-        "reference": 731,
+        "reference": 730,
         "pointer": "bundles.5.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 5,
-        "reference": 734,
+        "reference": 733,
         "pointer": "bundles.7.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 6,
-        "reference": 735,
+        "reference": 734,
         "pointer": "bundles.8.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 8,
-        "reference": 694,
+        "reference": 693,
         "pointer": "bundles.16.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 9,
-        "reference": 695,
+        "reference": 694,
         "pointer": "bundles.17.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 11,
-        "reference": 699,
+        "reference": 698,
         "pointer": "bundles.20.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 14,
-        "reference": 703,
+        "reference": 702,
         "pointer": "bundles.24.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 15,
-        "reference": 704,
+        "reference": 703,
         "pointer": "bundles.25.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 16,
-        "reference": 705,
+        "reference": 704,
         "pointer": "bundles.26.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 23,
-        "reference": 711,
+        "reference": 710,
         "pointer": "bundles.31.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 26,
-        "reference": 686,
+        "reference": 685,
         "pointer": "bundles.0.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 27,
-        "reference": 687,
+        "reference": 686,
         "pointer": "bundles.1.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 28,
-        "reference": 698,
+        "reference": 697,
         "pointer": "bundles.2.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 29,
-        "reference": 709,
+        "reference": 708,
         "pointer": "bundles.3.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 30,
-        "reference": 733,
+        "reference": 732,
         "pointer": "bundles.6.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 31,
-        "reference": 736,
+        "reference": 735,
         "pointer": "bundles.9.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 32,
-        "reference": 688,
+        "reference": 687,
         "pointer": "bundles.10.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 33,
-        "reference": 689,
+        "reference": 688,
         "pointer": "bundles.11.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 34,
-        "reference": 690,
+        "reference": 689,
         "pointer": "bundles.12.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 35,
-        "reference": 691,
+        "reference": 690,
         "pointer": "bundles.13.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 36,
-        "reference": 692,
+        "reference": 691,
         "pointer": "bundles.14.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 37,
-        "reference": 693,
+        "reference": 692,
         "pointer": "bundles.15.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 38,
-        "reference": 696,
+        "reference": 695,
         "pointer": "bundles.18.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 39,
-        "reference": 697,
+        "reference": 696,
         "pointer": "bundles.19.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 40,
-        "reference": 700,
+        "reference": 699,
         "pointer": "bundles.21.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 41,
-        "reference": 701,
+        "reference": 700,
         "pointer": "bundles.22.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 42,
-        "reference": 702,
+        "reference": 701,
         "pointer": "bundles.23.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 43,
-        "reference": 706,
+        "reference": 705,
         "pointer": "bundles.27.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 44,
-        "reference": 707,
+        "reference": 706,
         "pointer": "bundles.28.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 45,
-        "reference": 708,
+        "reference": 707,
         "pointer": "bundles.29.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 46,
-        "reference": 710,
+        "reference": 709,
         "pointer": "bundles.30.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 47,
-        "reference": 712,
+        "reference": 711,
         "pointer": "bundles.32.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 48,
-        "reference": 713,
+        "reference": 712,
         "pointer": "bundles.33.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 49,
-        "reference": 714,
+        "reference": 713,
         "pointer": "bundles.34.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 50,
-        "reference": 715,
+        "reference": 714,
         "pointer": "bundles.35.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 51,
-        "reference": 717,
+        "reference": 716,
         "pointer": "bundles.37.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 52,
-        "reference": 718,
+        "reference": 717,
         "pointer": "bundles.38.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 53,
-        "reference": 719,
+        "reference": 718,
         "pointer": "bundles.39.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 54,
-        "reference": 721,
+        "reference": 720,
         "pointer": "bundles.40.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 55,
-        "reference": 722,
+        "reference": 721,
         "pointer": "bundles.41.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 56,
-        "reference": 723,
+        "reference": 722,
         "pointer": "bundles.42.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 57,
-        "reference": 724,
+        "reference": 723,
         "pointer": "bundles.43.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 58,
-        "reference": 726,
+        "reference": 725,
         "pointer": "bundles.45.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 59,
-        "reference": 727,
+        "reference": 726,
         "pointer": "bundles.46.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 60,
-        "reference": 728,
+        "reference": 727,
         "pointer": "bundles.47.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 61,
-        "reference": 729,
+        "reference": 728,
         "pointer": "bundles.48.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 62,
-        "reference": 730,
+        "reference": 729,
         "pointer": "bundles.49.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 63,
-        "reference": 732,
+        "reference": 731,
         "pointer": "bundles.50.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 67,
-        "reference": 716,
+        "reference": 715,
         "pointer": "bundles.36.path",
         "status": "resolved"
       },
       {
         "from": 64,
         "to": 70,
-        "reference": 725,
+        "reference": 724,
         "pointer": "bundles.44.path",
         "status": "resolved"
       },
       {
         "from": 70,
         "to": 11,
-        "reference": 891,
+        "reference": 890,
         "pointer": "buildsOn.1.path",
         "status": "resolved"
       },
       {
         "from": 70,
         "to": 16,
-        "reference": 892,
+        "reference": 891,
         "pointer": "buildsOn.2.path",
         "status": "resolved"
       },
       {
         "from": 70,
         "to": 69,
-        "reference": 890,
+        "reference": 889,
         "pointer": "buildsOn.0.path",
         "status": "resolved"
       }
