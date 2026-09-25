@@ -6597,6 +6597,203 @@ static bool test_u64_binary_frontend(void) {
   return true;
 }
 
+static bool test_i128_literal_frontend(void) {
+  static const char SOURCE[] =
+      "fn signedMax(): i128 { return "
+      "170141183460469231731687303715884105727_i128 }\n"
+      "fn signedMin(): i128 { return "
+      "-170141183460469231731687303715884105728_i128 }\n"
+      "fn unsignedMax(): u128 { return "
+      "340282366920938463463374607431768211455_u128 }\n"
+      "fn unsignedHexMax(): u128 { return "
+      "0xffffffffffffffffffffffffffffffff_u128 }\n"
+      "fn echoSigned(value: i128): i128 { return value }\n"
+      "fn echoUnsigned(value: u128): u128 { return value }\n"
+      "fn maxU8(): u8 { return 255_u8 }\n"
+      "fn maxU16(): u16 { return 65535_u16 }\n"
+      "fn maxU32(): u32 { return 4294967295_u32 }\n"
+      "fn maxU64(): u64 { return 18446744073709551615_u64 }\n"
+      "entry { }\n";
+  fixture *value = &fixture_literal;
+  CHECK(fixture_run(value, SOURCE));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+        value->result.status == W_SEED_FRONTEND_OK &&
+        counts_equal(&value->result.required, &value->result.written) &&
+        value->result.required.receipt_bytes == value->result.receipt_bytes &&
+        value->result.written.facts == 0u &&
+        value->result.written.diagnostics == 0u);
+
+  w_seed_frontend_counts measured;
+  w_seed_frontend_result measure_result;
+  CHECK(w_seed_frontend_measure(&value->input, &measured, &measure_result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(counts_equal(&measured, &value->result.required) &&
+        measure_result.required.receipt_bytes == value->result.receipt_bytes &&
+        frontend_text_is(measure_result.schema_version,
+                         W_SEED_FRONTEND_SCHEMA_VERSION));
+
+  static const struct {
+    const char *name;
+    bool is_signed;
+    uint16_t bit_width;
+  } FUNCTIONS[] = { {"signedMax", true, 128u},
+                    {"signedMin", true, 128u},
+                    {"unsignedMax", false, 128u},
+                    {"unsignedHexMax", false, 128u},
+                    {"echoSigned", true, 128u},
+                    {"echoUnsigned", false, 128u},
+                    {"maxU8", false, 8u},
+                    {"maxU16", false, 16u},
+                    {"maxU32", false, 32u},
+                    {"maxU64", false, 64u} };
+  for (size_t expected = 0u;
+       expected < sizeof(FUNCTIONS) / sizeof(FUNCTIONS[0]); expected += 1u) {
+    bool found = false;
+    for (size_t index = 0u; index < value->result.written.functions;
+         index += 1u) {
+      const w_seed_frontend_function *function = &value->functions[index];
+      if (!frontend_text_is(function->name, FUNCTIONS[expected].name))
+        continue;
+      CHECK(function->return_type < value->result.written.types);
+      const w_seed_frontend_type *type =
+          &value->types[function->return_type];
+      CHECK(type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            type->is_signed == FUNCTIONS[expected].is_signed &&
+            type->bit_width == FUNCTIONS[expected].bit_width);
+      if (expected == 4u || expected == 5u) {
+        CHECK(function->parameter_count == 1u &&
+              function->first_parameter < value->result.written.parameters);
+        const w_seed_frontend_parameter *parameter =
+            &value->parameters[function->first_parameter];
+        CHECK(parameter->type_index < value->result.written.types);
+        const w_seed_frontend_type *parameter_type =
+            &value->types[parameter->type_index];
+        CHECK(parameter_type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+              parameter_type->is_signed == FUNCTIONS[expected].is_signed &&
+              parameter_type->bit_width == FUNCTIONS[expected].bit_width);
+      }
+      found = true;
+      break;
+    }
+    CHECK(found);
+  }
+
+  uint8_t signed_max[16];
+  uint8_t signed_min[16] = {0u};
+  uint8_t unsigned_max[16];
+  uint8_t u8_max[16] = {0xffu};
+  uint8_t u16_max[16] = {0xffu, 0xffu};
+  uint8_t u32_max[16] = {0xffu, 0xffu, 0xffu, 0xffu};
+  uint8_t u64_max[16] = {0xffu, 0xffu, 0xffu, 0xffu,
+                          0xffu, 0xffu, 0xffu, 0xffu};
+  (void)memset(signed_max, 0xff, sizeof(signed_max));
+  (void)memset(unsigned_max, 0xff, sizeof(unsigned_max));
+  signed_max[15] = 0x7fu;
+  signed_min[15] = 0x80u;
+  const struct {
+    const char *spelling;
+    bool is_signed;
+    uint16_t bit_width;
+    const uint8_t *magnitude;
+  } LITERALS[] = {
+      {"170141183460469231731687303715884105727_i128", true, 128u,
+       signed_max},
+      {"170141183460469231731687303715884105728_i128", true, 128u,
+       signed_min},
+      {"340282366920938463463374607431768211455_u128", false, 128u,
+       unsigned_max},
+      {"0xffffffffffffffffffffffffffffffff_u128", false, 128u,
+       unsigned_max},
+      {"255_u8", false, 8u, u8_max},
+      {"65535_u16", false, 16u, u16_max},
+      {"4294967295_u32", false, 32u, u32_max},
+      {"18446744073709551615_u64", false, 64u, u64_max},
+  };
+  uint32_t signed_min_literal = W_SEED_FRONTEND_NONE;
+  for (size_t expected = 0u;
+       expected < sizeof(LITERALS) / sizeof(LITERALS[0]); expected += 1u) {
+    bool found = false;
+    for (size_t index = 0u; index < value->result.written.expressions;
+         index += 1u) {
+      const w_seed_frontend_expression *expression =
+          &value->expressions[index];
+      if (expression->kind != W_SEED_FRONTEND_EXPR_INTEGER ||
+          !frontend_text_is(expression->spelling, LITERALS[expected].spelling))
+        continue;
+      CHECK(expression->supported && expression->has_integer_value &&
+            expression->inferred_type < value->result.written.types &&
+            memcmp(expression->integer_value, LITERALS[expected].magnitude,
+                   sizeof(expression->integer_value)) == 0);
+      const w_seed_frontend_type *type =
+          &value->types[expression->inferred_type];
+      CHECK(type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            type->is_signed == LITERALS[expected].is_signed &&
+            type->bit_width == LITERALS[expected].bit_width);
+      if (expected == 1u) signed_min_literal = (uint32_t)index;
+      found = true;
+      break;
+    }
+    CHECK(found);
+  }
+  bool found_signed_min_root = false;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_UNARY ||
+        expression->left != signed_min_literal)
+      continue;
+    CHECK(expression->supported && expression->right == W_SEED_FRONTEND_NONE &&
+          frontend_text_is(expression->operator_text, "-") &&
+          expression->inferred_type ==
+              value->expressions[signed_min_literal].inferred_type);
+    found_signed_min_root = true;
+  }
+  CHECK(found_signed_min_root);
+
+  static const char *const UNSUPPORTED[] = {
+      "fn bad(): i128 { return "
+      "170141183460469231731687303715884105728_i128 } entry { }\n",
+      "fn bad(): i128 { return "
+      "-170141183460469231731687303715884105729_i128 } entry { }\n",
+      "fn bad(): u128 { return "
+      "340282366920938463463374607431768211456_u128 } entry { }\n",
+      "fn bad(): u128 { return -1_u128 } entry { }\n",
+      "fn bad(): i128 { return 1_i128tail } entry { }\n",
+      "fn bad(): i128 { return 1_i129 } entry { }\n",
+      "fn add(left: i128, right: i128): i128 { return left + right } "
+      "entry { }\n",
+      "fn bits(left: u128, right: u128): u128 { return left ^ right } "
+      "entry { }\n",
+      "fn shift(value: i128, count: u64): i128 { return value << count } "
+      "entry { }\n",
+      "fn negate(value: i128): i128 { return -value } entry { }\n",
+      "fn invert(value: u128): u128 { return ~value } entry { }\n",
+      "fn assign(value: i128): i128 { var current: i128 = value "
+      "current = value return current } entry { }\n",
+      "fn widen(value: i64): i128 { return value } entry { }\n",
+      "fn contextual(): i128 { return 1 } entry { }\n",
+      "fn convert(value: i16): i128 { "
+      "return i128(truncatingBits: value) } entry { }\n",
+      "fn convert(value: i16): i128 throws NumericConversionError { "
+      "return try i128(exactly: value) } entry { }\n",
+  };
+  for (size_t index = 0u;
+       index < sizeof(UNSUPPORTED) / sizeof(UNSUPPORTED[0]); index += 1u) {
+    CHECK(fixture_run(value, UNSUPPORTED[index]));
+    CHECK(value->result.status != W_SEED_FRONTEND_OK &&
+          (has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION) ||
+           has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_TYPE) ||
+           value->result.status == W_SEED_FRONTEND_DIAGNOSTICS));
+    if (index >= 6u && index <= 11u)
+      CHECK(has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+  }
+  CHECK(fixture_run_with_print_host(
+      value, "fn show(value: i128) { print(\"${value}\") } entry(show)\n"));
+  CHECK(value->result.status != W_SEED_FRONTEND_OK &&
+        has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+  return true;
+}
+
 static bool test_flat_aggregate_pair_frontend(void) {
   static const char SOURCE[] =
       "type Pair = (i64, i64)\n"
@@ -7907,7 +8104,7 @@ static bool test_f32_scalar_projection(void) {
 }
 
 static bool test_numeric_widening_frontend(void) {
-  CHECK(strcmp(W_SEED_FRONTEND_SCHEMA_VERSION, "w-seed-frontend-75") == 0);
+  CHECK(strcmp(W_SEED_FRONTEND_SCHEMA_VERSION, "w-seed-frontend-76") == 0);
   typedef struct {
     const char *source_name;
     bool source_is_float;
@@ -10815,6 +11012,7 @@ static bool test_dry_local_integer_result_interpolation(void) {
 int main(int argc, char **argv) {
   if (argc == 2) return test_gpu_module_bridge(argv[1]) ? 0 : 1;
   if (argc != 1) return 2;
+  if (!test_i128_literal_frontend()) return 1;
   if (!test_short_entry_frontend()) return 1;
   if (!test_scalar_if_frontend_subset()) return 1;
   if (!test_break_continue_projection()) return 1;

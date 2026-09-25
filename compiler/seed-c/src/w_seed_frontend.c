@@ -702,7 +702,7 @@ static frontend_simple_type infer_expression_span(frontend_context *context,
                                                    w_seed_span span);
 static frontend_simple_type literal_simple_type(
     const w_seed_frontend_document *doc, w_seed_span span,
-    w_seed_cst_kind token_kind);
+    w_seed_cst_kind token_kind, bool allow_i128_min_magnitude);
 static bool diagnostic_value_kind_from_simple(
     frontend_simple_type type, bool use_spelling, w_seed_frontend_text *out);
 static bool context_append_diagnostic_raw(
@@ -1166,7 +1166,7 @@ static frontend_const_infer_value const_infer_primary(
   if (token.kind == W_SEED_CST_NUMBER ||
       token.kind == W_SEED_CST_LITERAL_EVENT) {
     frontend_simple_type type = literal_simple_type(parser->document, token.span,
-                                                    token.kind);
+                                                    token.kind, false);
     frontend_const_infer_value value = const_infer_value_type(type);
     value.spelling = spelling;
     if (type.kind == W_SEED_FRONTEND_TYPE_INTEGER && type.bit_width == 0u &&
@@ -2127,7 +2127,7 @@ static bool const_integer_value(frontend_context *context,
                                w_seed_span span, uint32_t type_index,
                                uint32_t *index) {
   frontend_simple_type actual = literal_simple_type(
-      context_document(context), span, W_SEED_CST_NUMBER);
+      context_document(context), span, W_SEED_CST_NUMBER, false);
   if (actual.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
       expected.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
       !frontend_widening_allowed(context, actual, expected)) {
@@ -2516,7 +2516,7 @@ static bool diagnostic_generic_actual_kind(
        first->kind == W_SEED_CST_LITERAL_EVENT ||
        text_equal(first_text, "true") || text_equal(first_text, "false"))) {
     const frontend_simple_type literal =
-        literal_simple_type(doc, first->span, first->kind);
+        literal_simple_type(doc, first->span, first->kind, false);
     if (diagnostic_value_kind_from_simple(literal, false, kind_out)) return true;
   }
   uint32_t type_node = W_SEED_CST_NONE;
@@ -3179,7 +3179,7 @@ static bool resolve_one_pending_generic_application(
               integer_tokens[0].kind == W_SEED_CST_NUMBER;
           if (integer_literal_shape) {
             const frontend_simple_type literal_type = literal_simple_type(
-                doc, integer_tokens[0].span, integer_tokens[0].kind);
+                doc, integer_tokens[0].span, integer_tokens[0].kind, false);
             (void)append_type0122_diagnostic(
                 context, shape->value_span, literal_type, expected,
                 (w_seed_frontend_text){"integer is not exactly representable",
@@ -5120,12 +5120,18 @@ static bool type_name_integer(w_seed_frontend_text text, bool *is_signed,
   return true;
 }
 
-/* The seed checker has portable storage for the four fixed widths below.
- * i128/u128 stay outside this slice until the target's exact integer model is
- * available; treating them as unknown is safer than accepting a narrowing or
- * an inexact float conversion. */
+/* Executable scalar policies still use these four widths and the i64 carrier.
+ * Keep this predicate narrow even though type identity and literal storage
+ * also admit the already-designed 128-bit family. */
 static bool integer_width_supported(uint16_t width) {
   return width == 8u || width == 16u || width == 32u || width == 64u;
+}
+
+/* i128/u128 are admitted as scalar identities and literal domains here, but
+ * the seed's executable integer policies still use the narrower physical
+ * carrier. Keep those operation gates separate from type normalization. */
+static bool integer_type_identity_width_supported(uint16_t width) {
+  return integer_width_supported(width) || width == 128u;
 }
 
 static bool looks_like_integer_type(w_seed_frontend_text text) {
@@ -5178,26 +5184,28 @@ static bool integer_literal_parts(w_seed_frontend_text text,
   return *body_end != 0;
 }
 
-static bool integer_literal_value(w_seed_frontend_text text, size_t body_end,
-                                  uint64_t *value) {
-  if (value == NULL || body_end == 0 || body_end > text.length) return false;
-  uint64_t base = UINT64_C(10);
+static bool integer_literal_magnitude(w_seed_frontend_text text,
+                                     size_t body_end,
+                                     uint8_t magnitude[16]) {
+  if (magnitude == NULL || body_end == 0 || body_end > text.length)
+    return false;
+  (void)memset(magnitude, 0, 16u);
+  uint16_t base = 10u;
   size_t index = 0;
   if (body_end >= 2 && text.data[0] == '0' &&
       (text.data[1] == 'x' || text.data[1] == 'X')) {
-    base = UINT64_C(16);
+    base = 16u;
     index = 2u;
   } else if (body_end >= 2 && text.data[0] == '0' &&
              (text.data[1] == 'o' || text.data[1] == 'O')) {
-    base = UINT64_C(8);
+    base = 8u;
     index = 2u;
   } else if (body_end >= 2 && text.data[0] == '0' &&
              (text.data[1] == 'b' || text.data[1] == 'B')) {
-    base = UINT64_C(2);
+    base = 2u;
     index = 2u;
   }
   if (index >= body_end) return false;
-  uint64_t result = 0;
   bool saw_digit = false;
   for (; index < body_end; index += 1) {
     const uint8_t byte = (uint8_t)text.data[index];
@@ -5214,12 +5222,64 @@ static bool integer_literal_value(w_seed_frontend_text text, size_t body_end,
     } else {
       return false;
     }
-    if (digit >= base || result > (UINT64_MAX - digit) / base) return false;
-    result = result * base + digit;
+    if (digit >= base) return false;
+    uint16_t carry = digit;
+    for (size_t byte_index = 0u; byte_index < 16u; byte_index += 1u) {
+      const uint32_t product =
+          (uint32_t)magnitude[byte_index] * (uint32_t)base + carry;
+      magnitude[byte_index] = (uint8_t)(product & 0xffu);
+      carry = (uint16_t)(product >> 8u);
+    }
+    if (carry != 0u) return false;
     saw_digit = true;
   }
   if (!saw_digit) return false;
+  return true;
+}
+
+static bool integer_literal_value(w_seed_frontend_text text, size_t body_end,
+                                  uint64_t *value) {
+  if (value == NULL) return false;
+  uint8_t magnitude[16];
+  if (!integer_literal_magnitude(text, body_end, magnitude)) return false;
+  for (size_t byte = sizeof(uint64_t); byte < sizeof(magnitude); byte += 1u) {
+    if (magnitude[byte] != 0u) return false;
+  }
+  uint64_t result = 0u;
+  for (size_t byte = 0u; byte < sizeof(uint64_t); byte += 1u) {
+    result |= (uint64_t)magnitude[byte] << (byte * 8u);
+  }
   *value = result;
+  return true;
+}
+
+static bool integer_magnitude_fits_width(const uint8_t magnitude[16],
+                                         uint16_t width, bool is_signed) {
+  if (magnitude == NULL || !integer_type_identity_width_supported(width))
+    return false;
+  const size_t byte_count = (size_t)width / 8u;
+  for (size_t byte = byte_count; byte < 16u; byte += 1u) {
+    if (magnitude[byte] != 0u) return false;
+  }
+  return !is_signed || (magnitude[byte_count - 1u] & 0x80u) == 0u;
+}
+
+static bool integer_literal_is_signed_i128_minimum(
+    w_seed_frontend_text spelling) {
+  size_t body_end = spelling.length;
+  bool has_suffix = false;
+  bool is_signed = false;
+  uint16_t width = 0u;
+  uint8_t magnitude[16];
+  if (!integer_literal_parts(spelling, &body_end, &has_suffix, &is_signed,
+                             &width) ||
+      !has_suffix || !is_signed || width != 128u ||
+      !integer_literal_magnitude(spelling, body_end, magnitude))
+    return false;
+  if (magnitude[15] != 0x80u) return false;
+  for (size_t byte = 0u; byte < 15u; byte += 1u) {
+    if (magnitude[byte] != 0u) return false;
+  }
   return true;
 }
 
@@ -5682,7 +5742,7 @@ static frontend_simple_type simple_type_from_text(
   bool is_signed = false;
   uint16_t width = 0;
   if (type_name_integer(spelling, &is_signed, &width) &&
-      integer_width_supported(width)) {
+      integer_type_identity_width_supported(width)) {
     type.kind = W_SEED_FRONTEND_TYPE_INTEGER;
     type.is_signed = is_signed;
     type.bit_width = width;
@@ -5695,9 +5755,8 @@ static frontend_simple_type simple_type_from_text(
     return type;
   }
   if (looks_like_integer_type(spelling)) {
-    /* A spelling such as u7 or i128 is not a nominal type in W.  Keep it
-     * unknown so declaration/expression normalization records an explicit
-     * unsupported type fact. */
+    /* A spelling such as u7 is not a nominal type in W. Keep it unknown so
+     * normalization records an explicit unsupported type fact. */
     return type;
   }
   if (text_equal(spelling, "f32") || text_equal(spelling, "f64")) {
@@ -5908,6 +5967,7 @@ static bool widening_allowed(frontend_simple_type actual,
   if (actual.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
       expected.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
       actual.bit_width != 0 && expected.bit_width != 0 &&
+      actual.bit_width != 128u && expected.bit_width != 128u &&
       !text_equal(actual.spelling, "usize") &&
       !text_equal(expected.spelling, "usize") &&
       actual.bit_width < expected.bit_width &&
@@ -11515,6 +11575,9 @@ typedef struct {
   /* Set only while the operand immediately governed by plain `try` is
    * parsed. Semantic ownership is rechecked after normalization. */
   bool allow_partial_numeric_conversion;
+  /* The magnitude 2^127 is admitted only as the direct child of a negative
+   * i128 literal, so the positive spelling remains out of range. */
+  bool allow_i128_min_magnitude_literal;
 } frontend_expression_parser;
 
 static frontend_simple_type simple_type_from_view(w_seed_frontend_text spelling) {
@@ -11549,7 +11612,7 @@ static frontend_simple_type simple_type_from_view(w_seed_frontend_text spelling)
     bool is_signed = false;
     uint16_t width = 0;
     if (type_name_integer(spelling, &is_signed, &width) &&
-        integer_width_supported(width)) {
+        integer_type_identity_width_supported(width)) {
       type.kind = W_SEED_FRONTEND_TYPE_INTEGER;
       type.is_signed = is_signed;
       type.bit_width = width;
@@ -11728,7 +11791,7 @@ static frontend_simple_type static_list_element_type(
 
 static frontend_simple_type literal_simple_type(
     const w_seed_frontend_document *doc, w_seed_span span,
-    w_seed_cst_kind token_kind) {
+    w_seed_cst_kind token_kind, bool allow_i128_min_magnitude) {
   const w_seed_span trimmed = trim_span(doc, span);
   const w_seed_frontend_text text = text_from_span(doc, trimmed);
   frontend_simple_type type = simple_type_unknown();
@@ -11786,27 +11849,27 @@ static frontend_simple_type literal_simple_type(
     bool has_suffix = false;
     bool is_signed = true;
     uint16_t width = 0;
-    uint64_t value = 0;
     if (!integer_literal_parts(text, &body_end, &has_suffix, &is_signed,
-                               &width) ||
-        !integer_literal_value(text, body_end, &value)) {
+                               &width)) {
       /* Keep the source spelling in an UNKNOWN record.  The normalizer emits
        * an unsupported-expression fact for this literal, so malformed or
        * overflowing suffixes are never silently accepted. */
       return type;
     }
     if (!has_suffix) {
+      uint64_t value = 0u;
+      if (!integer_literal_value(text, body_end, &value)) return type;
       type.kind = W_SEED_FRONTEND_TYPE_INTEGER;
       type.is_signed = true;
       type.bit_width = 0;
     } else {
-      if (!integer_width_supported(width)) return type;
-      const uint64_t maximum =
-          width < 64u
-              ? (is_signed ? (UINT64_C(1) << (width - 1u)) - 1u
-                           : (UINT64_C(1) << width) - 1u)
-              : (is_signed ? (uint64_t)INT64_MAX : UINT64_MAX);
-      if (value > maximum) return type;
+      uint8_t magnitude[16];
+      if (!integer_type_identity_width_supported(width) ||
+          !integer_literal_magnitude(text, body_end, magnitude) ||
+          (!integer_magnitude_fits_width(magnitude, width, is_signed) &&
+           !(allow_i128_min_magnitude &&
+             integer_literal_is_signed_i128_minimum(text))))
+        return type;
       type.kind = W_SEED_FRONTEND_TYPE_INTEGER;
       type.is_signed = is_signed;
       type.bit_width = width;
@@ -13001,7 +13064,7 @@ static frontend_simple_type binding_type_for_name(
         if (cursor_peek(&cursor, &first) &&
             first.kind == W_SEED_CST_LITERAL_EVENT) {
           const frontend_simple_type inferred =
-              literal_simple_type(doc, first.span, first.kind);
+              literal_simple_type(doc, first.span, first.kind, false);
           if (inferred.kind == W_SEED_FRONTEND_TYPE_STRING)
             return inferred;
         }
@@ -13954,15 +14017,13 @@ static bool expression_append(frontend_expression_parser *parser,
     bool has_suffix = false;
     bool is_signed = true;
     uint16_t width = 0;
-    uint64_t integer_value = 0;
+    uint8_t integer_magnitude[16];
     if (integer_literal_parts(spelling, &body_end, &has_suffix, &is_signed,
                               &width) &&
-        integer_literal_value(spelling, body_end, &integer_value)) {
+        integer_literal_magnitude(spelling, body_end, integer_magnitude)) {
       record.has_integer_value = true;
-      for (size_t byte = 0; byte < sizeof(integer_value); byte += 1u) {
-        record.integer_value[byte] =
-            (uint8_t)(integer_value >> (byte * 8u));
-      }
+      (void)memcpy(record.integer_value, integer_magnitude,
+                   sizeof(record.integer_value));
     }
     (void)has_suffix;
     (void)is_signed;
@@ -14712,7 +14773,8 @@ static bool expression_append_binary(frontend_expression_parser *parser,
                                      frontend_expr_value *value);
 
 static bool interpolation_display_supported(frontend_simple_type type) {
-  return type.kind == W_SEED_FRONTEND_TYPE_INTEGER ||
+  return (type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+          type.bit_width != 128u) ||
          type.kind == W_SEED_FRONTEND_TYPE_BOOL ||
          type.kind == W_SEED_FRONTEND_TYPE_STRING;
 }
@@ -15380,7 +15442,8 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
       }
     }
     frontend_simple_type type = literal_simple_type(
-        parser->document, token.span, token.kind);
+        parser->document, token.span, token.kind,
+        parser->allow_i128_min_magnitude_literal);
     /* A calculated generic scalar has an explicit domain.  Apply that
      * context to unsuffixed integer leaves before appending the record so a
      * closed `(6 * 7)` tree carries i64 (or the declared width) throughout. */
@@ -17494,18 +17557,42 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
       token_text(parser->document, &token, "-") ||
       token_text(parser->document, &token, "~")) {
     (void)cursor_take(&parser->cursor, &token);
+    const bool unary_minus = token_text(parser->document, &token, "-");
+    bool allow_i128_min_magnitude = false;
+    if (unary_minus) {
+      frontend_token next;
+      if (cursor_peek(&parser->cursor, &next) &&
+          next.kind == W_SEED_CST_NUMBER) {
+        allow_i128_min_magnitude = integer_literal_is_signed_i128_minimum(
+            text_from_span(parser->document, next.span));
+      }
+    }
+    const bool saved_allow_i128_min_magnitude =
+        parser->allow_i128_min_magnitude_literal;
+    parser->allow_i128_min_magnitude_literal = allow_i128_min_magnitude;
     frontend_expr_value nested;
-    if (!expression_parse_prefix(parser, &nested)) return false;
+    const bool parsed_nested = expression_parse_prefix(parser, &nested);
+    parser->allow_i128_min_magnitude_literal =
+        saved_allow_i128_min_magnitude;
+    if (!parsed_nested) return false;
     const w_seed_span span = {token.span.start_byte, nested.span.end_byte};
     const bool logical = token_text(parser->document, &token, "!");
     const bool bitwise = token_text(parser->document, &token, "~");
+    const bool signed_integer_supported =
+        nested.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+        nested.type.is_signed &&
+        (nested.type.bit_width == 0u ||
+         integer_width_supported(nested.type.bit_width) ||
+         (nested.type.bit_width == 128u && nested.is_integer_literal));
+    const bool bitwise_integer_supported =
+        nested.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+        (nested.type.bit_width == 0u ||
+         integer_width_supported(nested.type.bit_width));
     const bool signed_numeric =
         nested.type.kind == W_SEED_FRONTEND_TYPE_FLOAT ||
-        (nested.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
-         nested.type.is_signed);
+        signed_integer_supported;
     const bool valid = logical ? type_is_bool(nested.type)
-                               : (bitwise ? nested.type.kind ==
-                                                 W_SEED_FRONTEND_TYPE_INTEGER
+                               : (bitwise ? bitwise_integer_supported
                                            : signed_numeric);
     if (!valid) {
       (void)context_append_fact(parser->context,
@@ -17827,7 +17914,16 @@ static bool expression_append_binary(frontend_expression_parser *parser,
       text_equal(operator_text, "==") || text_equal(operator_text, "!=") ||
       text_equal(operator_text, "<") || text_equal(operator_text, "<=") ||
       text_equal(operator_text, ">") || text_equal(operator_text, ">=");
-  if ((left_float || right_float) &&
+  const bool unimplemented_wide_integer_operand =
+      (left->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+       left->type.bit_width == 128u) ||
+      (right->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+       right->type.bit_width == 128u);
+  if (unimplemented_wide_integer_operand) {
+    /* Type and literal identity is known, but no i128/u128 operation or
+     * conversion is admitted by this frontend-only package. */
+    supported = false;
+  } else if ((left_float || right_float) &&
       (!arithmetic_or_comparison || !float_operator ||
        !type_is_numeric(left->type) || !type_is_numeric(right->type))) {
     /* Remainder and bitwise operators are not IEEE arithmetic. */
@@ -18076,10 +18172,16 @@ static bool expression_parse_bp_inner(frontend_expression_parser *parser,
           return false;
         right = operation_value;
       }
+      const bool unimplemented_wide_integer_assignment =
+          (left.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+           left.type.bit_width == 128u) ||
+          (right.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+           right.type.bit_width == 128u);
       bool supported =
           left.kind == W_SEED_FRONTEND_EXPR_IDENTIFIER && left.supported &&
           right.supported &&
-          mutable_binding_for_name(parser->context, left.name, left.span);
+          mutable_binding_for_name(parser->context, left.name, left.span) &&
+          !unimplemented_wide_integer_assignment;
       if (supported && expression_value_is_unsuffixed_integer(&right) &&
           left.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
           left.type.bit_width != 0u &&
@@ -18461,7 +18563,7 @@ static frontend_simple_type infer_shift_operand_span(
   }
   if (token->kind == W_SEED_CST_NUMBER ||
       token->kind == W_SEED_CST_LITERAL_EVENT)
-    return literal_simple_type(doc, token->span, token->kind);
+    return literal_simple_type(doc, token->span, token->kind, false);
   return simple_type_unknown();
 }
 
@@ -19070,7 +19172,7 @@ static frontend_simple_type infer_expression_span_inner(
   }
   if (first.kind == W_SEED_CST_NUMBER ||
       first.kind == W_SEED_CST_LITERAL_EVENT) {
-    return literal_simple_type(doc, first.span, first.kind);
+    return literal_simple_type(doc, first.span, first.kind, false);
   }
   if (text_equal(first_text, "!")) {
     return simple_type_from_view((w_seed_frontend_text){"Bool", 4});
